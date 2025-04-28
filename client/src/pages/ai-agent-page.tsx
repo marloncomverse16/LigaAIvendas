@@ -406,8 +406,8 @@ export default function AiAgentPage() {
   }
   
   return (
-    <div className="flex flex-col items-center justify-center h-full p-6">
-      <div className="w-full max-w-7xl">
+    <div className="container py-6 min-h-screen overflow-auto">
+      <div className="flex flex-col items-center justify-start w-full max-w-7xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold flex items-center justify-center gap-2 mb-2">
             <MessageSquare className="h-8 w-8 text-primary" /> Agente de IA
@@ -417,7 +417,7 @@ export default function AiAgentPage() {
           </p>
         </div>
       
-        <Card className="shadow-lg border-t-4 border-t-primary">
+        <Card className="shadow-lg border-t-4 border-t-primary w-full mb-10">
           <CardContent className="p-0">
             <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="w-full rounded-none border-b justify-center p-0">
