@@ -689,30 +689,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       try {
-        // Informações do servidor e usuário para enviar ao webhook
-        const serverInfo = {
-          serverUrl: `${req.protocol}://${req.get('host')}`,
-          serverIp: req.ip || "Não disponível",
-          serverTime: new Date().toISOString(),
-          nodeVersion: process.version,
-          os: process.platform
-        };
-        
-        // Informações do usuário (removendo dados sensíveis)
-        const { password, ...safeUserInfo } = user;
-        
-        // Parâmetros para o webhook n8n (GET em vez de POST)
-        const webhookParams = new URLSearchParams({
+        // Chamada para webhook do n8n para solicitar QR Code
+        const response = await axios.post(webhookUrl, {
           action: "requestQrCode",
-          userId: id.toString(),
-          username: user.username || "",
-          serverInfo: JSON.stringify(serverInfo),
-          userInfo: JSON.stringify(safeUserInfo),
+          userId: id,
+          username: user.username,
           callbackUrl: `${req.protocol}://${req.get('host')}/api/connection/callback`
         });
-        
-        // Chamada para webhook do n8n para solicitar QR Code (usando GET)
-        const response = await axios.get(`${webhookUrl}?${webhookParams.toString()}`);
         
         if (response.data && response.data.qrCode) {
           // Atualiza status com o QR code recebido
