@@ -619,7 +619,9 @@ export class MemStorage implements IStorage {
       let mostRecentInteractionDate = new Date(0);
       
       for (const interaction of interactions) {
-        const interactionDate = new Date(interaction.timestamp);
+        const interactionDate = interaction.timestamp instanceof Date ? 
+          interaction.timestamp : 
+          new Date(interaction.timestamp || 0);
         
         // Atualizar a data da interação mais recente
         if (interactionDate > mostRecentInteractionDate) {
@@ -819,7 +821,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(leadRecommendations.userId, userId));
     
     if (status) {
-      query = query.where(eq(leadRecommendations.status, status));
+      return db
+        .select()
+        .from(leadRecommendations)
+        .where(and(
+          eq(leadRecommendations.userId, userId),
+          eq(leadRecommendations.status, status)
+        ))
+        .orderBy(desc(leadRecommendations.score));
     }
     
     return query.orderBy(desc(leadRecommendations.score));
@@ -887,7 +896,9 @@ export class DatabaseStorage implements IStorage {
       let mostRecentInteractionDate = new Date(0);
       
       for (const interaction of interactions) {
-        const interactionDate = new Date(interaction.timestamp);
+        const interactionDate = interaction.timestamp instanceof Date ? 
+          interaction.timestamp : 
+          new Date(interaction.timestamp || 0);
         
         // Atualizar a data da interação mais recente
         if (interactionDate > mostRecentInteractionDate) {

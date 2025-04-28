@@ -528,6 +528,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Lead Interactions
+  app.get("/api/leads/:leadId/interactions", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { leadId } = req.params;
+      
+      // Verify user owns this lead
+      const lead = await storage.getLead(Number(leadId));
+      if (!lead || lead.userId !== id) {
+        return res.status(404).json({ message: "Lead não encontrado" });
+      }
+      
+      const interactions = await storage.getLeadInteractions(Number(leadId));
+      res.json(interactions);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar interações do lead" });
+    }
+  });
+  
+  app.post("/api/leads/:leadId/interactions", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { leadId } = req.params;
+      const interactionData = insertLeadInteractionSchema.parse(req.body);
+      
+      // Verify user owns this lead
+      const lead = await storage.getLead(Number(leadId));
+      if (!lead || lead.userId !== id) {
+        return res.status(404).json({ message: "Lead não encontrado" });
+      }
+      
+      const newInteraction = await storage.createLeadInteraction({
+        ...interactionData,
+        leadId: Number(leadId),
+        userId: id
+      });
+      
+      res.status(201).json(newInteraction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao registrar interação com lead" });
+    }
+  });
+  
+  // Lead Recommendations
+  app.get("/api/lead-recommendations", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { status } = req.query;
+      
+      const recommendations = await storage.getLeadRecommendations(id, status as string);
+      res.json(recommendations);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar recomendações de leads" });
+    }
+  });
+  
+  app.post("/api/lead-recommendations/generate", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      
+      // Gerar novas recomendações
+      const recommendations = await storage.generateLeadRecommendations(id);
+      res.json(recommendations);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao gerar recomendações de leads" });
+    }
+  });
+  
+  app.put("/api/lead-recommendations/:recommendationId/status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { recommendationId } = req.params;
+      const { status } = req.body;
+      
+      if (!status || typeof status !== 'string') {
+        return res.status(400).json({ message: "Status inválido" });
+      }
+      
+      // Atualizar status da recomendação
+      const updatedRecommendation = await storage.updateLeadRecommendationStatus(Number(recommendationId), status);
+      
+      if (!updatedRecommendation) {
+        return res.status(404).json({ message: "Recomendação não encontrada" });
+      }
+      
+      res.json(updatedRecommendation);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar status da recomendação" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
