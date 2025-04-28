@@ -682,7 +682,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Usar a URL configurada pelo usuário
-      const webhookUrl = user.whatsapp_webhook_url;
+      const webhookUrl = user.whatsappWebhookUrl;
       
       if (!webhookUrl) {
         return res.status(400).json({ message: "URL de webhook do WhatsApp não configurada para este usuário" });
