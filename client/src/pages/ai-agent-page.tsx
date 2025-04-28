@@ -271,13 +271,15 @@ export default function AiAgentPage() {
       setCurrentFaq(faq);
       setFaqData({
         question: faq.question,
-        answer: faq.answer
+        answer: faq.answer,
+        mediaUrl: faq.mediaUrl || ""
       });
     } else {
       setCurrentFaq(null);
       setFaqData({
         question: "",
-        answer: ""
+        answer: "",
+        mediaUrl: ""
       });
     }
     setFaqFormOpen(true);
@@ -451,8 +453,72 @@ export default function AiAgentPage() {
                           value={agentData.rules || ""}
                           onChange={handleAgentInputChange}
                         />
+                        
+                        <div className="flex items-center gap-2 mt-2">
+                          <input
+                            type="file"
+                            id="rules-media"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleUploadMedia(file, "rules");
+                              }
+                            }}
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => document.getElementById("rules-media")?.click()}
+                            disabled={isUploading && uploadType === "rules"}
+                          >
+                            {isUploading && uploadType === "rules" ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Importando...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4" />
+                                Importar Mídia
+                              </>
+                            )}
+                          </Button>
+                          {agentData.mediaUrl && (
+                            <span className="text-sm text-muted-foreground">
+                              Mídia importada
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  {/* CRM Auto Movement Settings */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium">Movimentação Automática de CRM</h3>
+                        <p className="text-sm text-muted-foreground">Permite que o agente mova os contatos automaticamente entre os fluxos do CRM</p>
+                      </div>
+                      <Switch
+                        id="autoMoveCrm-status"
+                        checked={agentData.autoMoveCrm || false}
+                        onCheckedChange={(checked) => handleSwitchChange("autoMoveCrm", checked)}
+                      />
+                    </div>
+                    
+                    {agentData.autoMoveCrm && (
+                      <div className="flex items-center gap-2 mt-4 p-4 bg-muted rounded-md">
+                        <ArrowRightLeft className="h-5 w-5 text-primary" />
+                        <p className="text-sm">
+                          O agente poderá mover contatos entre: <span className="font-medium">Lead → Prospect → Cliente</span> com base nas respostas recebidas.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   
                   <Separator />
@@ -698,6 +764,46 @@ export default function AiAgentPage() {
                       onChange={handleStepInputChange}
                     />
                   </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Mídia</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id="step-media"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleUploadMedia(file, "step");
+                          }
+                        }}
+                      />
+                      <Button 
+                        variant="outline" 
+                        className="gap-2"
+                        onClick={() => document.getElementById("step-media")?.click()}
+                        disabled={isUploading && uploadType === "step"}
+                      >
+                        {isUploading && uploadType === "step" ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Importando...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4" />
+                            Importar Mídia
+                          </>
+                        )}
+                      </Button>
+                      {stepData.mediaUrl && (
+                        <span className="text-sm text-muted-foreground">
+                          Mídia importada
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setStepFormOpen(false)}>
@@ -808,6 +914,46 @@ export default function AiAgentPage() {
                       value={faqData.answer}
                       onChange={handleFaqInputChange}
                     />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Mídia</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id="faq-media"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleUploadMedia(file, "faq");
+                          }
+                        }}
+                      />
+                      <Button 
+                        variant="outline" 
+                        className="gap-2"
+                        onClick={() => document.getElementById("faq-media")?.click()}
+                        disabled={isUploading && uploadType === "faq"}
+                      >
+                        {isUploading && uploadType === "faq" ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Importando...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4" />
+                            Importar Mídia
+                          </>
+                        )}
+                      </Button>
+                      {faqData.mediaUrl && (
+                        <span className="text-sm text-muted-foreground">
+                          Mídia importada
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
