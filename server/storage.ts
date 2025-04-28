@@ -252,6 +252,7 @@ export class MemStorage implements IStorage {
       ...dispatch, 
       id, 
       createdAt: now,
+      status: dispatch.status || null,
       sentAt: dispatch.status === 'enviado' ? now : null
     };
     this.dispatches.set(id, newDispatch);
