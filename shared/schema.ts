@@ -294,6 +294,10 @@ export const insertProspectingSearchSchema = createInsertSchema(prospectingSearc
   city: true,
   filters: true,
   webhookUrl: true,
+  status: true,
+  leadsFound: true,
+  dispatchesDone: true,
+  dispatchesPending: true
 });
 
 // Schema para inserção de resultados de prospecção
