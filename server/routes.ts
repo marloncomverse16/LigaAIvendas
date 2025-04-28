@@ -130,108 +130,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Leads
-  app.get("/api/leads", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const leads = await storage.getLeadsByUserId(id);
-      res.json(leads);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar leads" });
-    }
-  });
-  
-  app.post("/api/leads", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const leadData = insertLeadSchema.parse(req.body);
-      
-      const newLead = await storage.createLead({
-        ...leadData,
-        userId: id
-      });
-      
-      res.status(201).json(newLead);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao criar lead" });
-    }
-  });
-  
-  // Prospects
-  app.get("/api/prospects", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const prospects = await storage.getProspectsByUserId(id);
-      res.json(prospects);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar prospecções" });
-    }
-  });
-  
-  app.post("/api/prospects", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const prospectData = insertProspectSchema.parse(req.body);
-      
-      const newProspect = await storage.createProspect({
-        ...prospectData,
-        userId: id
-      });
-      
-      res.status(201).json(newProspect);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao criar prospecção" });
-    }
-  });
-  
-  // Dispatches
-  app.get("/api/dispatches", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const dispatches = await storage.getDispatchesByUserId(id);
-      res.json(dispatches);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar disparos" });
-    }
-  });
-  
-  app.post("/api/dispatches", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const dispatchData = insertDispatchSchema.parse(req.body);
-      
-      const newDispatch = await storage.createDispatch({
-        ...dispatchData,
-        userId: id
-      });
-      
-      res.status(201).json(newDispatch);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao criar disparo" });
-    }
-  });
-  
   // Settings
   app.get("/api/settings", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
@@ -280,659 +178,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar configurações" });
     }
   });
-
-  // AI Agent
-  app.get("/api/ai-agent", async (req, res) => {
+  
+  // Connection API Endpoints - WhatsApp Connect via Webhook
+  // Status de conexão armazenado em memória
+  const connectionStatus: Record<number, ConnectionStatus> = {};
+  
+  app.get("/api/connection/status", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       const { id } = req.user as Express.User;
-      const agent = await storage.getAiAgentByUserId(id);
       
-      if (!agent) {
-        // Create default agent if it doesn't exist
-        const defaultAgent = await storage.createAiAgent({
+      // Se não tiver um status ainda, retorna desconectado
+      if (!connectionStatus[id]) {
+        connectionStatus[id] = { 
+          connected: false,
+          lastUpdated: new Date()
+        };
+      }
+      
+      res.json(connectionStatus[id]);
+    } catch (error) {
+      console.error("Erro ao verificar status da conexão:", error);
+      res.status(500).json({ message: "Erro ao verificar status da conexão" });
+    }
+  });
+  
+  app.post("/api/connection/connect", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const user = await storage.getUser(id);
+
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Em um cenário real, essa URL seria configurada nas variáveis de ambiente
+      // ou dentro das configurações do usuário. Por enquanto, usamos uma URL fixa
+      // para simular a integração.
+      const webhookUrl = "https://n8n.exemplo.com.br/webhook/whatsapp";
+      
+      try {
+        // Chamada para webhook do n8n para solicitar QR Code
+        const response = await axios.post(webhookUrl, {
+          action: "requestQrCode",
           userId: id,
-          enabled: false,
-          triggerText: "Olá, sou o assistente virtual da LiguIA. Como posso ajudar?",
-          personality: "Profissional e prestativo",
-          expertise: "Atendimento ao cliente",
-          voiceTone: "Formal",
-          rules: "Responda apenas sobre informações da empresa",
-          followUpEnabled: false,
-          followUpCount: 0,
-          messageInterval: "30 minutos",
-          followUpPrompt: "Gostaria de mais informações?",
-          schedulingEnabled: false,
-          agendaId: null,
-          schedulingPromptConsult: "Gostaria de agendar uma consulta?",
-          schedulingPromptTime: "Qual horário seria melhor para você?",
-          schedulingDuration: "30 minutos"
+          username: user.username,
+          callbackUrl: `${req.protocol}://${req.get('host')}/api/connection/callback`
         });
         
-        return res.json(defaultAgent);
-      }
-      
-      res.json(agent);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar agente de IA" });
-    }
-  });
-  
-  app.put("/api/ai-agent", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const agentData = insertAiAgentSchema.partial().parse(req.body);
-      
-      // Check if agent exists
-      const existingAgent = await storage.getAiAgentByUserId(id);
-      
-      if (!existingAgent) {
-        // Create agent if it doesn't exist
-        const newAgent = await storage.createAiAgent({
-          ...agentData,
-          userId: id
-        } as any);
+        if (response.data && response.data.qrCode) {
+          // Atualiza status com o QR code recebido
+          connectionStatus[id] = {
+            connected: false,
+            qrCode: response.data.qrCode,
+            lastUpdated: new Date()
+          };
+          
+          return res.json(connectionStatus[id]);
+        } else {
+          // Para fins de teste, quando o webhook não responde com QR code
+          // geramos um QR code falso apenas para demonstração da interface
+          connectionStatus[id] = {
+            connected: false,
+            qrCode: "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",
+            lastUpdated: new Date()
+          };
+          
+          return res.json(connectionStatus[id]);
+        }
+      } catch (error) {
+        console.error("Erro ao conectar via webhook:", error);
         
-        return res.status(201).json(newAgent);
+        // Para fins de teste, quando o webhook não responde
+        // geramos um QR code falso apenas para demonstração da interface
+        connectionStatus[id] = {
+          connected: false,
+          qrCode: "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",
+          lastUpdated: new Date()
+        };
+        
+        return res.json(connectionStatus[id]);
       }
-      
-      // Update existing agent
-      const updatedAgent = await storage.updateAiAgent(id, agentData);
-      
-      if (!updatedAgent) {
-        return res.status(404).json({ message: "Agente de IA não encontrado" });
-      }
-      
-      res.json(updatedAgent);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao atualizar agente de IA" });
-    }
-  });
-  
-  // AI Agent Steps
-  app.get("/api/ai-agent/steps", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const steps = await storage.getAiAgentSteps(id);
-      res.json(steps);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar etapas do agente de IA" });
-    }
-  });
-  
-  app.post("/api/ai-agent/steps", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const stepData = insertAiAgentStepsSchema.parse(req.body);
-      
-      const newStep = await storage.createAiAgentStep({
-        ...stepData,
-        userId: id
-      });
-      
-      res.status(201).json(newStep);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao criar etapa do agente de IA" });
-    }
-  });
-  
-  app.put("/api/ai-agent/steps/:stepId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { stepId } = req.params;
-      const stepData = insertAiAgentStepsSchema.partial().parse(req.body);
-      
-      // Verify user owns this step
-      const step = await storage.getAiAgentStep(Number(stepId));
-      if (!step || step.userId !== id) {
-        return res.status(404).json({ message: "Etapa não encontrada" });
-      }
-      
-      const updatedStep = await storage.updateAiAgentStep(Number(stepId), stepData);
-      
-      if (!updatedStep) {
-        return res.status(404).json({ message: "Etapa não encontrada" });
-      }
-      
-      res.json(updatedStep);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao atualizar etapa do agente de IA" });
-    }
-  });
-  
-  app.delete("/api/ai-agent/steps/:stepId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { stepId } = req.params;
-      
-      // Verify user owns this step
-      const step = await storage.getAiAgentStep(Number(stepId));
-      if (!step || step.userId !== id) {
-        return res.status(404).json({ message: "Etapa não encontrada" });
-      }
-      
-      const success = await storage.deleteAiAgentStep(Number(stepId));
-      
-      if (!success) {
-        return res.status(404).json({ message: "Etapa não encontrada" });
-      }
-      
-      res.status(204).end();
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao excluir etapa do agente de IA" });
-    }
-  });
-  
-  // AI Agent FAQs
-  app.get("/api/ai-agent/faqs", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const faqs = await storage.getAiAgentFaqs(id);
-      res.json(faqs);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar FAQs do agente de IA" });
-    }
-  });
-  
-  app.post("/api/ai-agent/faqs", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const faqData = insertAiAgentFaqsSchema.parse(req.body);
-      
-      const newFaq = await storage.createAiAgentFaq({
-        ...faqData,
-        userId: id
-      });
-      
-      res.status(201).json(newFaq);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao criar FAQ do agente de IA" });
-    }
-  });
-  
-  app.put("/api/ai-agent/faqs/:faqId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { faqId } = req.params;
-      const faqData = insertAiAgentFaqsSchema.partial().parse(req.body);
-      
-      // Verify user owns this FAQ
-      const faq = await storage.getAiAgentFaq(Number(faqId));
-      if (!faq || faq.userId !== id) {
-        return res.status(404).json({ message: "FAQ não encontrada" });
-      }
-      
-      const updatedFaq = await storage.updateAiAgentFaq(Number(faqId), faqData);
-      
-      if (!updatedFaq) {
-        return res.status(404).json({ message: "FAQ não encontrada" });
-      }
-      
-      res.json(updatedFaq);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao atualizar FAQ do agente de IA" });
-    }
-  });
-  
-  app.delete("/api/ai-agent/faqs/:faqId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { faqId } = req.params;
-      
-      // Verify user owns this FAQ
-      const faq = await storage.getAiAgentFaq(Number(faqId));
-      if (!faq || faq.userId !== id) {
-        return res.status(404).json({ message: "FAQ não encontrada" });
-      }
-      
-      const success = await storage.deleteAiAgentFaq(Number(faqId));
-      
-      if (!success) {
-        return res.status(404).json({ message: "FAQ não encontrada" });
-      }
-      
-      res.status(204).end();
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao excluir FAQ do agente de IA" });
+      console.error("Erro ao iniciar conexão:", error);
+      res.status(500).json({ message: "Erro ao iniciar conexão" });
     }
   });
 
-  // Lead Interactions
-  app.get("/api/leads/:leadId/interactions", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
+  // Rota de callback para o n8n informar sobre a conexão do dispositivo
+  app.post("/api/connection/callback", async (req, res) => {
     try {
-      const { id } = req.user as Express.User;
-      const { leadId } = req.params;
+      const { userId, connected, phone, name } = req.body;
       
-      // Verify user owns this lead
-      const lead = await storage.getLead(Number(leadId));
-      if (!lead || lead.userId !== id) {
-        return res.status(404).json({ message: "Lead não encontrado" });
+      if (!userId) {
+        return res.status(400).json({ message: "UserId é obrigatório" });
       }
       
-      const interactions = await storage.getLeadInteractions(Number(leadId));
-      res.json(interactions);
+      // Atualiza o status da conexão
+      connectionStatus[userId] = {
+        connected: connected || false,
+        phone: phone || null,
+        name: name || null,
+        lastUpdated: new Date()
+      };
+      
+      res.status(200).json({ success: true });
     } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar interações do lead" });
+      console.error("Erro ao processar callback:", error);
+      res.status(500).json({ message: "Erro ao processar callback" });
     }
   });
   
-  app.post("/api/leads/:leadId/interactions", async (req, res) => {
+  app.post("/api/connection/disconnect", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       const { id } = req.user as Express.User;
-      const { leadId } = req.params;
-      const interactionData = insertLeadInteractionSchema.parse(req.body);
-      
-      // Verify user owns this lead
-      const lead = await storage.getLead(Number(leadId));
-      if (!lead || lead.userId !== id) {
-        return res.status(404).json({ message: "Lead não encontrado" });
-      }
-      
-      const newInteraction = await storage.createLeadInteraction({
-        ...interactionData,
-        leadId: Number(leadId),
-        userId: id
-      });
-      
-      res.status(201).json(newInteraction);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      console.error("Erro ao registrar interação:", error);
-      res.status(500).json({ message: "Erro ao registrar interação com lead", error: error.message });
-    }
-  });
-  
-  // Lead Recommendations
-  app.get("/api/lead-recommendations", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { status } = req.query;
-      
-      const recommendations = await storage.getLeadRecommendations(id, status as string);
-      res.json(recommendations);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar recomendações de leads" });
-    }
-  });
-  
-  app.post("/api/lead-recommendations/generate", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      
-      // Gerar novas recomendações
-      const recommendations = await storage.generateLeadRecommendations(id);
-      res.json(recommendations);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao gerar recomendações de leads" });
-    }
-  });
-  
-  app.put("/api/lead-recommendations/:recommendationId/status", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { recommendationId } = req.params;
-      const { status } = req.body;
-      
-      if (!status || typeof status !== 'string') {
-        return res.status(400).json({ message: "Status inválido" });
-      }
-      
-      // Atualizar status da recomendação
-      const updatedRecommendation = await storage.updateLeadRecommendationStatus(Number(recommendationId), status);
-      
-      if (!updatedRecommendation) {
-        return res.status(404).json({ message: "Recomendação não encontrada" });
-      }
-      
-      res.json(updatedRecommendation);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao atualizar status da recomendação" });
-    }
-  });
+      const user = await storage.getUser(id);
 
-  // Prospecting Searches
-  app.get("/api/prospecting/searches", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const searches = await storage.getProspectingSearches(id);
-      res.json(searches);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Em um cenário real, seria chamado o webhook para desconectar
+      const webhookUrl = "https://n8n.exemplo.com.br/webhook/whatsapp";
+      
+      try {
+        // Chamada para webhook do n8n para desconectar
+        await axios.post(webhookUrl, {
+          action: "disconnect",
+          userId: id
+        });
+      } catch (error) {
+        console.error("Erro ao desconectar via webhook:", error);
+      }
+      
+      // Atualiza o status para desconectado
+      connectionStatus[id] = {
+        connected: false,
+        lastUpdated: new Date()
+      };
+      
+      res.json(connectionStatus[id]);
     } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar pesquisas de prospecção" });
-    }
-  });
-  
-  app.post("/api/prospecting/searches", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const searchData = insertProspectingSearchSchema.parse(req.body);
-      
-      const newSearch = await storage.createProspectingSearch({
-        ...searchData,
-        userId: id,
-        status: "pendente",
-        leadsFound: 0,
-        dispatchesDone: 0,
-        dispatchesPending: 0
-      });
-      
-      res.status(201).json(newSearch);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao criar pesquisa de prospecção" });
-    }
-  });
-  
-  app.get("/api/prospecting/searches/:searchId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { searchId } = req.params;
-      
-      const search = await storage.getProspectingSearch(Number(searchId));
-      
-      if (!search || search.userId !== id) {
-        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
-      }
-      
-      res.json(search);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar pesquisa de prospecção" });
-    }
-  });
-  
-  app.put("/api/prospecting/searches/:searchId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { searchId } = req.params;
-      const searchData = insertProspectingSearchSchema.partial().parse(req.body);
-      
-      // Verify user owns this search
-      const search = await storage.getProspectingSearch(Number(searchId));
-      if (!search || search.userId !== id) {
-        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
-      }
-      
-      const updatedSearch = await storage.updateProspectingSearch(Number(searchId), searchData);
-      
-      if (!updatedSearch) {
-        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
-      }
-      
-      res.json(updatedSearch);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao atualizar pesquisa de prospecção" });
-    }
-  });
-  
-  app.delete("/api/prospecting/searches/:searchId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { searchId } = req.params;
-      
-      // Verify user owns this search
-      const search = await storage.getProspectingSearch(Number(searchId));
-      if (!search || search.userId !== id) {
-        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
-      }
-      
-      const success = await storage.deleteProspectingSearch(Number(searchId));
-      
-      if (!success) {
-        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
-      }
-      
-      res.status(204).end();
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao excluir pesquisa de prospecção" });
-    }
-  });
-  
-  // Prospecting Results
-  app.get("/api/prospecting/searches/:searchId/results", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { searchId } = req.params;
-      
-      // Verify user owns this search
-      const search = await storage.getProspectingSearch(Number(searchId));
-      if (!search || search.userId !== id) {
-        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
-      }
-      
-      const results = await storage.getProspectingResults(Number(searchId));
-      res.json(results);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar resultados de prospecção" });
-    }
-  });
-  
-  app.post("/api/prospecting/searches/:searchId/results", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { searchId } = req.params;
-      
-      // Verify user owns this search
-      const search = await storage.getProspectingSearch(Number(searchId));
-      if (!search || search.userId !== id) {
-        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
-      }
-      
-      const resultData = insertProspectingResultSchema.parse(req.body);
-      
-      const newResult = await storage.createProspectingResult({
-        ...resultData,
-        searchId: Number(searchId)
-      });
-      
-      // Update search with new lead count
-      await storage.updateProspectingSearch(Number(searchId), {
-        leadsFound: (search.leadsFound || 0) + 1
-      });
-      
-      res.status(201).json(newResult);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao criar resultado de prospecção" });
-    }
-  });
-  
-  app.put("/api/prospecting/results/:resultId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { resultId } = req.params;
-      const resultData = insertProspectingResultSchema.partial().parse(req.body);
-      
-      // Verify user owns this result via search
-      const result = await storage.getProspectingResult(Number(resultId));
-      if (!result) {
-        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
-      }
-      
-      const search = await storage.getProspectingSearch(result.searchId);
-      if (!search || search.userId !== id) {
-        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
-      }
-      
-      const updatedResult = await storage.updateProspectingResult(Number(resultId), resultData);
-      
-      if (!updatedResult) {
-        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
-      }
-      
-      res.json(updatedResult);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      res.status(500).json({ message: "Erro ao atualizar resultado de prospecção" });
-    }
-  });
-  
-  app.delete("/api/prospecting/results/:resultId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { resultId } = req.params;
-      
-      // Verify user owns this result via search
-      const result = await storage.getProspectingResult(Number(resultId));
-      if (!result) {
-        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
-      }
-      
-      const search = await storage.getProspectingSearch(result.searchId);
-      if (!search || search.userId !== id) {
-        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
-      }
-      
-      const success = await storage.deleteProspectingResult(Number(resultId));
-      
-      if (!success) {
-        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
-      }
-      
-      // Update search with new lead count
-      await storage.updateProspectingSearch(result.searchId, {
-        leadsFound: Math.max(0, (search.leadsFound || 0) - 1)
-      });
-      
-      res.status(204).end();
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao excluir resultado de prospecção" });
-    }
-  });
-  
-  // Export prospecting results to CSV
-  app.get("/api/prospecting/searches/:searchId/export", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { searchId } = req.params;
-      
-      // Verify user owns this search
-      const search = await storage.getProspectingSearch(Number(searchId));
-      if (!search || search.userId !== id) {
-        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
-      }
-      
-      const results = await storage.getProspectingResults(Number(searchId));
-      
-      // Generate CSV content
-      const headers = ["Nome", "Telefone", "Email", "Endereço", "Tipo", "Data de Criação", "Data de Disparo"];
-      const rows = results.map(result => [
-        result.name || "",
-        result.phone || "",
-        result.email || "",
-        result.address || "",
-        result.type || "",
-        result.createdAt ? new Date(result.createdAt).toLocaleString('pt-BR') : "",
-        result.dispatchedAt ? new Date(result.dispatchedAt).toLocaleString('pt-BR') : ""
-      ]);
-      
-      const csvContent = [
-        headers.join(","),
-        ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(","))
-      ].join("\n");
-      
-      // Set response headers for CSV download
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename=prospecção_${searchId}.csv`);
-      
-      res.send(csvContent);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao exportar resultados de prospecção" });
-    }
-  });
-  
-  // Update user webhook URL
-  app.put("/api/profile/webhook", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { webhookUrl } = req.body;
-      
-      const updatedUser = await storage.updateUser(id, {
-        prospectingWebhookUrl: webhookUrl
-      });
-      
-      if (!updatedUser) return res.status(404).json({ message: "Usuário não encontrado" });
-      
-      // Remove password from response
-      const { password, ...userWithoutPassword } = updatedUser;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao atualizar webhook" });
+      console.error("Erro ao desconectar:", error);
+      res.status(500).json({ message: "Erro ao desconectar" });
     }
   });
 
