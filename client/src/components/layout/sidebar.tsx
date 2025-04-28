@@ -38,7 +38,7 @@ export function Sidebar() {
     { path: "/ai-agent", label: "Agente de IA", icon: <Bot size={collapsed ? 24 : 20} /> },
     { path: "/crm", label: "CRM", icon: <Users size={collapsed ? 24 : 20} /> },
     { path: "/appointments", label: "Agendamentos", icon: <Calendar size={collapsed ? 24 : 20} /> },
-    { path: "/prospect", label: "Prospectar", icon: <UserSearch size={collapsed ? 24 : 20} /> },
+    { path: "/prospecting", label: "Prospecção", icon: <UserSearch size={collapsed ? 24 : 20} /> },
     { path: "/contacts", label: "Contatos", icon: <PhoneCall size={collapsed ? 24 : 20} /> },
     { path: "/connections", label: "Conexão", icon: <MessageSquare size={collapsed ? 24 : 20} /> },
     { path: "/settings", label: "Configurações", icon: <Settings size={collapsed ? 24 : 20} /> },

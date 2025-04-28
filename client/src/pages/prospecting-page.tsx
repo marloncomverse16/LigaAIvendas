@@ -120,7 +120,7 @@ export default function ProspectingPage() {
   // Mutação para criar nova busca
   const createSearchMutation = useMutation({
     mutationFn: async (data: z.infer<typeof prospectingSearchSchema>) => {
-      const res = await apiRequest("POST", "/api/prospecting-searches", data);
+      const res = await apiRequest("POST", "/api/prospecting/searches", data);
       if (!res.ok) throw new Error("Falha ao criar busca");
       return await res.json();
     },
@@ -130,7 +130,7 @@ export default function ProspectingPage() {
         description: "Sua busca de prospecção foi criada com sucesso",
       });
       form.reset();
-      queryClient.invalidateQueries({ queryKey: ["/api/prospecting-searches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
     },
     onError: (error) => {
       toast({
@@ -144,7 +144,7 @@ export default function ProspectingPage() {
   // Mutação para excluir busca
   const deleteSearchMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `/api/prospecting-searches/${id}`);
+      const res = await apiRequest("DELETE", `/api/prospecting/searches/${id}`);
       if (!res.ok) throw new Error("Falha ao excluir busca");
       return id;
     },
@@ -156,7 +156,7 @@ export default function ProspectingPage() {
       if (activeSearch === id) {
         setActiveSearch(null);
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/prospecting-searches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
     },
     onError: (error) => {
       toast({
