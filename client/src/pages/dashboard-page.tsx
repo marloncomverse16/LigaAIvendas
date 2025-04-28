@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { StatusCard } from "@/components/dashboard/status-card";
 import { CounterCard } from "@/components/dashboard/counter-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
+import { LeadRecommendations } from "@/components/dashboard/lead-recommendations-fixed";
 import { 
   AlertCircle, 
   MessageSquare, 
@@ -137,6 +138,9 @@ export default function DashboardPage() {
               isLoading={isLoadingMetrics}
             />
           </div>
+          
+          {/* Lead Recommendations */}
+          <LeadRecommendations />
           
           {/* Recent Activity */}
           <div className="bg-card rounded-lg shadow-sm p-4 mb-6">
