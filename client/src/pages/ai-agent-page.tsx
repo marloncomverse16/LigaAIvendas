@@ -34,6 +34,52 @@ import {
 } from "@/components/ui/dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+// Tipos para a página do agente de IA
+interface AiAgent {
+  id: number;
+  userId: number;
+  enabled: boolean;
+  triggerText: string | null;
+  personality: string | null;
+  expertise: string | null;
+  voiceTone: string | null;
+  rules: string | null;
+  mediaUrl: string | null;
+  followUpEnabled: boolean;
+  followUpCount: number | null;
+  messageInterval: string | null;
+  followUpPrompt: string | null;
+  schedulingEnabled: boolean;
+  agendaId: string | null;
+  schedulingPromptConsult: string | null;
+  schedulingPromptTime: string | null;
+  schedulingDuration: string | null;
+  autoMoveCrm: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+interface AiAgentStep {
+  id: number;
+  userId: number;
+  name: string;
+  description: string | null;
+  order: number;
+  mediaUrl: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+interface AiAgentFaq {
+  id: number;
+  userId: number;
+  question: string;
+  answer: string;
+  mediaUrl: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 export default function AiAgentPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("general");
@@ -50,30 +96,31 @@ export default function AiAgentPage() {
   
   // Fetch agent steps
   const { 
-    data: steps = [], 
+    data: steps = [] as AiAgentStep[], 
     isLoading: isLoadingSteps 
-  } = useQuery({ 
+  } = useQuery<AiAgentStep[]>({ 
     queryKey: ["/api/ai-agent/steps"],
     retry: 1
   });
   
   // Fetch agent FAQs
   const { 
-    data: faqs = [], 
+    data: faqs = [] as AiAgentFaq[], 
     isLoading: isLoadingFaqs 
-  } = useQuery({ 
+  } = useQuery<AiAgentFaq[]>({ 
     queryKey: ["/api/ai-agent/faqs"],
     retry: 1
   });
   
   // State for the agent form
-  const [agentData, setAgentData] = useState<any>({
+  const [agentData, setAgentData] = useState<Partial<AiAgent>>({
     enabled: false,
     triggerText: "",
     personality: "",
     expertise: "",
     voiceTone: "",
     rules: "",
+    mediaUrl: null,
     autoMoveCrm: false,
     followUpEnabled: false,
     followUpCount: 0,
@@ -88,8 +135,8 @@ export default function AiAgentPage() {
   
   // State for step form
   const [stepFormOpen, setStepFormOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState<any>(null);
-  const [stepData, setStepData] = useState({
+  const [currentStep, setCurrentStep] = useState<AiAgentStep | null>(null);
+  const [stepData, setStepData] = useState<Partial<AiAgentStep>>({
     name: "",
     description: "",
     order: 1,
@@ -98,8 +145,8 @@ export default function AiAgentPage() {
   
   // State for FAQ form
   const [faqFormOpen, setFaqFormOpen] = useState(false);
-  const [currentFaq, setCurrentFaq] = useState<any>(null);
-  const [faqData, setFaqData] = useState({
+  const [currentFaq, setCurrentFaq] = useState<AiAgentFaq | null>(null);
+  const [faqData, setFaqData] = useState<Partial<AiAgentFaq>>({
     question: "",
     answer: "",
     mediaUrl: ""
@@ -110,7 +157,10 @@ export default function AiAgentPage() {
   const [isUploading, setIsUploading] = useState(false);
   
   // Update local state when agent data is loaded
-  if (agent && !isLoading && Object.keys(agentData).every(key => !agentData[key] && key !== 'enabled' && key !== 'followUpEnabled' && key !== 'schedulingEnabled')) {
+  if (agent && !isLoading && Object.keys(agentData).every(key => {
+    const k = key as keyof typeof agentData;
+    return !agentData[k] && k !== 'enabled' && k !== 'followUpEnabled' && k !== 'schedulingEnabled' && k !== 'autoMoveCrm' && k !== 'mediaUrl';
+  })) {
     setAgentData(agent);
   }
   
@@ -144,7 +194,7 @@ export default function AiAgentPage() {
   };
   
   // Open step form for edit
-  const openStepForm = (step: any = null) => {
+  const openStepForm = (step: AiAgentStep | null = null) => {
     if (step) {
       setCurrentStep(step);
       setStepData({
@@ -266,7 +316,7 @@ export default function AiAgentPage() {
   };
   
   // Open FAQ form for edit
-  const openFaqForm = (faq: any = null) => {
+  const openFaqForm = (faq: AiAgentFaq | null = null) => {
     if (faq) {
       setCurrentFaq(faq);
       setFaqData({
