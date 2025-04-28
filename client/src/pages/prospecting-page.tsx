@@ -241,384 +241,461 @@ export default function ProspectingPage() {
   };
 
   return (
-    <div className="container py-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Prospecção</h1>
-          <p className="text-muted-foreground">Gerencie suas buscas e resultados de prospecção</p>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setShowWebhookDialog(true)}
-          >
-            Configurar Webhook
-          </Button>
-        </div>
-      </div>
-
-      <Tabs defaultValue="searches" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="searches">Buscas</TabsTrigger>
-          <TabsTrigger value="new" className="gap-1">
-            <FilePlus2 className="h-4 w-4" />
-            Nova Busca
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Tab de listagem de buscas */}
-        <TabsContent value="searches">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1">
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Buscas</CardTitle>
-                    <CardDescription>Selecione uma busca para ver os resultados</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <ScrollArea className="h-[500px]">
-                      {isLoadingSearches ? (
-                        <div className="flex items-center justify-center p-6">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        </div>
-                      ) : searches && searches.length > 0 ? (
-                        <div className="divide-y">
-                          {searches.map((search) => (
-                            <div 
-                              key={search.id}
-                              className={`p-4 cursor-pointer hover:bg-accent ${activeSearch === search.id ? 'bg-accent' : ''}`}
-                              onClick={() => setActiveSearch(search.id)}
-                            >
-                              <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-medium">{search.segment}</h3>
-                                {renderStatus(search.status)}
-                              </div>
-                              <div className="text-sm text-muted-foreground mb-1">
-                                {search.city && <span>{search.city} • </span>}
-                                {search.createdAt && (
-                                  <span>{format(new Date(search.createdAt), "dd MMM yyyy", { locale: ptBR })}</span>
-                                )}
-                              </div>
-                              <div className="flex gap-2 text-xs">
-                                <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-                                  {search.leadsFound} encontrados
-                                </span>
-                                {search.dispatchesDone > 0 && (
-                                  <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                                    {search.dispatchesDone} enviados
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="p-6 text-center">
-                          <p className="text-muted-foreground">Nenhuma busca encontrada</p>
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              {activeSearch && searches ? (
-                <Card>
-                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                    <div>
-                      <CardTitle>
-                        {searches.find(s => s.id === activeSearch)?.segment}
-                      </CardTitle>
-                      <CardDescription>
-                        {searches.find(s => s.id === activeSearch)?.city || "Todas as cidades"} • 
-                        Criado em {format(
-                          new Date(searches.find(s => s.id === activeSearch)?.createdAt || new Date()), 
-                          "dd 'de' MMMM 'de' yyyy", 
-                          { locale: ptBR }
-                        )}
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => exportToCSV(activeSearch)}
-                        disabled={!results || results.length === 0}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Exportar
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        onClick={() => {
-                          if (confirm("Tem certeza que deseja excluir esta busca?")) {
-                            deleteSearchMutation.mutate(activeSearch);
-                          }
-                        }}
-                        disabled={deleteSearchMutation.isPending}
-                      >
-                        {deleteSearchMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-4 grid grid-cols-3 gap-4">
-                      <div className="bg-primary/5 p-3 rounded-lg">
-                        <h4 className="text-xs font-medium text-muted-foreground mb-1">Leads Encontrados</h4>
-                        <p className="text-xl font-bold">{searches.find(s => s.id === activeSearch)?.leadsFound || 0}</p>
-                      </div>
-                      <div className="bg-primary/5 p-3 rounded-lg">
-                        <h4 className="text-xs font-medium text-muted-foreground mb-1">Já Enviados</h4>
-                        <p className="text-xl font-bold">{searches.find(s => s.id === activeSearch)?.dispatchesDone || 0}</p>
-                      </div>
-                      <div className="bg-primary/5 p-3 rounded-lg">
-                        <h4 className="text-xs font-medium text-muted-foreground mb-1">Pendentes</h4>
-                        <p className="text-xl font-bold">{searches.find(s => s.id === activeSearch)?.dispatchesPending || 0}</p>
-                      </div>
-                    </div>
-
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Nome</TableHead>
-                            <TableHead>Contato</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="w-[100px]">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {isLoadingResults ? (
-                            <TableRow>
-                              <TableCell colSpan={5} className="h-24 text-center">
-                                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                              </TableCell>
-                            </TableRow>
-                          ) : results && results.length > 0 ? (
-                            results.map((result) => (
-                              <TableRow key={result.id}>
-                                <TableCell className="font-medium">{result.name || "N/A"}</TableCell>
-                                <TableCell>
-                                  {result.email && <div className="text-sm">{result.email}</div>}
-                                  {result.phone && <div className="text-sm">{result.phone}</div>}
-                                </TableCell>
-                                <TableCell>{result.type || "N/A"}</TableCell>
-                                <TableCell>
-                                  {result.dispatchedAt ? (
-                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                                      Enviado
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                                      Pendente
-                                    </Badge>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedResult(result);
-                                      setShowResultDialog(true);
-                                    }}
-                                  >
-                                    <Search className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={5} className="h-24 text-center">
-                                Nenhum resultado encontrado para esta busca
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center p-6 h-[400px]">
-                    <Search className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-xl font-medium mb-2">Selecione uma busca</h3>
-                    <p className="text-muted-foreground text-center max-w-md">
-                      Escolha uma busca na lista ao lado para visualizar seus resultados ou crie uma nova busca de prospecção.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+    <div className="flex flex-col items-center justify-center h-full p-6">
+      <div className="w-full max-w-7xl">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold flex items-center justify-center gap-2 mb-2">
+            <Search className="h-8 w-8 text-primary" /> Prospecção
+          </h1>
+          <p className="text-muted-foreground">
+            Encontre e gerencie leads para sua empresa com base em segmentos e localidades
+          </p>
+          <div className="mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowWebhookDialog(true)}
+              className="gap-2"
+            >
+              <Send className="h-4 w-4" />
+              Configurar Webhook de Integração
+            </Button>
           </div>
-        </TabsContent>
+        </div>
 
-        {/* Tab de nova busca */}
-        <TabsContent value="new">
-          <Card>
-            <CardHeader>
-              <CardTitle>Nova Busca de Prospecção</CardTitle>
-              <CardDescription>
-                Configure os parâmetros para iniciar uma nova busca de leads
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="segment"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Segmento*</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: Restaurantes, Contabilidade, E-commerce" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Defina o segmento principal para a busca
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cidade</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: São Paulo, Belo Horizonte" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Opcional. Deixe em branco para buscar em qualquer local
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+        <Card className="shadow-lg border-t-4 border-t-primary">
+          <CardContent className="p-0">
+            <Tabs defaultValue="searches" className="w-full">
+              <TabsList className="w-full rounded-none border-b justify-center p-0">
+                <TabsTrigger value="searches" className="flex-1 rounded-none py-4 data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                  <Search className="h-4 w-4 mr-2" />
+                  Buscas e Resultados
+                </TabsTrigger>
+                <TabsTrigger value="new" className="flex-1 rounded-none py-4 data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                  <FilePlus2 className="h-4 w-4 mr-2" />
+                  Nova Busca
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Tab de listagem de buscas */}
+              <TabsContent value="searches" className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1">
+                    <Card className="shadow-md">
+                      <CardHeader>
+                        <CardTitle>Minhas Buscas</CardTitle>
+                        <CardDescription>Selecione para ver os resultados</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <ScrollArea className="h-[500px]">
+                          {isLoadingSearches ? (
+                            <div className="flex items-center justify-center p-6">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            </div>
+                          ) : searches && searches.length > 0 ? (
+                            <div className="divide-y">
+                              {searches.map((search) => (
+                                <div 
+                                  key={search.id}
+                                  className={`p-4 cursor-pointer hover:bg-accent ${activeSearch === search.id ? 'bg-accent' : ''}`}
+                                  onClick={() => setActiveSearch(search.id)}
+                                >
+                                  <div className="flex justify-between items-start mb-2">
+                                    <h3 className="font-medium">{search.segment}</h3>
+                                    {renderStatus(search.status)}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground mb-1">
+                                    {search.city && <span>{search.city} • </span>}
+                                    {search.createdAt && (
+                                      <span>{format(new Date(search.createdAt), "dd MMM yyyy", { locale: ptBR })}</span>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2 text-xs">
+                                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                                      {search.leadsFound} encontrados
+                                    </span>
+                                    {search.dispatchesDone > 0 && (
+                                      <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+                                        {search.dispatchesDone} enviados
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="p-6 text-center">
+                              <p className="text-muted-foreground">Nenhuma busca encontrada</p>
+                              <Button 
+                                variant="link" 
+                                className="mt-2" 
+                                onClick={() => document.querySelector('[data-value="new"]')?.click()}
+                              >
+                                Criar nova busca
+                              </Button>
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="filters"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Filtros adicionais</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Ex: empresas com mais de 10 funcionários, faturamento estimado acima de 1M, etc." 
-                            {...field}
-                            rows={3}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Opcional. Adicione critérios específicos para refinar sua busca
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="md:col-span-2">
+                    {activeSearch && searches ? (
+                      <Card className="shadow-md">
+                        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                          <div>
+                            <CardTitle>
+                              {searches.find(s => s.id === activeSearch)?.segment}
+                            </CardTitle>
+                            <CardDescription>
+                              {searches.find(s => s.id === activeSearch)?.city || "Todas as cidades"} • 
+                              Criado em {format(
+                                new Date(searches.find(s => s.id === activeSearch)?.createdAt || new Date()), 
+                                "dd 'de' MMMM 'de' yyyy", 
+                                { locale: ptBR }
+                              )}
+                            </CardDescription>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => exportToCSV(activeSearch)}
+                              disabled={!results || results.length === 0}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              Exportar
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              onClick={() => {
+                                if (confirm("Tem certeza que deseja excluir esta busca?")) {
+                                  deleteSearchMutation.mutate(activeSearch);
+                                }
+                              }}
+                              disabled={deleteSearchMutation.isPending}
+                            >
+                              {deleteSearchMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="mb-4 grid grid-cols-3 gap-4">
+                            <div className="bg-primary/5 p-3 rounded-lg">
+                              <h4 className="text-xs font-medium text-muted-foreground mb-1">Leads Encontrados</h4>
+                              <p className="text-xl font-bold">{searches.find(s => s.id === activeSearch)?.leadsFound || 0}</p>
+                            </div>
+                            <div className="bg-primary/5 p-3 rounded-lg">
+                              <h4 className="text-xs font-medium text-muted-foreground mb-1">Já Enviados</h4>
+                              <p className="text-xl font-bold">{searches.find(s => s.id === activeSearch)?.dispatchesDone || 0}</p>
+                            </div>
+                            <div className="bg-primary/5 p-3 rounded-lg">
+                              <h4 className="text-xs font-medium text-muted-foreground mb-1">Pendentes</h4>
+                              <p className="text-xl font-bold">{searches.find(s => s.id === activeSearch)?.dispatchesPending || 0}</p>
+                            </div>
+                          </div>
 
-                  <FormField
-                    control={form.control}
-                    name="webhookUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>URL do Webhook</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="https://seu-webhook.com/endpoint" 
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Opcional. URL para onde os resultados serão enviados automaticamente
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button 
-                    type="submit" 
-                    className="w-full md:w-auto"
-                    disabled={createSearchMutation.isPending}
-                  >
-                    {createSearchMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Criando...
-                      </>
+                          <div className="rounded-md border">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Nome</TableHead>
+                                  <TableHead>Contato</TableHead>
+                                  <TableHead>Tipo</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead className="w-[100px]">Ações</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {isLoadingResults ? (
+                                  <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center">
+                                      <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                                    </TableCell>
+                                  </TableRow>
+                                ) : results && results.length > 0 ? (
+                                  results.map((result) => (
+                                    <TableRow key={result.id}>
+                                      <TableCell className="font-medium">{result.name || "N/A"}</TableCell>
+                                      <TableCell>
+                                        {result.email && <div className="text-sm">{result.email}</div>}
+                                        {result.phone && <div className="text-sm">{result.phone}</div>}
+                                      </TableCell>
+                                      <TableCell>{result.type || "N/A"}</TableCell>
+                                      <TableCell>
+                                        {result.dispatchedAt ? (
+                                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                                            Enviado
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                                            Pendente
+                                          </Badge>
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm"
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          <Search className="h-4 w-4" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                ) : (
+                                  <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center">
+                                      Nenhum resultado encontrado para esta busca
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </CardContent>
+                      </Card>
                     ) : (
-                      <>
-                        <Search className="mr-2 h-4 w-4" />
-                        Iniciar Busca
-                      </>
+                      <Card className="shadow-md">
+                        <CardContent className="flex flex-col items-center justify-center p-6 h-[400px]">
+                          <Search className="h-12 w-12 text-muted-foreground mb-4" />
+                          <h3 className="text-xl font-medium mb-2">Selecione uma busca</h3>
+                          <p className="text-muted-foreground text-center max-w-md">
+                            Escolha uma busca na lista ao lado para visualizar seus resultados ou crie uma nova busca de prospecção.
+                          </p>
+                          <Button 
+                            className="mt-6" 
+                            onClick={() => document.querySelector('[data-value="new"]')?.click()}
+                          >
+                            <FilePlus2 className="h-4 w-4 mr-2" />
+                            Criar Nova Busca
+                          </Button>
+                        </CardContent>
+                      </Card>
                     )}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  </div>
+                </div>
+              </TabsContent>
 
-      {/* Dialog para visualizar detalhes de um resultado */}
+              {/* Tab de nova busca */}
+              <TabsContent value="new" className="p-6">
+                <div className="max-w-3xl mx-auto">
+                  <div className="flex flex-col md:flex-row mb-8 bg-primary/5 rounded-lg p-6 gap-6">
+                    <div className="flex-shrink-0 flex items-center justify-center">
+                      <Search className="h-16 w-16 text-primary/60" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold mb-2">Como funciona a prospecção?</h3>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex items-start">
+                          <span className="text-primary mr-2 mt-0.5">✓</span> 
+                          <span>Defina um segmento específico para encontrar empresas e profissionais relevantes</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-primary mr-2 mt-0.5">✓</span> 
+                          <span>Adicione filtros como localização, porte da empresa ou critérios específicos</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-primary mr-2 mt-0.5">✓</span> 
+                          <span>Nossa automação irá buscar leads qualificados e entregar os resultados em até 24h</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-primary mr-2 mt-0.5">✓</span> 
+                          <span>Adicione um webhook para receber os dados diretamente em outras ferramentas</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <Card className="shadow-md border">
+                    <CardHeader>
+                      <CardTitle className="text-center">Nova Busca de Prospecção</CardTitle>
+                      <CardDescription className="text-center">
+                        Configure os parâmetros para encontrar leads qualificados
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                          <div className="grid grid-cols-1 gap-6">
+                            <FormField
+                              control={form.control}
+                              name="segment"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Segmento *</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Ex: Restaurantes, Médicos, Advocacia" {...field} />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Informe o segmento ou nicho de mercado para a prospecção
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+          
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField
+                                control={form.control}
+                                name="city"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Cidade</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="Ex: São Paulo, Rio de Janeiro" {...field} value={field.value || ""} />
+                                    </FormControl>
+                                    <FormDescription>
+                                      Opcional. Deixe em branco para todo o país
+                                    </FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+          
+                              <FormField
+                                control={form.control}
+                                name="webhookUrl"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>URL de Webhook</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder="https://n8n.exemplo.com.br/webhook/prospeccao" 
+                                        {...field} 
+                                        value={field.value || ""} 
+                                      />
+                                    </FormControl>
+                                    <FormDescription>
+                                      Opcional. Para receber os dados via API
+                                    </FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+          
+                            <FormField
+                              control={form.control}
+                              name="filters"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Filtros adicionais</FormLabel>
+                                  <FormControl>
+                                    <Textarea 
+                                      placeholder="Ex: +50 funcionários, faturamento anual > 1M, fundada após 2010" 
+                                      className="min-h-[120px]"
+                                      rows={4}
+                                      {...field}
+                                      value={field.value || ""} 
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Opcional. Adicione critérios específicos para refinar sua busca
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+          
+                          <div className="flex justify-center pt-4">
+                            <Button 
+                              type="submit" 
+                              disabled={createSearchMutation.isPending}
+                              className="w-full md:w-1/2"
+                              size="lg"
+                            >
+                              {createSearchMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                  Processando...
+                                </>
+                              ) : (
+                                <>Iniciar Busca de Prospecção</>
+                              )}
+                            </Button>
+                          </div>
+                        </form>
+                      </Form>
+                    </CardContent>
+                    <CardFooter className="flex flex-col space-y-2 text-center text-sm text-muted-foreground border-t py-4">
+                      <p>Após iniciar a busca, o processamento pode levar até 24 horas.</p>
+                      <p>Você será notificado quando os resultados estiverem disponíveis.</p>
+                    </CardFooter>
+                  </Card>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Dialog para visualizar resultado */}
       <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Detalhes do Lead</DialogTitle>
             <DialogDescription>
-              Informações detalhadas sobre o lead encontrado
+              Informações completas do lead encontrado
             </DialogDescription>
           </DialogHeader>
           
           {selectedResult && (
             <div className="space-y-4">
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Nome</h4>
-                <p className="text-base">{selectedResult.name || "Não disponível"}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Nome</h3>
+                <p className="text-lg">{selectedResult.name || "Não informado"}</p>
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Email</h4>
-                <p className="text-base">{selectedResult.email || "Não disponível"}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Email</h3>
+                <p className="text-lg">{selectedResult.email || "Não informado"}</p>
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Telefone</h4>
-                <p className="text-base">{selectedResult.phone || "Não disponível"}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Telefone</h3>
+                <p className="text-lg">{selectedResult.phone || "Não informado"}</p>
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Endereço</h4>
-                <p className="text-base">{selectedResult.address || "Não disponível"}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Endereço</h3>
+                <p className="text-lg">{selectedResult.address || "Não informado"}</p>
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Tipo</h4>
-                <p className="text-base">{selectedResult.type || "Não disponível"}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Tipo</h3>
+                <p className="text-lg">{selectedResult.type || "Não informado"}</p>
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Data</h4>
-                <p className="text-base">
-                  {selectedResult.createdAt && format(new Date(selectedResult.createdAt), "dd/MM/yyyy HH:mm")}
+                <h3 className="text-sm font-medium text-muted-foreground">Data de Criação</h3>
+                <p className="text-lg">
+                  {selectedResult.createdAt ? format(new Date(selectedResult.createdAt), "dd/MM/yyyy HH:mm") : "Não informado"}
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+                <p className="text-lg">
+                  {selectedResult.dispatchedAt ? (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                      Enviado em {format(new Date(selectedResult.dispatchedAt), "dd/MM/yyyy HH:mm")}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                      Pendente de envio
+                    </Badge>
+                  )}
                 </p>
               </div>
             </div>
@@ -628,45 +705,35 @@ export default function ProspectingPage() {
             <Button variant="secondary" onClick={() => setShowResultDialog(false)}>
               Fechar
             </Button>
-            {selectedResult && !selectedResult.dispatchedAt && (
-              <Button>
-                <Send className="mr-2 h-4 w-4" />
-                Enviar para CRM
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      
       {/* Dialog para configurar webhook */}
       <Dialog open={showWebhookDialog} onOpenChange={setShowWebhookDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Configurar Webhook</DialogTitle>
             <DialogDescription>
-              Configure a URL do webhook para receber automaticamente os resultados das prospecções
+              Configure a URL do webhook para receber notificações de prospecção
             </DialogDescription>
           </DialogHeader>
           
           <form onSubmit={webhookForm.handleSubmit(onWebhookSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="webhookUrl">URL do Webhook</Label>
-              <Input
+              <Label htmlFor="webhookUrl">URL de Webhook</Label>
+              <Input 
                 id="webhookUrl"
-                placeholder="https://seu-webhook.com/endpoint"
+                placeholder="https://n8n.exemplo.com.br/webhook/prospeccao" 
                 {...webhookForm.register("webhookUrl")}
               />
               <p className="text-sm text-muted-foreground">
-                Esta URL será usada para todas as suas prospecções. Os resultados serão enviados via POST como JSON.
+                Esta URL será usada para enviar automaticamente os resultados de prospecção.
               </p>
             </div>
             
             <DialogFooter className="sm:justify-end">
-              <Button 
-                variant="outline" 
-                type="button" 
-                onClick={() => setShowWebhookDialog(false)}
-              >
+              <Button variant="secondary" type="button" onClick={() => setShowWebhookDialog(false)}>
                 Cancelar
               </Button>
               <Button 
