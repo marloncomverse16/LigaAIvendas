@@ -13,7 +13,8 @@ import {
   LogOut,
   ChevronRight,
   ChevronLeft,
-  User
+  User,
+  Bot
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ export function Sidebar() {
   
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={collapsed ? 24 : 20} /> },
-    { path: "/agent", label: "Agente de IA", icon: <User size={collapsed ? 24 : 20} /> },
+    { path: "/ai-agent", label: "Agente de IA", icon: <Bot size={collapsed ? 24 : 20} /> },
     { path: "/crm", label: "CRM", icon: <Users size={collapsed ? 24 : 20} /> },
     { path: "/appointments", label: "Agendamentos", icon: <Calendar size={collapsed ? 24 : 20} /> },
     { path: "/prospect", label: "Prospectar", icon: <UserSearch size={collapsed ? 24 : 20} /> },
