@@ -3,7 +3,10 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { setupFileUpload } from "./uploads";
-import { insertLeadSchema, insertProspectSchema, insertDispatchSchema, insertSettingsSchema } from "@shared/schema";
+import { 
+  insertLeadSchema, insertProspectSchema, insertDispatchSchema, insertSettingsSchema, 
+  insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema 
+} from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -271,6 +274,256 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
       }
       res.status(500).json({ message: "Erro ao atualizar configurações" });
+    }
+  });
+
+  // AI Agent
+  app.get("/api/ai-agent", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const agent = await storage.getAiAgentByUserId(id);
+      
+      if (!agent) {
+        // Create default agent if it doesn't exist
+        const defaultAgent = await storage.createAiAgent({
+          userId: id,
+          enabled: false,
+          triggerText: "Olá, sou o assistente virtual da LiguIA. Como posso ajudar?",
+          personality: "Profissional e prestativo",
+          expertise: "Atendimento ao cliente",
+          voiceTone: "Formal",
+          rules: "Responda apenas sobre informações da empresa",
+          followUpEnabled: false,
+          followUpCount: 0,
+          messageInterval: "30 minutos",
+          followUpPrompt: "Gostaria de mais informações?",
+          schedulingEnabled: false,
+          agendaId: null,
+          schedulingPromptConsult: "Gostaria de agendar uma consulta?",
+          schedulingPromptTime: "Qual horário seria melhor para você?",
+          schedulingDuration: "30 minutos"
+        });
+        
+        return res.json(defaultAgent);
+      }
+      
+      res.json(agent);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar agente de IA" });
+    }
+  });
+  
+  app.put("/api/ai-agent", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const agentData = insertAiAgentSchema.partial().parse(req.body);
+      
+      // Check if agent exists
+      const existingAgent = await storage.getAiAgentByUserId(id);
+      
+      if (!existingAgent) {
+        // Create agent if it doesn't exist
+        const newAgent = await storage.createAiAgent({
+          ...agentData,
+          userId: id
+        } as any);
+        
+        return res.status(201).json(newAgent);
+      }
+      
+      // Update existing agent
+      const updatedAgent = await storage.updateAiAgent(id, agentData);
+      
+      if (!updatedAgent) {
+        return res.status(404).json({ message: "Agente de IA não encontrado" });
+      }
+      
+      res.json(updatedAgent);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar agente de IA" });
+    }
+  });
+  
+  // AI Agent Steps
+  app.get("/api/ai-agent/steps", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const steps = await storage.getAiAgentSteps(id);
+      res.json(steps);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar etapas do agente de IA" });
+    }
+  });
+  
+  app.post("/api/ai-agent/steps", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const stepData = insertAiAgentStepsSchema.parse(req.body);
+      
+      const newStep = await storage.createAiAgentStep({
+        ...stepData,
+        userId: id
+      });
+      
+      res.status(201).json(newStep);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao criar etapa do agente de IA" });
+    }
+  });
+  
+  app.put("/api/ai-agent/steps/:stepId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { stepId } = req.params;
+      const stepData = insertAiAgentStepsSchema.partial().parse(req.body);
+      
+      // Verify user owns this step
+      const step = await storage.getAiAgentStep(Number(stepId));
+      if (!step || step.userId !== id) {
+        return res.status(404).json({ message: "Etapa não encontrada" });
+      }
+      
+      const updatedStep = await storage.updateAiAgentStep(Number(stepId), stepData);
+      
+      if (!updatedStep) {
+        return res.status(404).json({ message: "Etapa não encontrada" });
+      }
+      
+      res.json(updatedStep);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar etapa do agente de IA" });
+    }
+  });
+  
+  app.delete("/api/ai-agent/steps/:stepId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { stepId } = req.params;
+      
+      // Verify user owns this step
+      const step = await storage.getAiAgentStep(Number(stepId));
+      if (!step || step.userId !== id) {
+        return res.status(404).json({ message: "Etapa não encontrada" });
+      }
+      
+      const success = await storage.deleteAiAgentStep(Number(stepId));
+      
+      if (!success) {
+        return res.status(404).json({ message: "Etapa não encontrada" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir etapa do agente de IA" });
+    }
+  });
+  
+  // AI Agent FAQs
+  app.get("/api/ai-agent/faqs", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const faqs = await storage.getAiAgentFaqs(id);
+      res.json(faqs);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar FAQs do agente de IA" });
+    }
+  });
+  
+  app.post("/api/ai-agent/faqs", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const faqData = insertAiAgentFaqsSchema.parse(req.body);
+      
+      const newFaq = await storage.createAiAgentFaq({
+        ...faqData,
+        userId: id
+      });
+      
+      res.status(201).json(newFaq);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao criar FAQ do agente de IA" });
+    }
+  });
+  
+  app.put("/api/ai-agent/faqs/:faqId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { faqId } = req.params;
+      const faqData = insertAiAgentFaqsSchema.partial().parse(req.body);
+      
+      // Verify user owns this FAQ
+      const faq = await storage.getAiAgentFaq(Number(faqId));
+      if (!faq || faq.userId !== id) {
+        return res.status(404).json({ message: "FAQ não encontrada" });
+      }
+      
+      const updatedFaq = await storage.updateAiAgentFaq(Number(faqId), faqData);
+      
+      if (!updatedFaq) {
+        return res.status(404).json({ message: "FAQ não encontrada" });
+      }
+      
+      res.json(updatedFaq);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar FAQ do agente de IA" });
+    }
+  });
+  
+  app.delete("/api/ai-agent/faqs/:faqId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { faqId } = req.params;
+      
+      // Verify user owns this FAQ
+      const faq = await storage.getAiAgentFaq(Number(faqId));
+      if (!faq || faq.userId !== id) {
+        return res.status(404).json({ message: "FAQ não encontrada" });
+      }
+      
+      const success = await storage.deleteAiAgentFaq(Number(faqId));
+      
+      if (!success) {
+        return res.status(404).json({ message: "FAQ não encontrada" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir FAQ do agente de IA" });
     }
   });
 

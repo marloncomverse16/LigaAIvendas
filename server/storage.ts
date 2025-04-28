@@ -87,6 +87,9 @@ export class MemStorage implements IStorage {
   private dispatches: Map<number, Dispatch>;
   private settings: Map<number, Settings>;
   private metrics: Map<number, Metric>;
+  private aiAgents: Map<number, AiAgent>;
+  private aiAgentSteps: Map<number, AiAgentSteps>;
+  private aiAgentFaqs: Map<number, AiAgentFaqs>;
   
   sessionStore: session.Store;
   currentId: { [key: string]: number };
@@ -98,6 +101,9 @@ export class MemStorage implements IStorage {
     this.dispatches = new Map();
     this.settings = new Map();
     this.metrics = new Map();
+    this.aiAgents = new Map();
+    this.aiAgentSteps = new Map();
+    this.aiAgentFaqs = new Map();
     
     this.currentId = {
       users: 1,
@@ -105,7 +111,10 @@ export class MemStorage implements IStorage {
       prospects: 1,
       dispatches: 1,
       settings: 1,
-      metrics: 1
+      metrics: 1,
+      aiAgents: 1,
+      aiAgentSteps: 1,
+      aiAgentFaqs: 1
     };
     
     this.sessionStore = new MemoryStore({
@@ -344,6 +353,129 @@ export class MemStorage implements IStorage {
     this.metrics.set(id, newMetrics);
     return newMetrics;
   }
+  
+  // AI Agent methods
+  async getAiAgentByUserId(userId: number): Promise<AiAgent | undefined> {
+    return Array.from(this.aiAgents.values()).find(agent => agent.userId === userId);
+  }
+  
+  async createAiAgent(agentData: InsertAiAgent & { userId: number }): Promise<AiAgent> {
+    const id = this.currentId.aiAgents++;
+    const now = new Date();
+    const agent: AiAgent = {
+      id,
+      userId: agentData.userId,
+      enabled: agentData.enabled || false,
+      triggerText: agentData.triggerText || null,
+      personality: agentData.personality || null,
+      expertise: agentData.expertise || null,
+      voiceTone: agentData.voiceTone || null,
+      rules: agentData.rules || null,
+      followUpEnabled: agentData.followUpEnabled || false,
+      followUpCount: agentData.followUpCount || 0,
+      messageInterval: agentData.messageInterval || '30 minutos',
+      followUpPrompt: agentData.followUpPrompt || null,
+      schedulingEnabled: agentData.schedulingEnabled || false,
+      agendaId: agentData.agendaId || null,
+      schedulingPromptConsult: agentData.schedulingPromptConsult || null,
+      schedulingPromptTime: agentData.schedulingPromptTime || null,
+      schedulingDuration: agentData.schedulingDuration || null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.aiAgents.set(id, agent);
+    return agent;
+  }
+  
+  async updateAiAgent(userId: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined> {
+    const agent = await this.getAiAgentByUserId(userId);
+    if (!agent) return undefined;
+    
+    const updatedAgent = {
+      ...agent,
+      ...agentData,
+      updatedAt: new Date()
+    };
+    this.aiAgents.set(agent.id, updatedAgent);
+    return updatedAgent;
+  }
+  
+  // AI Agent Steps methods
+  async getAiAgentSteps(userId: number): Promise<AiAgentSteps[]> {
+    return Array.from(this.aiAgentSteps.values())
+      .filter(step => step.userId === userId)
+      .sort((a, b) => a.order - b.order);
+  }
+  
+  async getAiAgentStep(id: number): Promise<AiAgentSteps | undefined> {
+    return this.aiAgentSteps.get(id);
+  }
+  
+  async createAiAgentStep(stepData: InsertAiAgentSteps & { userId: number }): Promise<AiAgentSteps> {
+    const id = this.currentId.aiAgentSteps++;
+    const now = new Date();
+    const step: AiAgentSteps = {
+      id,
+      userId: stepData.userId,
+      name: stepData.name,
+      description: stepData.description || null,
+      order: stepData.order,
+      createdAt: now
+    };
+    this.aiAgentSteps.set(id, step);
+    return step;
+  }
+  
+  async updateAiAgentStep(id: number, stepData: Partial<InsertAiAgentSteps>): Promise<AiAgentSteps | undefined> {
+    const step = await this.getAiAgentStep(id);
+    if (!step) return undefined;
+    
+    const updatedStep = { ...step, ...stepData };
+    this.aiAgentSteps.set(id, updatedStep);
+    return updatedStep;
+  }
+  
+  async deleteAiAgentStep(id: number): Promise<boolean> {
+    if (!this.aiAgentSteps.has(id)) return false;
+    return this.aiAgentSteps.delete(id);
+  }
+  
+  // AI Agent FAQs methods
+  async getAiAgentFaqs(userId: number): Promise<AiAgentFaqs[]> {
+    return Array.from(this.aiAgentFaqs.values()).filter(faq => faq.userId === userId);
+  }
+  
+  async getAiAgentFaq(id: number): Promise<AiAgentFaqs | undefined> {
+    return this.aiAgentFaqs.get(id);
+  }
+  
+  async createAiAgentFaq(faqData: InsertAiAgentFaqs & { userId: number }): Promise<AiAgentFaqs> {
+    const id = this.currentId.aiAgentFaqs++;
+    const now = new Date();
+    const faq: AiAgentFaqs = {
+      id,
+      userId: faqData.userId,
+      question: faqData.question,
+      answer: faqData.answer,
+      createdAt: now
+    };
+    this.aiAgentFaqs.set(id, faq);
+    return faq;
+  }
+  
+  async updateAiAgentFaq(id: number, faqData: Partial<InsertAiAgentFaqs>): Promise<AiAgentFaqs | undefined> {
+    const faq = await this.getAiAgentFaq(id);
+    if (!faq) return undefined;
+    
+    const updatedFaq = { ...faq, ...faqData };
+    this.aiAgentFaqs.set(id, updatedFaq);
+    return updatedFaq;
+  }
+  
+  async deleteAiAgentFaq(id: number): Promise<boolean> {
+    if (!this.aiAgentFaqs.has(id)) return false;
+    return this.aiAgentFaqs.delete(id);
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -355,6 +487,113 @@ export class DatabaseStorage implements IStorage {
       pool,
       createTableIfMissing: true,
     });
+  }
+  
+  // AI Agent methods
+  async getAiAgentByUserId(userId: number): Promise<AiAgent | undefined> {
+    const [agentData] = await db
+      .select()
+      .from(aiAgent)
+      .where(eq(aiAgent.userId, userId));
+    return agentData;
+  }
+  
+  async createAiAgent(agentData: InsertAiAgent & { userId: number }): Promise<AiAgent> {
+    const [newAgent] = await db
+      .insert(aiAgent)
+      .values(agentData)
+      .returning();
+    return newAgent;
+  }
+  
+  async updateAiAgent(userId: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined> {
+    const [updatedAgent] = await db
+      .update(aiAgent)
+      .set(agentData)
+      .where(eq(aiAgent.userId, userId))
+      .returning();
+    return updatedAgent;
+  }
+  
+  // AI Agent Steps methods
+  async getAiAgentSteps(userId: number): Promise<AiAgentSteps[]> {
+    return db
+      .select()
+      .from(aiAgentSteps)
+      .where(eq(aiAgentSteps.userId, userId))
+      .orderBy(aiAgentSteps.order);
+  }
+  
+  async getAiAgentStep(id: number): Promise<AiAgentSteps | undefined> {
+    const [step] = await db
+      .select()
+      .from(aiAgentSteps)
+      .where(eq(aiAgentSteps.id, id));
+    return step;
+  }
+  
+  async createAiAgentStep(stepData: InsertAiAgentSteps & { userId: number }): Promise<AiAgentSteps> {
+    const [newStep] = await db
+      .insert(aiAgentSteps)
+      .values(stepData)
+      .returning();
+    return newStep;
+  }
+  
+  async updateAiAgentStep(id: number, stepData: Partial<InsertAiAgentSteps>): Promise<AiAgentSteps | undefined> {
+    const [updatedStep] = await db
+      .update(aiAgentSteps)
+      .set(stepData)
+      .where(eq(aiAgentSteps.id, id))
+      .returning();
+    return updatedStep;
+  }
+  
+  async deleteAiAgentStep(id: number): Promise<boolean> {
+    const result = await db
+      .delete(aiAgentSteps)
+      .where(eq(aiAgentSteps.id, id));
+    return !!result;
+  }
+  
+  // AI Agent FAQs methods
+  async getAiAgentFaqs(userId: number): Promise<AiAgentFaqs[]> {
+    return db
+      .select()
+      .from(aiAgentFaqs)
+      .where(eq(aiAgentFaqs.userId, userId));
+  }
+  
+  async getAiAgentFaq(id: number): Promise<AiAgentFaqs | undefined> {
+    const [faq] = await db
+      .select()
+      .from(aiAgentFaqs)
+      .where(eq(aiAgentFaqs.id, id));
+    return faq;
+  }
+  
+  async createAiAgentFaq(faqData: InsertAiAgentFaqs & { userId: number }): Promise<AiAgentFaqs> {
+    const [newFaq] = await db
+      .insert(aiAgentFaqs)
+      .values(faqData)
+      .returning();
+    return newFaq;
+  }
+  
+  async updateAiAgentFaq(id: number, faqData: Partial<InsertAiAgentFaqs>): Promise<AiAgentFaqs | undefined> {
+    const [updatedFaq] = await db
+      .update(aiAgentFaqs)
+      .set(faqData)
+      .where(eq(aiAgentFaqs.id, id))
+      .returning();
+    return updatedFaq;
+  }
+  
+  async deleteAiAgentFaq(id: number): Promise<boolean> {
+    const result = await db
+      .delete(aiAgentFaqs)
+      .where(eq(aiAgentFaqs.id, id));
+    return !!result;
   }
 
   async getUser(id: number): Promise<User | undefined> {
