@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Header } from "@/components/layout/header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -440,9 +441,14 @@ export default function AiAgentPage() {
                   FAQs
                 </TabsTrigger>
               </TabsList>
-              
-              {/* General Configuration Tab */}
-              <TabsContent value="general" className="p-6">
+          
+          {/* General Configuration Tab */}
+          <TabsContent value="general">
+            <Card>
+              <CardHeader>
+                <CardTitle>Configurações Gerais</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="grid gap-6">
                   {/* Enable/Disable Agent */}
                   <div className="flex items-center justify-between space-x-2">
@@ -662,27 +668,14 @@ export default function AiAgentPage() {
                           <Input
                             id="agendaId"
                             name="agendaId"
-                            placeholder="ID da sua agenda conectada"
+                            placeholder="ID da agenda no Google Calendar"
                             value={agentData.agendaId || ""}
                             onChange={handleAgentInputChange}
                           />
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="schedulingDuration">Duração da Consulta</Label>
-                            <Input
-                              id="schedulingDuration"
-                              name="schedulingDuration"
-                              placeholder="30 minutos"
-                              value={agentData.schedulingDuration || ""}
-                              onChange={handleAgentInputChange}
-                            />
-                          </div>
-                        </div>
-                        
                         <div className="space-y-2">
-                          <Label htmlFor="schedulingPromptConsult">Mensagem para Consulta</Label>
+                          <Label htmlFor="schedulingPromptConsult">Mensagem de Consulta</Label>
                           <Textarea
                             id="schedulingPromptConsult"
                             name="schedulingPromptConsult"
@@ -693,12 +686,23 @@ export default function AiAgentPage() {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="schedulingPromptTime">Mensagem para Horário</Label>
+                          <Label htmlFor="schedulingPromptTime">Mensagem de Horário</Label>
                           <Textarea
                             id="schedulingPromptTime"
                             name="schedulingPromptTime"
-                            placeholder="Qual horário seria melhor para você?"
+                            placeholder="Qual o melhor horário para você?"
                             value={agentData.schedulingPromptTime || ""}
+                            onChange={handleAgentInputChange}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="schedulingDuration">Duração da Consulta</Label>
+                          <Input
+                            id="schedulingDuration"
+                            name="schedulingDuration"
+                            placeholder="30 minutos"
+                            value={agentData.schedulingDuration || ""}
                             onChange={handleAgentInputChange}
                           />
                         </div>
@@ -706,370 +710,333 @@ export default function AiAgentPage() {
                     )}
                   </div>
                   
-                  <div className="flex justify-end mt-6">
+                  <div className="flex justify-end">
                     <Button onClick={handleSaveAgent} className="gap-2">
                       <Save className="h-4 w-4" />
                       Salvar Configurações
                     </Button>
                   </div>
                 </div>
-              </TabsContent>
-              
-              {/* Steps Tab */}
-              <TabsContent value="steps" className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium">Etapas do Fluxo de Conversão</h3>
-                  <Button onClick={() => openStepForm()} className="gap-2">
-                    <PlusCircle className="h-4 w-4" />
-                    Nova Etapa
-                  </Button>
-                </div>
-                
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Steps Tab */}
+          <TabsContent value="steps">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle>Fluxo de Conversão</CardTitle>
+                <Button onClick={() => openStepForm()} size="sm" className="gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Nova Etapa
+                </Button>
+              </CardHeader>
+              <CardContent>
                 {isLoadingSteps ? (
-                  <div className="flex items-center justify-center py-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-border" />
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-border" />
                   </div>
                 ) : steps.length === 0 ? (
-                  <div className="text-center py-10 border rounded-md">
-                    <p className="text-muted-foreground">Nenhuma etapa configurada.</p>
-                    <p className="text-sm mt-2">Clique em "Nova Etapa" para criar uma.</p>
+                  <div className="text-center py-8 space-y-3">
+                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <h3 className="font-medium">Nenhuma etapa definida</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Adicione etapas para criar um fluxo de conversão para seu agente de IA.
+                    </p>
+                    <Button onClick={() => openStepForm()} variant="outline" className="mt-2">
+                      Adicionar primeira etapa
+                    </Button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[80px]">Ordem</TableHead>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Descrição</TableHead>
-                          <TableHead className="w-[100px]">Mídia</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">Ordem</TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="text-right w-28">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {steps.map((step: AiAgentStep) => (
+                        <TableRow key={step.id}>
+                          <TableCell className="font-medium">{step.order}</TableCell>
+                          <TableCell>{step.name}</TableCell>
+                          <TableCell className="max-w-md truncate">{step.description}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openStepForm(step)}
+                              >
+                                <Save className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteStep(step.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {steps.map((step: AiAgentStep) => (
-                          <TableRow key={step.id}>
-                            <TableCell className="font-medium">{step.order}</TableCell>
-                            <TableCell>{step.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {step.description || "—"}
-                            </TableCell>
-                            <TableCell>
-                              {step.mediaUrl ? (
-                                <div className="h-6 w-6 rounded bg-primary/20 flex items-center justify-center">
-                                  <MoveRight className="h-4 w-4 text-primary" />
-                                </div>
-                              ) : "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => openStepForm(step)}
-                                >
-                                  Editar
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => handleDeleteStep(step.id)}
-                                >
-                                  <Trash className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    
-                    <p className="text-sm text-muted-foreground mt-4">
-                      O fluxo de conversão define as etapas pelas quais um lead passa durante a interação com o agente. 
-                      Configure as etapas em ordem de prioridade.
-                    </p>
-                  </div>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
-                
-                <Dialog open={stepFormOpen} onOpenChange={setStepFormOpen}>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>
-                        {currentStep ? `Editar Etapa: ${currentStep.name}` : "Nova Etapa"}
-                      </DialogTitle>
-                      <DialogDescription>
-                        Defina as informações da etapa do fluxo de conversão.
-                      </DialogDescription>
-                    </DialogHeader>
-                    
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="step-order" className="text-right">
-                          Ordem
-                        </Label>
-                        <Input
-                          id="step-order"
-                          name="order"
-                          type="number"
-                          min="1"
-                          className="col-span-3"
-                          value={stepData.order || 1}
-                          onChange={handleStepInputChange}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="step-name" className="text-right">
-                          Nome
-                        </Label>
-                        <Input
-                          id="step-name"
-                          name="name"
-                          className="col-span-3"
-                          value={stepData.name || ""}
-                          onChange={handleStepInputChange}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="step-description" className="text-right">
-                          Descrição
-                        </Label>
-                        <Textarea
-                          id="step-description"
-                          name="description"
-                          className="col-span-3"
-                          value={stepData.description || ""}
-                          onChange={handleStepInputChange}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right">
-                          Mídia
-                        </Label>
-                        <div className="col-span-3">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="file"
-                              id="step-media"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  handleUploadMedia(file, "step");
-                                }
-                              }}
-                            />
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="gap-2"
-                              onClick={() => document.getElementById("step-media")?.click()}
-                              disabled={isUploading && uploadType === "step"}
-                            >
-                              {isUploading && uploadType === "step" ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  Importando...
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="h-4 w-4" />
-                                  Importar Mídia
-                                </>
-                              )}
-                            </Button>
-                            {stepData.mediaUrl && (
-                              <span className="text-sm text-muted-foreground">
-                                Mídia importada
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-end gap-3">
+              </CardContent>
+            </Card>
+            
+            {/* Step Form Dialog */}
+            <Dialog open={stepFormOpen} onOpenChange={setStepFormOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>
+                    {currentStep ? "Editar Etapa" : "Adicionar Etapa"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {currentStep
+                      ? "Atualize as informações da etapa do fluxo"
+                      : "Adicione uma nova etapa ao fluxo de conversão"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="step-name">Nome da Etapa</Label>
+                    <Input
+                      id="step-name"
+                      name="name"
+                      placeholder="Etapa de apresentação"
+                      value={stepData.name}
+                      onChange={handleStepInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="step-description">Descrição</Label>
+                    <Textarea
+                      id="step-description"
+                      name="description"
+                      placeholder="Descreva o objetivo desta etapa"
+                      value={stepData.description || ""}
+                      onChange={handleStepInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="step-order">Ordem</Label>
+                    <Input
+                      id="step-order"
+                      name="order"
+                      type="number"
+                      min="1"
+                      placeholder="1"
+                      value={stepData.order || 1}
+                      onChange={handleStepInputChange}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Mídia</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id="step-media"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleUploadMedia(file, "step");
+                          }
+                        }}
+                      />
                       <Button 
                         variant="outline" 
-                        onClick={() => setStepFormOpen(false)}
+                        className="gap-2"
+                        onClick={() => document.getElementById("step-media")?.click()}
+                        disabled={isUploading && uploadType === "step"}
                       >
-                        Cancelar
+                        {isUploading && uploadType === "step" ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Importando...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4" />
+                            Importar Mídia
+                          </>
+                        )}
                       </Button>
-                      <Button onClick={handleSaveStep}>
-                        Salvar
-                      </Button>
+                      {stepData.mediaUrl && (
+                        <span className="text-sm text-muted-foreground">
+                          Mídia importada
+                        </span>
+                      )}
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </TabsContent>
-              
-              {/* FAQs Tab */}
-              <TabsContent value="faqs" className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium">Perguntas Frequentes (FAQs)</h3>
-                  <Button onClick={() => openFaqForm()} className="gap-2">
-                    <PlusCircle className="h-4 w-4" />
-                    Nova FAQ
-                  </Button>
+                  </div>
                 </div>
-                
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setStepFormOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSaveStep}>Salvar</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+          
+          {/* FAQs Tab */}
+          <TabsContent value="faqs">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle>Perguntas Frequentes (FAQs)</CardTitle>
+                <Button onClick={() => openFaqForm()} size="sm" className="gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Nova FAQ
+                </Button>
+              </CardHeader>
+              <CardContent>
                 {isLoadingFaqs ? (
-                  <div className="flex items-center justify-center py-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-border" />
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-border" />
                   </div>
                 ) : faqs.length === 0 ? (
-                  <div className="text-center py-10 border rounded-md">
-                    <p className="text-muted-foreground">Nenhuma FAQ configurada.</p>
-                    <p className="text-sm mt-2">Clique em "Nova FAQ" para criar uma.</p>
+                  <div className="text-center py-8 space-y-3">
+                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <h3 className="font-medium">Nenhuma FAQ definida</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Adicione perguntas frequentes para que seu agente possa respondê-las automaticamente.
+                    </p>
+                    <Button onClick={() => openFaqForm()} variant="outline" className="mt-2">
+                      Adicionar primeira FAQ
+                    </Button>
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    {faqs.map((faq: AiAgentFaq) => (
-                      <Card key={faq.id} className="overflow-hidden">
-                        <CardHeader className="p-4 bg-muted/50">
-                          <div className="flex justify-between items-start">
-                            <CardTitle className="text-base">
-                              {faq.question}
-                            </CardTitle>
-                            <div className="flex items-center gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-8 px-2"
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Pergunta</TableHead>
+                        <TableHead>Resposta</TableHead>
+                        <TableHead className="text-right w-28">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {faqs.map((faq: AiAgentFaq) => (
+                        <TableRow key={faq.id}>
+                          <TableCell className="font-medium max-w-xs truncate">{faq.question}</TableCell>
+                          <TableCell className="max-w-sm truncate">{faq.answer}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => openFaqForm(faq)}
                               >
-                                Editar
+                                <Save className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                className="h-8 px-2"
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => handleDeleteFaq(faq.id)}
                               >
-                                <Trash className="h-4 w-4 text-destructive" />
+                                <Trash className="h-4 w-4" />
                               </Button>
                             </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="p-4">
-                          <p className="text-sm">{faq.answer}</p>
-                          {faq.mediaUrl && (
-                            <div className="mt-2 p-2 bg-primary/10 rounded-sm inline-flex items-center gap-2">
-                              <MoveRight className="h-4 w-4 text-primary" />
-                              <span className="text-xs">Mídia anexada</span>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                    
-                    <p className="text-sm text-muted-foreground mt-4">
-                      As FAQs são usadas pelo agente para responder perguntas comuns sem precisar recorrer à IA generativa, 
-                      melhorando o tempo de resposta e a precisão.
-                    </p>
-                  </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
-                
-                <Dialog open={faqFormOpen} onOpenChange={setFaqFormOpen}>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>
-                        {currentFaq ? "Editar FAQ" : "Nova FAQ"}
-                      </DialogTitle>
-                      <DialogDescription>
-                        Adicione uma pergunta frequente e sua resposta.
-                      </DialogDescription>
-                    </DialogHeader>
-                    
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="faq-question">
-                          Pergunta
-                        </Label>
-                        <Input
-                          id="faq-question"
-                          name="question"
-                          value={faqData.question || ""}
-                          onChange={handleFaqInputChange}
-                        />
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label htmlFor="faq-answer">
-                          Resposta
-                        </Label>
-                        <Textarea
-                          id="faq-answer"
-                          name="answer"
-                          rows={5}
-                          value={faqData.answer || ""}
-                          onChange={handleFaqInputChange}
-                        />
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label>
-                          Mídia
-                        </Label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="file"
-                            id="faq-media"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                handleUploadMedia(file, "faq");
-                              }
-                            }}
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="gap-2"
-                            onClick={() => document.getElementById("faq-media")?.click()}
-                            disabled={isUploading && uploadType === "faq"}
-                          >
-                            {isUploading && uploadType === "faq" ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Importando...
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="h-4 w-4" />
-                                Importar Mídia
-                              </>
-                            )}
-                          </Button>
-                          {faqData.mediaUrl && (
-                            <span className="text-sm text-muted-foreground">
-                              Mídia importada
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-end gap-3">
+              </CardContent>
+            </Card>
+            
+            {/* FAQ Form Dialog */}
+            <Dialog open={faqFormOpen} onOpenChange={setFaqFormOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>
+                    {currentFaq ? "Editar FAQ" : "Adicionar FAQ"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {currentFaq
+                      ? "Atualize as informações da pergunta frequente"
+                      : "Adicione uma nova pergunta frequente para seu agente"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="faq-question">Pergunta</Label>
+                    <Input
+                      id="faq-question"
+                      name="question"
+                      placeholder="Qual o horário de funcionamento?"
+                      value={faqData.question || ""}
+                      onChange={handleFaqInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="faq-answer">Resposta</Label>
+                    <Textarea
+                      id="faq-answer"
+                      name="answer"
+                      placeholder="Nosso horário de funcionamento é de segunda a sexta, das 8h às 18h."
+                      value={faqData.answer || ""}
+                      onChange={handleFaqInputChange}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Mídia</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id="faq-media"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleUploadMedia(file, "faq");
+                          }
+                        }}
+                      />
                       <Button 
                         variant="outline" 
-                        onClick={() => setFaqFormOpen(false)}
+                        className="gap-2"
+                        onClick={() => document.getElementById("faq-media")?.click()}
+                        disabled={isUploading && uploadType === "faq"}
                       >
-                        Cancelar
+                        {isUploading && uploadType === "faq" ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Importando...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4" />
+                            Importar Mídia
+                          </>
+                        )}
                       </Button>
-                      <Button onClick={handleSaveFaq}>
-                        Salvar
-                      </Button>
+                      {faqData.mediaUrl && (
+                        <span className="text-sm text-muted-foreground">
+                          Mídia importada
+                        </span>
+                      )}
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setFaqFormOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSaveFaq}>Salvar</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
