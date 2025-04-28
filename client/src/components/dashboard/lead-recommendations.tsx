@@ -77,17 +77,17 @@ export function LeadRecommendations() {
     switch (status) {
       case 'concluido':
         return {
-          variant: "success",
+          variant: "success" as "success",
           text: "Concluído"
         };
       case 'em_andamento':
         return {
-          variant: "warning",
+          variant: "warning" as "warning",
           text: "Em andamento"
         };
       default:
         return {
-          variant: "default",
+          variant: "default" as "default",
           text: "Pendente"
         };
     }
@@ -152,8 +152,8 @@ export function LeadRecommendations() {
                 <div className="flex-1">
                   <div className="flex items-center">
                     <p className="font-medium text-card-foreground">Lead #{recommendation.leadId}</p>
-                    <Badge className="ml-2" variant={getStatusBadgeProps(recommendation.status || 'pendente').variant}>
-                      {getStatusBadgeProps(recommendation.status || 'pendente').text}
+                    <Badge className="ml-2" variant={getStatusBadgeProps(recommendation.status).variant}>
+                      {getStatusBadgeProps(recommendation.status).text}
                     </Badge>
                     <span className={cn("ml-2 text-sm font-medium", getScoreColor(recommendation.score))}>
                       {recommendation.score} pontos
