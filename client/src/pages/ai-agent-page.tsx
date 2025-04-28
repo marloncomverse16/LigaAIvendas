@@ -10,7 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, MessageSquare, PlusCircle, Save, Trash } from "lucide-react";
+import { 
+  Loader2, 
+  MessageSquare, 
+  PlusCircle, 
+  Save, 
+  Trash, 
+  Upload, 
+  ArrowRightLeft, 
+  MoveRight
+} from "lucide-react";
 import { 
   Table, TableHeader, TableRow, TableHead, 
   TableBody, TableCell
@@ -65,6 +74,7 @@ export default function AiAgentPage() {
     expertise: "",
     voiceTone: "",
     rules: "",
+    autoMoveCrm: false,
     followUpEnabled: false,
     followUpCount: 0,
     messageInterval: "30 minutos",
@@ -82,7 +92,8 @@ export default function AiAgentPage() {
   const [stepData, setStepData] = useState({
     name: "",
     description: "",
-    order: 1
+    order: 1,
+    mediaUrl: ""
   });
   
   // State for FAQ form
@@ -90,8 +101,13 @@ export default function AiAgentPage() {
   const [currentFaq, setCurrentFaq] = useState<any>(null);
   const [faqData, setFaqData] = useState({
     question: "",
-    answer: ""
+    answer: "",
+    mediaUrl: ""
   });
+  
+  // State for media upload
+  const [uploadType, setUploadType] = useState<"rules" | "step" | "faq" | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Update local state when agent data is loaded
   if (agent && !isLoading && Object.keys(agentData).every(key => !agentData[key] && key !== 'enabled' && key !== 'followUpEnabled' && key !== 'schedulingEnabled')) {
@@ -134,17 +150,70 @@ export default function AiAgentPage() {
       setStepData({
         name: step.name,
         description: step.description || "",
-        order: step.order
+        order: step.order,
+        mediaUrl: step.mediaUrl || ""
       });
     } else {
       setCurrentStep(null);
       setStepData({
         name: "",
         description: "",
-        order: steps.length + 1
+        order: steps.length + 1,
+        mediaUrl: ""
       });
     }
     setStepFormOpen(true);
+  };
+  
+  // Handle media upload
+  const handleUploadMedia = async (file: File, type: "rules" | "step" | "faq") => {
+    try {
+      setIsUploading(true);
+      setUploadType(type);
+      
+      // Aqui você implementaria o upload real para o servidor
+      // Este é um exemplo simulado de upload
+      setTimeout(() => {
+        const fakeUrl = URL.createObjectURL(file);
+        
+        if (type === "rules") {
+          // Atualizar a mídia nas regras de comportamento
+          setAgentData(prev => ({
+            ...prev,
+            mediaUrl: fakeUrl
+          }));
+        } else if (type === "step") {
+          // Atualizar a mídia na etapa atual
+          setStepData(prev => ({
+            ...prev,
+            mediaUrl: fakeUrl
+          }));
+        } else if (type === "faq") {
+          // Atualizar a mídia na FAQ atual
+          setFaqData(prev => ({
+            ...prev,
+            mediaUrl: fakeUrl
+          }));
+        }
+        
+        setIsUploading(false);
+        setUploadType(null);
+        
+        toast({
+          title: "Mídia importada",
+          description: "A mídia foi importada com sucesso.",
+        });
+      }, 1500);
+      
+    } catch (error) {
+      setIsUploading(false);
+      setUploadType(null);
+      toast({
+        title: "Erro ao importar mídia",
+        description: "Ocorreu um erro ao importar a mídia.",
+        variant: "destructive",
+      });
+    }
   };
   
   // Handle step form input changes
