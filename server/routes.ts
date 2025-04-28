@@ -6,7 +6,8 @@ import { setupFileUpload } from "./uploads";
 import { 
   insertLeadSchema, insertProspectSchema, insertDispatchSchema, insertSettingsSchema, 
   insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema,
-  insertLeadInteractionSchema, insertLeadRecommendationSchema
+  insertLeadInteractionSchema, insertLeadRecommendationSchema,
+  insertProspectingSearchSchema, insertProspectingResultSchema
 } from "@shared/schema";
 import { z } from "zod";
 
