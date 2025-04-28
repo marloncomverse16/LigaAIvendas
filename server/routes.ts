@@ -5,7 +5,8 @@ import { storage } from "./storage";
 import { setupFileUpload } from "./uploads";
 import { 
   insertLeadSchema, insertProspectSchema, insertDispatchSchema, insertSettingsSchema, 
-  insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema 
+  insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema,
+  insertLeadInteractionSchema, insertLeadRecommendationSchema
 } from "@shared/schema";
 import { z } from "zod";
 

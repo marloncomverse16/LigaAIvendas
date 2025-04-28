@@ -270,6 +270,7 @@ export class MemStorage implements IStorage {
       id, 
       createdAt: now,
       status: dispatch.status || null,
+      scheduledFor: dispatch.scheduledFor || null,
       sentAt: dispatch.status === 'enviado' ? now : null
     };
     this.dispatches.set(id, newDispatch);
@@ -494,6 +495,185 @@ export class MemStorage implements IStorage {
     if (!this.aiAgentFaqs.has(id)) return false;
     return this.aiAgentFaqs.delete(id);
   }
+
+  // Lead Interactions methods
+  async getLeadInteractions(leadId: number): Promise<LeadInteraction[]> {
+    return Array.from(this.leadInteractions.values())
+      .filter(interaction => interaction.leadId === leadId)
+      .sort((a, b) => {
+        const dateA = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp || 0);
+        const dateB = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+  }
+
+  async createLeadInteraction(interaction: InsertLeadInteraction & { userId: number }): Promise<LeadInteraction> {
+    const id = this.currentId.leadInteractions++;
+    const now = new Date();
+    const newInteraction: LeadInteraction = {
+      id,
+      leadId: interaction.leadId,
+      userId: interaction.userId,
+      type: interaction.type,
+      timestamp: now,
+      metadata: interaction.metadata || null
+    };
+    
+    this.leadInteractions.set(id, newInteraction);
+    return newInteraction;
+  }
+
+  // Lead Recommendations methods
+  async getLeadRecommendations(userId: number, status?: string): Promise<LeadRecommendation[]> {
+    let recommendations = Array.from(this.leadRecommendations.values())
+      .filter(rec => rec.userId === userId);
+    
+    if (status) {
+      recommendations = recommendations.filter(rec => rec.status === status);
+    }
+    
+    // Sort by score descendente
+    return recommendations.sort((a, b) => b.score - a.score);
+  }
+
+  async createLeadRecommendation(recommendation: InsertLeadRecommendation & { userId: number }): Promise<LeadRecommendation> {
+    const id = this.currentId.leadRecommendations++;
+    const now = new Date();
+    const newRecommendation: LeadRecommendation = {
+      id,
+      userId: recommendation.userId,
+      leadId: recommendation.leadId,
+      score: recommendation.score,
+      reason: recommendation.reason,
+      status: recommendation.status || 'pendente',
+      createdAt: now,
+      actedAt: null
+    };
+    
+    this.leadRecommendations.set(id, newRecommendation);
+    return newRecommendation;
+  }
+
+  async updateLeadRecommendationStatus(id: number, status: string): Promise<LeadRecommendation | undefined> {
+    const recommendation = this.leadRecommendations.get(id);
+    if (!recommendation) return undefined;
+    
+    const now = new Date();
+    const updatedRecommendation: LeadRecommendation = {
+      ...recommendation,
+      status,
+      actedAt: now
+    };
+    
+    this.leadRecommendations.set(id, updatedRecommendation);
+    return updatedRecommendation;
+  }
+
+  /**
+   * Gera recomendações de leads com base em interações anteriores
+   * O algoritmo considera:
+   * 1. Frequência e tipo de interações
+   * 2. Interações recentes têm mais peso
+   * 3. Engajamento do lead (respostas, cliques, etc.)
+   */
+  async generateLeadRecommendations(userId: number): Promise<LeadRecommendation[]> {
+    // Obter todos os leads do usuário
+    const leads = await this.getLeadsByUserId(userId);
+    
+    // Pesos para diferentes tipos de interações
+    const interactionWeights: Record<string, number> = {
+      'click': 5,
+      'email_open': 10,
+      'email_reply': 30,
+      'whatsapp_reply': 35,
+      'meeting_scheduled': 50,
+      'meeting_attended': 70,
+      'document_download': 25,
+      'form_submission': 40
+    };
+    
+    // Calcular score para cada lead
+    const recommendations: LeadRecommendation[] = [];
+    
+    for (const lead of leads) {
+      // Pular leads que já são prospects
+      if (lead.status === 'convertido') continue;
+      
+      // Obter interações para este lead
+      const interactions = await this.getLeadInteractions(lead.id);
+      
+      if (interactions.length === 0) {
+        // Se não há interações, cria uma recomendação de baixa prioridade
+        recommendations.push(await this.createLeadRecommendation({
+          userId,
+          leadId: lead.id,
+          score: 10,
+          reason: 'Lead sem interações recentes. Considere uma abordagem inicial.',
+          status: 'pendente'
+        }));
+        continue;
+      }
+      
+      // Calcular pontuação com base em interações
+      let score = 0;
+      let mostRecentInteractionDate = new Date(0);
+      
+      for (const interaction of interactions) {
+        const interactionDate = new Date(interaction.timestamp);
+        
+        // Atualizar a data da interação mais recente
+        if (interactionDate > mostRecentInteractionDate) {
+          mostRecentInteractionDate = interactionDate;
+        }
+        
+        // Aplicar peso com base no tipo de interação
+        const weight = interactionWeights[interaction.type] || 5;
+        
+        // Ajustar peso com base na idade da interação (interações mais recentes têm mais valor)
+        const daysAgo = Math.floor((Date.now() - interactionDate.getTime()) / (1000 * 60 * 60 * 24));
+        const timeMultiplier = Math.max(0.1, 1 - (daysAgo / 30)); // Redução linear ao longo de 30 dias
+        
+        score += weight * timeMultiplier;
+      }
+      
+      // Normalizar pontuação (0-100)
+      score = Math.min(100, Math.round(score));
+      
+      // Determinar a razão para a recomendação
+      let reason = '';
+      
+      if (score >= 80) {
+        reason = 'Lead de alta prioridade com engajamento significativo recente.';
+      } else if (score >= 50) {
+        reason = 'Lead com bom nível de engajamento. Considere fazer um seguimento.';
+      } else if (score >= 30) {
+        reason = 'Lead com engajamento moderado. Pode responder bem a uma nova abordagem.';
+      } else {
+        reason = 'Lead com pouco engajamento. Considere uma estratégia de reativação.';
+      }
+      
+      // Adicionar detalhes da interação mais recente
+      const daysSinceLastInteraction = Math.floor((Date.now() - mostRecentInteractionDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceLastInteraction <= 7) {
+        reason += ` Última interação há ${daysSinceLastInteraction} dias.`;
+      } else if (daysSinceLastInteraction <= 30) {
+        reason += ` Sem interações nas últimas ${daysSinceLastInteraction} dias.`;
+      } else {
+        reason += ' Sem interações recentes.';
+      }
+      
+      // Criar recomendação
+      recommendations.push(await this.createLeadRecommendation({
+        userId,
+        leadId: lead.id,
+        score,
+        reason,
+        status: 'pendente'
+      }));
+    }
+    
+    return recommendations.sort((a, b) => b.score - a.score);
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -612,6 +792,156 @@ export class DatabaseStorage implements IStorage {
       .delete(aiAgentFaqs)
       .where(eq(aiAgentFaqs.id, id));
     return !!result;
+  }
+  
+  // Lead Interactions methods
+  async getLeadInteractions(leadId: number): Promise<LeadInteraction[]> {
+    return db
+      .select()
+      .from(leadInteractions)
+      .where(eq(leadInteractions.leadId, leadId))
+      .orderBy(desc(leadInteractions.timestamp));
+  }
+
+  async createLeadInteraction(interaction: InsertLeadInteraction & { userId: number }): Promise<LeadInteraction> {
+    const [newInteraction] = await db
+      .insert(leadInteractions)
+      .values(interaction)
+      .returning();
+    return newInteraction;
+  }
+
+  // Lead Recommendations methods
+  async getLeadRecommendations(userId: number, status?: string): Promise<LeadRecommendation[]> {
+    let query = db
+      .select()
+      .from(leadRecommendations)
+      .where(eq(leadRecommendations.userId, userId));
+    
+    if (status) {
+      query = query.where(eq(leadRecommendations.status, status));
+    }
+    
+    return query.orderBy(desc(leadRecommendations.score));
+  }
+
+  async createLeadRecommendation(recommendation: InsertLeadRecommendation & { userId: number }): Promise<LeadRecommendation> {
+    const [newRecommendation] = await db
+      .insert(leadRecommendations)
+      .values(recommendation)
+      .returning();
+    return newRecommendation;
+  }
+
+  async updateLeadRecommendationStatus(id: number, status: string): Promise<LeadRecommendation | undefined> {
+    const now = new Date();
+    const [updatedRecommendation] = await db
+      .update(leadRecommendations)
+      .set({ status, actedAt: now })
+      .where(eq(leadRecommendations.id, id))
+      .returning();
+    return updatedRecommendation;
+  }
+
+  async generateLeadRecommendations(userId: number): Promise<LeadRecommendation[]> {
+    // Obter todos os leads do usuário
+    const userLeads = await this.getLeadsByUserId(userId);
+    
+    // Pesos para diferentes tipos de interações
+    const interactionWeights: Record<string, number> = {
+      'click': 5,
+      'email_open': 10,
+      'email_reply': 30,
+      'whatsapp_reply': 35,
+      'meeting_scheduled': 50,
+      'meeting_attended': 70,
+      'document_download': 25,
+      'form_submission': 40
+    };
+    
+    // Array para armazenar as recomendações geradas
+    const recommendations: LeadRecommendation[] = [];
+    
+    for (const lead of userLeads) {
+      // Pular leads que já são prospects
+      if (lead.status === 'convertido') continue;
+      
+      // Obter interações para este lead
+      const interactions = await this.getLeadInteractions(lead.id);
+      
+      if (interactions.length === 0) {
+        // Se não há interações, cria uma recomendação de baixa prioridade
+        const newRecommendation = await this.createLeadRecommendation({
+          userId,
+          leadId: lead.id,
+          score: 10,
+          reason: 'Lead sem interações recentes. Considere uma abordagem inicial.',
+          status: 'pendente'
+        });
+        recommendations.push(newRecommendation);
+        continue;
+      }
+      
+      // Calcular pontuação com base em interações
+      let score = 0;
+      let mostRecentInteractionDate = new Date(0);
+      
+      for (const interaction of interactions) {
+        const interactionDate = new Date(interaction.timestamp);
+        
+        // Atualizar a data da interação mais recente
+        if (interactionDate > mostRecentInteractionDate) {
+          mostRecentInteractionDate = interactionDate;
+        }
+        
+        // Aplicar peso com base no tipo de interação
+        const weight = interactionWeights[interaction.type] || 5;
+        
+        // Ajustar peso com base na idade da interação
+        const daysAgo = Math.floor((Date.now() - interactionDate.getTime()) / (1000 * 60 * 60 * 24));
+        const timeMultiplier = Math.max(0.1, 1 - (daysAgo / 30)); // Redução linear ao longo de 30 dias
+        
+        score += weight * timeMultiplier;
+      }
+      
+      // Normalizar pontuação (0-100)
+      score = Math.min(100, Math.round(score));
+      
+      // Determinar a razão para a recomendação
+      let reason = '';
+      
+      if (score >= 80) {
+        reason = 'Lead de alta prioridade com engajamento significativo recente.';
+      } else if (score >= 50) {
+        reason = 'Lead com bom nível de engajamento. Considere fazer um seguimento.';
+      } else if (score >= 30) {
+        reason = 'Lead com engajamento moderado. Pode responder bem a uma nova abordagem.';
+      } else {
+        reason = 'Lead com pouco engajamento. Considere uma estratégia de reativação.';
+      }
+      
+      // Adicionar detalhes sobre a última interação
+      const daysSinceLastInteraction = Math.floor((Date.now() - mostRecentInteractionDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceLastInteraction <= 7) {
+        reason += ` Última interação há ${daysSinceLastInteraction} dias.`;
+      } else if (daysSinceLastInteraction <= 30) {
+        reason += ` Sem interações nas últimas ${daysSinceLastInteraction} dias.`;
+      } else {
+        reason += ' Sem interações recentes.';
+      }
+      
+      // Criar recomendação
+      const newRecommendation = await this.createLeadRecommendation({
+        userId,
+        leadId: lead.id,
+        score,
+        reason,
+        status: 'pendente'
+      });
+      recommendations.push(newRecommendation);
+    }
+    
+    return recommendations;
   }
 
   async getUser(id: number): Promise<User | undefined> {
