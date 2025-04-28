@@ -1,12 +1,13 @@
 import { 
   users, leads, prospects, dispatches, settings, metrics, 
-  aiAgent, aiAgentSteps, aiAgentFaqs 
+  aiAgent, aiAgentSteps, aiAgentFaqs, leadInteractions, leadRecommendations
 } from "@shared/schema";
 import type {
   User, InsertUser, Lead, InsertLead, Prospect, InsertProspect, 
   Dispatch, InsertDispatch, Settings, InsertSettings, Metric,
   AiAgent, InsertAiAgent, AiAgentSteps, InsertAiAgentSteps,
-  AiAgentFaqs, InsertAiAgentFaqs 
+  AiAgentFaqs, InsertAiAgentFaqs, LeadInteraction, InsertLeadInteraction,
+  LeadRecommendation, InsertLeadRecommendation
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -76,6 +77,16 @@ export interface IStorage {
   updateAiAgentFaq(id: number, faqData: Partial<InsertAiAgentFaqs>): Promise<AiAgentFaqs | undefined>;
   deleteAiAgentFaq(id: number): Promise<boolean>;
   
+  // Lead Interactions methods
+  getLeadInteractions(leadId: number): Promise<LeadInteraction[]>;
+  createLeadInteraction(interaction: InsertLeadInteraction & { userId: number }): Promise<LeadInteraction>;
+  
+  // Lead Recommendations methods
+  getLeadRecommendations(userId: number, status?: string): Promise<LeadRecommendation[]>;
+  createLeadRecommendation(recommendation: InsertLeadRecommendation & { userId: number }): Promise<LeadRecommendation>;
+  updateLeadRecommendationStatus(id: number, status: string): Promise<LeadRecommendation | undefined>;
+  generateLeadRecommendations(userId: number): Promise<LeadRecommendation[]>;
+  
   // Session store
   sessionStore: session.Store;
 }
@@ -90,6 +101,8 @@ export class MemStorage implements IStorage {
   private aiAgents: Map<number, AiAgent>;
   private aiAgentSteps: Map<number, AiAgentSteps>;
   private aiAgentFaqs: Map<number, AiAgentFaqs>;
+  private leadInteractions: Map<number, LeadInteraction>;
+  private leadRecommendations: Map<number, LeadRecommendation>;
   
   sessionStore: session.Store;
   currentId: { [key: string]: number };
@@ -104,6 +117,8 @@ export class MemStorage implements IStorage {
     this.aiAgents = new Map();
     this.aiAgentSteps = new Map();
     this.aiAgentFaqs = new Map();
+    this.leadInteractions = new Map();
+    this.leadRecommendations = new Map();
     
     this.currentId = {
       users: 1,
@@ -114,7 +129,9 @@ export class MemStorage implements IStorage {
       metrics: 1,
       aiAgents: 1,
       aiAgentSteps: 1,
-      aiAgentFaqs: 1
+      aiAgentFaqs: 1,
+      leadInteractions: 1,
+      leadRecommendations: 1
     };
     
     this.sessionStore = new MemoryStore({

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -107,6 +107,40 @@ export const aiAgentFaqs = pgTable("ai_agent_faqs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Enum para tipos de interações com leads
+export const interactionTypeEnum = pgEnum("interaction_type", [
+  "click", 
+  "email_open", 
+  "email_reply", 
+  "whatsapp_reply", 
+  "meeting_scheduled", 
+  "meeting_attended", 
+  "document_download", 
+  "form_submission"
+]);
+
+// Tabela para registrar interações com leads
+export const leadInteractions = pgTable("lead_interactions", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").references(() => leads.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  type: interactionTypeEnum("type").notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+  metadata: json("metadata"),
+});
+
+// Tabela para recomendações de leads
+export const leadRecommendations = pgTable("lead_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  leadId: integer("lead_id").references(() => leads.id).notNull(),
+  score: integer("score").notNull(), // Pontuação de recomendação (0-100)
+  reason: text("reason").notNull(), // Razão para a recomendação
+  status: text("status").default("pendente"), // pendente, vista, ignorada, convertida
+  createdAt: timestamp("created_at").defaultNow(),
+  actedAt: timestamp("acted_at"), // Quando o usuário agiu na recomendação
+});
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -116,6 +150,21 @@ export const insertUserSchema = createInsertSchema(users).pick({
   company: true,
   phone: true,
   bio: true,
+});
+
+// Lead Interactions Insert Schema
+export const insertLeadInteractionSchema = createInsertSchema(leadInteractions).pick({
+  leadId: true,
+  type: true,
+  metadata: true,
+});
+
+// Lead Recommendations Insert Schema
+export const insertLeadRecommendationSchema = createInsertSchema(leadRecommendations).pick({
+  leadId: true,
+  score: true,
+  reason: true,
+  status: true,
 });
 
 export const insertLeadSchema = createInsertSchema(leads).pick({
@@ -204,3 +253,10 @@ export type AiAgentFaqs = typeof aiAgentFaqs.$inferSelect;
 export type InsertAiAgent = z.infer<typeof insertAiAgentSchema>;
 export type InsertAiAgentSteps = z.infer<typeof insertAiAgentStepsSchema>;
 export type InsertAiAgentFaqs = z.infer<typeof insertAiAgentFaqsSchema>;
+
+// Lead Recommendation Types
+export type LeadInteraction = typeof leadInteractions.$inferSelect;
+export type InsertLeadInteraction = z.infer<typeof insertLeadInteractionSchema>;
+
+export type LeadRecommendation = typeof leadRecommendations.$inferSelect;
+export type InsertLeadRecommendation = z.infer<typeof insertLeadRecommendationSchema>;
