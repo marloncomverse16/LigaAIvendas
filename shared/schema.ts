@@ -12,6 +12,7 @@ export const users = pgTable("users", {
   phone: text("phone"),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  prospectingWebhookUrl: text("prospecting_webhook_url"),
 });
 
 export const settings = pgTable("settings", {
@@ -150,6 +151,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   company: true,
   phone: true,
   bio: true,
+  prospectingWebhookUrl: true,
 });
 
 // Lead Interactions Insert Schema
@@ -257,9 +259,62 @@ export type InsertAiAgent = z.infer<typeof insertAiAgentSchema>;
 export type InsertAiAgentSteps = z.infer<typeof insertAiAgentStepsSchema>;
 export type InsertAiAgentFaqs = z.infer<typeof insertAiAgentFaqsSchema>;
 
+// Tabela para prospecções
+export const prospectingSearches = pgTable("prospecting_searches", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  segment: text("segment").notNull(),
+  city: text("city"),
+  filters: text("filters"),
+  status: text("status").default("pendente"),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  leadsFound: integer("leads_found").default(0),
+  dispatchesDone: integer("dispatches_done").default(0),
+  dispatchesPending: integer("dispatches_pending").default(0),
+  webhookUrl: text("webhook_url"),
+});
+
+// Tabela para resultados de prospecção
+export const prospectingResults = pgTable("prospecting_results", {
+  id: serial("id").primaryKey(),
+  searchId: integer("search_id").references(() => prospectingSearches.id).notNull(),
+  name: text("name"),
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
+  type: text("type"),
+  createdAt: timestamp("created_at").defaultNow(),
+  dispatchedAt: timestamp("dispatched_at"),
+});
+
+// Schema para inserção de prospecções
+export const insertProspectingSearchSchema = createInsertSchema(prospectingSearches).pick({
+  segment: true,
+  city: true,
+  filters: true,
+  webhookUrl: true,
+});
+
+// Schema para inserção de resultados de prospecção
+export const insertProspectingResultSchema = createInsertSchema(prospectingResults).pick({
+  name: true,
+  phone: true,
+  email: true,
+  address: true,
+  type: true,
+});
+
 // Lead Recommendation Types
 export type LeadInteraction = typeof leadInteractions.$inferSelect;
 export type InsertLeadInteraction = z.infer<typeof insertLeadInteractionSchema>;
 
 export type LeadRecommendation = typeof leadRecommendations.$inferSelect;
 export type InsertLeadRecommendation = z.infer<typeof insertLeadRecommendationSchema>;
+
+// Prospecting Types
+export type ProspectingSearch = typeof prospectingSearches.$inferSelect;
+export type InsertProspectingSearch = z.infer<typeof insertProspectingSearchSchema>;
+
+export type ProspectingResult = typeof prospectingResults.$inferSelect;
+export type InsertProspectingResult = z.infer<typeof insertProspectingResultSchema>;
