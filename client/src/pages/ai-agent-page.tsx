@@ -89,7 +89,7 @@ export default function AiAgentPage() {
     data: agent, 
     isLoading, 
     isError 
-  } = useQuery({ 
+  } = useQuery<AiAgent>({ 
     queryKey: ["/api/ai-agent"],
     retry: 1
   });
@@ -167,11 +167,11 @@ export default function AiAgentPage() {
   // Handle input changes
   const handleAgentInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setAgentData(prev => ({ ...prev, [name]: value }));
+    setAgentData(prev => ({ ...prev, [name as keyof AiAgent]: value }));
   };
   
   // Handle switch changes
-  const handleSwitchChange = (name: string, checked: boolean) => {
+  const handleSwitchChange = (name: keyof AiAgent, checked: boolean) => {
     setAgentData(prev => ({ ...prev, [name]: checked }));
   };
   
@@ -269,7 +269,7 @@ export default function AiAgentPage() {
   // Handle step form input changes
   const handleStepInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setStepData(prev => ({ ...prev, [name]: value }));
+    setStepData(prev => ({ ...prev, [name as keyof AiAgentStep]: value }));
   };
   
   // Save step
@@ -338,7 +338,7 @@ export default function AiAgentPage() {
   // Handle FAQ form input changes
   const handleFaqInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFaqData(prev => ({ ...prev, [name]: value }));
+    setFaqData(prev => ({ ...prev, [name as keyof AiAgentFaq]: value }));
   };
   
   // Save FAQ
@@ -435,7 +435,7 @@ export default function AiAgentPage() {
                     <Switch
                       id="agent-status"
                       checked={agentData.enabled}
-                      onCheckedChange={(checked) => handleSwitchChange("enabled", checked)}
+                      onCheckedChange={(checked) => handleSwitchChange("enabled" as keyof AiAgent, checked)}
                     />
                   </div>
                   
@@ -557,7 +557,7 @@ export default function AiAgentPage() {
                       <Switch
                         id="autoMoveCrm-status"
                         checked={agentData.autoMoveCrm || false}
-                        onCheckedChange={(checked) => handleSwitchChange("autoMoveCrm", checked)}
+                        onCheckedChange={(checked) => handleSwitchChange("autoMoveCrm" as keyof AiAgent, checked)}
                       />
                     </div>
                     
@@ -580,7 +580,7 @@ export default function AiAgentPage() {
                       <Switch
                         id="followup-status"
                         checked={agentData.followUpEnabled}
-                        onCheckedChange={(checked) => handleSwitchChange("followUpEnabled", checked)}
+                        onCheckedChange={(checked) => handleSwitchChange("followUpEnabled" as keyof AiAgent, checked)}
                       />
                     </div>
                     
@@ -636,7 +636,7 @@ export default function AiAgentPage() {
                       <Switch
                         id="scheduling-status"
                         checked={agentData.schedulingEnabled}
-                        onCheckedChange={(checked) => handleSwitchChange("schedulingEnabled", checked)}
+                        onCheckedChange={(checked) => handleSwitchChange("schedulingEnabled" as keyof AiAgent, checked)}
                       />
                     </div>
                     
@@ -737,7 +737,7 @@ export default function AiAgentPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {steps.map((step: any) => (
+                      {steps.map((step: AiAgentStep) => (
                         <TableRow key={step.id}>
                           <TableCell className="font-medium">{step.order}</TableCell>
                           <TableCell>{step.name}</TableCell>
