@@ -22,6 +22,282 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API endpoints
   
+  // AI Agent routes - Versão temporária com dados mock
+  app.get("/api/ai-agent", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Retorna um agente mockado para demonstração
+      const mockAgent = {
+        id: 1,
+        userId: req.user.id,
+        enabled: true,
+        triggerText: "Olá! Sou o assistente virtual. Como posso ajudar?",
+        personality: "Amigável e profissional",
+        expertise: "Atendimento e suporte",
+        voiceTone: "Formal",
+        rules: "Ser sempre cordial e respeitoso",
+        followUpEnabled: true,
+        followUpCount: 2,
+        messageInterval: "30 minutos",
+        followUpPrompt: "Ainda precisa de ajuda com algo?",
+        schedulingEnabled: true,
+        agendaId: "agenda123",
+        schedulingPromptConsult: "Gostaria de agendar uma consulta?",
+        schedulingPromptTime: "Qual o melhor horário para você?",
+        schedulingDuration: "30 minutos",
+        autoMoveCrm: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      res.json(mockAgent);
+    } catch (error) {
+      console.error("Erro ao buscar agente de IA:", error);
+      res.status(500).json({ message: "Erro ao buscar agente de IA" });
+    }
+  });
+  
+  app.put("/api/ai-agent", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Simula sucesso na atualização e retorna dados combinados
+      const agentData = req.body;
+      
+      const updatedAgent = {
+        id: 1,
+        userId: req.user.id,
+        enabled: agentData.enabled !== undefined ? agentData.enabled : true,
+        triggerText: agentData.triggerText || "Olá! Sou o assistente virtual. Como posso ajudar?",
+        personality: agentData.personality || "Amigável e profissional",
+        expertise: agentData.expertise || "Atendimento e suporte",
+        voiceTone: agentData.voiceTone || "Formal",
+        rules: agentData.rules || "Ser sempre cordial e respeitoso",
+        followUpEnabled: agentData.followUpEnabled !== undefined ? agentData.followUpEnabled : true,
+        followUpCount: agentData.followUpCount || 2,
+        messageInterval: agentData.messageInterval || "30 minutos",
+        followUpPrompt: agentData.followUpPrompt || "Ainda precisa de ajuda com algo?",
+        schedulingEnabled: agentData.schedulingEnabled !== undefined ? agentData.schedulingEnabled : true,
+        agendaId: agentData.agendaId || "agenda123",
+        schedulingPromptConsult: agentData.schedulingPromptConsult || "Gostaria de agendar uma consulta?",
+        schedulingPromptTime: agentData.schedulingPromptTime || "Qual o melhor horário para você?",
+        schedulingDuration: agentData.schedulingDuration || "30 minutos",
+        autoMoveCrm: agentData.autoMoveCrm !== undefined ? agentData.autoMoveCrm : true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      res.json(updatedAgent);
+    } catch (error) {
+      console.error("Erro ao atualizar agente de IA:", error);
+      res.status(500).json({ message: "Erro ao atualizar agente de IA" });
+    }
+  });
+  
+  // AI Agent Steps - Versão temporária com dados mock
+  app.get("/api/ai-agent/steps", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Retorna etapas mockadas para demonstração
+      const mockSteps = [
+        {
+          id: 1,
+          userId: req.user.id,
+          name: "Apresentação",
+          description: "Introdução ao produto e serviços",
+          order: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          mediaUrl: null
+        },
+        {
+          id: 2,
+          userId: req.user.id,
+          name: "Identificação de Necessidades",
+          description: "Entender as necessidades do cliente",
+          order: 2,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          mediaUrl: null
+        },
+        {
+          id: 3,
+          userId: req.user.id,
+          name: "Demonstração",
+          description: "Demonstrar como o produto resolve o problema",
+          order: 3,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          mediaUrl: null
+        }
+      ];
+      
+      res.json(mockSteps);
+    } catch (error) {
+      console.error("Erro ao buscar etapas do agente:", error);
+      res.status(500).json({ message: "Erro ao buscar etapas do agente" });
+    }
+  });
+  
+  app.post("/api/ai-agent/steps", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const stepData = req.body;
+      
+      // Simula criação de uma nova etapa
+      const newStep = {
+        id: Math.floor(Math.random() * 1000) + 10,
+        userId: req.user.id,
+        name: stepData.name,
+        description: stepData.description || null,
+        order: stepData.order,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+        mediaUrl: null
+      };
+      
+      res.status(201).json(newStep);
+    } catch (error) {
+      console.error("Erro ao criar etapa:", error);
+      res.status(500).json({ message: "Erro ao criar etapa" });
+    }
+  });
+  
+  app.put("/api/ai-agent/steps/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const stepId = parseInt(req.params.id);
+      const stepData = req.body;
+      
+      // Simula atualização de uma etapa
+      const updatedStep = {
+        id: stepId,
+        userId: req.user.id,
+        name: stepData.name || "Etapa",
+        description: stepData.description || null,
+        order: stepData.order || 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        mediaUrl: null
+      };
+      
+      res.json(updatedStep);
+    } catch (error) {
+      console.error("Erro ao atualizar etapa:", error);
+      res.status(500).json({ message: "Erro ao atualizar etapa" });
+    }
+  });
+  
+  app.delete("/api/ai-agent/steps/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Simplesmente retorna sucesso
+    res.status(204).send();
+  });
+  
+  // AI Agent FAQs - Versão temporária com dados mock
+  app.get("/api/ai-agent/faqs", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Retorna FAQs mockadas para demonstração
+      const mockFaqs = [
+        {
+          id: 1,
+          userId: req.user.id,
+          question: "Quais são os horários de atendimento?",
+          answer: "Nosso atendimento funciona de segunda a sexta, das 8h às 18h.",
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          mediaUrl: null
+        },
+        {
+          id: 2,
+          userId: req.user.id,
+          question: "Como posso solicitar um orçamento?",
+          answer: "Você pode solicitar um orçamento diretamente pelo site ou entrando em contato pelo telefone.",
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          mediaUrl: null
+        },
+        {
+          id: 3,
+          userId: req.user.id,
+          question: "Qual é o prazo de entrega dos produtos?",
+          answer: "O prazo de entrega varia de acordo com a região, mas normalmente é de 3 a 5 dias úteis.",
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          mediaUrl: null
+        }
+      ];
+      
+      res.json(mockFaqs);
+    } catch (error) {
+      console.error("Erro ao buscar FAQs do agente:", error);
+      res.status(500).json({ message: "Erro ao buscar FAQs do agente" });
+    }
+  });
+  
+  app.post("/api/ai-agent/faqs", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const faqData = req.body;
+      
+      // Simula criação de uma nova FAQ
+      const newFaq = {
+        id: Math.floor(Math.random() * 1000) + 10,
+        userId: req.user.id,
+        question: faqData.question,
+        answer: faqData.answer,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+        mediaUrl: null
+      };
+      
+      res.status(201).json(newFaq);
+    } catch (error) {
+      console.error("Erro ao criar FAQ:", error);
+      res.status(500).json({ message: "Erro ao criar FAQ" });
+    }
+  });
+  
+  app.put("/api/ai-agent/faqs/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const faqId = parseInt(req.params.id);
+      const faqData = req.body;
+      
+      // Simula atualização de uma FAQ
+      const updatedFaq = {
+        id: faqId,
+        userId: req.user.id,
+        question: faqData.question || "Pergunta",
+        answer: faqData.answer || "Resposta",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        mediaUrl: null
+      };
+      
+      res.json(updatedFaq);
+    } catch (error) {
+      console.error("Erro ao atualizar FAQ:", error);
+      res.status(500).json({ message: "Erro ao atualizar FAQ" });
+    }
+  });
+  
+  app.delete("/api/ai-agent/faqs/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Simplesmente retorna sucesso
+    res.status(204).send();
+  });
+  
   // User profile
   app.get("/api/profile", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
