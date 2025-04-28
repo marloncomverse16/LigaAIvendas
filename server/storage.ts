@@ -1,5 +1,13 @@
-import { users, leads, prospects, dispatches, metrics, settings } from "@shared/schema";
-import type { User, InsertUser, Lead, InsertLead, Prospect, InsertProspect, Dispatch, InsertDispatch, Settings, InsertSettings, Metric } from "@shared/schema";
+import { 
+  users, leads, prospects, dispatches, settings, metrics, 
+  aiAgent, aiAgentSteps, aiAgentFaqs 
+} from "@shared/schema";
+import type {
+  User, InsertUser, Lead, InsertLead, Prospect, InsertProspect, 
+  Dispatch, InsertDispatch, Settings, InsertSettings, Metric,
+  AiAgent, InsertAiAgent, AiAgentSteps, InsertAiAgentSteps,
+  AiAgentFaqs, InsertAiAgentFaqs 
+} from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPg from "connect-pg-simple";
@@ -48,6 +56,25 @@ export interface IStorage {
   getMetricsByUserAndPeriod(userId: number, month: string, year: number): Promise<Metric | undefined>;
   getMetricsByUserId(userId: number): Promise<Metric[]>;
   createOrUpdateMetrics(userId: number, month: string, year: number, data: { leadsCount?: number, prospectsCount?: number, dispatchesCount?: number }): Promise<Metric>;
+  
+  // AI Agent methods
+  getAiAgentByUserId(userId: number): Promise<AiAgent | undefined>;
+  createAiAgent(agentData: InsertAiAgent & { userId: number }): Promise<AiAgent>;
+  updateAiAgent(userId: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined>;
+  
+  // AI Agent Steps methods
+  getAiAgentSteps(userId: number): Promise<AiAgentSteps[]>;
+  getAiAgentStep(id: number): Promise<AiAgentSteps | undefined>;
+  createAiAgentStep(stepData: InsertAiAgentSteps & { userId: number }): Promise<AiAgentSteps>;
+  updateAiAgentStep(id: number, stepData: Partial<InsertAiAgentSteps>): Promise<AiAgentSteps | undefined>;
+  deleteAiAgentStep(id: number): Promise<boolean>;
+  
+  // AI Agent FAQs methods
+  getAiAgentFaqs(userId: number): Promise<AiAgentFaqs[]>;
+  getAiAgentFaq(id: number): Promise<AiAgentFaqs | undefined>;
+  createAiAgentFaq(faqData: InsertAiAgentFaqs & { userId: number }): Promise<AiAgentFaqs>;
+  updateAiAgentFaq(id: number, faqData: Partial<InsertAiAgentFaqs>): Promise<AiAgentFaqs | undefined>;
+  deleteAiAgentFaq(id: number): Promise<boolean>;
   
   // Session store
   sessionStore: session.Store;
