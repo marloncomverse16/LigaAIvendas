@@ -13,7 +13,20 @@ export const users = pgTable("users", {
   phone: text("phone"),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  // Webhooks para integração
+  whatsappWebhookUrl: text("whatsapp_webhook_url"),
+  aiAgentWebhookUrl: text("ai_agent_webhook_url"),
   prospectingWebhookUrl: text("prospecting_webhook_url"),
+  contactsWebhookUrl: text("contacts_webhook_url"),
+  schedulingWebhookUrl: text("scheduling_webhook_url"),
+  crmWebhookUrl: text("crm_webhook_url"),
+  // Tokens e configurações avançadas
+  availableTokens: integer("available_tokens").default(0),
+  tokenExpirationDays: integer("token_expiration_days").default(30),
+  monthlyFee: text("monthly_fee").default("0"),
+  serverAddress: text("server_address"),
+  isAdmin: boolean("is_admin").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const settings = pgTable("settings", {
@@ -152,7 +165,17 @@ export const insertUserSchema = createInsertSchema(users).pick({
   company: true,
   phone: true,
   bio: true,
+  whatsappWebhookUrl: true,
+  aiAgentWebhookUrl: true,
   prospectingWebhookUrl: true,
+  contactsWebhookUrl: true,
+  schedulingWebhookUrl: true,
+  crmWebhookUrl: true,
+  availableTokens: true,
+  tokenExpirationDays: true,
+  monthlyFee: true,
+  serverAddress: true,
+  isAdmin: true
 });
 
 // Lead Interactions Insert Schema

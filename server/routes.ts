@@ -358,11 +358,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logoUrl: null
       };
       
+      // Get user for token info
+      const user = await storage.getUser(id);
+      
       // Check whatsapp connection status (mocked)
       const whatsappStatus = "desconectado";
       
-      // Get available tokens (mocked)
-      const availableTokens = 1500;
+      // Get available tokens
+      const availableTokens = user?.availableTokens || 0;
       
       // Get dispatch status (mocked)
       const dispatchStatus = "inativo";
@@ -378,6 +381,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar estatísticas" });
+    }
+  });
+  
+  // Admin Routes
+  // Middleware para checar se o usuário é admin
+  const isAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const user = await storage.getUser(id);
+      
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado. Permissão de administrador necessária." });
+      }
+      
+      next();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao verificar permissões" });
+    }
+  };
+  
+  // Listar todos os usuários (admin)
+  app.get("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      
+      // Remove passwords from response
+      const usersWithoutPasswords = users.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
+      
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+  
+  // Criar usuário (admin)
+  app.post("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      
+      const existingUserByUsername = await storage.getUserByUsername(userData.username);
+      if (existingUserByUsername) {
+        return res.status(400).json({ message: "Nome de usuário já existe" });
+      }
+      
+      const existingUserByEmail = await storage.getUserByEmail(userData.email);
+      if (existingUserByEmail) {
+        return res.status(400).json({ message: "Email já está em uso" });
+      }
+      
+      // Hash da senha
+      const hashedPassword = await hashPassword(userData.password);
+      
+      const newUser = await storage.createUser({
+        ...userData,
+        password: hashedPassword
+      });
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = newUser;
+      
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      console.error("Erro ao criar usuário:", error);
+      res.status(500).json({ message: "Erro ao criar usuário" });
+    }
+  });
+  
+  // Obter usuário por ID (admin)
+  app.get("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Erro ao buscar usuário:", error);
+      res.status(500).json({ message: "Erro ao buscar usuário" });
+    }
+  });
+  
+  // Atualizar usuário (admin)
+  app.put("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Validate update data
+      const updateData = insertUserSchema.partial().parse(req.body);
+      
+      // Check if user exists
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // If updating username, check if it's already taken
+      if (updateData.username && updateData.username !== existingUser.username) {
+        const userWithUsername = await storage.getUserByUsername(updateData.username);
+        if (userWithUsername && userWithUsername.id !== userId) {
+          return res.status(400).json({ message: "Nome de usuário já existe" });
+        }
+      }
+      
+      // If updating email, check if it's already taken
+      if (updateData.email && updateData.email !== existingUser.email) {
+        const userWithEmail = await storage.getUserByEmail(updateData.email);
+        if (userWithEmail && userWithEmail.id !== userId) {
+          return res.status(400).json({ message: "Email já está em uso" });
+        }
+      }
+      
+      // If updating password, hash it
+      if (updateData.password) {
+        updateData.password = await hashPassword(updateData.password);
+      }
+      
+      const updatedUser = await storage.updateUser(userId, updateData);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = updatedUser;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      console.error("Erro ao atualizar usuário:", error);
+      res.status(500).json({ message: "Erro ao atualizar usuário" });
+    }
+  });
+  
+  // Excluir usuário (admin)
+  app.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Não permitir que um admin exclua a si mesmo
+      if (userId === (req.user as Express.User).id) {
+        return res.status(400).json({ message: "Não é possível excluir seu próprio usuário" });
+      }
+      
+      const success = await storage.deleteUser(userId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      res.status(500).json({ message: "Erro ao excluir usuário" });
     }
   });
   

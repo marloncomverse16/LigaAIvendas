@@ -31,6 +31,8 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+  deleteUser(id: number): Promise<boolean>;
   
   // Lead methods
   getLead(id: number): Promise<Lead | undefined>;
@@ -201,6 +203,62 @@ export class MemStorage implements IStorage {
     const updatedUser = { ...user, ...userData };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    if (!this.users.has(id)) return false;
+    
+    // Delete the user
+    this.users.delete(id);
+    
+    // Delete related data
+    // Settings
+    const settings = await this.getSettingsByUserId(id);
+    if (settings) {
+      this.settings.delete(settings.id);
+    }
+    
+    // Leads
+    const leads = await this.getLeadsByUserId(id);
+    for (const lead of leads) {
+      this.leads.delete(lead.id);
+    }
+    
+    // Prospects
+    const prospects = await this.getProspectsByUserId(id);
+    for (const prospect of prospects) {
+      this.prospects.delete(prospect.id);
+    }
+    
+    // Dispatches
+    const dispatches = await this.getDispatchesByUserId(id);
+    for (const dispatch of dispatches) {
+      this.dispatches.delete(dispatch.id);
+    }
+    
+    // AI Agent
+    const aiAgent = await this.getAiAgentByUserId(id);
+    if (aiAgent) {
+      this.aiAgents.delete(aiAgent.id);
+    }
+    
+    // AI Agent Steps
+    const aiAgentSteps = await this.getAiAgentSteps(id);
+    for (const step of aiAgentSteps) {
+      this.aiAgentSteps.delete(step.id);
+    }
+    
+    // AI Agent FAQs
+    const aiAgentFaqs = await this.getAiAgentFaqs(id);
+    for (const faq of aiAgentFaqs) {
+      this.aiAgentFaqs.delete(faq.id);
+    }
+    
+    return true;
   }
   
   // Lead methods
