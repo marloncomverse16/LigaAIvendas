@@ -634,6 +634,306 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Prospecting Searches
+  app.get("/api/prospecting/searches", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const searches = await storage.getProspectingSearches(id);
+      res.json(searches);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar pesquisas de prospecção" });
+    }
+  });
+  
+  app.post("/api/prospecting/searches", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const searchData = insertProspectingSearchSchema.parse(req.body);
+      
+      const newSearch = await storage.createProspectingSearch({
+        ...searchData,
+        userId: id,
+        status: "pendente",
+        leadsFound: 0,
+        dispatchesDone: 0,
+        dispatchesPending: 0
+      });
+      
+      res.status(201).json(newSearch);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao criar pesquisa de prospecção" });
+    }
+  });
+  
+  app.get("/api/prospecting/searches/:searchId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { searchId } = req.params;
+      
+      const search = await storage.getProspectingSearch(Number(searchId));
+      
+      if (!search || search.userId !== id) {
+        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
+      }
+      
+      res.json(search);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar pesquisa de prospecção" });
+    }
+  });
+  
+  app.put("/api/prospecting/searches/:searchId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { searchId } = req.params;
+      const searchData = insertProspectingSearchSchema.partial().parse(req.body);
+      
+      // Verify user owns this search
+      const search = await storage.getProspectingSearch(Number(searchId));
+      if (!search || search.userId !== id) {
+        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
+      }
+      
+      const updatedSearch = await storage.updateProspectingSearch(Number(searchId), searchData);
+      
+      if (!updatedSearch) {
+        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
+      }
+      
+      res.json(updatedSearch);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar pesquisa de prospecção" });
+    }
+  });
+  
+  app.delete("/api/prospecting/searches/:searchId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { searchId } = req.params;
+      
+      // Verify user owns this search
+      const search = await storage.getProspectingSearch(Number(searchId));
+      if (!search || search.userId !== id) {
+        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
+      }
+      
+      const success = await storage.deleteProspectingSearch(Number(searchId));
+      
+      if (!success) {
+        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir pesquisa de prospecção" });
+    }
+  });
+  
+  // Prospecting Results
+  app.get("/api/prospecting/searches/:searchId/results", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { searchId } = req.params;
+      
+      // Verify user owns this search
+      const search = await storage.getProspectingSearch(Number(searchId));
+      if (!search || search.userId !== id) {
+        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
+      }
+      
+      const results = await storage.getProspectingResults(Number(searchId));
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar resultados de prospecção" });
+    }
+  });
+  
+  app.post("/api/prospecting/searches/:searchId/results", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { searchId } = req.params;
+      
+      // Verify user owns this search
+      const search = await storage.getProspectingSearch(Number(searchId));
+      if (!search || search.userId !== id) {
+        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
+      }
+      
+      const resultData = insertProspectingResultSchema.parse(req.body);
+      
+      const newResult = await storage.createProspectingResult({
+        ...resultData,
+        searchId: Number(searchId)
+      });
+      
+      // Update search with new lead count
+      await storage.updateProspectingSearch(Number(searchId), {
+        leadsFound: (search.leadsFound || 0) + 1
+      });
+      
+      res.status(201).json(newResult);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao criar resultado de prospecção" });
+    }
+  });
+  
+  app.put("/api/prospecting/results/:resultId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { resultId } = req.params;
+      const resultData = insertProspectingResultSchema.partial().parse(req.body);
+      
+      // Verify user owns this result via search
+      const result = await storage.getProspectingResult(Number(resultId));
+      if (!result) {
+        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
+      }
+      
+      const search = await storage.getProspectingSearch(result.searchId);
+      if (!search || search.userId !== id) {
+        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
+      }
+      
+      const updatedResult = await storage.updateProspectingResult(Number(resultId), resultData);
+      
+      if (!updatedResult) {
+        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
+      }
+      
+      res.json(updatedResult);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar resultado de prospecção" });
+    }
+  });
+  
+  app.delete("/api/prospecting/results/:resultId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { resultId } = req.params;
+      
+      // Verify user owns this result via search
+      const result = await storage.getProspectingResult(Number(resultId));
+      if (!result) {
+        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
+      }
+      
+      const search = await storage.getProspectingSearch(result.searchId);
+      if (!search || search.userId !== id) {
+        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
+      }
+      
+      const success = await storage.deleteProspectingResult(Number(resultId));
+      
+      if (!success) {
+        return res.status(404).json({ message: "Resultado de prospecção não encontrado" });
+      }
+      
+      // Update search with new lead count
+      await storage.updateProspectingSearch(result.searchId, {
+        leadsFound: Math.max(0, (search.leadsFound || 0) - 1)
+      });
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir resultado de prospecção" });
+    }
+  });
+  
+  // Export prospecting results to CSV
+  app.get("/api/prospecting/searches/:searchId/export", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { searchId } = req.params;
+      
+      // Verify user owns this search
+      const search = await storage.getProspectingSearch(Number(searchId));
+      if (!search || search.userId !== id) {
+        return res.status(404).json({ message: "Pesquisa de prospecção não encontrada" });
+      }
+      
+      const results = await storage.getProspectingResults(Number(searchId));
+      
+      // Generate CSV content
+      const headers = ["Nome", "Telefone", "Email", "Endereço", "Tipo", "Data de Criação", "Data de Disparo"];
+      const rows = results.map(result => [
+        result.name || "",
+        result.phone || "",
+        result.email || "",
+        result.address || "",
+        result.type || "",
+        result.createdAt ? new Date(result.createdAt).toLocaleString('pt-BR') : "",
+        result.dispatchedAt ? new Date(result.dispatchedAt).toLocaleString('pt-BR') : ""
+      ]);
+      
+      const csvContent = [
+        headers.join(","),
+        ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(","))
+      ].join("\n");
+      
+      // Set response headers for CSV download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=prospecção_${searchId}.csv`);
+      
+      res.send(csvContent);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao exportar resultados de prospecção" });
+    }
+  });
+  
+  // Update user webhook URL
+  app.put("/api/profile/webhook", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { webhookUrl } = req.body;
+      
+      const updatedUser = await storage.updateUser(id, {
+        prospectingWebhookUrl: webhookUrl
+      });
+      
+      if (!updatedUser) return res.status(404).json({ message: "Usuário não encontrado" });
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar webhook" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
