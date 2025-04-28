@@ -109,12 +109,7 @@ export default function ProspectingPage() {
     }
   });
 
-  // Form para editar webhook
-  const webhookForm = useForm<{ webhookUrl: string }>({
-    defaultValues: {
-      webhookUrl: user?.prospectingWebhookUrl || ""
-    }
-  });
+
 
   // Mutação para criar nova busca
   const createSearchMutation = useMutation({
@@ -166,29 +161,7 @@ export default function ProspectingPage() {
     }
   });
 
-  // Mutação para atualizar webhook
-  const updateWebhookMutation = useMutation({
-    mutationFn: async (data: { webhookUrl: string }) => {
-      const res = await apiRequest("PATCH", "/api/user", { prospectingWebhookUrl: data.webhookUrl });
-      if (!res.ok) throw new Error("Falha ao atualizar webhook");
-      return await res.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Webhook atualizado",
-        description: "URL do webhook foi atualizada com sucesso",
-      });
-      setShowWebhookDialog(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Erro ao atualizar webhook",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  });
+
 
   // Função para exportar resultados para CSV
   const exportToCSV = (searchId: number) => {
@@ -220,10 +193,6 @@ export default function ProspectingPage() {
 
   const onSubmit = (data: z.infer<typeof prospectingSearchSchema>) => {
     createSearchMutation.mutate(data);
-  };
-
-  const onWebhookSubmit = (data: { webhookUrl: string }) => {
-    updateWebhookMutation.mutate(data);
   };
 
   // Renderizar status da busca com badge
@@ -680,50 +649,7 @@ export default function ProspectingPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Dialog para configurar webhook */}
-      <Dialog open={showWebhookDialog} onOpenChange={setShowWebhookDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Configurar Webhook</DialogTitle>
-            <DialogDescription>
-              Configure a URL do webhook para receber notificações de prospecção
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={webhookForm.handleSubmit(onWebhookSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="webhookUrl">URL de Webhook</Label>
-              <Input 
-                id="webhookUrl"
-                placeholder="https://n8n.exemplo.com.br/webhook/prospeccao" 
-                {...webhookForm.register("webhookUrl")}
-              />
-              <p className="text-sm text-muted-foreground">
-                Esta URL será usada para enviar automaticamente os resultados de prospecção.
-              </p>
-            </div>
-            
-            <DialogFooter className="sm:justify-end">
-              <Button variant="secondary" type="button" onClick={() => setShowWebhookDialog(false)}>
-                Cancelar
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={updateWebhookMutation.isPending}
-              >
-                {updateWebhookMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  "Salvar"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }
