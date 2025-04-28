@@ -1422,6 +1422,69 @@ export class DatabaseStorage implements IStorage {
       .where(eq(prospectingResults.id, id));
     return !!result;
   }
+  
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const allUsers = await db
+        .select()
+        .from(users)
+        .orderBy(users.id);
+      return allUsers;
+    } catch (error) {
+      console.error('Erro ao buscar todos os usuários:', error);
+      return [];
+    }
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    try {
+      // Deletar dados relacionados ao usuário em ordem apropriada devido às chaves estrangeiras
+      
+      // AI Agent Steps e FAQs
+      await db.delete(aiAgentSteps).where(eq(aiAgentSteps.userId, id));
+      await db.delete(aiAgentFaqs).where(eq(aiAgentFaqs.userId, id));
+      
+      // AI Agent
+      await db.delete(aiAgent).where(eq(aiAgent.userId, id));
+      
+      // Lead Interactions e Recommendations
+      const userLeads = await db.select().from(leads).where(eq(leads.userId, id));
+      for (const lead of userLeads) {
+        await db.delete(leadInteractions).where(eq(leadInteractions.leadId, lead.id));
+        await db.delete(leadRecommendations).where(eq(leadRecommendations.leadId, lead.id));
+      }
+      
+      await db.delete(leadRecommendations).where(eq(leadRecommendations.userId, id));
+      
+      // Prospecting Results (precisamos pegar os IDs de busca primeiro)
+      const searches = await db.select().from(prospectingSearches).where(eq(prospectingSearches.userId, id));
+      for (const search of searches) {
+        await db.delete(prospectingResults).where(eq(prospectingResults.searchId, search.id));
+      }
+      
+      // Prospecting Searches
+      await db.delete(prospectingSearches).where(eq(prospectingSearches.userId, id));
+      
+      // Leads, Prospects e Dispatches
+      await db.delete(leads).where(eq(leads.userId, id));
+      await db.delete(prospects).where(eq(prospects.userId, id));
+      await db.delete(dispatches).where(eq(dispatches.userId, id));
+      
+      // Metrics
+      await db.delete(metrics).where(eq(metrics.userId, id));
+      
+      // Configurações
+      await db.delete(settings).where(eq(settings.userId, id));
+      
+      // Finalmente, deletar o usuário
+      const result = await db.delete(users).where(eq(users.id, id));
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Erro ao deletar usuário:", error);
+      return false;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
