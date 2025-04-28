@@ -698,6 +698,114 @@ export class MemStorage implements IStorage {
     
     return recommendations.sort((a, b) => b.score - a.score);
   }
+  
+  // Prospecting Searches methods
+  async getProspectingSearches(userId: number): Promise<ProspectingSearch[]> {
+    return Array.from(this.prospectingSearches.values())
+      .filter(search => search.userId === userId)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+  
+  async getProspectingSearch(id: number): Promise<ProspectingSearch | undefined> {
+    return this.prospectingSearches.get(id);
+  }
+  
+  async createProspectingSearch(searchData: InsertProspectingSearch & { userId: number }): Promise<ProspectingSearch> {
+    const id = this.currentId.prospectingSearches++;
+    const now = new Date();
+    
+    const search: ProspectingSearch = {
+      id,
+      userId: searchData.userId,
+      segment: searchData.segment,
+      city: searchData.city || null,
+      filters: searchData.filters || null,
+      status: searchData.status || "pendente",
+      createdAt: now,
+      completedAt: null,
+      leadsFound: searchData.leadsFound || 0,
+      dispatchesDone: searchData.dispatchesDone || 0,
+      dispatchesPending: searchData.dispatchesPending || 0,
+      webhookUrl: searchData.webhookUrl || null
+    };
+    
+    this.prospectingSearches.set(id, search);
+    return search;
+  }
+  
+  async updateProspectingSearch(id: number, searchData: Partial<InsertProspectingSearch>): Promise<ProspectingSearch | undefined> {
+    const search = await this.getProspectingSearch(id);
+    if (!search) return undefined;
+    
+    const updatedSearch = { ...search, ...searchData };
+    
+    // If status changed to 'concluido', set completedAt
+    if (searchData.status === 'concluido' && search.status !== 'concluido') {
+      updatedSearch.completedAt = new Date();
+    }
+    
+    this.prospectingSearches.set(id, updatedSearch);
+    return updatedSearch;
+  }
+  
+  async deleteProspectingSearch(id: number): Promise<boolean> {
+    // Delete all results associated with this search
+    const resultsToDelete = Array.from(this.prospectingResults.values())
+      .filter(result => result.searchId === id);
+    
+    for (const result of resultsToDelete) {
+      this.prospectingResults.delete(result.id);
+    }
+    
+    // Delete the search
+    if (!this.prospectingSearches.has(id)) return false;
+    return this.prospectingSearches.delete(id);
+  }
+  
+  // Prospecting Results methods
+  async getProspectingResults(searchId: number): Promise<ProspectingResult[]> {
+    return Array.from(this.prospectingResults.values())
+      .filter(result => result.searchId === searchId)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+  
+  async getProspectingResult(id: number): Promise<ProspectingResult | undefined> {
+    return this.prospectingResults.get(id);
+  }
+  
+  async createProspectingResult(resultData: InsertProspectingResult & { searchId: number }): Promise<ProspectingResult> {
+    const id = this.currentId.prospectingResults++;
+    const now = new Date();
+    
+    const result: ProspectingResult = {
+      id,
+      searchId: resultData.searchId,
+      name: resultData.name || null,
+      phone: resultData.phone || null,
+      email: resultData.email || null,
+      address: resultData.address || null,
+      type: resultData.type || null,
+      createdAt: now,
+      dispatchedAt: null
+    };
+    
+    this.prospectingResults.set(id, result);
+    return result;
+  }
+  
+  async updateProspectingResult(id: number, resultData: Partial<InsertProspectingResult>): Promise<ProspectingResult | undefined> {
+    const result = await this.getProspectingResult(id);
+    if (!result) return undefined;
+    
+    const updatedResult = { ...result, ...resultData };
+    this.prospectingResults.set(id, updatedResult);
+    return updatedResult;
+  }
+  
+  async deleteProspectingResult(id: number): Promise<boolean> {
+    if (!this.prospectingResults.has(id)) return false;
+    return this.prospectingResults.delete(id);
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1153,6 +1261,108 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return newMetric;
     }
+  }
+  
+  // Prospecting Searches methods
+  async getProspectingSearches(userId: number): Promise<ProspectingSearch[]> {
+    return db
+      .select()
+      .from(prospectingSearches)
+      .where(eq(prospectingSearches.userId, userId))
+      .orderBy(desc(prospectingSearches.createdAt));
+  }
+  
+  async getProspectingSearch(id: number): Promise<ProspectingSearch | undefined> {
+    const [search] = await db
+      .select()
+      .from(prospectingSearches)
+      .where(eq(prospectingSearches.id, id));
+    return search;
+  }
+  
+  async createProspectingSearch(searchData: InsertProspectingSearch & { userId: number }): Promise<ProspectingSearch> {
+    const [newSearch] = await db
+      .insert(prospectingSearches)
+      .values(searchData)
+      .returning();
+    return newSearch;
+  }
+  
+  async updateProspectingSearch(id: number, searchData: Partial<InsertProspectingSearch>): Promise<ProspectingSearch | undefined> {
+    let updateData = {...searchData};
+    
+    // Check if we need to set completedAt
+    if (searchData.status === 'concluido') {
+      const [currentSearch] = await db
+        .select()
+        .from(prospectingSearches)
+        .where(eq(prospectingSearches.id, id));
+      
+      if (currentSearch && currentSearch.status !== 'concluido') {
+        updateData.completedAt = new Date();
+      }
+    }
+    
+    const [updatedSearch] = await db
+      .update(prospectingSearches)
+      .set(updateData)
+      .where(eq(prospectingSearches.id, id))
+      .returning();
+    return updatedSearch;
+  }
+  
+  async deleteProspectingSearch(id: number): Promise<boolean> {
+    // Delete associated results first
+    await db
+      .delete(prospectingResults)
+      .where(eq(prospectingResults.searchId, id));
+    
+    // Then delete the search
+    const result = await db
+      .delete(prospectingSearches)
+      .where(eq(prospectingSearches.id, id));
+    return !!result;
+  }
+  
+  // Prospecting Results methods
+  async getProspectingResults(searchId: number): Promise<ProspectingResult[]> {
+    return db
+      .select()
+      .from(prospectingResults)
+      .where(eq(prospectingResults.searchId, searchId))
+      .orderBy(desc(prospectingResults.createdAt));
+  }
+  
+  async getProspectingResult(id: number): Promise<ProspectingResult | undefined> {
+    const [result] = await db
+      .select()
+      .from(prospectingResults)
+      .where(eq(prospectingResults.id, id));
+    return result;
+  }
+  
+  async createProspectingResult(resultData: InsertProspectingResult & { searchId: number }): Promise<ProspectingResult> {
+    const [newResult] = await db
+      .insert(prospectingResults)
+      .values(resultData)
+      .returning();
+    return newResult;
+  }
+  
+  async updateProspectingResult(id: number, resultData: Partial<InsertProspectingResult>): Promise<ProspectingResult | undefined> {
+    const [updatedResult] = await db
+      .update(prospectingResults)
+      .set(resultData)
+      .where(eq(prospectingResults.id, id))
+      .returning();
+    return updatedResult;
+  }
+  
+  async deleteProspectingResult(id: number): Promise<boolean> {
+    const result = await db
+      .delete(prospectingResults)
+      .where(eq(prospectingResults.id, id));
+    return !!result;
   }
 }
 
