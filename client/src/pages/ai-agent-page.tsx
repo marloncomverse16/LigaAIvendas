@@ -798,7 +798,7 @@ export default function AiAgentPage() {
                       id="step-description"
                       name="description"
                       placeholder="Descreva o objetivo desta etapa"
-                      value={stepData.description}
+                      value={stepData.description || ""}
                       onChange={handleStepInputChange}
                     />
                   </div>
@@ -810,7 +810,7 @@ export default function AiAgentPage() {
                       type="number"
                       min="1"
                       placeholder="1"
-                      value={stepData.order}
+                      value={stepData.order || 1}
                       onChange={handleStepInputChange}
                     />
                   </div>
@@ -901,7 +901,7 @@ export default function AiAgentPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {faqs.map((faq: any) => (
+                      {faqs.map((faq: AiAgentFaq) => (
                         <TableRow key={faq.id}>
                           <TableCell className="font-medium max-w-xs truncate">{faq.question}</TableCell>
                           <TableCell className="max-w-sm truncate">{faq.answer}</TableCell>
