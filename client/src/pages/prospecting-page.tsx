@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Search, FilePlus2, Download, Send, X, Edit, Trash2, CheckCircle2, AlarmClock } from "lucide-react";
+import { Loader2, Search, FilePlus2, Download, X, Edit, Trash2, CheckCircle2, AlarmClock } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,7 +74,6 @@ export default function ProspectingPage() {
   const { toast } = useToast();
   const [activeSearch, setActiveSearch] = useState<number | null>(null);
   const [showResultDialog, setShowResultDialog] = useState(false);
-  const [showWebhookDialog, setShowWebhookDialog] = useState(false);
   const [selectedResult, setSelectedResult] = useState<ProspectingResult | null>(null);
 
   // Query para buscar dados de prospecção
@@ -250,16 +249,6 @@ export default function ProspectingPage() {
           <p className="text-muted-foreground">
             Encontre e gerencie leads para sua empresa com base em segmentos e localidades
           </p>
-          <div className="mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowWebhookDialog(true)}
-              className="gap-2"
-            >
-              <Send className="h-4 w-4" />
-              Configurar Webhook de Integração
-            </Button>
-          </div>
         </div>
 
         <Card className="shadow-lg border-t-4 border-t-primary">
@@ -562,26 +551,8 @@ export default function ProspectingPage() {
                                 )}
                               />
           
-                              <FormField
-                                control={form.control}
-                                name="webhookUrl"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>URL de Webhook</FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        placeholder="https://n8n.exemplo.com.br/webhook/prospeccao" 
-                                        {...field} 
-                                        value={field.value || ""} 
-                                      />
-                                    </FormControl>
-                                    <FormDescription>
-                                      Opcional. Para receber os dados via API
-                                    </FormDescription>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                              {/* Webhook URL é obtido automaticamente do perfil do usuário */}
+                              <input type="hidden" {...form.register("webhookUrl")} />
                             </div>
           
                             <FormField
