@@ -5,6 +5,7 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
   Users,
+  UsersRound,
   Calendar,
   UserSearch,
   PhoneCall,
@@ -41,7 +42,7 @@ export function Sidebar() {
     { path: "/prospecting", label: "Prospecção", icon: <UserSearch size={collapsed ? 24 : 20} /> },
     { path: "/contacts", label: "Contatos", icon: <PhoneCall size={collapsed ? 24 : 20} /> },
     { path: "/connection", label: "Conexão", icon: <MessageSquare size={collapsed ? 24 : 20} /> },
-    { path: "/admin-users", label: "Gerenciar Usuários", icon: <Users2 size={collapsed ? 24 : 20} /> },
+    { path: "/admin-users", label: "Gerenciar Usuários", icon: <UsersRound size={collapsed ? 24 : 20} /> },
     { path: "/settings", label: "Configurações", icon: <Settings size={collapsed ? 24 : 20} /> },
   ];
   

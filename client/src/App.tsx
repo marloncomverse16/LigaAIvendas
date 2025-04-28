@@ -11,6 +11,7 @@ import SettingsPage from "@/pages/settings-page";
 import AiAgentPage from "@/pages/ai-agent-page";
 import ProspectingPage from "@/pages/prospecting-page";
 import ConnectionPage from "@/pages/connection-page";
+import AdminUsersPage from "@/pages/admin-users-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 
@@ -24,6 +25,7 @@ function Router() {
       <ProtectedRoute path="/ai-agent" component={AiAgentPage} />
       <ProtectedRoute path="/prospecting" component={ProspectingPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
+      <ProtectedRoute path="/admin-users" component={AdminUsersPage} />
       <Route component={NotFound} />
     </Switch>
   );
