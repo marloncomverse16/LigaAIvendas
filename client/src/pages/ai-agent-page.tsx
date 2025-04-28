@@ -951,7 +951,7 @@ export default function AiAgentPage() {
                       id="faq-question"
                       name="question"
                       placeholder="Qual o horário de funcionamento?"
-                      value={faqData.question}
+                      value={faqData.question || ""}
                       onChange={handleFaqInputChange}
                     />
                   </div>
@@ -961,7 +961,7 @@ export default function AiAgentPage() {
                       id="faq-answer"
                       name="answer"
                       placeholder="Nosso horário de funcionamento é de segunda a sexta, das 8h às 18h."
-                      value={faqData.answer}
+                      value={faqData.answer || ""}
                       onChange={handleFaqInputChange}
                     />
                   </div>

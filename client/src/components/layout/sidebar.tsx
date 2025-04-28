@@ -28,7 +28,7 @@ export function Sidebar() {
   const [location] = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   
-  const getInitials = (name?: string) => {
+  const getInitials = (name?: string | null) => {
     if (!name) return "U";
     return name.charAt(0).toUpperCase();
   };

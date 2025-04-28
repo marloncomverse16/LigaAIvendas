@@ -1,6 +1,7 @@
 import { neonConfig } from '@neondatabase/serverless';
 import pg from 'pg';
-import { drizzle } from 'drizzle-orm/neon-serverless';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import ws from "ws";
 import * as schema from "@shared/schema";
 
@@ -13,4 +14,5 @@ if (!process.env.DATABASE_URL) {
 }
 
 export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+const queryClient = postgres(process.env.DATABASE_URL);
+export const db = drizzle(queryClient, { schema });
