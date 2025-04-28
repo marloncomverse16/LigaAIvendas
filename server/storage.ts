@@ -1,13 +1,15 @@
 import { 
   users, leads, prospects, dispatches, settings, metrics, 
-  aiAgent, aiAgentSteps, aiAgentFaqs, leadInteractions, leadRecommendations
+  aiAgent, aiAgentSteps, aiAgentFaqs, leadInteractions, leadRecommendations,
+  prospectingSearches, prospectingResults
 } from "@shared/schema";
 import type {
   User, InsertUser, Lead, InsertLead, Prospect, InsertProspect, 
   Dispatch, InsertDispatch, Settings, InsertSettings, Metric,
   AiAgent, InsertAiAgent, AiAgentSteps, InsertAiAgentSteps,
   AiAgentFaqs, InsertAiAgentFaqs, LeadInteraction, InsertLeadInteraction,
-  LeadRecommendation, InsertLeadRecommendation
+  LeadRecommendation, InsertLeadRecommendation, ProspectingSearch, InsertProspectingSearch,
+  ProspectingResult, InsertProspectingResult
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -87,6 +89,20 @@ export interface IStorage {
   updateLeadRecommendationStatus(id: number, status: string): Promise<LeadRecommendation | undefined>;
   generateLeadRecommendations(userId: number): Promise<LeadRecommendation[]>;
   
+  // Prospecting Searches methods
+  getProspectingSearches(userId: number): Promise<ProspectingSearch[]>;
+  getProspectingSearch(id: number): Promise<ProspectingSearch | undefined>;
+  createProspectingSearch(search: InsertProspectingSearch & { userId: number }): Promise<ProspectingSearch>;
+  updateProspectingSearch(id: number, searchData: Partial<InsertProspectingSearch>): Promise<ProspectingSearch | undefined>;
+  deleteProspectingSearch(id: number): Promise<boolean>;
+  
+  // Prospecting Results methods
+  getProspectingResults(searchId: number): Promise<ProspectingResult[]>;
+  getProspectingResult(id: number): Promise<ProspectingResult | undefined>;
+  createProspectingResult(result: InsertProspectingResult & { searchId: number }): Promise<ProspectingResult>;
+  updateProspectingResult(id: number, resultData: Partial<InsertProspectingResult>): Promise<ProspectingResult | undefined>;
+  deleteProspectingResult(id: number): Promise<boolean>;
+  
   // Session store
   sessionStore: session.Store;
 }
@@ -103,6 +119,8 @@ export class MemStorage implements IStorage {
   private aiAgentFaqs: Map<number, AiAgentFaqs>;
   private leadInteractions: Map<number, LeadInteraction>;
   private leadRecommendations: Map<number, LeadRecommendation>;
+  private prospectingSearches: Map<number, ProspectingSearch>;
+  private prospectingResults: Map<number, ProspectingResult>;
   
   sessionStore: session.Store;
   currentId: { [key: string]: number };
@@ -119,6 +137,8 @@ export class MemStorage implements IStorage {
     this.aiAgentFaqs = new Map();
     this.leadInteractions = new Map();
     this.leadRecommendations = new Map();
+    this.prospectingSearches = new Map();
+    this.prospectingResults = new Map();
     
     this.currentId = {
       users: 1,
@@ -131,7 +151,9 @@ export class MemStorage implements IStorage {
       aiAgentSteps: 1,
       aiAgentFaqs: 1,
       leadInteractions: 1,
-      leadRecommendations: 1
+      leadRecommendations: 1,
+      prospectingSearches: 1,
+      prospectingResults: 1
     };
     
     this.sessionStore = new MemoryStore({
