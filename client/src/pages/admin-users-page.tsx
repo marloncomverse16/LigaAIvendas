@@ -33,7 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import DashboardLayout from "@/components/layout/dashboard-layout";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { InsertUser, User } from "@shared/schema";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -88,7 +88,7 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       toast({
         title: "Usuário criado com sucesso",
-        variant: "success",
+        description: "Operação concluída com sucesso",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setIsCreateOpen(false);
@@ -112,7 +112,7 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       toast({
         title: "Usuário atualizado com sucesso",
-        variant: "success",
+        description: "Operação concluída com sucesso",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setIsEditOpen(false);
@@ -134,7 +134,7 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       toast({
         title: "Usuário excluído com sucesso",
-        variant: "success",
+        description: "Operação concluída com sucesso",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setIsDeleteOpen(false);
