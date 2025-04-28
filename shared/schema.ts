@@ -153,11 +153,14 @@ export const insertUserSchema = createInsertSchema(users).pick({
 });
 
 // Lead Interactions Insert Schema
-export const insertLeadInteractionSchema = createInsertSchema(leadInteractions).pick({
-  leadId: true,
-  type: true,
-  metadata: true,
-});
+export const insertLeadInteractionSchema = createInsertSchema(leadInteractions)
+  .pick({
+    type: true,
+    metadata: true,
+  })
+  .extend({
+    leadId: z.number().optional(), // Torna opcional pois pode ser fornecido pela URL
+  });
 
 // Lead Recommendations Insert Schema
 export const insertLeadRecommendationSchema = createInsertSchema(leadRecommendations).pick({
