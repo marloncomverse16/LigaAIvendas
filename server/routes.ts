@@ -681,10 +681,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
-      // Em um cenário real, essa URL seria configurada nas variáveis de ambiente
-      // ou dentro das configurações do usuário. Por enquanto, usamos uma URL fixa
-      // para simular a integração.
-      const webhookUrl = "https://n8n.exemplo.com.br/webhook/whatsapp";
+      // Usar a URL configurada pelo usuário
+      const webhookUrl = user.whatsapp_webhook_url;
+      
+      if (!webhookUrl) {
+        return res.status(400).json({ message: "URL de webhook do WhatsApp não configurada para este usuário" });
+      }
       
       try {
         // Chamada para webhook do n8n para solicitar QR Code
