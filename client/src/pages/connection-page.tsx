@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, XCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Loader2, XCircle, Smartphone, QrCode } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface ConnectionStatus {
@@ -128,84 +128,159 @@ export default function ConnectionPage() {
   };
 
   return (
-    <div className="container max-w-3xl py-10">
-      <h1 className="text-2xl font-bold mb-6 flex items-center justify-center gap-2">
-        <span className="text-primary">📱</span> Conexão WhatsApp
-      </h1>
+    <div className="flex flex-col items-center justify-center h-full p-6">
+      <div className="max-w-3xl w-full">
+        {/* Cabeçalho da página */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold flex items-center justify-center gap-2 mb-2">
+            <Smartphone className="h-8 w-8 text-primary" /> Conexão WhatsApp
+          </h1>
+          <p className="text-muted-foreground">
+            Conecte seu WhatsApp para gerenciar mensagens e leads automaticamente
+          </p>
+        </div>
 
-      <Card className="w-full">
-        <CardHeader className="flex flex-row justify-between items-center">
-          <CardTitle className="text-xl">Gerenciar Conexão</CardTitle>
-          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-        </CardHeader>
-        
-        <CardContent>
-          {status?.connected ? (
-            <div className="flex flex-col items-center">
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-full w-24 h-24 mb-4 flex items-center justify-center">
-                <img 
-                  src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" 
-                  alt="WhatsApp" 
-                  className="w-12 h-12" 
-                />
-              </div>
-              
-              <div className="text-center mb-4">
-                <h2 className="text-lg font-semibold">{status.name}</h2>
-                <p className="text-gray-500 dark:text-gray-400">{status.phone}</p>
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mt-2">
-                  ATIVO
-                </span>
-              </div>
-              
-              <Button 
-                variant="destructive" 
-                className="w-full"
-                onClick={handleDisconnect}
-                disabled={loading}
-              >
-                <XCircle className="mr-2 h-4 w-4" /> Excluir Conexão
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center">
-              {status?.qrCode ? (
-                <div className="mb-6">
-                  <p className="text-center mb-4 text-sm">
-                    Escaneie o QR code com seu WhatsApp para conectar
-                  </p>
-                  <div className="bg-white p-4 mx-auto w-48 h-48 rounded-md">
-                    <img 
-                      src={`data:image/png;base64,${status.qrCode}`} 
-                      alt="QR Code" 
-                      className="w-full h-full"
-                    />
-                  </div>
+        {/* Card principal */}
+        <Card className="w-full shadow-lg border-t-4 border-t-primary">
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="text-2xl">Gerenciar Conexão</CardTitle>
+            <CardDescription>
+              {status?.connected 
+                ? "Seu WhatsApp está conectado e pronto para uso" 
+                : "Conecte seu WhatsApp para iniciar a integração"}
+            </CardDescription>
+            {loading && <Loader2 className="h-4 w-4 animate-spin mx-auto mt-2" />}
+          </CardHeader>
+          
+          <CardContent className="pt-6">
+            {status?.connected ? (
+              <div className="flex flex-col items-center space-y-6">
+                {/* Avatar do WhatsApp conectado */}
+                <div className="bg-gradient-to-br from-primary/20 to-primary/10 rounded-full w-28 h-28 flex items-center justify-center p-2 border-2 border-primary/20">
+                  <img 
+                    src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" 
+                    alt="WhatsApp" 
+                    className="w-16 h-16" 
+                  />
                 </div>
-              ) : (
-                <div className="text-center mb-6">
-                  <p className="mb-4 text-sm">
-                    Conecte seu WhatsApp para gerenciar mensagens e leads automaticamente
-                  </p>
+                
+                {/* Informações do dispositivo conectado */}
+                <div className="text-center space-y-2 w-full max-w-xs">
+                  <h2 className="text-xl font-semibold">{status.name || "Dispositivo Conectado"}</h2>
+                  <p className="text-muted-foreground text-lg">{status.phone || "Número não disponível"}</p>
+                  <span className="inline-block px-4 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    CONECTADO
+                  </span>
+                </div>
+                
+                {/* Botão de desconexão */}
+                <div className="w-full max-w-xs pt-4">
                   <Button 
-                    className="w-40"
-                    onClick={handleConnect}
-                    disabled={connecting}
+                    variant="destructive" 
+                    className="w-full"
+                    onClick={handleDisconnect}
+                    disabled={loading}
                   >
-                    {connecting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Conectando...
-                      </>
-                    ) : (
-                      "Conectar WhatsApp"
-                    )}
+                    <XCircle className="mr-2 h-5 w-5" /> Desconectar WhatsApp
                   </Button>
                 </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                
+                {/* Informações adicionais */}
+                <div className="mt-6 text-center text-sm text-muted-foreground">
+                  <p>Seu WhatsApp está conectado e pronto para receber e enviar mensagens automaticamente.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center space-y-6">
+                {status?.qrCode ? (
+                  <div className="text-center space-y-4">
+                    {/* Instruções de QR Code */}
+                    <div className="bg-primary/10 rounded-lg p-4 max-w-md mx-auto">
+                      <h3 className="font-medium flex items-center justify-center gap-2 mb-2">
+                        <QrCode className="h-5 w-5 text-primary" /> Escaneie o QR code
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        1. Abra o WhatsApp no seu celular<br />
+                        2. Toque em Menu ou Configurações<br />
+                        3. Selecione WhatsApp Web<br />
+                        4. Aponte a câmera para o QR code
+                      </p>
+                    </div>
+                    
+                    {/* QR Code */}
+                    <div className="bg-white p-6 mx-auto rounded-xl shadow-md">
+                      <div className="w-56 h-56 relative mx-auto">
+                        <img 
+                          src={`data:image/png;base64,${status.qrCode}`} 
+                          alt="QR Code" 
+                          className="w-full h-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-8 max-w-md mx-auto">
+                    {/* Ícone de WhatsApp */}
+                    <div className="bg-primary/10 rounded-full w-24 h-24 mx-auto flex items-center justify-center p-2">
+                      <img 
+                        src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" 
+                        alt="WhatsApp" 
+                        className="w-12 h-12 opacity-80" 
+                      />
+                    </div>
+                    
+                    {/* Descrição dos benefícios */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Benefícios da Conexão</h3>
+                      <ul className="text-sm text-muted-foreground space-y-2 text-left max-w-xs mx-auto">
+                        <li className="flex items-start">
+                          <span className="text-primary mr-2">✓</span> 
+                          <span>Envio automático de mensagens para leads</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-primary mr-2">✓</span> 
+                          <span>Receba respostas diretamente na plataforma</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-primary mr-2">✓</span> 
+                          <span>Integração com o sistema de recomendação de leads</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-primary mr-2">✓</span> 
+                          <span>Automação de fluxos de comunicação</span>
+                        </li>
+                      </ul>
+                    </div>
+                    
+                    {/* Botão de conexão */}
+                    <Button 
+                      className="w-full"
+                      onClick={handleConnect}
+                      disabled={connecting}
+                      size="lg"
+                    >
+                      {connecting ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Conectando...
+                        </>
+                      ) : (
+                        <>Conectar WhatsApp</>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Informações adicionais */}
+        <div className="mt-8 text-center text-sm text-muted-foreground">
+          <p>
+            Problemas com a conexão? <a href="#" className="text-primary hover:underline">Consulte o guia de ajuda</a> ou entre em contato com o suporte.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
