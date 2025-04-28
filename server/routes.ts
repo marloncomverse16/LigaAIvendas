@@ -574,7 +574,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
       }
-      res.status(500).json({ message: "Erro ao registrar interação com lead" });
+      console.error("Erro ao registrar interação:", error);
+      res.status(500).json({ message: "Erro ao registrar interação com lead", error: error.message });
     }
   });
   
