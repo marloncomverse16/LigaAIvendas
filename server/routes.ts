@@ -7,9 +7,11 @@ import {
   insertLeadSchema, insertProspectSchema, insertDispatchSchema, insertSettingsSchema, 
   insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema,
   insertLeadInteractionSchema, insertLeadRecommendationSchema,
-  insertProspectingSearchSchema, insertProspectingResultSchema
+  insertProspectingSearchSchema, insertProspectingResultSchema,
+  ConnectionStatus
 } from "@shared/schema";
 import { z } from "zod";
+import axios from "axios";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication

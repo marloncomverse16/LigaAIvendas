@@ -40,7 +40,7 @@ export function Sidebar() {
     { path: "/appointments", label: "Agendamentos", icon: <Calendar size={collapsed ? 24 : 20} /> },
     { path: "/prospecting", label: "Prospecção", icon: <UserSearch size={collapsed ? 24 : 20} /> },
     { path: "/contacts", label: "Contatos", icon: <PhoneCall size={collapsed ? 24 : 20} /> },
-    { path: "/connections", label: "Conexão", icon: <MessageSquare size={collapsed ? 24 : 20} /> },
+    { path: "/connection", label: "Conexão", icon: <MessageSquare size={collapsed ? 24 : 20} /> },
     { path: "/settings", label: "Configurações", icon: <Settings size={collapsed ? 24 : 20} /> },
   ];
   

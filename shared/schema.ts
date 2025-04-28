@@ -322,3 +322,12 @@ export type InsertProspectingSearch = z.infer<typeof insertProspectingSearchSche
 
 export type ProspectingResult = typeof prospectingResults.$inferSelect;
 export type InsertProspectingResult = z.infer<typeof insertProspectingResultSchema>;
+
+// Connection Types
+export interface ConnectionStatus {
+  connected: boolean;
+  name?: string;
+  phone?: string;
+  qrCode?: string;
+  lastUpdated?: Date;
+}
