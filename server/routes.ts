@@ -488,11 +488,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
         
-        if (response.data && response.data.qrCode) {
-          // Se o webhook retornou um QR code, usamos ele
+        // Vamos verificar a estrutura da resposta para extrair o QR code corretamente
+        console.log("Resposta do webhook:", JSON.stringify(response.data, null, 2));
+        
+        // Verifica diferentes formatos possíveis da resposta
+        let qrCodeBase64 = null;
+        
+        if (response.data && response.data.data && response.data.data.base64) {
+          // Formato { data: { base64: "..." } }
+          qrCodeBase64 = response.data.data.base64;
+        } else if (response.data && response.data.data && response.data.data.pairingCode) {
+          // Formato { data: { pairingCode: "...", code: "..." } }
+          qrCodeBase64 = response.data.data.code;
+        } else if (response.data && response.data.qrCode) {
+          // Formato { qrCode: "..." }
+          qrCodeBase64 = response.data.qrCode;
+        }
+        
+        if (qrCodeBase64) {
           connectionStatus[id] = {
             connected: false,
-            qrCode: response.data.qrCode,
+            qrCode: qrCodeBase64,
             lastUpdated: new Date()
           };
         } else {
