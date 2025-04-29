@@ -478,12 +478,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Tentando conectar usando webhook: ${webhookUrl}`);
       
       try {
-        // Tenta fazer a chamada para o webhook para obter o QR code
-        const response = await axios.post(webhookUrl, {
-          action: "requestQrCode",
-          userId: id,
-          username: user.username,
-          callbackUrl: `${req.protocol}://${req.get('host')}/api/connection/callback`
+        // Tenta fazer a chamada para o webhook para obter o QR code usando GET
+        const response = await axios.get(webhookUrl, {
+          params: {
+            action: "requestQrCode",
+            userId: id,
+            username: user.username,
+            callbackUrl: `${req.protocol}://${req.get('host')}/api/connection/callback`
+          }
         });
         
         if (response.data && response.data.qrCode) {
