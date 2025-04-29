@@ -1384,11 +1384,32 @@ export class DatabaseStorage implements IStorage {
   
   // Prospecting Results methods
   async getProspectingResults(searchId: number): Promise<ProspectingResult[]> {
-    return db
-      .select()
-      .from(prospectingResults)
-      .where(eq(prospectingResults.searchId, searchId))
-      .orderBy(desc(prospectingResults.createdAt));
+    try {
+      const results = await db
+        .select({
+          id: prospectingResults.id,
+          searchId: prospectingResults.searchId,
+          name: prospectingResults.name,
+          phone: prospectingResults.phone,
+          email: prospectingResults.email,
+          address: prospectingResults.address,
+          type: prospectingResults.type,
+          site: prospectingResults.site,
+          cidade: prospectingResults.cidade,
+          estado: prospectingResults.estado,
+          createdAt: prospectingResults.createdAt,
+          dispatchedAt: prospectingResults.dispatchedAt
+        })
+        .from(prospectingResults)
+        .where(eq(prospectingResults.searchId, searchId))
+        .orderBy(desc(prospectingResults.createdAt));
+      
+      console.log(`Encontrados ${results.length} resultados no banco para a busca ${searchId}`);
+      return results;
+    } catch (error) {
+      console.error("Erro ao buscar resultados de prospecção:", error);
+      return [];
+    }
   }
   
   async getProspectingResult(id: number): Promise<ProspectingResult | undefined> {
@@ -1421,6 +1442,73 @@ export class DatabaseStorage implements IStorage {
       .delete(prospectingResults)
       .where(eq(prospectingResults.id, id));
     return !!result;
+  }
+  
+  // Prospecting Schedules methods
+  async getProspectingSchedules(searchId: number): Promise<any[]> {
+    try {
+      return db
+        .select()
+        .from(prospectingSchedules)
+        .where(eq(prospectingSchedules.searchId, searchId))
+        .orderBy(desc(prospectingSchedules.createdAt));
+    } catch (error) {
+      console.error("Erro ao buscar agendamentos:", error);
+      return [];
+    }
+  }
+  
+  async createProspectingSchedule(scheduleData: any): Promise<any> {
+    try {
+      const [newSchedule] = await db
+        .insert(prospectingSchedules)
+        .values(scheduleData)
+        .returning();
+      return newSchedule;
+    } catch (error) {
+      console.error("Erro ao criar agendamento:", error);
+      throw error;
+    }
+  }
+  
+  async updateProspectingSchedule(id: number, data: any): Promise<any> {
+    try {
+      const [updated] = await db
+        .update(prospectingSchedules)
+        .set(data)
+        .where(eq(prospectingSchedules.id, id))
+        .returning();
+      return updated;
+    } catch (error) {
+      console.error("Erro ao atualizar agendamento:", error);
+      throw error;
+    }
+  }
+  
+  async getProspectingDispatchHistory(searchId: number): Promise<any[]> {
+    try {
+      return db
+        .select()
+        .from(prospectingDispatchHistory)
+        .where(eq(prospectingDispatchHistory.searchId, searchId))
+        .orderBy(desc(prospectingDispatchHistory.executedAt));
+    } catch (error) {
+      console.error("Erro ao buscar histórico de envios:", error);
+      return [];
+    }
+  }
+  
+  async createProspectingDispatchHistory(data: any): Promise<any> {
+    try {
+      const [newRecord] = await db
+        .insert(prospectingDispatchHistory)
+        .values(data)
+        .returning();
+      return newRecord;
+    } catch (error) {
+      console.error("Erro ao registrar histórico de envio:", error);
+      throw error;
+    }
   }
   
   async getAllUsers(): Promise<User[]> {
