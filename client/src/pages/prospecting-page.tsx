@@ -83,6 +83,10 @@ export default function ProspectingPage() {
   const [showResultDialog, setShowResultDialog] = useState(false);
   const [selectedResult, setSelectedResult] = useState<ProspectingResult | null>(null);
   const [activeTab, setActiveTab] = useState<string>("searches");
+  const [filterSegment, setFilterSegment] = useState<string>("");
+  const [filterCity, setFilterCity] = useState<string>("");
+  const [filterPeriod, setFilterPeriod] = useState<string>("todos");
+  const [filterStatus, setFilterStatus] = useState<string>("todos");
 
   // Query para buscar dados de prospecção
   const { data: searches, isLoading: isLoadingSearches } = useQuery({
@@ -168,6 +172,72 @@ export default function ProspectingPage() {
       });
     }
   });
+  
+  // Mutação para disparar leads
+  const dispatchLeadsMutation = useMutation({
+    mutationFn: async (searchId: number) => {
+      if (!user?.dispatchesWebhookUrl) {
+        throw new Error("URL de webhook de disparos não configurada");
+      }
+      
+      // Buscar a pesquisa e os resultados
+      const search = searches?.find(s => s.id === searchId);
+      if (!search) {
+        throw new Error("Busca não encontrada");
+      }
+      
+      // Verificar se há resultados pendentes
+      if (search.dispatchesPending <= 0) {
+        throw new Error("Não há resultados pendentes para disparar");
+      }
+      
+      // Enviar requisição para o webhook configurado
+      const res = await fetch(user.dispatchesWebhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          searchId: searchId,
+          segment: search.segment,
+          city: search.city,
+          userId: user.id,
+          count: search.dispatchesPending,
+          callbackUrl: `${window.location.origin}/api/prospecting/webhook-callback/${user.id}`
+        }),
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Erro ao disparar: ${res.statusText}`);
+      }
+      
+      return await res.json();
+    },
+    onSuccess: (data, searchId) => {
+      toast({
+        title: "Disparos iniciados",
+        description: "Os leads foram enviados para processamento",
+      });
+      
+      // Atualizar o status da busca
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/results", searchId] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao disparar leads",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Função para disparar leads
+  const handleDispatchLeads = (searchId: number) => {
+    if (confirm("Tem certeza que deseja disparar os leads pendentes?")) {
+      dispatchLeadsMutation.mutate(searchId);
+    }
+  };
 
 
 
@@ -254,14 +324,102 @@ export default function ProspectingPage() {
                         <CardDescription>Selecione para ver os resultados</CardDescription>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <ScrollArea className="h-[500px]">
+                        {/* Filtros */}
+                        <div className="p-4 border-b">
+                          <div className="mb-2">
+                            <Input 
+                              placeholder="Filtrar por segmento" 
+                              value={filterSegment}
+                              onChange={(e) => setFilterSegment(e.target.value)}
+                              className="mb-2"
+                            />
+                          </div>
+                          <div className="mb-2">
+                            <Input 
+                              placeholder="Filtrar por cidade" 
+                              value={filterCity}
+                              onChange={(e) => setFilterCity(e.target.value)}
+                              className="mb-2"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Select
+                              value={filterPeriod}
+                              onValueChange={setFilterPeriod}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Período" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="todos">Todos</SelectItem>
+                                <SelectItem value="hoje">Hoje</SelectItem>
+                                <SelectItem value="semana">Esta semana</SelectItem>
+                                <SelectItem value="mes">Este mês</SelectItem>
+                                <SelectItem value="ano">Este ano</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={filterStatus}
+                              onValueChange={setFilterStatus}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="todos">Todos</SelectItem>
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="em_andamento">Em andamento</SelectItem>
+                                <SelectItem value="concluido">Concluído</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <ScrollArea className="h-[400px]">
                           {isLoadingSearches ? (
                             <div className="flex items-center justify-center p-6">
                               <Loader2 className="h-6 w-6 animate-spin text-primary" />
                             </div>
                           ) : searches && searches.length > 0 ? (
                             <div className="divide-y">
-                              {searches.map((search) => (
+                              {searches
+                                .filter(search => {
+                                  // Filtro por segmento
+                                  if (filterSegment && !search.segment.toLowerCase().includes(filterSegment.toLowerCase())) {
+                                    return false;
+                                  }
+                                  
+                                  // Filtro por cidade
+                                  if (filterCity && search.city && !search.city.toLowerCase().includes(filterCity.toLowerCase())) {
+                                    return false;
+                                  }
+                                  
+                                  // Filtro por período
+                                  if (filterPeriod !== 'todos') {
+                                    const searchDate = new Date(search.createdAt);
+                                    const today = new Date();
+                                    
+                                    if (filterPeriod === 'hoje') {
+                                      return searchDate.toDateString() === today.toDateString();
+                                    } else if (filterPeriod === 'semana') {
+                                      const startOfWeek = new Date(today);
+                                      startOfWeek.setDate(today.getDate() - today.getDay());
+                                      return searchDate >= startOfWeek;
+                                    } else if (filterPeriod === 'mes') {
+                                      return searchDate.getMonth() === today.getMonth() && 
+                                            searchDate.getFullYear() === today.getFullYear();
+                                    } else if (filterPeriod === 'ano') {
+                                      return searchDate.getFullYear() === today.getFullYear();
+                                    }
+                                  }
+                                  
+                                  // Filtro por status
+                                  if (filterStatus !== 'todos' && search.status !== filterStatus) {
+                                    return false;
+                                  }
+                                  
+                                  return true;
+                                })
+                                .map((search) => (
                                 <div 
                                   key={search.id}
                                   className={`p-4 cursor-pointer hover:bg-accent ${activeSearch === search.id ? 'bg-accent' : ''}`}
@@ -296,7 +454,7 @@ export default function ProspectingPage() {
                               <Button 
                                 variant="link" 
                                 className="mt-2" 
-                                onClick={() => document.querySelector('[data-value="new"]')?.click()}
+                                onClick={() => setActiveTab("new")}
                               >
                                 Criar nova busca
                               </Button>
@@ -425,7 +583,7 @@ export default function ProspectingPage() {
                           </p>
                           <Button 
                             className="mt-6" 
-                            onClick={() => document.querySelector('[data-value="new"]')?.click()}
+                            onClick={() => setActiveTab("new")}
                           >
                             <FilePlus2 className="h-4 w-4 mr-2" />
                             Criar Nova Busca
