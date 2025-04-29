@@ -581,6 +581,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Middleware para verificar se o usuário é administrador
+  const isAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    const user = req.user as Express.User;
+    
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado. Apenas administradores podem acessar este recurso." });
+    }
+    
+    next();
+  };
+
+  // Rotas de administração de usuários
+  app.get("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      res.json(allUsers);
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+
+  app.get("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Erro ao buscar usuário:", error);
+      res.status(500).json({ message: "Erro ao buscar usuário" });
+    }
+  });
+
+  app.post("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const userData = req.body;
+      
+      // Verificar se o nome de usuário já existe
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Nome de usuário já existe" });
+      }
+      
+      // Hash da senha antes de salvar
+      userData.password = await hashPassword(userData.password);
+      
+      const newUser = await storage.createUser(userData);
+      res.status(201).json({ ...newUser, password: undefined });
+    } catch (error) {
+      console.error("Erro ao criar usuário:", error);
+      res.status(500).json({ message: "Erro ao criar usuário" });
+    }
+  });
+
+  app.put("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const userData = req.body;
+      
+      // Se estiver atualizando a senha, faça o hash
+      if (userData.password) {
+        userData.password = await hashPassword(userData.password);
+      }
+      
+      const updatedUser = await storage.updateUser(userId, userData);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      res.json({ ...updatedUser, password: undefined });
+    } catch (error) {
+      console.error("Erro ao atualizar usuário:", error);
+      res.status(500).json({ message: "Erro ao atualizar usuário" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Prevenir a exclusão do próprio usuário administrador
+      if (userId === (req.user as Express.User).id) {
+        return res.status(400).json({ message: "Não é possível excluir o próprio usuário" });
+      }
+      
+      const success = await storage.deleteUser(userId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Usuário não encontrado ou erro ao excluir" });
+      }
+      
+      res.status(200).json({ message: "Usuário excluído com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      res.status(500).json({ message: "Erro ao excluir usuário" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
