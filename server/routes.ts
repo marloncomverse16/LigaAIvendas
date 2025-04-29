@@ -478,14 +478,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Tentando conectar usando webhook: ${webhookUrl}`);
       
       try {
-        // Tenta fazer a chamada para o webhook para obter o QR code usando GET
-        const response = await axios.get(webhookUrl, {
-          params: {
-            action: "requestQrCode",
-            userId: id,
-            username: user.username,
-            callbackUrl: `${req.protocol}://${req.get('host')}/api/connection/callback`
-          }
+        // Voltando a usar POST como estava originalmente
+        console.log("Enviando webhook POST para:", webhookUrl);
+        const response = await axios.post(webhookUrl, {
+          action: "requestQrCode",
+          userId: id,
+          username: user.username,
+          callbackUrl: `${req.protocol}://${req.get('host')}/api/connection/callback`
         });
         
         // Vamos verificar a estrutura da resposta para extrair o QR code corretamente
@@ -494,14 +493,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Verifica diferentes formatos possíveis da resposta
         let qrCodeBase64 = null;
         
-        if (response.data && response.data.data && response.data.data.base64) {
+        console.log("Tipo de resposta:", typeof response.data);
+        
+        if (response.data && Array.isArray(response.data)) {
+          // Se a resposta é um array
+          console.log("Resposta é um array de comprimento:", response.data.length);
+          
+          if (response.data.length > 0 && response.data[0].json) {
+            console.log("Formato de array com json encontrado");
+            const jsonData = response.data[0].json;
+            
+            if (jsonData.data && jsonData.data.base64) {
+              qrCodeBase64 = jsonData.data.base64;
+            }
+          }
+        } else if (response.data && response.data.data && response.data.data.base64) {
           // Formato { data: { base64: "..." } }
+          console.log("Formato data.base64 encontrado");
           qrCodeBase64 = response.data.data.base64;
         } else if (response.data && response.data.data && response.data.data.pairingCode) {
           // Formato { data: { pairingCode: "...", code: "..." } }
+          console.log("Formato data.pairingCode encontrado");
           qrCodeBase64 = response.data.data.code;
         } else if (response.data && response.data.qrCode) {
           // Formato { qrCode: "..." }
+          console.log("Formato qrCode encontrado");
           qrCodeBase64 = response.data.qrCode;
         }
         

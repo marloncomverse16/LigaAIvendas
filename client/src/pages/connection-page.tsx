@@ -211,7 +211,9 @@ export default function ConnectionPage() {
                     <div className="bg-white p-6 mx-auto rounded-xl shadow-md">
                       <div className="w-56 h-56 relative mx-auto">
                         <img 
-                          src={`data:image/png;base64,${status.qrCode}`} 
+                          src={status.qrCode && status.qrCode.startsWith('data:') 
+                            ? status.qrCode 
+                            : `data:image/png;base64,${status.qrCode}`} 
                           alt="QR Code" 
                           className="w-full h-full"
                         />
