@@ -86,20 +86,22 @@ export default function UserPermissionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader className="sticky top-0 z-10 bg-background pb-3">
           <DialogTitle>Permissões de Acesso</DialogTitle>
           <DialogDescription>
             Configure quais módulos o usuário <strong>{user.name || user.username}</strong> pode acessar no sistema.
           </DialogDescription>
         </DialogHeader>
 
-        <ModulePermissions
-          permissions={permissions}
-          onChange={setPermissions}
-        />
+        <div className="py-4 overflow-y-auto">
+          <ModulePermissions
+            permissions={permissions}
+            onChange={setPermissions}
+          />
+        </div>
 
-        <DialogFooter className="mt-6">
+        <DialogFooter className="sticky bottom-0 z-10 bg-background pt-3 mt-4">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
