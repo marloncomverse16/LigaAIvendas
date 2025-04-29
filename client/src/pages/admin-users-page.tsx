@@ -33,6 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import UserPermissionsDialog from "@/components/admin/user-permissions-dialog";
+import ModulePermissions from "@/components/admin/module-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { InsertUser, User } from "@shared/schema";
