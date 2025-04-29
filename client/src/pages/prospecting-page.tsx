@@ -362,11 +362,11 @@ export default function ProspectingPage() {
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead>Nome</TableHead>
-                                  <TableHead>Contato</TableHead>
-                                  <TableHead>Tipo</TableHead>
-                                  <TableHead>Status</TableHead>
-                                  <TableHead className="w-[100px]">Ações</TableHead>
+                                  <TableHead>NOME</TableHead>
+                                  <TableHead>TELEFONE</TableHead>
+                                  <TableHead>EMAIL</TableHead>
+                                  <TableHead>ENDEREÇO</TableHead>
+                                  <TableHead>TIPO</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -378,36 +378,19 @@ export default function ProspectingPage() {
                                   </TableRow>
                                 ) : results && results.length > 0 ? (
                                   results.map((result) => (
-                                    <TableRow key={result.id}>
-                                      <TableCell className="font-medium">{result.name || "N/A"}</TableCell>
-                                      <TableCell>
-                                        {result.email && <div className="text-sm">{result.email}</div>}
-                                        {result.phone && <div className="text-sm">{result.phone}</div>}
-                                      </TableCell>
-                                      <TableCell>{result.type || "N/A"}</TableCell>
-                                      <TableCell>
-                                        {result.dispatchedAt ? (
-                                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                                            Enviado
-                                          </Badge>
-                                        ) : (
-                                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                                            Pendente
-                                          </Badge>
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        <Button 
-                                          variant="ghost" 
-                                          size="sm"
-                                          onClick={() => {
-                                            setSelectedResult(result);
-                                            setShowResultDialog(true);
-                                          }}
-                                        >
-                                          <Search className="h-4 w-4" />
-                                        </Button>
-                                      </TableCell>
+                                    <TableRow 
+                                      key={result.id}
+                                      className="cursor-pointer hover:bg-accent"
+                                      onClick={() => {
+                                        setSelectedResult(result);
+                                        setShowResultDialog(true);
+                                      }}
+                                    >
+                                      <TableCell className="font-medium">{result.nome || result.name || '-'}</TableCell>
+                                      <TableCell>{result.telefone || result.phone || '-'}</TableCell>
+                                      <TableCell>{result.email || '-'}</TableCell>
+                                      <TableCell className="max-w-[200px] truncate">{result.endereco || result.address || '-'}</TableCell>
+                                      <TableCell>{result.tipo || result.type || '-'}</TableCell>
                                     </TableRow>
                                   ))
                                 ) : (
@@ -594,7 +577,7 @@ export default function ProspectingPage() {
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Nome</h3>
-                <p className="text-lg">{selectedResult.name || "Não informado"}</p>
+                <p className="text-lg">{selectedResult.nome || selectedResult.name || "Não informado"}</p>
               </div>
               
               <div>
@@ -603,18 +586,34 @@ export default function ProspectingPage() {
               </div>
               
               <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Site</h3>
+                <p className="text-lg">{selectedResult.site || "Não informado"}</p>
+              </div>
+              
+              <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Telefone</h3>
-                <p className="text-lg">{selectedResult.phone || "Não informado"}</p>
+                <p className="text-lg">{selectedResult.telefone || selectedResult.phone || "Não informado"}</p>
               </div>
               
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Endereço</h3>
-                <p className="text-lg">{selectedResult.address || "Não informado"}</p>
+                <p className="text-lg">{selectedResult.endereco || selectedResult.address || "Não informado"}</p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Cidade/Estado</h3>
+                <p className="text-lg">
+                  {selectedResult.cidade ? (
+                    `${selectedResult.cidade}${selectedResult.estado ? ` - ${selectedResult.estado}` : ''}`
+                  ) : (
+                    "Não informado"
+                  )}
+                </p>
               </div>
               
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Tipo</h3>
-                <p className="text-lg">{selectedResult.type || "Não informado"}</p>
+                <p className="text-lg">{selectedResult.tipo || selectedResult.type || "Não informado"}</p>
               </div>
               
               <div>

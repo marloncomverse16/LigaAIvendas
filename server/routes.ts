@@ -891,41 +891,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Dados da busca de prospecção recebidos:", searchData);
       
-      // Se tiver um webhookUrl, tenta chamar o webhook
+      // Se tiver um webhookUrl, tenta chamar o webhook via GET (conforme solicitado)
       if (searchData.webhookUrl) {
         try {
-          console.log("Tentando chamar webhook:", searchData.webhookUrl);
+          const webhookUrl = searchData.webhookUrl;
+          console.log("Tentando chamar webhook GET:", webhookUrl);
           
           const user = req.user as Express.User;
           
-          // Preparar os dados para enviar ao webhook
-          const webhookData = {
-            action: "startProspectingSearch",
-            userId: user.id,
-            username: user.username,
-            searchData: {
-              segment: searchData.segment,
-              city: searchData.city || null,
-              filters: searchData.filters || null
-            },
-            callbackUrl: `${req.protocol}://${req.get('host')}/api/prospecting/webhook-callback/${user.id}`
-          };
-          
-          // Tentar chamar o webhook
-          await axios.post(searchData.webhookUrl, webhookData, {
-            headers: {
-              'Content-Type': 'application/json'
-            }
+          // Preparar os parâmetros de consulta para o webhook
+          const params = new URLSearchParams({
+            segmento: searchData.segment,
+            cidade: searchData.city || '',
+            filtros: searchData.filters || '',
+            usuario_id: user.id.toString(),
+            callback_url: `${req.protocol}://${req.get('host')}/api/prospecting/webhook-callback/${user.id}`
           });
           
-          console.log("Webhook chamado com sucesso");
+          // Construir URL completa com parâmetros
+          const fullUrl = `${webhookUrl}${webhookUrl.includes('?') ? '&' : '?'}${params.toString()}`;
+          console.log("URL completa do webhook:", fullUrl);
+          
+          // Chamar o webhook via GET
+          const response = await axios.get(fullUrl);
+          
+          console.log("Resposta do webhook:", response.data);
+          
+          // Se o webhook retornar dados de prospecção, usar esses dados
+          if (response.data) {
+            // Usar os dados retornados pelo webhook para criar a busca
+            const webhookResponse = response.data;
+            
+            const newSearch = {
+              id: Math.floor(Math.random() * 1000) + 100,
+              userId: req.user.id,
+              segment: searchData.segment,
+              city: searchData.city || null,
+              filters: searchData.filters || null,
+              status: webhookResponse.status || "em_andamento",
+              createdAt: new Date(),
+              completedAt: webhookResponse.concluido ? new Date() : null,
+              leadsFound: webhookResponse.leadsEncontrados || webhookResponse.totalLeads || 0,
+              dispatchesDone: webhookResponse.leadsProcessados || 0,
+              dispatchesPending: (webhookResponse.leadsEncontrados || webhookResponse.totalLeads || 0) - 
+                               (webhookResponse.leadsProcessados || 0),
+              webhookUrl: searchData.webhookUrl,
+              webhookData: webhookResponse
+            };
+            
+            console.log("Busca criada com dados do webhook:", newSearch);
+            return res.status(200).json(newSearch);
+          }
+          
+          console.log("Webhook chamado com sucesso, mas sem dados específicos retornados");
         } catch (webhookError) {
           console.error("Erro ao chamar webhook de prospecção:", webhookError);
-          // Não interrompe o fluxo, apenas loga o erro
+          // Continuamos o fluxo mesmo com erro, para criar uma busca local
         }
       }
       
-      // Criar um mock da busca criada
+      // Se não tiver webhook ou ocorrer erro, criar um mock da busca
       const newSearch = {
         id: Math.floor(Math.random() * 1000) + 100,
         userId: req.user.id,
@@ -961,18 +986,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "ID de busca inválido" });
       }
       
-      // Mock de resultados para demonstração
-      const mockResults = Array.from({ length: 15 }, (_, i) => ({
-        id: i + 1,
-        searchId,
-        name: `Empresa ${i + 1}`,
-        email: `contato@empresa${i + 1}.com.br`,
-        phone: `(11) 9${Math.floor(Math.random() * 9000) + 1000}-${Math.floor(Math.random() * 9000) + 1000}`,
-        address: `Rua das Empresas, ${i * 10 + 100}, São Paulo - SP`,
-        type: i % 3 === 0 ? "Pequena" : i % 3 === 1 ? "Média" : "Grande",
-        createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
-        dispatchedAt: i < 10 ? new Date(Date.now() - i * 12 * 60 * 60 * 1000) : null
-      }));
+      // Encontrar a busca correspondente
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        // Se a busca não existir no banco, usar a busca mockada
+        console.log("Busca não encontrada, usando resultados mockados");
+      }
+      
+      // Identificar a cidade da busca para criar resultados mais relevantes
+      const cidade = search?.city || "São Paulo";
+      const segmento = search?.segment || "Transporte";
+      
+      // Mock de resultados para demonstração baseado no exemplo do usuário
+      const mockResults = [
+        {
+          id: 1,
+          searchId,
+          nome: `${segmento} Escolar ${cidade}`,
+          telefone: `+55 43 99144-0027`,
+          email: '',
+          endereco: `R. Meyer, 340, ${cidade}`,
+          tipo: "Transportation service",
+          site: "www.transporteescolar.com.br",
+          cidade: cidade,
+          estado: "PR"
+        },
+        {
+          id: 2,
+          searchId,
+          nome: `TCGL - Transporte Coletivo Grande ${cidade}`,
+          telefone: `+55 43 3379-2400`,
+          email: '',
+          endereco: `R. Messias W. de Souza, 756, ${cidade}`,
+          tipo: "Transportation service",
+          site: "www.tcgl.com.br",
+          cidade: cidade,
+          estado: "PR"
+        },
+        {
+          id: 3,
+          searchId,
+          nome: `Sabrina Transportes Escolares`,
+          telefone: `+55 43 99143-7056`,
+          email: '',
+          endereco: `R. Antonio Inácio Pereira, 110, ${cidade}`,
+          tipo: "Transportation service",
+          site: "www.sabrinatransportes.com.br",
+          cidade: cidade,
+          estado: "PR"
+        },
+        {
+          id: 4,
+          searchId,
+          nome: `Balla Transportes`,
+          telefone: `+55 43 99478-7660`,
+          email: '',
+          endereco: `R. Brasil, 1625, ${cidade}`,
+          tipo: "Mover",
+          site: "www.ballatransportes.com.br",
+          cidade: cidade,
+          estado: "PR"
+        },
+        {
+          id: 5,
+          searchId,
+          nome: `BR TRANSPORTES FRETES`,
+          telefone: `+55 43 99167-7134`,
+          email: '',
+          endereco: `R. Ouro Preto, 440, ${cidade}`,
+          tipo: "Freight forwarding service",
+          site: "www.brtransportes.com.br",
+          cidade: cidade,
+          estado: "PR"
+        },
+        {
+          id: 6,
+          searchId,
+          nome: `Pozzer Transportes`,
+          telefone: `+55 43 3379-9500`,
+          email: '',
+          endereco: `Av. Tiradentes, 3205, ${cidade}`,
+          tipo: "Transportation service",
+          site: "www.pozzertransportes.com.br",
+          cidade: cidade,
+          estado: "PR"
+        },
+        {
+          id: 7,
+          searchId,
+          nome: `Transportadora em ${cidade} Paraná - AIL Logística e Transporte`,
+          telefone: `+55 43 3052-1809`,
+          email: '',
+          endereco: `Avenida Ayrton Senna da Silva 200 sl 1704 Gleba Palhano 1, ${cidade}`,
+          tipo: "Trucking company",
+          site: "www.aillogistica.com.br",
+          cidade: cidade,
+          estado: "PR"
+        },
+        {
+          id: 8,
+          searchId,
+          nome: `Sotran SA Logística e Transportes`,
+          telefone: `+55 43 3711-3800`,
+          email: '',
+          endereco: `Rua João Wyclif, 111 - 2301, ${cidade}`,
+          tipo: "Trucking company",
+          site: "www.sotran.com.br",
+          cidade: cidade,
+          estado: "PR"
+        }
+      ];
+      
+      // Se houver mais de 8 resultados, adicionar outros resultados mockados
+      if ((search?.leadsFound || 0) > 8) {
+        const extras = Array.from({ length: (search?.leadsFound || 0) - 8 }, (_, i) => ({
+          id: i + 9,
+          searchId,
+          nome: `${segmento} ${i + 9} ${cidade}`,
+          telefone: `+55 43 9${Math.floor(Math.random() * 9000) + 1000}-${Math.floor(Math.random() * 9000) + 1000}`,
+          email: '',
+          endereco: `R. ${Math.floor(Math.random() * 100)}, ${Math.floor(Math.random() * 1000) + 100}, ${cidade}`,
+          tipo: i % 2 === 0 ? "Transportation service" : "Logistics company",
+          site: `www.transporte${i + 9}.com.br`,
+          cidade: cidade,
+          estado: "PR"
+        }));
+        
+        mockResults.push(...extras);
+      }
       
       res.json(mockResults);
     } catch (error) {
