@@ -830,53 +830,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Mock de buscas de prospecção para demonstração
-      const mockSearches = [
-        {
-          id: 1,
-          userId: req.user.id,
-          segment: "Restaurantes",
-          city: "São Paulo",
-          filters: "Estabelecimentos com mais de 10 funcionários",
-          status: "concluido",
-          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 dias atrás
-          completedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6 dias atrás
-          leadsFound: 35,
-          dispatchesDone: 28,
-          dispatchesPending: 7,
-          webhookUrl: req.user.prospectingWebhookUrl || null
-        },
-        {
-          id: 2,
-          userId: req.user.id,
-          segment: "Clínicas médicas",
-          city: "Rio de Janeiro",
-          filters: "Especialidades: Cardiologia, Ortopedia",
-          status: "em_andamento",
-          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 dias atrás
-          completedAt: null,
-          leadsFound: 12,
-          dispatchesDone: 5,
-          dispatchesPending: 7,
-          webhookUrl: req.user.prospectingWebhookUrl || null
-        },
-        {
-          id: 3,
-          userId: req.user.id,
-          segment: "Escritórios de advocacia",
-          city: "Belo Horizonte",
-          filters: "Direito empresarial",
-          status: "pendente",
-          createdAt: new Date(), // hoje
-          completedAt: null,
-          leadsFound: 0,
-          dispatchesDone: 0,
-          dispatchesPending: 0,
-          webhookUrl: req.user.prospectingWebhookUrl || null
-        }
-      ];
+      // Buscar as pesquisas do banco de dados apenas para o usuário atual
+      const searches = await storage.getProspectingSearches(req.user.id);
       
-      res.json(mockSearches);
+      // Garantir que as buscas estão em ordem decrescente de data de criação (mais recentes primeiro)
+      const sortedSearches = searches.sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt).getTime();
+        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
+      
+      // Log para depuração
+      console.log(`Encontradas ${searches.length} pesquisas para o usuário ${req.user.id}:`, 
+        searches.map(s => ({ id: s.id, segment: s.segment, status: s.status })));
+      
+      res.json(sortedSearches);
     } catch (error) {
       console.error("Erro ao buscar pesquisas de prospecção:", error);
       res.status(500).json({ message: "Erro ao buscar pesquisas de prospecção" });
@@ -955,24 +923,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
               concluido = webhookResponse.concluido || leadsEncontrados > 0;
             }
             
-            const newSearch = {
-              id: Math.floor(Math.random() * 1000) + 100,
+            // Criar a busca no banco de dados
+            const newSearch = await storage.createProspectingSearch({
               userId: req.user.id,
               segment: searchData.segment,
               city: searchData.city || null,
               filters: searchData.filters || null,
               status: status,
-              createdAt: new Date(),
-              completedAt: concluido ? new Date() : null,
               leadsFound: leadsEncontrados,
               dispatchesDone: 0,
               dispatchesPending: leadsEncontrados, 
-              webhookUrl: searchData.webhookUrl,
-              webhookData: webhookResponse
-            };
+              webhookUrl: searchData.webhookUrl
+            });
+            
+            // Atualizar completedAt se estiver concluído
+            if (concluido) {
+              await storage.updateProspectingSearch(newSearch.id, {
+                completedAt: new Date()
+              });
+            }
+            
+            // Processar e salvar os resultados no banco de dados se houver dados
+            if (leadsEncontrados > 0) {
+              // Processar cada lead e salvar no banco de dados
+              if (Array.isArray(webhookResponse)) {
+                // Para cada item no array, criar um resultado
+                await Promise.all(webhookResponse.map(async (item) => {
+                  try {
+                    // Adaptar campos com base no formato dos dados
+                    const nome = item.nome || item.name || item.razaoSocial || null;
+                    const telefone = item.telefone || item.phone || item.celular || null;
+                    const email = item.email || null;
+                    const endereco = item.endereco || item.address || null;
+                    const tipo = item.tipo || item.type || null;
+                    const cidade = item.cidade || item.city || searchData.city || null;
+                    const estado = item.estado || item.state || item.uf || null;
+                    const site = item.site || item.website || null;
+                    
+                    // Criar resultado no banco
+                    await storage.createProspectingResult({
+                      searchId: newSearch.id,
+                      name: nome,
+                      phone: telefone,
+                      email: email,
+                      address: endereco,
+                      type: tipo,
+                      site: site,
+                      city: cidade,
+                      state: estado
+                    });
+                  } catch (itemError) {
+                    console.error("Erro ao processar item de resultado:", itemError);
+                  }
+                }));
+              } else if (webhookResponse.data && Array.isArray(webhookResponse.data)) {
+                // Se for um objeto com array de dados
+                await Promise.all(webhookResponse.data.map(async (item) => {
+                  try {
+                    const nome = item.nome || item.name || item.razaoSocial || null;
+                    const telefone = item.telefone || item.phone || item.celular || null;
+                    const email = item.email || null;
+                    const endereco = item.endereco || item.address || null;
+                    const tipo = item.tipo || item.type || null;
+                    const cidade = item.cidade || item.city || searchData.city || null;
+                    const estado = item.estado || item.state || item.uf || null;
+                    const site = item.site || item.website || null;
+                    
+                    await storage.createProspectingResult({
+                      searchId: newSearch.id,
+                      name: nome,
+                      phone: telefone,
+                      email: email,
+                      address: endereco,
+                      type: tipo,
+                      site: site,
+                      city: cidade,
+                      state: estado
+                    });
+                  } catch (itemError) {
+                    console.error("Erro ao processar item de resultado:", itemError);
+                  }
+                }));
+              }
+            }
             
             console.log("Busca criada com dados do webhook:", newSearch);
-            return res.status(200).json(newSearch);
+            
+            // Obter a busca completa do banco para retornar
+            const savedSearch = await storage.getProspectingSearch(newSearch.id);
+            return res.status(201).json(savedSearch);
           }
           
           console.log("Webhook chamado com sucesso, mas sem dados específicos retornados");
@@ -982,23 +1021,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Se não tiver webhook ou ocorrer erro, criar um mock da busca
-      const newSearch = {
-        id: Math.floor(Math.random() * 1000) + 100,
+      // Se não tiver webhook ou ocorrer erro, criar uma busca no banco de dados
+      const newSearch = await storage.createProspectingSearch({
         userId: req.user.id,
         segment: searchData.segment,
         city: searchData.city || null,
         filters: searchData.filters || null,
         status: "pendente",
-        createdAt: new Date(),
-        completedAt: null,
         leadsFound: 0,
         dispatchesDone: 0,
         dispatchesPending: 0,
         webhookUrl: searchData.webhookUrl
-      };
+      });
       
-      res.status(200).json(newSearch);
+      console.log("Nova busca criada:", newSearch);
+      res.status(201).json(newSearch);
     } catch (error) {
       console.error("Erro ao criar busca de prospecção:", error);
       res.status(500).json({ 
@@ -1022,133 +1059,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const search = await storage.getProspectingSearch(searchId);
       
       if (!search) {
-        // Se a busca não existir no banco, usar a busca mockada
-        console.log("Busca não encontrada, usando resultados mockados");
+        return res.status(404).json({ message: "Busca não encontrada" });
       }
       
-      // Identificar a cidade da busca para criar resultados mais relevantes
-      const cidade = search?.city || "São Paulo";
-      const segmento = search?.segment || "Transporte";
-      
-      // Mock de resultados para demonstração baseado no exemplo do usuário
-      const mockResults = [
-        {
-          id: 1,
-          searchId,
-          nome: `${segmento} Escolar ${cidade}`,
-          telefone: `+55 43 99144-0027`,
-          email: '',
-          endereco: `R. Meyer, 340, ${cidade}`,
-          tipo: "Transportation service",
-          site: "www.transporteescolar.com.br",
-          cidade: cidade,
-          estado: "PR"
-        },
-        {
-          id: 2,
-          searchId,
-          nome: `TCGL - Transporte Coletivo Grande ${cidade}`,
-          telefone: `+55 43 3379-2400`,
-          email: '',
-          endereco: `R. Messias W. de Souza, 756, ${cidade}`,
-          tipo: "Transportation service",
-          site: "www.tcgl.com.br",
-          cidade: cidade,
-          estado: "PR"
-        },
-        {
-          id: 3,
-          searchId,
-          nome: `Sabrina Transportes Escolares`,
-          telefone: `+55 43 99143-7056`,
-          email: '',
-          endereco: `R. Antonio Inácio Pereira, 110, ${cidade}`,
-          tipo: "Transportation service",
-          site: "www.sabrinatransportes.com.br",
-          cidade: cidade,
-          estado: "PR"
-        },
-        {
-          id: 4,
-          searchId,
-          nome: `Balla Transportes`,
-          telefone: `+55 43 99478-7660`,
-          email: '',
-          endereco: `R. Brasil, 1625, ${cidade}`,
-          tipo: "Mover",
-          site: "www.ballatransportes.com.br",
-          cidade: cidade,
-          estado: "PR"
-        },
-        {
-          id: 5,
-          searchId,
-          nome: `BR TRANSPORTES FRETES`,
-          telefone: `+55 43 99167-7134`,
-          email: '',
-          endereco: `R. Ouro Preto, 440, ${cidade}`,
-          tipo: "Freight forwarding service",
-          site: "www.brtransportes.com.br",
-          cidade: cidade,
-          estado: "PR"
-        },
-        {
-          id: 6,
-          searchId,
-          nome: `Pozzer Transportes`,
-          telefone: `+55 43 3379-9500`,
-          email: '',
-          endereco: `Av. Tiradentes, 3205, ${cidade}`,
-          tipo: "Transportation service",
-          site: "www.pozzertransportes.com.br",
-          cidade: cidade,
-          estado: "PR"
-        },
-        {
-          id: 7,
-          searchId,
-          nome: `Transportadora em ${cidade} Paraná - AIL Logística e Transporte`,
-          telefone: `+55 43 3052-1809`,
-          email: '',
-          endereco: `Avenida Ayrton Senna da Silva 200 sl 1704 Gleba Palhano 1, ${cidade}`,
-          tipo: "Trucking company",
-          site: "www.aillogistica.com.br",
-          cidade: cidade,
-          estado: "PR"
-        },
-        {
-          id: 8,
-          searchId,
-          nome: `Sotran SA Logística e Transportes`,
-          telefone: `+55 43 3711-3800`,
-          email: '',
-          endereco: `Rua João Wyclif, 111 - 2301, ${cidade}`,
-          tipo: "Trucking company",
-          site: "www.sotran.com.br",
-          cidade: cidade,
-          estado: "PR"
-        }
-      ];
-      
-      // Se houver mais de 8 resultados, adicionar outros resultados mockados
-      if ((search?.leadsFound || 0) > 8) {
-        const extras = Array.from({ length: (search?.leadsFound || 0) - 8 }, (_, i) => ({
-          id: i + 9,
-          searchId,
-          nome: `${segmento} ${i + 9} ${cidade}`,
-          telefone: `+55 43 9${Math.floor(Math.random() * 9000) + 1000}-${Math.floor(Math.random() * 9000) + 1000}`,
-          email: '',
-          endereco: `R. ${Math.floor(Math.random() * 100)}, ${Math.floor(Math.random() * 1000) + 100}, ${cidade}`,
-          tipo: i % 2 === 0 ? "Transportation service" : "Logistics company",
-          site: `www.transporte${i + 9}.com.br`,
-          cidade: cidade,
-          estado: "PR"
-        }));
-        
-        mockResults.push(...extras);
+      // Verificar se a busca pertence ao usuário atual
+      if (search.userId !== req.user.id) {
+        console.log(`Usuário ${req.user.id} tentou acessar busca ${searchId} que pertence ao usuário ${search.userId}`);
+        return res.status(403).json({ message: "Acesso negado a esta busca" });
       }
       
-      res.json(mockResults);
+      // Buscar resultados do banco de dados
+      const results = await storage.getProspectingResults(searchId);
+      
+      // Log para depuração
+      console.log(`Encontrados ${results.length} resultados para a busca ${searchId}`);
+      
+      // Faz mapeamento de campos para garantir compatibilidade com a interface do cliente
+      const formattedResults = results.map(result => ({
+        ...result,
+        // Campos de compatibilidade
+        nome: result.name || result.nome,
+        telefone: result.phone || result.telefone,
+        endereco: result.address || result.endereco,
+        tipo: result.type || result.tipo,
+        cidade: result.city || result.cidade,
+        estado: result.state || result.estado
+      }));
+      
+      res.json(formattedResults);
     } catch (error) {
       console.error("Erro ao buscar resultados de prospecção:", error);
       res.status(500).json({ message: "Erro ao buscar resultados de prospecção" });
