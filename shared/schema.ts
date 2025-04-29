@@ -346,6 +346,29 @@ export const prospectingResults = pgTable("prospecting_results", {
   dispatchedAt: timestamp("dispatched_at"),
 });
 
+// Tabela para agendamentos de envios
+export const prospectingSchedules = pgTable("prospecting_schedules", {
+  id: serial("id").primaryKey(),
+  searchId: integer("search_id").references(() => prospectingSearches.id).notNull(),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  status: text("status").default("pendente"),
+  executedAt: timestamp("executed_at"),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+// Tabela para histórico de envios
+export const prospectingDispatchHistory = pgTable("prospecting_dispatch_history", {
+  id: serial("id").primaryKey(),
+  searchId: integer("search_id").references(() => prospectingSearches.id).notNull(),
+  executedAt: timestamp("executed_at").defaultNow(),
+  success: boolean("success").default(true),
+  resultsCount: integer("results_count").default(0),
+  errorMessage: text("error_message"),
+  executedBy: integer("executed_by").references(() => users.id),
+  scheduledId: integer("scheduled_id").references(() => prospectingSchedules.id),
+});
+
 // Schema para inserção de prospecções
 export const insertProspectingSearchSchema = createInsertSchema(prospectingSearches).pick({
   segment: true,
@@ -360,6 +383,7 @@ export const insertProspectingSearchSchema = createInsertSchema(prospectingSearc
 
 // Schema para inserção de resultados de prospecção
 export const insertProspectingResultSchema = createInsertSchema(prospectingResults).pick({
+  searchId: true,
   name: true,
   nome: true,
   phone: true,
@@ -372,6 +396,24 @@ export const insertProspectingResultSchema = createInsertSchema(prospectingResul
   site: true,
   type: true,
   tipo: true,
+});
+
+// Schema para inserção de agendamentos
+export const insertProspectingScheduleSchema = createInsertSchema(prospectingSchedules).pick({
+  searchId: true,
+  scheduledAt: true,
+  status: true,
+  createdBy: true,
+});
+
+// Schema para inserção de histórico de envios
+export const insertProspectingDispatchHistorySchema = createInsertSchema(prospectingDispatchHistory).pick({
+  searchId: true,
+  success: true,
+  resultsCount: true,
+  errorMessage: true,
+  executedBy: true,
+  scheduledId: true,
 });
 
 // Lead Recommendation Types
