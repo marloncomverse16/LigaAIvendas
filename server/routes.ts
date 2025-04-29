@@ -922,19 +922,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Usar os dados retornados pelo webhook para criar a busca
             const webhookResponse = response.data;
             
+            // Extrair informações do webhook - adaptado para diferentes formatos possíveis
+            let leadsEncontrados = 0;
+            let status = "em_andamento";
+            let concluido = false;
+            
+            // Verificar se há dados de leads
+            if (Array.isArray(webhookResponse)) {
+              // Caso seja um array
+              if (webhookResponse.length > 0 && webhookResponse[0].data && Array.isArray(webhookResponse[0].data)) {
+                leadsEncontrados = webhookResponse[0].data.length;
+              } else {
+                leadsEncontrados = webhookResponse.length;
+              }
+              
+              // Se tiver dados, consideramos como concluído
+              if (leadsEncontrados > 0) {
+                status = "concluido";
+                concluido = true;
+              }
+            } else if (typeof webhookResponse === 'object') {
+              // Caso seja um objeto
+              if (webhookResponse.leadsEncontrados) {
+                leadsEncontrados = webhookResponse.leadsEncontrados;
+              } else if (webhookResponse.totalLeads) {
+                leadsEncontrados = webhookResponse.totalLeads;
+              } else if (webhookResponse.data && Array.isArray(webhookResponse.data)) {
+                leadsEncontrados = webhookResponse.data.length;
+              }
+              
+              status = webhookResponse.status || (leadsEncontrados > 0 ? "concluido" : "em_andamento");
+              concluido = webhookResponse.concluido || leadsEncontrados > 0;
+            }
+            
             const newSearch = {
               id: Math.floor(Math.random() * 1000) + 100,
               userId: req.user.id,
               segment: searchData.segment,
               city: searchData.city || null,
               filters: searchData.filters || null,
-              status: webhookResponse.status || "em_andamento",
+              status: status,
               createdAt: new Date(),
-              completedAt: webhookResponse.concluido ? new Date() : null,
-              leadsFound: webhookResponse.leadsEncontrados || webhookResponse.totalLeads || 0,
-              dispatchesDone: webhookResponse.leadsProcessados || 0,
-              dispatchesPending: (webhookResponse.leadsEncontrados || webhookResponse.totalLeads || 0) - 
-                               (webhookResponse.leadsProcessados || 0),
+              completedAt: concluido ? new Date() : null,
+              leadsFound: leadsEncontrados,
+              dispatchesDone: 0,
+              dispatchesPending: leadsEncontrados, 
               webhookUrl: searchData.webhookUrl,
               webhookData: webhookResponse
             };

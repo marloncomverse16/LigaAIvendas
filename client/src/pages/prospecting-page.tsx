@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Search, FilePlus2, Download, X, Edit, Trash2, CheckCircle2, AlarmClock } from "lucide-react";
+import { Loader2, Search, FilePlus2, Download, X, Edit, Trash2, CheckCircle2, AlarmClock, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,10 +56,17 @@ type ProspectingResult = {
   id: number;
   searchId: number;
   name: string | null;
+  nome: string | null; // Alias para compatibilidade
   email: string | null;
   phone: string | null;
+  telefone: string | null; // Alias para compatibilidade
   address: string | null;
+  endereco: string | null; // Alias para compatibilidade
   type: string | null;
+  tipo: string | null; // Alias para compatibilidade
+  site: string | null;
+  cidade: string | null;
+  estado: string | null;
   createdAt: Date;
   dispatchedAt: Date | null;
 };
@@ -75,6 +82,7 @@ export default function ProspectingPage() {
   const [activeSearch, setActiveSearch] = useState<number | null>(null);
   const [showResultDialog, setShowResultDialog] = useState(false);
   const [selectedResult, setSelectedResult] = useState<ProspectingResult | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("searches");
 
   // Query para buscar dados de prospecção
   const { data: searches, isLoading: isLoadingSearches } = useQuery({
@@ -193,6 +201,8 @@ export default function ProspectingPage() {
 
   const onSubmit = (data: z.infer<typeof prospectingSearchSchema>) => {
     createSearchMutation.mutate(data);
+    // Após enviar o formulário, vamos para a aba de buscas
+    setActiveTab("searches");
   };
 
   // Renderizar status da busca com badge
@@ -222,7 +232,7 @@ export default function ProspectingPage() {
 
         <Card className="shadow-lg border-t-4 border-t-primary">
           <CardContent className="p-0">
-            <Tabs defaultValue="searches" className="w-full">
+            <Tabs defaultValue="searches" value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="w-full rounded-none border-b justify-center p-0">
                 <TabsTrigger value="searches" className="flex-1 rounded-none py-4 data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Search className="h-4 w-4 mr-2" />
@@ -532,21 +542,33 @@ export default function ProspectingPage() {
                           </div>
           
                           <div className="flex justify-center pt-4">
-                            <Button 
-                              type="submit" 
-                              disabled={createSearchMutation.isPending}
-                              className="w-full md:w-1/2"
-                              size="lg"
-                            >
-                              {createSearchMutation.isPending ? (
-                                <>
-                                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                  Processando...
-                                </>
-                              ) : (
-                                <>Iniciar Busca de Prospecção</>
-                              )}
-                            </Button>
+                            <div className="flex flex-col md:flex-row gap-4 w-full md:w-3/4 mx-auto">
+                              <Button 
+                                type="button"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => setActiveTab("searches")}
+                              >
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Voltar para Buscas
+                              </Button>
+                              
+                              <Button 
+                                type="submit" 
+                                disabled={createSearchMutation.isPending}
+                                className="w-full"
+                                size="lg"
+                              >
+                                {createSearchMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    Processando...
+                                  </>
+                                ) : (
+                                  <>Iniciar Busca de Prospecção</>
+                                )}
+                              </Button>
+                            </div>
                           </div>
                         </form>
                       </Form>
