@@ -646,7 +646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let settings;
       
       if (req.isAuthenticated()) {
-        settings = await storage.getSettingsForUser((req.user as Express.User).id);
+        settings = await storage.getSettingsByUserId((req.user as Express.User).id);
       }
       
       // Se não encontrou ou não está autenticado, retorna configurações padrão
@@ -676,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const settingsData = insertSettingsSchema.parse(req.body);
       
       // Verificar se já existe configurações para o usuário
-      let settings = await storage.getSettingsForUser(userId);
+      let settings = await storage.getSettingsByUserId(userId);
       
       if (settings) {
         // Atualizar configurações existentes
@@ -860,8 +860,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as Express.User).id;
       console.log(`Buscando pesquisas para o usuário ${userId}`);
       
-      // Buscar pesquisas do usuário
-      const searches = await storage.getProspectingSearchesByUser(userId);
+      // Buscar pesquisas do usuário (corrigido o nome da função)
+      const searches = await storage.getProspectingSearches(userId);
       console.log(`Encontradas ${searches.length} pesquisas para o usuário ${userId}:`, searches);
       
       res.json(searches);
