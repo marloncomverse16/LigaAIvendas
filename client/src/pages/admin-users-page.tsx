@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import ModulePermissions from "@/components/admin/module-permissions";
+import UserPermissionsDialog from "@/components/admin/user-permissions-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { InsertUser, User } from "@shared/schema";
@@ -50,6 +50,7 @@ export default function AdminUsersPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isWhatsAppInstanceDialogOpen, setIsWhatsAppInstanceDialogOpen] = useState(false);
+  const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [formValues, setFormValues] = useState<UserFormValues>({
     username: "",
@@ -308,6 +309,11 @@ export default function AdminUsersPage() {
     setCurrentUser(user);
     setIsDeleteOpen(true);
   };
+  
+  const handleManagePermissions = (user: User) => {
+    setCurrentUser(user);
+    setIsPermissionsDialogOpen(true);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
@@ -429,6 +435,12 @@ export default function AdminUsersPage() {
                               >
                                 <span className="mr-2 h-4 w-4 flex items-center justify-center">🤖</span>
                                 Gerenciar WhatsApp
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleManagePermissions(user)}
+                              >
+                                <KeySquare className="mr-2 h-4 w-4" />
+                                Permissões de Acesso
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
