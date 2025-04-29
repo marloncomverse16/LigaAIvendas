@@ -223,17 +223,26 @@ export default function ConnectionPage() {
                         </div>
                         
                         {/* Exibindo o QR code */}
-                        <img 
-                          src={status.qrCode && status.qrCode.startsWith('data:') 
-                            ? status.qrCode 
-                            : `data:image/png;base64,${status.qrCode}`} 
-                          alt="QR Code" 
-                          className="w-full h-full"
-                          onError={(e) => {
-                            console.error("Erro ao carregar QR code");
-                            e.currentTarget.src = "https://placehold.co/300x300/f0f0f0/999999?text=Erro+no+QR+Code";
-                          }}
-                        />
+                        {/* Verificação para garantir que o QR code seja exibido corretamente */}
+                        {status.qrCode ? (
+                          <img 
+                            src={status.qrCode.startsWith('data:') 
+                              ? status.qrCode 
+                              : `data:image/png;base64,${status.qrCode}`} 
+                            alt="QR Code" 
+                            className="w-full h-full"
+                            onError={(e) => {
+                              console.error("Erro ao carregar QR code");
+                              e.currentTarget.src = "https://placehold.co/300x300/f0f0f0/999999?text=Erro+no+QR+Code";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                            <p className="text-gray-500 dark:text-gray-400 text-sm">
+                              QR Code não disponível
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <Button 
                         onClick={handleConnect}

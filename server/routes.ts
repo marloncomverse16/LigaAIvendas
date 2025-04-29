@@ -504,7 +504,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Se a resposta é um array
           console.log("Resposta é um array de comprimento:", response.data.length);
           
-          if (response.data.length > 0 && response.data[0].json) {
+          if (response.data.length > 0 && response.data[0].success) {
+            console.log("Formato de array com success encontrado");
+            const jsonData = response.data[0];
+            
+            if (jsonData.data && jsonData.data.base64) {
+              console.log("QR code em jsonData.data.base64");
+              // Verificamos se o base64 já inclui o prefixo data:image
+              qrCodeBase64 = jsonData.data.base64.startsWith('data:') 
+                ? jsonData.data.base64 
+                : jsonData.data.base64;
+            } else if (jsonData.data && jsonData.data.code) {
+              console.log("QR code em jsonData.data.code");
+              qrCodeBase64 = jsonData.data.code;
+            }
+          } else if (response.data.length > 0 && response.data[0].json) {
             console.log("Formato de array com json encontrado");
             const jsonData = response.data[0].json;
             
