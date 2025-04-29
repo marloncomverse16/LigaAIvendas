@@ -1052,6 +1052,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Esta é a rota que o frontend usa
+  app.get("/api/prospecting/results/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar pesquisa para verificar propriedade
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      // Verificar se a pesquisa pertence ao usuário
+      if (search.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Buscar resultados
+      const results = await storage.getProspectingResults(searchId);
+      console.log(`Resultados encontrados para pesquisa ${searchId}:`, results.length);
+      
+      // Importante: definir o tipo de conteúdo como JSON
+      res.setHeader('Content-Type', 'application/json');
+      res.json(results);
+    } catch (error) {
+      console.error("Erro ao buscar resultados:", error);
+      res.status(500).json({ message: "Erro ao buscar resultados" });
+    }
+  });
+  
   app.post("/api/prospecting/searches/:id/dispatch", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
