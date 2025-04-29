@@ -35,15 +35,66 @@ export function Sidebar() {
   };
   
   const menuItems = [
-    { path: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={collapsed ? 24 : 20} /> },
-    { path: "/ai-agent", label: "Agente de IA", icon: <Bot size={collapsed ? 24 : 20} /> },
-    { path: "/crm", label: "CRM", icon: <Users size={collapsed ? 24 : 20} /> },
-    { path: "/appointments", label: "Agendamentos", icon: <Calendar size={collapsed ? 24 : 20} /> },
-    { path: "/prospecting", label: "Prospecção", icon: <UserSearch size={collapsed ? 24 : 20} /> },
-    { path: "/contacts", label: "Contatos", icon: <PhoneCall size={collapsed ? 24 : 20} /> },
-    { path: "/connection", label: "Conexão", icon: <MessageSquare size={collapsed ? 24 : 20} /> },
-    { path: "/admin-users", label: "Gerenciar Usuários", icon: <UsersRound size={collapsed ? 24 : 20} /> },
-    { path: "/settings", label: "Configurações", icon: <Settings size={collapsed ? 24 : 20} /> },
+    { 
+      path: "/dashboard", 
+      label: "Dashboard", 
+      icon: <LayoutDashboard size={collapsed ? 24 : 20} />,
+      permissionKey: "accessDashboard"
+    },
+    { 
+      path: "/ai-agent", 
+      label: "Agente de IA", 
+      icon: <Bot size={collapsed ? 24 : 20} />,
+      permissionKey: "accessAiAgent"
+    },
+    { 
+      path: "/leads", 
+      label: "Leads", 
+      icon: <Users size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessLeads"
+    },
+    { 
+      path: "/appointments", 
+      label: "Agendamentos", 
+      icon: <Calendar size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessScheduling"
+    },
+    { 
+      path: "/prospecting", 
+      label: "Prospecção", 
+      icon: <UserSearch size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessProspecting"
+    },
+    { 
+      path: "/contacts", 
+      label: "Contatos", 
+      icon: <PhoneCall size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessContacts"
+    },
+    { 
+      path: "/connection", 
+      label: "Conexão WhatsApp", 
+      icon: <MessageSquare size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessWhatsapp"
+    },
+    { 
+      path: "/reports", 
+      label: "Relatórios", 
+      icon: <Users size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessReports"
+    },
+    { 
+      path: "/admin-users", 
+      label: "Gerenciar Usuários", 
+      icon: <UsersRound size={collapsed ? 24 : 20} />, 
+      permissionKey: "isAdmin"  // Somente administradores
+    },
+    { 
+      path: "/settings", 
+      label: "Configurações", 
+      icon: <Settings size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessSettings"
+    },
   ];
   
   return (
@@ -79,34 +130,44 @@ export function Sidebar() {
           {/* Navigation */}
           <ScrollArea className="flex-1 pt-4">
             <ul className="space-y-1 px-2">
-              {menuItems.map((item) => (
-                <li key={item.path}>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link 
-                          href={item.path} 
-                          className={cn(
-                            "flex items-center px-4 py-3 rounded-md relative group",
-                            collapsed ? "justify-center" : "justify-start",
-                            location === item.path 
-                              ? "bg-sidebar-primary text-white" 
-                              : "text-white/80 hover:text-white hover:bg-sidebar-primary"
-                          )}
-                        >
-                          <span className="flex-shrink-0">{item.icon}</span>
-                          {!collapsed && <span className="ml-3">{item.label}</span>}
-                        </Link>
-                      </TooltipTrigger>
-                      {collapsed && (
-                        <TooltipContent side="right">
-                          {item.label}
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </TooltipProvider>
-                </li>
-              ))}
+              {menuItems.map((item) => {
+                // Verificar permissão do usuário para este item
+                const hasPermission = item.permissionKey === "isAdmin" 
+                  ? user?.isAdmin 
+                  : user?.[item.permissionKey as keyof typeof user] !== false;
+                
+                // Não renderizar o item se o usuário não tiver permissão
+                if (!hasPermission) return null;
+                
+                return (
+                  <li key={item.path}>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link 
+                            href={item.path} 
+                            className={cn(
+                              "flex items-center px-4 py-3 rounded-md relative group",
+                              collapsed ? "justify-center" : "justify-start",
+                              location === item.path 
+                                ? "bg-sidebar-primary text-white" 
+                                : "text-white/80 hover:text-white hover:bg-sidebar-primary"
+                            )}
+                          >
+                            <span className="flex-shrink-0">{item.icon}</span>
+                            {!collapsed && <span className="ml-3">{item.label}</span>}
+                          </Link>
+                        </TooltipTrigger>
+                        {collapsed && (
+                          <TooltipContent side="right">
+                            {item.label}
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  </li>
+                );
+              })}
             </ul>
           </ScrollArea>
         </div>

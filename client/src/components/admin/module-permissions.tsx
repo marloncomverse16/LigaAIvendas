@@ -59,15 +59,15 @@ export default function ModulePermissions({ permissions, onChange }: ModulePermi
   };
 
   const moduleItems = [
-    { key: "accessDashboard" as const, label: "Dashboard" },
-    { key: "accessLeads" as const, label: "Leads" },
-    { key: "accessProspecting" as const, label: "Prospecção" },
-    { key: "accessAiAgent" as const, label: "Agente IA" },
-    { key: "accessWhatsapp" as const, label: "WhatsApp" },
-    { key: "accessContacts" as const, label: "Contatos" },
-    { key: "accessScheduling" as const, label: "Agendamentos" },
-    { key: "accessReports" as const, label: "Relatórios" },
-    { key: "accessSettings" as const, label: "Configurações" },
+    { key: "accessDashboard" as const, label: "Dashboard", description: "Acesso à página principal" },
+    { key: "accessLeads" as const, label: "Leads", description: "Visualização e gestão de leads" },
+    { key: "accessProspecting" as const, label: "Prospecção", description: "Ferramentas de prospecção" },
+    { key: "accessAiAgent" as const, label: "Agente IA", description: "Funcionalidades do assistente de IA" },
+    { key: "accessWhatsapp" as const, label: "Conexão WhatsApp", description: "Conexão com WhatsApp" },
+    { key: "accessContacts" as const, label: "Contatos", description: "Gerenciamento de contatos" },
+    { key: "accessScheduling" as const, label: "Agendamentos", description: "Sistema de calendário" },
+    { key: "accessReports" as const, label: "Relatórios", description: "Estatísticas e relatórios" },
+    { key: "accessSettings" as const, label: "Configurações", description: "Configurações do sistema" },
   ];
 
   return (
@@ -99,19 +99,30 @@ export default function ModulePermissions({ permissions, onChange }: ModulePermi
       <CardContent>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {moduleItems.map((item) => (
-            <div key={item.key} className="flex items-center space-x-2 border rounded-md p-3 shadow-sm">
-              <Switch
-                id={item.key}
-                checked={permissions[item.key]}
-                onCheckedChange={() => handleToggle(item.key)}
-              />
-              <Label 
-                htmlFor={item.key} 
-                className="flex-1 cursor-pointer"
-              >
-                {item.label}
-              </Label>
-              <div className={`h-3 w-3 rounded-full ${permissions[item.key] ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+            <div 
+              key={item.key} 
+              className={`flex flex-col border rounded-md p-4 shadow-sm transition-all ${
+                permissions[item.key] ? 'border-green-500/50 bg-green-50/20' : 'border-gray-200'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Label 
+                  htmlFor={item.key} 
+                  className="font-medium cursor-pointer"
+                >
+                  {item.label}
+                </Label>
+                <Switch
+                  id={item.key}
+                  checked={permissions[item.key]}
+                  onCheckedChange={() => handleToggle(item.key)}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">{item.description}</p>
+              <div className="flex items-center mt-2 text-xs">
+                <div className={`h-2 w-2 rounded-full mr-2 ${permissions[item.key] ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                <span>{permissions[item.key] ? 'Ativado' : 'Desativado'}</span>
+              </div>
             </div>
           ))}
         </div>
