@@ -562,10 +562,10 @@ export default function ProspectingPage() {
                                         setShowResultDialog(true);
                                       }}
                                     >
-                                      <TableCell className="font-medium">{result.nome || result.name || '-'}</TableCell>
-                                      <TableCell>{result.telefone || result.phone || '-'}</TableCell>
+                                      <TableCell className="font-medium">{result.name || '-'}</TableCell>
+                                      <TableCell>{result.phone || '-'}</TableCell>
                                       <TableCell>{result.email || '-'}</TableCell>
-                                      <TableCell className="max-w-[200px] truncate">{result.endereco || result.address || '-'}</TableCell>
+                                      <TableCell className="max-w-[200px] truncate">{result.address || '-'}</TableCell>
                                       <TableCell>{result.site || '-'}</TableCell>
                                     </TableRow>
                                   ))
@@ -765,7 +765,7 @@ export default function ProspectingPage() {
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Nome</h3>
-                <p className="text-lg">{selectedResult.nome || selectedResult.name || "Não informado"}</p>
+                <p className="text-lg">{selectedResult.name || "Não informado"}</p>
               </div>
               
               <div>
@@ -780,12 +780,12 @@ export default function ProspectingPage() {
               
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Telefone</h3>
-                <p className="text-lg">{selectedResult.telefone || selectedResult.phone || "Não informado"}</p>
+                <p className="text-lg">{selectedResult.phone || "Não informado"}</p>
               </div>
               
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Endereço</h3>
-                <p className="text-lg">{selectedResult.endereco || selectedResult.address || "Não informado"}</p>
+                <p className="text-lg">{selectedResult.address || "Não informado"}</p>
               </div>
               
               <div>
@@ -800,8 +800,8 @@ export default function ProspectingPage() {
               </div>
               
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Site</h3>
-                <p className="text-lg">{selectedResult.site || "Não informado"}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Tipo</h3>
+                <p className="text-lg">{selectedResult.type || "Não informado"}</p>
               </div>
               
               <div>

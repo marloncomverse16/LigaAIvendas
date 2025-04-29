@@ -1259,6 +1259,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para excluir uma busca de prospecção
+  app.delete("/api/prospecting/searches/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar pesquisa para verificar propriedade
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      // Verificar se a pesquisa pertence ao usuário
+      if (search.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Excluir a pesquisa
+      const success = await storage.deleteProspectingSearch(searchId);
+      
+      if (success) {
+        res.status(200).json({ message: "Pesquisa excluída com sucesso" });
+      } else {
+        res.status(500).json({ message: "Falha ao excluir pesquisa" });
+      }
+    } catch (error) {
+      console.error("Erro ao excluir pesquisa:", error);
+      res.status(500).json({ message: "Erro ao excluir pesquisa" });
+    }
+  });
+  
   // Recomendações de leads
   app.get("/api/lead-recommendations", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
