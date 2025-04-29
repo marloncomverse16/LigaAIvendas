@@ -618,6 +618,17 @@ export default function AdminUsersPage() {
                 </div>
                 
                 <div className="space-y-2">
+                  <Label htmlFor="dispatchesWebhookUrl">Webhook de Disparos</Label>
+                  <Input
+                    id="dispatchesWebhookUrl"
+                    name="dispatchesWebhookUrl"
+                    value={formValues.dispatchesWebhookUrl}
+                    onChange={handleInputChange}
+                    placeholder="https://example.com/webhook/dispatches"
+                  />
+                </div>
+                
+                <div className="space-y-2">
                   <Label htmlFor="contactsWebhookUrl">Webhook de Contatos</Label>
                   <Input
                     id="contactsWebhookUrl"
