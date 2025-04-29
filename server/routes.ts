@@ -890,10 +890,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Chamando webhook:", searchData.webhookUrl);
         
         try {
-          const webhookResponse = await axios.post(searchData.webhookUrl, {
-            segment: searchData.segment,
-            city: searchData.city,
-            filters: searchData.filters
+          // Modificado para usar GET em vez de POST, conforme exigido pelo webhook configurado no n8n
+          const webhookResponse = await axios.get(searchData.webhookUrl, {
+            params: {
+              segment: searchData.segment,
+              city: searchData.city,
+              filters: searchData.filters
+            }
           });
           
           // Marcar pesquisa como concluída
@@ -1094,15 +1097,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       try {
-        // Chamar webhook com os resultados
-        await axios.post(user.dispatchesWebhookUrl, {
-          searchId,
-          searchInfo: {
+        // Chamar webhook com os resultados - modificado para usar GET em vez de POST
+        await axios.get(user.dispatchesWebhookUrl, {
+          params: {
+            searchId,
             segment: search.segment,
             city: search.city,
-            filters: search.filters
-          },
-          results: results
+            filters: search.filters,
+            resultsCount: results.length
+          }
         });
         
         // Marcar resultados como enviados
