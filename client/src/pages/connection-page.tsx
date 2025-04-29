@@ -210,12 +210,19 @@ export default function ConnectionPage() {
                     {/* QR Code */}
                     <div className="bg-white p-6 mx-auto rounded-xl shadow-md">
                       <div className="w-56 h-56 relative mx-auto">
+                        {/* Renderização condicional ao invés de logs inline */}
+                        {/* Adicionar logs com useEffect */}
+                        
                         <img 
                           src={status.qrCode && status.qrCode.startsWith('data:') 
                             ? status.qrCode 
                             : `data:image/png;base64,${status.qrCode}`} 
                           alt="QR Code" 
                           className="w-full h-full"
+                          onError={(e) => {
+                            console.error("Erro ao carregar QR code");
+                            e.currentTarget.src = "https://placehold.co/300x300/f0f0f0/999999?text=Erro+no+QR+Code";
+                          }}
                         />
                       </div>
                       <Button 

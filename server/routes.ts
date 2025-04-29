@@ -494,6 +494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let qrCodeBase64 = null;
         
         console.log("Tipo de resposta:", typeof response.data);
+        console.log("Resposta completa:", JSON.stringify(response.data).substring(0, 1000));
         
         if (response.data && Array.isArray(response.data)) {
           // Se a resposta é um array
