@@ -1111,6 +1111,13 @@ export default function AdminUsersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        
+        {/* Dialog para gerenciar permissões de acesso */}
+        <UserPermissionsDialog
+          user={currentUser}
+          open={isPermissionsDialogOpen}
+          onOpenChange={setIsPermissionsDialogOpen}
+        />
       </div>
     </DashboardLayout>
   );
