@@ -86,22 +86,25 @@ export default function UserPermissionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader className="sticky top-0 z-10 bg-background pb-3">
-          <DialogTitle>Permissões de Acesso</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="max-w-4xl p-0 h-[85vh] grid grid-rows-[auto_1fr_auto] overflow-hidden">
+        {/* Cabeçalho fixo */}
+        <div className="bg-background p-6">
+          <DialogTitle className="text-xl">Permissões de Acesso</DialogTitle>
+          <DialogDescription className="mt-1">
             Configure quais módulos o usuário <strong>{user.name || user.username}</strong> pode acessar no sistema.
           </DialogDescription>
-        </DialogHeader>
-
-        <div className="py-4 overflow-y-auto">
+        </div>
+        
+        {/* Conteúdo rolável */}
+        <div className="overflow-auto p-6 pt-0">
           <ModulePermissions
             permissions={permissions}
             onChange={setPermissions}
           />
         </div>
-
-        <DialogFooter className="sticky bottom-0 z-10 bg-background pt-3 mt-4">
+        
+        {/* Rodapé fixo */}
+        <div className="bg-background p-6 border-t flex items-center justify-end gap-2">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
@@ -122,7 +125,7 @@ export default function UserPermissionsDialog({
               "Salvar Permissões"
             )}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
