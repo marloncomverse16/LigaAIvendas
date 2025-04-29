@@ -331,17 +331,13 @@ export const prospectingResults = pgTable("prospecting_results", {
   id: serial("id").primaryKey(),
   searchId: integer("search_id").references(() => prospectingSearches.id).notNull(),
   name: text("name"),
-  nome: text("nome"),
   phone: text("phone"),
-  telefone: text("telefone"),
   email: text("email"),
   address: text("address"),
-  endereco: text("endereco"),
   cidade: text("cidade"),
   estado: text("estado"),
   site: text("site"),
   type: text("type"),
-  tipo: text("tipo"),
   createdAt: timestamp("created_at").defaultNow(),
   dispatchedAt: timestamp("dispatched_at"),
 });
@@ -385,17 +381,13 @@ export const insertProspectingSearchSchema = createInsertSchema(prospectingSearc
 export const insertProspectingResultSchema = createInsertSchema(prospectingResults).pick({
   searchId: true,
   name: true,
-  nome: true,
   phone: true,
-  telefone: true,
   email: true,
   address: true,
-  endereco: true,
   cidade: true,
   estado: true,
   site: true,
   type: true,
-  tipo: true,
 });
 
 // Schema para inserção de agendamentos

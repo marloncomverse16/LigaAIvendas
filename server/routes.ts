@@ -923,7 +923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const estado = item.estado || item.state || item.uf || null;
                 const site = item.site || item.website || null;
                 
-                // Criar resultado no banco
+                // Criar resultado no banco - importante usar os nomes corretos das colunas
                 await storage.createProspectingResult({
                   searchId: newSearch.id,
                   name: nome,
@@ -952,6 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const estado = item.estado || item.state || item.uf || null;
                 const site = item.site || item.website || null;
                 
+                // Criar resultado no banco - importante usar os nomes corretos das colunas
                 await storage.createProspectingResult({
                   searchId: newSearch.id,
                   name: nome,
