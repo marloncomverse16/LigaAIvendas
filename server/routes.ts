@@ -1078,12 +1078,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const formattedResults = results.map(result => ({
         ...result,
         // Campos de compatibilidade
-        nome: result.name || result.nome,
-        telefone: result.phone || result.telefone,
-        endereco: result.address || result.endereco,
-        tipo: result.type || result.tipo,
-        cidade: result.city || result.cidade,
-        estado: result.state || result.estado
+        nome: result.name,
+        telefone: result.phone,
+        endereco: result.address,
+        tipo: result.site, // Alterado de type para site conforme solicitado
+        cidade: result.cidade,
+        estado: result.estado
       }));
       
       res.json(formattedResults);
