@@ -589,7 +589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     const user = req.user as Express.User;
     
-    if (!user || user.role !== "admin") {
+    if (!user || !user.isAdmin) {
       return res.status(403).json({ message: "Acesso negado. Apenas administradores podem acessar este recurso." });
     }
     
