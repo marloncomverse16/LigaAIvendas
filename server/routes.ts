@@ -899,12 +899,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           });
           
+          console.log("Resposta do webhook:", JSON.stringify(webhookResponse.data));
+          
+          // Verificar formato dos dados e calcular o número de leads encontrados
+          let leadsCount = 0;
+          if (Array.isArray(webhookResponse.data)) {
+            leadsCount = webhookResponse.data.length;
+          } else if (webhookResponse.data && Array.isArray(webhookResponse.data.data)) {
+            leadsCount = webhookResponse.data.data.length;
+          }
+          
           // Marcar pesquisa como concluída
           const newSearch = await storage.updateProspectingSearch(search.id, {
             status: "concluido",
             completedAt: new Date(),
-            leadsFound: Array.isArray(webhookResponse.data) ? webhookResponse.data.length : 
-              (webhookResponse.data && Array.isArray(webhookResponse.data.data)) ? webhookResponse.data.data.length : 0
+            leadsFound: leadsCount,
+            dispatchesPending: leadsCount
           });
           
           // Processar dados retornados
@@ -914,14 +924,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await Promise.all(webhookResponse.data.map(async (item) => {
               try {
                 // Adaptar campos com base no formato dos dados
-                const nome = item.nome || item.name || item.razaoSocial || null;
+                const nome = item.nome || item.name || item.title || item.razaoSocial || null;
                 const telefone = item.telefone || item.phone || item.celular || null;
                 const email = item.email || null;
                 const endereco = item.endereco || item.address || null;
-                const tipo = item.tipo || item.type || null;
+                const tipo = item.tipo || item.type || item.categoryName || null;
                 const cidade = item.cidade || item.city || searchData.city || null;
                 const estado = item.estado || item.state || item.uf || null;
-                const site = item.site || item.website || null;
+                const site = item.site || item.website || item.url || null;
+                
+                console.log("Processando item:", {
+                  nome, telefone, email, endereco, tipo, site, cidade, estado
+                });
                 
                 // Criar resultado no banco - importante usar os nomes corretos das colunas
                 await storage.createProspectingResult({
@@ -1074,7 +1088,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Buscar resultados
       const results = await storage.getProspectingResults(searchId);
-      console.log(`Resultados encontrados para pesquisa ${searchId}:`, results.length);
+      console.log(`Resultados encontrados para pesquisa ${searchId}:`, results);
+      
+      // Verificar se o webhook retornou dados
+      if (!results || results.length === 0) {
+        console.log("Buscando dados diretamente da API do webhook para exibição");
+        
+        try {
+          // Chamar o webhook diretamente para obter os dados
+          const response = await axios.get(search.webhookUrl);
+          console.log("Resposta do webhook:", response.data);
+          
+          // Verificar se há dados retornados
+          if (response.data && Array.isArray(response.data.data)) {
+            // Processar dados do webhook e criar resultados temporários para exibição
+            const processedResults = response.data.data.map((item: any, index: number) => {
+              const nome = item.nome || item.name || item.title || item.razaoSocial || null;
+              const telefone = item.telefone || item.phone || item.celular || null;
+              const email = item.email || null;
+              const endereco = item.endereco || item.address || null;
+              const tipo = item.tipo || item.type || item.categoryName || null;
+              const site = item.site || item.website || item.url || null;
+              
+              return {
+                id: index + 1000, // ID temporário
+                searchId,
+                name: nome,
+                phone: telefone,
+                email: email,
+                address: endereco,
+                type: tipo,
+                site: site,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              };
+            });
+            
+            console.log("Resultados processados para exibição:", processedResults);
+            
+            // Importante: definir o tipo de conteúdo como JSON
+            res.setHeader('Content-Type', 'application/json');
+            return res.json(processedResults);
+          }
+        } catch (webhookError) {
+          console.error("Erro ao buscar dados do webhook:", webhookError);
+        }
+      }
       
       // Importante: definir o tipo de conteúdo como JSON
       res.setHeader('Content-Type', 'application/json');
