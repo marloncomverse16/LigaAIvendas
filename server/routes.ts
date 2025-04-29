@@ -742,6 +742,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para criar uma instância do WhatsApp para um usuário
+  app.post("/api/admin/users/:id/create-whatsapp-instance", isAdmin, async (req, res) => {
+    const userId = parseInt(req.params.id);
+    const { webhookInstanceUrl } = req.body;
+    
+    if (!webhookInstanceUrl) {
+      return res.status(400).json({ success: false, message: "URL do webhook da instância é obrigatória" });
+    }
+    
+    try {
+      // Buscar usuário para obter informações
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Usuário não encontrado" });
+      }
+      
+      // Atualizar o usuário com a URL do webhook de instância
+      const userData = {
+        ...user,
+        whatsappInstanceWebhook: webhookInstanceUrl,
+        // Limpa o ID da instância para que uma nova seja criada
+        whatsappInstanceId: null
+      };
+      
+      await storage.updateUser(userId, userData);
+      
+      // Chamar o webhook com as informações do usuário para criar a instância
+      try {
+        const response = await axios.post(webhookInstanceUrl, {
+          action: "createInstance",
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+          name: user.name,
+          company: user.company,
+          callbackUrl: `${req.protocol}://${req.get('host')}/api/connection/instance-callback/${userId}`
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        // Se o webhook retornar um ID de instância, salve-o
+        if (response.data && response.data.instanceId) {
+          const updatedData = {
+            ...user,
+            whatsappInstanceId: response.data.instanceId
+          };
+          
+          await storage.updateUser(userId, updatedData);
+            
+          return res.status(200).json({ 
+            success: true, 
+            message: "Instância do WhatsApp criada com sucesso", 
+            instanceId: response.data.instanceId 
+          });
+        }
+        
+        return res.status(200).json({ 
+          success: true, 
+          message: "Solicitação de criação de instância enviada com sucesso" 
+        });
+        
+      } catch (error) {
+        console.error("Erro ao chamar webhook para criar instância:", error);
+        return res.status(500).json({ 
+          success: false, 
+          message: "Erro ao chamar webhook para criar instância", 
+          error: error.message 
+        });
+      }
+      
+    } catch (error) {
+      console.error("Erro ao criar instância do WhatsApp:", error);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Erro ao criar instância do WhatsApp", 
+        error: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

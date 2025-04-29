@@ -25,6 +25,9 @@ export const users = pgTable("users", {
   tokenExpirationDays: integer("token_expiration_days").default(30),
   monthlyFee: text("monthly_fee").default("0"),
   serverAddress: text("server_address"),
+  // Instância do WhatsApp
+  whatsappInstanceWebhook: text("whatsapp_instance_webhook"),
+  whatsappInstanceId: text("whatsapp_instance_id"),
   isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -171,6 +174,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   contactsWebhookUrl: true,
   schedulingWebhookUrl: true,
   crmWebhookUrl: true,
+  whatsappInstanceWebhook: true,
+  whatsappInstanceId: true,
   availableTokens: true,
   tokenExpirationDays: true,
   monthlyFee: true,
