@@ -811,7 +811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ 
           success: false, 
           message: "Erro ao chamar webhook para criar instância", 
-          error: error.message 
+          error: error instanceof Error ? error.message : "Erro desconhecido"
         });
       }
       
@@ -820,7 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ 
         success: false, 
         message: "Erro ao criar instância do WhatsApp", 
-        error: error.message 
+        error: error instanceof Error ? error.message : "Erro desconhecido"
       });
     }
   });

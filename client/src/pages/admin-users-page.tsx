@@ -48,6 +48,7 @@ export default function AdminUsersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isWhatsAppInstanceDialogOpen, setIsWhatsAppInstanceDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [formValues, setFormValues] = useState<UserFormValues>({
     username: "",
@@ -387,6 +388,18 @@ export default function AdminUsersPage() {
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Editar
                               </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  setCurrentUser(user);
+                                  setInstanceWebhookUrl(user.whatsappInstanceWebhook || "");
+                                  setIsWhatsAppInstanceDialogOpen(true);
+                                }}
+                              >
+                                <span className="mr-2 h-4 w-4 flex items-center justify-center">🤖</span>
+                                Gerenciar WhatsApp
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 onClick={() => handleDeleteDialog(user)}
                                 className="text-red-600"
@@ -975,6 +988,80 @@ export default function AdminUsersPage() {
                 ) : (
                   "Excluir Usuário"
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal para gerenciar instância de WhatsApp */}
+        <Dialog open={isWhatsAppInstanceDialogOpen} onOpenChange={setIsWhatsAppInstanceDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Gerenciar Instância WhatsApp</DialogTitle>
+              <DialogDescription>
+                Configure a instância do WhatsApp para o usuário <span className="font-medium">{currentUser?.name || currentUser?.username}</span>.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              {currentUser?.whatsappInstanceId ? (
+                <div className="bg-green-50 p-4 rounded-md border border-green-200 mb-4">
+                  <div className="flex items-center mb-2">
+                    <span className="inline-flex items-center px-2 py-1 mr-2 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Ativo
+                    </span>
+                    <p className="text-green-800 font-medium">
+                      Instância criada
+                    </p>
+                  </div>
+                  <p className="text-sm text-green-700">
+                    ID da instância: <span className="font-mono">{currentUser.whatsappInstanceId}</span>
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-amber-50 p-4 rounded-md border border-amber-200 mb-4">
+                  <p className="text-amber-800">
+                    Este usuário ainda não possui uma instância do WhatsApp ativa. 
+                    Configure o webhook abaixo para criar uma.
+                  </p>
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="instance-webhook-url">URL do Webhook da Instância</Label>
+                <Input
+                  id="instance-webhook-url"
+                  value={instanceWebhookUrl}
+                  onChange={(e) => setInstanceWebhookUrl(e.target.value)}
+                  placeholder="https://n8n.example.com/webhook/create-whatsapp-instance"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Este é o endpoint que será chamado para criar/gerenciar a instância
+                </p>
+              </div>
+              
+              <Button 
+                onClick={handleCreateWhatsappInstance}
+                disabled={createWhatsappInstanceMutation.isPending || !instanceWebhookUrl}
+                className="w-full mt-4"
+              >
+                {createWhatsappInstanceMutation.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {currentUser?.whatsappInstanceId ? "Atualizando Instância..." : "Criando Instância..."}
+                  </>
+                ) : (
+                  currentUser?.whatsappInstanceId ? "Atualizar Instância" : "Criar Instância de WhatsApp"
+                )}
+              </Button>
+            </div>
+            
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsWhatsAppInstanceDialogOpen(false)}
+              >
+                Fechar
               </Button>
             </DialogFooter>
           </DialogContent>
