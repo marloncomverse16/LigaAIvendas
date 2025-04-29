@@ -1,16 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import ModulePermissions from "./module-permissions";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Card } from "@/components/ui/card";
+import { Check, X } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { User } from "@shared/schema";
 
@@ -66,7 +61,42 @@ export default function UserPermissionsDialog({
     updatePermissionsMutation.mutate();
   };
 
-  React.useEffect(() => {
+  const handleToggle = (module: keyof typeof permissions) => {
+    setPermissions({
+      ...permissions,
+      [module]: !permissions[module],
+    });
+  };
+
+  const enableAll = () => {
+    setPermissions({
+      accessDashboard: true,
+      accessLeads: true,
+      accessProspecting: true,
+      accessAiAgent: true,
+      accessWhatsapp: true,
+      accessContacts: true,
+      accessScheduling: true,
+      accessReports: true,
+      accessSettings: true,
+    });
+  };
+
+  const disableAll = () => {
+    setPermissions({
+      accessDashboard: false,
+      accessLeads: false,
+      accessProspecting: false,
+      accessAiAgent: false,
+      accessWhatsapp: false,
+      accessContacts: false,
+      accessScheduling: false,
+      accessReports: false,
+      accessSettings: false,
+    });
+  };
+
+  useEffect(() => {
     if (user) {
       setPermissions({
         accessDashboard: user.accessDashboard ?? true,
@@ -82,29 +112,84 @@ export default function UserPermissionsDialog({
     }
   }, [user]);
 
-  if (!user) return null;
+  const moduleItems = [
+    { key: "accessDashboard" as const, label: "Dashboard", description: "Acesso à página principal" },
+    { key: "accessLeads" as const, label: "Leads", description: "Visualização e gestão de leads" },
+    { key: "accessProspecting" as const, label: "Prospecção", description: "Ferramentas de prospecção" },
+    { key: "accessAiAgent" as const, label: "Agente IA", description: "Funcionalidades do assistente de IA" },
+    { key: "accessWhatsapp" as const, label: "Conexão WhatsApp", description: "Conexão com WhatsApp" },
+    { key: "accessContacts" as const, label: "Contatos", description: "Gerenciamento de contatos" },
+    { key: "accessScheduling" as const, label: "Agendamentos", description: "Sistema de calendário" },
+    { key: "accessReports" as const, label: "Relatórios", description: "Estatísticas e relatórios" },
+    { key: "accessSettings" as const, label: "Configurações", description: "Configurações do sistema" },
+  ];
+
+  if (!user || !open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 h-[85vh] grid grid-rows-[auto_1fr_auto] overflow-hidden">
-        {/* Cabeçalho fixo */}
-        <div className="bg-background p-6">
-          <DialogTitle className="text-xl">Permissões de Acesso</DialogTitle>
-          <DialogDescription className="mt-1">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full flex flex-col max-h-[90vh]">
+        {/* Cabeçalho */}
+        <div className="p-6 border-b">
+          <h2 className="text-xl font-semibold">Permissões de Acesso</h2>
+          <p className="text-sm text-gray-500 mt-1">
             Configure quais módulos o usuário <strong>{user.name || user.username}</strong> pode acessar no sistema.
-          </DialogDescription>
+          </p>
+          <div className="flex gap-2 mt-4">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={enableAll}
+              className="flex items-center gap-1"
+            >
+              <Check className="h-4 w-4" /> Habilitar Todos
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={disableAll}
+              className="flex items-center gap-1"
+            >
+              <X className="h-4 w-4" /> Desabilitar Todos
+            </Button>
+          </div>
         </div>
         
-        {/* Conteúdo rolável */}
-        <div className="overflow-auto p-6 pt-0">
-          <ModulePermissions
-            permissions={permissions}
-            onChange={setPermissions}
-          />
+        {/* Área de rolagem */}
+        <div className="overflow-y-auto flex-1 p-6">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {moduleItems.map((item) => (
+              <div 
+                key={item.key} 
+                className={`flex flex-col border rounded-md p-4 shadow-sm transition-all ${
+                  permissions[item.key] ? 'border-green-500/50 bg-green-50/20' : 'border-gray-200'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <Label 
+                    htmlFor={item.key} 
+                    className="font-medium cursor-pointer"
+                  >
+                    {item.label}
+                  </Label>
+                  <Switch
+                    id={item.key}
+                    checked={permissions[item.key]}
+                    onCheckedChange={() => handleToggle(item.key)}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">{item.description}</p>
+                <div className="flex items-center mt-2 text-xs">
+                  <div className={`h-2 w-2 rounded-full mr-2 ${permissions[item.key] ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  <span>{permissions[item.key] ? 'Ativado' : 'Desativado'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         
-        {/* Rodapé fixo */}
-        <div className="bg-background p-6 border-t flex items-center justify-end gap-2">
+        {/* Rodapé */}
+        <div className="p-6 border-t flex items-center justify-end gap-2">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
@@ -126,7 +211,7 @@ export default function UserPermissionsDialog({
             )}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
