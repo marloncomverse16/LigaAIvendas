@@ -1103,15 +1103,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "ID de busca inválido" });
       }
       
-      // Simula exclusão bem-sucedida
-      res.status(200).json({ message: "Busca excluída com sucesso" });
+      // Verificar se a busca existe e pertence ao usuário atual
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Busca não encontrada" });
+      }
+      
+      if (search.userId !== req.user.id) {
+        console.log(`Usuário ${req.user.id} tentou excluir busca ${searchId} que pertence ao usuário ${search.userId}`);
+        return res.status(403).json({ message: "Acesso negado a esta busca" });
+      }
+      
+      // Excluir a busca do banco de dados (isso também exclui resultados relacionados)
+      const success = await storage.deleteProspectingSearch(searchId);
+      
+      if (success) {
+        console.log(`Busca ${searchId} excluída com sucesso pelo usuário ${req.user.id}`);
+        res.status(200).json({ message: "Busca excluída com sucesso" });
+      } else {
+        res.status(500).json({ message: "Falha ao excluir busca" });
+      }
     } catch (error) {
       console.error("Erro ao excluir busca de prospecção:", error);
       res.status(500).json({ message: "Erro ao excluir busca de prospecção" });
     }
   });
 
-  // Rota callback para receber atualizações dos webhooks de prospecção
+  // Rota callback para receber atualizações assíncronas dos webhooks de prospecção
   app.post("/api/prospecting/webhook-callback/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
@@ -1123,10 +1142,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Recebido callback de prospecção para usuário ${userId}:`, callbackData);
       
-      // Aqui você implementaria a lógica para atualizar o status da busca
-      // e adicionar novos resultados
+      // Verificar se o usuário existe
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Usuário não encontrado" });
+      }
       
-      res.status(200).json({ success: true, message: "Callback processado com sucesso" });
+      // Verificar se o callback contém ID da busca
+      const searchId = callbackData.searchId;
+      if (!searchId) {
+        return res.status(400).json({ success: false, message: "ID da busca não fornecido" });
+      }
+      
+      // Verificar se a busca existe e pertence ao usuário
+      const search = await storage.getProspectingSearch(searchId);
+      if (!search) {
+        return res.status(404).json({ success: false, message: "Busca não encontrada" });
+      }
+      
+      if (search.userId !== userId) {
+        return res.status(403).json({ success: false, message: "Busca não pertence ao usuário informado" });
+      }
+      
+      // Processar os dados recebidos
+      let updated = false;
+      let resultsAdded = 0;
+      
+      // Atualizar status da busca se fornecido
+      if (callbackData.status) {
+        await storage.updateProspectingSearch(searchId, {
+          status: callbackData.status
+        });
+        updated = true;
+        console.log(`Status da busca ${searchId} atualizado para ${callbackData.status}`);
+      }
+      
+      // Se estiver concluído, atualizar completedAt
+      if (callbackData.status === 'concluido' || callbackData.completed === true) {
+        await storage.updateProspectingSearch(searchId, {
+          status: 'concluido'
+        });
+        updated = true;
+      }
+      
+      // Processar resultados recebidos
+      if (callbackData.results && Array.isArray(callbackData.results)) {
+        for (const result of callbackData.results) {
+          try {
+            await storage.createProspectingResult({
+              searchId,
+              name: result.name || result.nome || null,
+              phone: result.phone || result.telefone || null,
+              email: result.email || null,
+              address: result.address || result.endereco || null,
+              type: result.type || result.tipo || null,
+              cidade: result.cidade || result.city || null,
+              estado: result.estado || result.state || null,
+              site: result.site || result.website || null
+            });
+            resultsAdded++;
+          } catch (resultError) {
+            console.error(`Erro ao adicionar resultado para busca ${searchId}:`, resultError);
+          }
+        }
+      }
+      
+      // Atualizar contagem de leads encontrados
+      if (resultsAdded > 0) {
+        const currentResults = await storage.getProspectingResults(searchId);
+        await storage.updateProspectingSearch(searchId, {
+          leadsFound: currentResults.length,
+          dispatchesPending: currentResults.length
+        });
+        console.log(`Adicionados ${resultsAdded} resultados à busca ${searchId}`);
+      }
+      
+      res.status(200).json({ 
+        success: true, 
+        message: "Callback processado com sucesso",
+        updated,
+        resultsAdded
+      });
     } catch (error) {
       console.error("Erro ao processar callback de prospecção:", error);
       res.status(500).json({ 
