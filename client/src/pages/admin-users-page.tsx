@@ -312,8 +312,9 @@ export default function AdminUsersPage() {
   };
   
   const handleManagePermissions = (user: User) => {
-    setCurrentUser(user);
-    setIsPermissionsDialogOpen(true);
+    // Em vez de abrir o modal, navegar para a página dedicada de permissões
+    // usando a nova rota que definimos
+    window.location.href = `/admin-users/permissions/${user.id}`;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
