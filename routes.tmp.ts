@@ -30,15 +30,6 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
-// Rastrear o status de conexão de cada usuário
-interface ConnectionData {
-  connected: boolean;
-  qrCode?: string;
-  lastUpdated: Date;
-}
-
-const connectionStatus: Record<number, ConnectionData> = {};
-
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupAuth(app);
@@ -121,6 +112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // AI Agent Steps - Versão temporária com dados mock
   app.get("/api/ai-agent/steps", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
@@ -129,33 +121,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mockSteps = [
         {
           id: 1,
-          aiAgentId: 1,
+          userId: req.user.id,
+          name: "Apresentação",
+          description: "Introdução ao produto e serviços",
           order: 1,
-          question: "Qual sua necessidade principal?",
-          answerOptions: ["Suporte", "Orçamento", "Dúvidas"],
-          nextStepLogic: { Suporte: 2, Orçamento: 3, Dúvidas: 4 },
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: null,
+          mediaUrl: null
         },
         {
           id: 2,
-          aiAgentId: 1,
+          userId: req.user.id,
+          name: "Identificação de Necessidades",
+          description: "Entender as necessidades do cliente",
           order: 2,
-          question: "Qual área você precisa de suporte?",
-          answerOptions: ["Técnico", "Financeiro", "Uso do produto"],
-          nextStepLogic: { Técnico: 5, Financeiro: 6, "Uso do produto": 7 },
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: null,
+          mediaUrl: null
         },
         {
           id: 3,
-          aiAgentId: 1,
+          userId: req.user.id,
+          name: "Demonstração",
+          description: "Demonstrar como o produto resolve o problema",
           order: 3,
-          question: "Que tipo de orçamento você precisa?",
-          answerOptions: ["Produto completo", "Módulos específicos", "Serviços"],
-          nextStepLogic: { "Produto completo": 8, "Módulos específicos": 9, Serviços: 10 },
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: null,
+          mediaUrl: null
         }
       ];
       
@@ -166,20 +158,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/ai-agent/steps", async (req, res) => {
+  app.post("/api/ai-agent/steps", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const stepsData = req.body;
+      const stepData = req.body;
       
-      // Simula atualização e retorna os dados enviados
-      res.json(stepsData);
+      // Simula criação de uma nova etapa
+      const newStep = {
+        id: Math.floor(Math.random() * 1000) + 10,
+        userId: req.user.id,
+        name: stepData.name,
+        description: stepData.description || null,
+        order: stepData.order,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+        mediaUrl: null
+      };
+      
+      res.status(201).json(newStep);
     } catch (error) {
-      console.error("Erro ao atualizar etapas do agente:", error);
-      res.status(500).json({ message: "Erro ao atualizar etapas do agente" });
+      console.error("Erro ao criar etapa:", error);
+      res.status(500).json({ message: "Erro ao criar etapa" });
     }
   });
   
+  app.put("/api/ai-agent/steps/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const stepId = parseInt(req.params.id);
+      const stepData = req.body;
+      
+      // Simula atualização de uma etapa
+      const updatedStep = {
+        id: stepId,
+        userId: req.user.id,
+        name: stepData.name || "Etapa",
+        description: stepData.description || null,
+        order: stepData.order || 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        mediaUrl: null
+      };
+      
+      res.json(updatedStep);
+    } catch (error) {
+      console.error("Erro ao atualizar etapa:", error);
+      res.status(500).json({ message: "Erro ao atualizar etapa" });
+    }
+  });
+  
+  app.delete("/api/ai-agent/steps/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Simplesmente retorna sucesso
+    res.status(204).send();
+  });
+  
+  // AI Agent FAQs - Versão temporária com dados mock
   app.get("/api/ai-agent/faqs", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
@@ -188,27 +225,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mockFaqs = [
         {
           id: 1,
-          aiAgentId: 1,
-          question: "Como faço para recuperar minha senha?",
-          answer: "Para recuperar sua senha, clique em 'Esqueci minha senha' na tela de login e siga as instruções enviadas ao seu e-mail.",
+          userId: req.user.id,
+          question: "Quais são os horários de atendimento?",
+          answer: "Nosso atendimento funciona de segunda a sexta, das 8h às 18h.",
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: null,
+          mediaUrl: null
         },
         {
           id: 2,
-          aiAgentId: 1,
-          question: "Quais são os horários de atendimento?",
-          answer: "Nosso atendimento funciona de segunda a sexta, das 8h às 18h, exceto feriados nacionais.",
+          userId: req.user.id,
+          question: "Como posso solicitar um orçamento?",
+          answer: "Você pode solicitar um orçamento diretamente pelo site ou entrando em contato pelo telefone.",
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: null,
+          mediaUrl: null
         },
         {
           id: 3,
-          aiAgentId: 1,
-          question: "Como faço para cancelar minha assinatura?",
-          answer: "Para cancelar sua assinatura, acesse seu perfil, vá em 'Minha assinatura' e clique no botão 'Cancelar'. Lembre-se que você pode ter acesso ao serviço até o final do período já pago.",
+          userId: req.user.id,
+          question: "Qual é o prazo de entrega dos produtos?",
+          answer: "O prazo de entrega varia de acordo com a região, mas normalmente é de 3 a 5 dias úteis.",
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: null,
+          mediaUrl: null
         }
       ];
       
@@ -219,231 +259,405 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/ai-agent/faqs", async (req, res) => {
+  app.post("/api/ai-agent/faqs", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const faqsData = req.body;
+      const faqData = req.body;
       
-      // Simula atualização e retorna os dados enviados
-      res.json(faqsData);
-    } catch (error) {
-      console.error("Erro ao atualizar FAQs do agente:", error);
-      res.status(500).json({ message: "Erro ao atualizar FAQs do agente" });
-    }
-  });
-  
-  app.post("/api/leads", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const leadData = insertLeadSchema.parse(req.body);
-      
-      // Simula criação de lead e retorna com ID
-      const newLead = {
-        ...leadData,
-        id: Math.floor(Math.random() * 1000) + 1,
+      // Simula criação de uma nova FAQ
+      const newFaq = {
+        id: Math.floor(Math.random() * 1000) + 10,
+        userId: req.user.id,
+        question: faqData.question,
+        answer: faqData.answer,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: null,
+        mediaUrl: null
       };
       
-      res.status(201).json(newLead);
+      res.status(201).json(newFaq);
     } catch (error) {
-      console.error("Erro ao criar lead:", error);
-      res.status(500).json({ message: "Erro ao criar lead" });
+      console.error("Erro ao criar FAQ:", error);
+      res.status(500).json({ message: "Erro ao criar FAQ" });
     }
   });
   
-  app.get("/api/leads", async (req, res) => {
+  app.put("/api/ai-agent/faqs/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Simula lista de leads
-      const mockLeads = [
-        {
-          id: 1,
-          name: "João Silva",
-          company: "Empresa A",
-          email: "joao@empresaa.com",
-          phone: "+5511999999999",
-          source: "Website",
-          status: "Novo",
-          assignedTo: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          name: "Maria Oliveira",
-          company: "Empresa B",
-          email: "maria@empresab.com",
-          phone: "+5511888888888",
-          source: "Indicação",
-          status: "Em contato",
-          assignedTo: 2,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+      const faqId = parseInt(req.params.id);
+      const faqData = req.body;
+      
+      // Simula atualização de uma FAQ
+      const updatedFaq = {
+        id: faqId,
+        userId: req.user.id,
+        question: faqData.question || "Pergunta",
+        answer: faqData.answer || "Resposta",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        mediaUrl: null
+      };
+      
+      res.json(updatedFaq);
+    } catch (error) {
+      console.error("Erro ao atualizar FAQ:", error);
+      res.status(500).json({ message: "Erro ao atualizar FAQ" });
+    }
+  });
+  
+  app.delete("/api/ai-agent/faqs/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Simplesmente retorna sucesso
+    res.status(204).send();
+  });
+  
+  // User profile
+  app.get("/api/profile", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const user = await storage.getUser(id);
+      if (!user) return res.status(404).json({ message: "Usuário não encontrado" });
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar perfil" });
+    }
+  });
+  
+  app.put("/api/profile", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const { name, company, phone, bio } = req.body;
+      
+      const updatedUser = await storage.updateUser(id, {
+        name,
+        company,
+        phone,
+        bio
+      });
+      
+      if (!updatedUser) return res.status(404).json({ message: "Usuário não encontrado" });
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar perfil" });
+    }
+  });
+  
+  // Dashboard stats
+  app.get("/api/dashboard/stats", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      
+      const leadsCount = await storage.countLeadsByUserId(id);
+      const prospectsCount = await storage.countProspectsByUserId(id);
+      const dispatchesCount = await storage.countDispatchesByUserId(id);
+      
+      // Get settings for theme
+      const settings = await storage.getSettingsByUserId(id) || {
+        darkMode: false,
+        primaryColor: "#047857",
+        secondaryColor: "#4f46e5",
+        logoUrl: null
+      };
+      
+      // Get user for token info
+      const user = await storage.getUser(id);
+      
+      // Check whatsapp connection status (mocked)
+      const whatsappStatus = "desconectado";
+      
+      // Get available tokens
+      const availableTokens = user?.availableTokens || 0;
+      
+      // Get dispatch status (mocked)
+      const dispatchStatus = "inativo";
+      
+      res.json({
+        leadsCount,
+        prospectsCount,
+        dispatchesCount,
+        whatsappStatus,
+        availableTokens,
+        dispatchStatus,
+        settings
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar estatísticas" });
+    }
+  });
+  
+  // Admin Routes
+  // Middleware para checar se o usuário é admin
+  const isAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const user = await storage.getUser(id);
+      
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado. Permissão de administrador necessária." });
+      }
+      
+      next();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao verificar permissões" });
+    }
+  };
+  
+  // Listar todos os usuários (admin)
+  app.get("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      
+      // Remove passwords from response
+      const usersWithoutPasswords = users.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
+      
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+  
+  // Criar usuário (admin)
+  app.post("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      
+      const existingUserByUsername = await storage.getUserByUsername(userData.username);
+      if (existingUserByUsername) {
+        return res.status(400).json({ message: "Nome de usuário já existe" });
+      }
+      
+      const existingUserByEmail = await storage.getUserByEmail(userData.email);
+      if (existingUserByEmail) {
+        return res.status(400).json({ message: "Email já está em uso" });
+      }
+      
+      // Hash da senha
+      const hashedPassword = await hashPassword(userData.password);
+      
+      const newUser = await storage.createUser({
+        ...userData,
+        password: hashedPassword
+      });
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = newUser;
+      
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      console.error("Erro ao criar usuário:", error);
+      res.status(500).json({ message: "Erro ao criar usuário" });
+    }
+  });
+  
+  // Obter usuário por ID (admin)
+  app.get("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Erro ao buscar usuário:", error);
+      res.status(500).json({ message: "Erro ao buscar usuário" });
+    }
+  });
+  
+  // Atualizar usuário (admin)
+  app.put("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Validate update data
+      const updateData = insertUserSchema.partial().parse(req.body);
+      
+      // Check if user exists
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // If updating username, check if it's already taken
+      if (updateData.username && updateData.username !== existingUser.username) {
+        const userWithUsername = await storage.getUserByUsername(updateData.username);
+        if (userWithUsername && userWithUsername.id !== userId) {
+          return res.status(400).json({ message: "Nome de usuário já existe" });
         }
+      }
+      
+      // If updating email, check if it's already taken
+      if (updateData.email && updateData.email !== existingUser.email) {
+        const userWithEmail = await storage.getUserByEmail(updateData.email);
+        if (userWithEmail && userWithEmail.id !== userId) {
+          return res.status(400).json({ message: "Email já está em uso" });
+        }
+      }
+      
+      // If updating password, hash it
+      if (updateData.password) {
+        updateData.password = await hashPassword(updateData.password);
+      }
+      
+      const updatedUser = await storage.updateUser(userId, updateData);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Remove password from response
+      const { password, ...userWithoutPassword } = updatedUser;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      console.error("Erro ao atualizar usuário:", error);
+      res.status(500).json({ message: "Erro ao atualizar usuário" });
+    }
+  });
+  
+  // Excluir usuário (admin)
+  app.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Não permitir que um admin exclua a si mesmo
+      if (userId === (req.user as Express.User).id) {
+        return res.status(400).json({ message: "Não é possível excluir seu próprio usuário" });
+      }
+      
+      const success = await storage.deleteUser(userId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      res.status(500).json({ message: "Erro ao excluir usuário" });
+    }
+  });
+  
+  // Metrics/Charts
+  app.get("/api/metrics", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const metrics = await storage.getMetricsByUserId(id);
+      
+      // Sort metrics by year and month order
+      const monthOrder = [
+        "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+        "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
       ];
       
-      res.json(mockLeads);
+      metrics.sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return monthOrder.indexOf(a.month.toLowerCase()) - monthOrder.indexOf(b.month.toLowerCase());
+      });
+      
+      res.json(metrics);
     } catch (error) {
-      console.error("Erro ao buscar leads:", error);
-      res.status(500).json({ message: "Erro ao buscar leads" });
+      res.status(500).json({ message: "Erro ao buscar métricas" });
     }
   });
   
-  app.get("/api/leads/:id", async (req, res) => {
+  // Settings
+  app.get("/api/settings", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const leadId = parseInt(req.params.id);
+      const { id } = req.user as Express.User;
+      const settings = await storage.getSettingsByUserId(id);
       
-      // Simula um único lead
-      const mockLead = {
-        id: leadId,
-        name: "João Silva",
-        company: "Empresa A",
-        email: "joao@empresaa.com",
-        phone: "+5511999999999",
-        source: "Website",
-        status: "Novo",
-        assignedTo: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      if (!settings) {
+        // Create default settings if they don't exist
+        const defaultSettings = await storage.createSettings({
+          userId: id,
+          logoUrl: null,
+          primaryColor: "#047857",
+          secondaryColor: "#4f46e5",
+          darkMode: false
+        });
+        
+        return res.json(defaultSettings);
+      }
       
-      res.json(mockLead);
+      res.json(settings);
     } catch (error) {
-      console.error("Erro ao buscar lead:", error);
-      res.status(500).json({ message: "Erro ao buscar lead" });
+      res.status(500).json({ message: "Erro ao buscar configurações" });
     }
   });
   
-  app.put("/api/leads/:id", async (req, res) => {
+  app.put("/api/settings", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const leadId = parseInt(req.params.id);
-      const leadData = req.body;
+      const { id } = req.user as Express.User;
+      const settingsData = insertSettingsSchema.partial().parse(req.body);
       
-      // Simula atualização de lead
-      const updatedLead = {
-        ...leadData,
-        id: leadId,
-        updatedAt: new Date().toISOString()
-      };
+      const updatedSettings = await storage.updateSettings(id, settingsData);
       
-      res.json(updatedLead);
+      if (!updatedSettings) {
+        return res.status(404).json({ message: "Configurações não encontradas" });
+      }
+      
+      res.json(updatedSettings);
     } catch (error) {
-      console.error("Erro ao atualizar lead:", error);
-      res.status(500).json({ message: "Erro ao atualizar lead" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar configurações" });
     }
   });
   
-  app.post("/api/leads/:id/interactions", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const leadId = parseInt(req.params.id);
-      const interactionData = insertLeadInteractionSchema.parse(req.body);
-      
-      // Simula criação de interação
-      const newInteraction = {
-        ...interactionData,
-        id: Math.floor(Math.random() * 1000) + 1,
-        leadId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      res.status(201).json(newInteraction);
-    } catch (error) {
-      console.error("Erro ao criar interação:", error);
-      res.status(500).json({ message: "Erro ao criar interação" });
-    }
-  });
+  // Connection API Endpoints - WhatsApp Connect via Webhook
+  // Status de conexão armazenado em memória
+  const connectionStatus: Record<number, ConnectionStatus> = {};
   
-  app.get("/api/leads/:id/interactions", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const leadId = parseInt(req.params.id);
-      
-      // Simula lista de interações
-      const mockInteractions = [
-        {
-          id: 1,
-          leadId,
-          type: "Email",
-          content: "Primeiro contato enviado",
-          outcome: "Aguardando resposta",
-          createdBy: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          leadId,
-          type: "Ligação",
-          content: "Cliente interessado no produto X",
-          outcome: "Agendar demonstração",
-          createdBy: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
-      
-      res.json(mockInteractions);
-    } catch (error) {
-      console.error("Erro ao buscar interações:", error);
-      res.status(500).json({ message: "Erro ao buscar interações" });
-    }
-  });
-  
-  app.get("/api/leads/recommendations", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      // Simula recomendações de leads
-      const mockRecommendations = [
-        {
-          id: 1,
-          leadId: 3,
-          reason: "Perfil similar a clientes convertidos",
-          score: 0.85,
-          actions: ["Ligar", "Enviar material sobre produto X"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          leadId: 7,
-          reason: "Visitou site várias vezes na última semana",
-          score: 0.78,
-          actions: ["Oferecer demonstração", "Enviar proposta"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
-      
-      res.json(mockRecommendations);
-    } catch (error) {
-      console.error("Erro ao buscar recomendações:", error);
-      res.status(500).json({ message: "Erro ao buscar recomendações" });
-    }
-  });
-  
-  // Rota para verificar o status da conexão com WhatsApp
   app.get("/api/connection/status", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       const { id } = req.user as Express.User;
       
-      // Se não tiver status, retorna desconectado
+      // Se não tiver um status ainda, retorna desconectado
       if (!connectionStatus[id]) {
-        connectionStatus[id] = {
+        connectionStatus[id] = { 
           connected: false,
           lastUpdated: new Date()
         };
@@ -451,12 +665,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(connectionStatus[id]);
     } catch (error) {
-      console.error("Erro ao verificar status:", error);
-      res.status(500).json({ message: "Erro ao verificar status" });
+      console.error("Erro ao verificar status da conexão:", error);
+      res.status(500).json({ message: "Erro ao verificar status da conexão" });
     }
   });
   
-  // Rota para conectar o WhatsApp
   app.post("/api/connection/connect", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
@@ -517,70 +730,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao iniciar conexão:", error);
       res.status(500).json({ message: "Erro ao iniciar conexão" });
     }
-  });
-  
-  // Rota de callback para o n8n informar sobre a conexão do dispositivo
-  app.post("/api/connection/callback", async (req, res) => {
-    try {
-      const { userId, connected } = req.body;
-      
-      if (!userId) {
-        return res.status(400).json({ message: "ID do usuário não fornecido" });
-      }
-      
-      // Atualiza o status de conexão
-      connectionStatus[userId] = {
-        connected: !!connected,
-        lastUpdated: new Date()
-      };
-      
-      res.status(200).json({ success: true });
-    } catch (error) {
-      console.error("Erro ao processar callback:", error);
-      res.status(500).json({ message: "Erro ao processar callback" });
-    }
-  });
-  
-  // Rota para desconectar o dispositivo
-  app.post("/api/connection/disconnect", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const user = await storage.getUser(id);
-      
-      if (!user) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
-      
-      // Usar a URL configurada pelo usuário
-      const webhookUrl = user.whatsappWebhookUrl;
-      
-      if (webhookUrl) {
-        try {
-          // Tenta chamar o webhook para desconectar
-          await axios.post(webhookUrl, {
-            action: "disconnect",
-            userId: id
-          });
-        } catch (error) {
-          console.error("Erro ao desconectar via webhook:", error);
-        }
-      }
-      
-      // Atualiza o status para desconectado
-      connectionStatus[id] = {
-        connected: false,
-        lastUpdated: new Date()
-      };
-      
-      res.json(connectionStatus[id]);
-    } catch (error) {
-      console.error("Erro ao desconectar:", error);
-      res.status(500).json({ message: "Erro ao desconectar" });
-    }
-  });
-
-  const httpServer = createServer(app);
-  return httpServer;
 }
