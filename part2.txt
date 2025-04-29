@@ -1,0 +1,18 @@
+      }
+      
+      // Atualiza o status para desconectado
+      connectionStatus[id] = {
+        connected: false,
+        lastUpdated: new Date()
+      };
+      
+      res.json(connectionStatus[id]);
+    } catch (error) {
+      console.error("Erro ao desconectar:", error);
+      res.status(500).json({ message: "Erro ao desconectar" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
