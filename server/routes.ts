@@ -825,6 +825,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rotas para funcionalidade de prospecção
+  app.get("/api/prospecting/searches", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Mock de buscas de prospecção para demonstração
+      const mockSearches = [
+        {
+          id: 1,
+          userId: req.user.id,
+          segment: "Restaurantes",
+          city: "São Paulo",
+          filters: "Estabelecimentos com mais de 10 funcionários",
+          status: "concluido",
+          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 dias atrás
+          completedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6 dias atrás
+          leadsFound: 35,
+          dispatchesDone: 28,
+          dispatchesPending: 7,
+          webhookUrl: req.user.prospectingWebhookUrl || null
+        },
+        {
+          id: 2,
+          userId: req.user.id,
+          segment: "Clínicas médicas",
+          city: "Rio de Janeiro",
+          filters: "Especialidades: Cardiologia, Ortopedia",
+          status: "em_andamento",
+          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 dias atrás
+          completedAt: null,
+          leadsFound: 12,
+          dispatchesDone: 5,
+          dispatchesPending: 7,
+          webhookUrl: req.user.prospectingWebhookUrl || null
+        },
+        {
+          id: 3,
+          userId: req.user.id,
+          segment: "Escritórios de advocacia",
+          city: "Belo Horizonte",
+          filters: "Direito empresarial",
+          status: "pendente",
+          createdAt: new Date(), // hoje
+          completedAt: null,
+          leadsFound: 0,
+          dispatchesDone: 0,
+          dispatchesPending: 0,
+          webhookUrl: req.user.prospectingWebhookUrl || null
+        }
+      ];
+      
+      res.json(mockSearches);
+    } catch (error) {
+      console.error("Erro ao buscar pesquisas de prospecção:", error);
+      res.status(500).json({ message: "Erro ao buscar pesquisas de prospecção" });
+    }
+  });
+
+  app.post("/api/prospecting/searches", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchData = insertProspectingSearchSchema.parse(req.body);
+      
+      console.log("Dados da busca de prospecção recebidos:", searchData);
+      
+      // Se tiver um webhookUrl, tenta chamar o webhook
+      if (searchData.webhookUrl) {
+        try {
+          console.log("Tentando chamar webhook:", searchData.webhookUrl);
+          
+          const user = req.user as Express.User;
+          
+          // Preparar os dados para enviar ao webhook
+          const webhookData = {
+            action: "startProspectingSearch",
+            userId: user.id,
+            username: user.username,
+            searchData: {
+              segment: searchData.segment,
+              city: searchData.city || null,
+              filters: searchData.filters || null
+            },
+            callbackUrl: `${req.protocol}://${req.get('host')}/api/prospecting/webhook-callback/${user.id}`
+          };
+          
+          // Tentar chamar o webhook
+          await axios.post(searchData.webhookUrl, webhookData, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          console.log("Webhook chamado com sucesso");
+        } catch (webhookError) {
+          console.error("Erro ao chamar webhook de prospecção:", webhookError);
+          // Não interrompe o fluxo, apenas loga o erro
+        }
+      }
+      
+      // Criar um mock da busca criada
+      const newSearch = {
+        id: Math.floor(Math.random() * 1000) + 100,
+        userId: req.user.id,
+        segment: searchData.segment,
+        city: searchData.city || null,
+        filters: searchData.filters || null,
+        status: "pendente",
+        createdAt: new Date(),
+        completedAt: null,
+        leadsFound: 0,
+        dispatchesDone: 0,
+        dispatchesPending: 0,
+        webhookUrl: searchData.webhookUrl
+      };
+      
+      res.status(200).json(newSearch);
+    } catch (error) {
+      console.error("Erro ao criar busca de prospecção:", error);
+      res.status(500).json({ 
+        message: "Erro ao criar busca de prospecção", 
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
+  app.get("/api/prospecting/results/:searchId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.searchId);
+      
+      if (isNaN(searchId)) {
+        return res.status(400).json({ message: "ID de busca inválido" });
+      }
+      
+      // Mock de resultados para demonstração
+      const mockResults = Array.from({ length: 15 }, (_, i) => ({
+        id: i + 1,
+        searchId,
+        name: `Empresa ${i + 1}`,
+        email: `contato@empresa${i + 1}.com.br`,
+        phone: `(11) 9${Math.floor(Math.random() * 9000) + 1000}-${Math.floor(Math.random() * 9000) + 1000}`,
+        address: `Rua das Empresas, ${i * 10 + 100}, São Paulo - SP`,
+        type: i % 3 === 0 ? "Pequena" : i % 3 === 1 ? "Média" : "Grande",
+        createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
+        dispatchedAt: i < 10 ? new Date(Date.now() - i * 12 * 60 * 60 * 1000) : null
+      }));
+      
+      res.json(mockResults);
+    } catch (error) {
+      console.error("Erro ao buscar resultados de prospecção:", error);
+      res.status(500).json({ message: "Erro ao buscar resultados de prospecção" });
+    }
+  });
+
+  app.delete("/api/prospecting/searches/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      
+      if (isNaN(searchId)) {
+        return res.status(400).json({ message: "ID de busca inválido" });
+      }
+      
+      // Simula exclusão bem-sucedida
+      res.status(200).json({ message: "Busca excluída com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir busca de prospecção:", error);
+      res.status(500).json({ message: "Erro ao excluir busca de prospecção" });
+    }
+  });
+
+  // Rota callback para receber atualizações dos webhooks de prospecção
+  app.post("/api/prospecting/webhook-callback/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const callbackData = req.body;
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: "ID de usuário inválido" });
+      }
+      
+      console.log(`Recebido callback de prospecção para usuário ${userId}:`, callbackData);
+      
+      // Aqui você implementaria a lógica para atualizar o status da busca
+      // e adicionar novos resultados
+      
+      res.status(200).json({ success: true, message: "Callback processado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao processar callback de prospecção:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Erro ao processar callback de prospecção", 
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
