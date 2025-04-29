@@ -62,12 +62,16 @@ export default function AdminUsersPage() {
     contactsWebhookUrl: "",
     schedulingWebhookUrl: "",
     crmWebhookUrl: "",
+    whatsappInstanceWebhook: "",
     availableTokens: 1000,
     tokenExpirationDays: 30,
     monthlyFee: "0",
     serverAddress: "",
     isAdmin: false
   });
+  
+  // Estado para o formulário de criação de instância WhatsApp
+  const [instanceWebhookUrl, setInstanceWebhookUrl] = useState("");
 
   // Buscar todos os usuários
   const { data: users = [], isLoading } = useQuery({
@@ -143,6 +147,34 @@ export default function AdminUsersPage() {
       toast({
         title: "Erro ao excluir usuário",
         description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Criar uma instância do WhatsApp para um usuário
+  const createWhatsappInstanceMutation = useMutation({
+    mutationFn: async ({ userId, webhookUrl }: { userId: number; webhookUrl: string }) => {
+      const res = await apiRequest(
+        "POST", 
+        `/api/admin/users/${userId}/create-whatsapp-instance`, 
+        { webhookInstanceUrl: webhookUrl }
+      );
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Instância criada com sucesso",
+        description: data.message || "A instância do WhatsApp foi criada com sucesso.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      // Limpar o campo após o sucesso
+      setInstanceWebhookUrl("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao criar instância",
+        description: error.message || "Ocorreu um erro ao criar a instância do WhatsApp.",
         variant: "destructive",
       });
     },
@@ -257,6 +289,25 @@ export default function AdminUsersPage() {
 
   const handleSwitchChange = (name: string, checked: boolean) => {
     setFormValues({ ...formValues, [name]: checked });
+  };
+  
+  // Função para criar instância de WhatsApp
+  const handleCreateWhatsappInstance = () => {
+    if (!currentUser) return;
+    
+    if (!instanceWebhookUrl) {
+      toast({
+        title: "Erro de validação",
+        description: "A URL do webhook da instância é obrigatória",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    createWhatsappInstanceMutation.mutate({
+      userId: currentUser.id,
+      webhookUrl: instanceWebhookUrl
+    });
   };
 
   return (
