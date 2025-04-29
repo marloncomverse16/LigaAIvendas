@@ -216,6 +216,20 @@ export default function ConnectionPage() {
                           className="w-full h-full"
                         />
                       </div>
+                      <Button 
+                        onClick={handleConnect}
+                        variant="outline"
+                        className="mt-4 w-full"
+                        disabled={connecting}
+                      >
+                        {connecting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reconectando...
+                          </>
+                        ) : (
+                          <>Reconectar</>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 ) : (
