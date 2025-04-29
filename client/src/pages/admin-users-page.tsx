@@ -430,9 +430,10 @@ export default function AdminUsersPage() {
             </DialogHeader>
             
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid grid-cols-3 mb-4">
+              <TabsList className="grid grid-cols-4 mb-4">
                 <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
                 <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+                <TabsTrigger value="permissions">Permissões</TabsTrigger>
                 <TabsTrigger value="advanced">Configurações Avançadas</TabsTrigger>
               </TabsList>
               
@@ -695,8 +696,9 @@ export default function AdminUsersPage() {
             </DialogHeader>
             
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid grid-cols-3 mb-4">
+              <TabsList className="grid grid-cols-4 mb-4">
                 <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
+                <TabsTrigger value="permissions">Permissões</TabsTrigger>
                 <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
                 <TabsTrigger value="advanced">Configurações Avançadas</TabsTrigger>
               </TabsList>
