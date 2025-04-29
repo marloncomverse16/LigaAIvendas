@@ -127,12 +127,12 @@ export default function UserPermissionsDialog({
   if (!user || !open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full flex flex-col max-h-[90vh]">
-        {/* Cabeçalho */}
-        <div className="p-6 border-b">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full flex flex-col h-[90vh] overflow-hidden">
+        {/* Cabeçalho (fixo) */}
+        <div className="p-6 border-b sticky top-0 bg-white dark:bg-gray-800 z-10">
           <h2 className="text-xl font-semibold">Permissões de Acesso</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Configure quais módulos o usuário <strong>{user.name || user.username}</strong> pode acessar no sistema.
           </p>
           <div className="flex gap-2 mt-4">
@@ -155,41 +155,41 @@ export default function UserPermissionsDialog({
           </div>
         </div>
         
-        {/* Área de rolagem */}
-        <div className="overflow-y-auto flex-1 p-6">
+        {/* Área de conteúdo com rolagem */}
+        <div className="overflow-y-auto flex-1 p-6" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {moduleItems.map((item) => (
-              <div 
+              <Card 
                 key={item.key} 
-                className={`flex flex-col border rounded-md p-4 shadow-sm transition-all ${
-                  permissions[item.key] ? 'border-green-500/50 bg-green-50/20' : 'border-gray-200'
-                }`}
+                className={`${permissions[item.key] ? 'border-primary/30 bg-primary/5' : ''}`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <Label 
-                    htmlFor={item.key} 
-                    className="font-medium cursor-pointer"
-                  >
-                    {item.label}
-                  </Label>
-                  <Switch
-                    id={item.key}
-                    checked={permissions[item.key]}
-                    onCheckedChange={() => handleToggle(item.key)}
-                  />
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label 
+                      htmlFor={item.key} 
+                      className="font-medium cursor-pointer"
+                    >
+                      {item.label}
+                    </Label>
+                    <Switch
+                      id={item.key}
+                      checked={permissions[item.key]}
+                      onCheckedChange={() => handleToggle(item.key)}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                  <div className="flex items-center mt-2 text-xs">
+                    <div className={`h-2 w-2 rounded-full mr-2 ${permissions[item.key] ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    <span>{permissions[item.key] ? 'Ativado' : 'Desativado'}</span>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-                <div className="flex items-center mt-2 text-xs">
-                  <div className={`h-2 w-2 rounded-full mr-2 ${permissions[item.key] ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <span>{permissions[item.key] ? 'Ativado' : 'Desativado'}</span>
-                </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>
         
-        {/* Rodapé */}
-        <div className="p-6 border-t flex items-center justify-end gap-2">
+        {/* Rodapé (fixo) */}
+        <div className="p-6 border-t flex items-center justify-end gap-2 sticky bottom-0 bg-white dark:bg-gray-800 z-10">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
