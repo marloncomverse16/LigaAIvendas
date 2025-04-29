@@ -534,7 +534,7 @@ export default function ProspectingPage() {
                                   <TableHead>TELEFONE</TableHead>
                                   <TableHead>EMAIL</TableHead>
                                   <TableHead>ENDEREÇO</TableHead>
-                                  <TableHead>TIPO</TableHead>
+                                  <TableHead>SITE</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
