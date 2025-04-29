@@ -29,6 +29,16 @@ export const users = pgTable("users", {
   whatsappInstanceWebhook: text("whatsapp_instance_webhook"),
   whatsappInstanceId: text("whatsapp_instance_id"),
   isAdmin: boolean("is_admin").default(false),
+  // Controle de acesso a módulos 
+  accessDashboard: boolean("access_dashboard").default(true),
+  accessLeads: boolean("access_leads").default(true),
+  accessProspecting: boolean("access_prospecting").default(true),
+  accessAiAgent: boolean("access_ai_agent").default(true),
+  accessWhatsapp: boolean("access_whatsapp").default(true),
+  accessContacts: boolean("access_contacts").default(true),
+  accessScheduling: boolean("access_scheduling").default(true),
+  accessReports: boolean("access_reports").default(true),
+  accessSettings: boolean("access_settings").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -180,7 +190,17 @@ export const insertUserSchema = createInsertSchema(users).pick({
   tokenExpirationDays: true,
   monthlyFee: true,
   serverAddress: true,
-  isAdmin: true
+  isAdmin: true,
+  // Permissões de acesso a módulos
+  accessDashboard: true,
+  accessLeads: true,
+  accessProspecting: true,
+  accessAiAgent: true,
+  accessWhatsapp: true,
+  accessContacts: true,
+  accessScheduling: true,
+  accessReports: true,
+  accessSettings: true
 });
 
 // Lead Interactions Insert Schema
