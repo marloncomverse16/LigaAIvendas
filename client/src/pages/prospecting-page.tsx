@@ -327,12 +327,12 @@ export default function ProspectingPage() {
                           <div className="flex gap-2">
                             <Button 
                               variant="outline" 
-                              size="sm" 
-                              onClick={() => exportToCSV(activeSearch)}
-                              disabled={!results || results.length === 0}
+                              size="sm"
+                              onClick={() => handleDispatchLeads(activeSearch)}
+                              disabled={!user?.dispatchesWebhookUrl || (searches.find(s => s.id === activeSearch)?.dispatchesPending || 0) === 0}
                             >
-                              <Download className="h-4 w-4 mr-1" />
-                              Exportar
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-send h-4 w-4 mr-1"><line x1="22" x2="11" y1="2" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                              Disparar
                             </Button>
                             <Button 
                               variant="destructive" 
