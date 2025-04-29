@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import ModulePermissions from "@/components/admin/module-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { InsertUser, User } from "@shared/schema";
@@ -68,7 +69,17 @@ export default function AdminUsersPage() {
     tokenExpirationDays: 30,
     monthlyFee: "0",
     serverAddress: "",
-    isAdmin: false
+    isAdmin: false,
+    // Controles de acesso a módulos
+    accessDashboard: true,
+    accessLeads: true,
+    accessProspecting: true,
+    accessAiAgent: true,
+    accessWhatsapp: true,
+    accessContacts: true,
+    accessScheduling: true,
+    accessReports: true,
+    accessSettings: true
   });
   
   // Estado para o formulário de criação de instância WhatsApp
@@ -245,7 +256,17 @@ export default function AdminUsersPage() {
       tokenExpirationDays: 30,
       monthlyFee: "0",
       serverAddress: "",
-      isAdmin: false
+      isAdmin: false,
+      // Controles de acesso a módulos
+      accessDashboard: true,
+      accessLeads: true,
+      accessProspecting: true,
+      accessAiAgent: true,
+      accessWhatsapp: true,
+      accessContacts: true,
+      accessScheduling: true,
+      accessReports: true,
+      accessSettings: true
     });
   };
 
@@ -268,7 +289,17 @@ export default function AdminUsersPage() {
       tokenExpirationDays: user.tokenExpirationDays || 30,
       monthlyFee: user.monthlyFee || "0",
       serverAddress: user.serverAddress || "",
-      isAdmin: user.isAdmin || false
+      isAdmin: user.isAdmin || false,
+      // Controles de acesso a módulos
+      accessDashboard: user.accessDashboard ?? true,
+      accessLeads: user.accessLeads ?? true,
+      accessProspecting: user.accessProspecting ?? true,
+      accessAiAgent: user.accessAiAgent ?? true,
+      accessWhatsapp: user.accessWhatsapp ?? true,
+      accessContacts: user.accessContacts ?? true,
+      accessScheduling: user.accessScheduling ?? true,
+      accessReports: user.accessReports ?? true,
+      accessSettings: user.accessSettings ?? true
     });
     setIsEditOpen(true);
   };
