@@ -1233,6 +1233,246 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rotas para agendamentos de envio
+  app.get("/api/prospecting/schedules/:searchId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.searchId);
+      
+      if (isNaN(searchId)) {
+        return res.status(400).json({ message: "ID de busca inválido" });
+      }
+      
+      // Verificar se a busca existe e pertence ao usuário
+      const search = await storage.getProspectingSearch(searchId);
+      if (!search) {
+        return res.status(404).json({ message: "Busca não encontrada" });
+      }
+      
+      if (search.userId !== req.user.id) {
+        return res.status(403).json({ message: "Acesso negado a esta busca" });
+      }
+      
+      const schedules = await storage.getProspectingSchedules(searchId);
+      res.json(schedules);
+    } catch (error) {
+      console.error("Erro ao buscar agendamentos:", error);
+      res.status(500).json({ message: "Erro ao buscar agendamentos" });
+    }
+  });
+  
+  app.post("/api/prospecting/schedules", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { searchId, scheduledAt } = req.body;
+      
+      if (!searchId || !scheduledAt) {
+        return res.status(400).json({ message: "ID da busca e data de agendamento são obrigatórios" });
+      }
+      
+      // Verificar se a busca existe e pertence ao usuário
+      const search = await storage.getProspectingSearch(searchId);
+      if (!search) {
+        return res.status(404).json({ message: "Busca não encontrada" });
+      }
+      
+      if (search.userId !== req.user.id) {
+        return res.status(403).json({ message: "Acesso negado a esta busca" });
+      }
+      
+      const newSchedule = await storage.createProspectingSchedule({
+        searchId,
+        scheduledAt: new Date(scheduledAt),
+        createdBy: req.user.id,
+        status: 'pendente'
+      });
+      
+      res.status(201).json(newSchedule);
+    } catch (error) {
+      console.error("Erro ao criar agendamento:", error);
+      res.status(500).json({ message: "Erro ao criar agendamento" });
+    }
+  });
+  
+  app.get("/api/prospecting/dispatch-history/:searchId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.searchId);
+      
+      if (isNaN(searchId)) {
+        return res.status(400).json({ message: "ID de busca inválido" });
+      }
+      
+      // Verificar se a busca existe e pertence ao usuário
+      const search = await storage.getProspectingSearch(searchId);
+      if (!search) {
+        return res.status(404).json({ message: "Busca não encontrada" });
+      }
+      
+      if (search.userId !== req.user.id) {
+        return res.status(403).json({ message: "Acesso negado a esta busca" });
+      }
+      
+      const history = await storage.getProspectingDispatchHistory(searchId);
+      res.json(history);
+    } catch (error) {
+      console.error("Erro ao buscar histórico de envios:", error);
+      res.status(500).json({ message: "Erro ao buscar histórico de envios" });
+    }
+  });
+
+  // Rota para disparar leads em webhook configurado
+  app.post("/api/prospecting/dispatch/:searchId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.searchId);
+      const { scheduleId } = req.body; // ID do agendamento, se for um envio agendado
+      
+      if (isNaN(searchId)) {
+        return res.status(400).json({ message: "ID de busca inválido" });
+      }
+      
+      // Encontrar a busca
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Busca não encontrada" });
+      }
+      
+      // Verificar se a busca pertence ao usuário atual
+      if (search.userId !== req.user.id) {
+        return res.status(403).json({ message: "Acesso negado a esta busca" });
+      }
+      
+      // Verificar se o usuário tem webhook configurado
+      if (!req.user.dispatchesWebhookUrl) {
+        return res.status(400).json({ message: "Usuário não possui webhook para disparos configurado" });
+      }
+      
+      // Buscar resultados pendentes
+      const allResults = await storage.getProspectingResults(searchId);
+      const pendingResults = allResults.filter(r => !r.dispatchedAt);
+      
+      if (pendingResults.length === 0) {
+        return res.status(400).json({ message: "Não há resultados pendentes para envio" });
+      }
+      
+      console.log(`Enviando ${pendingResults.length} resultados para webhook ${req.user.dispatchesWebhookUrl}`);
+      
+      // Atualizar status do agendamento se for um envio agendado
+      if (scheduleId) {
+        await storage.updateProspectingSchedule(scheduleId, {
+          status: 'executando',
+        });
+      }
+      
+      // Enviar dados para webhook
+      try {
+        const webhookResponse = await fetch(req.user.dispatchesWebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            user_id: req.user.id,
+            search_id: searchId,
+            search_segment: search.segment,
+            search_city: search.city,
+            search_filters: search.filters,
+            results: pendingResults.map(r => ({
+              id: r.id,
+              name: r.name,
+              phone: r.phone,
+              email: r.email,
+              address: r.address, 
+              site: r.site,
+              cidade: r.cidade,
+              estado: r.estado
+            }))
+          }),
+        });
+        
+        if (!webhookResponse.ok) {
+          throw new Error(`Webhook retornou status ${webhookResponse.status}`);
+        }
+        
+        // Marcar resultados como enviados
+        for (const result of pendingResults) {
+          await storage.updateProspectingResult(result.id, {
+            dispatchedAt: new Date()
+          });
+        }
+        
+        // Atualizar contagens na busca
+        await storage.updateProspectingSearch(searchId, {
+          dispatchesDone: (search.dispatchesDone || 0) + pendingResults.length,
+          dispatchesPending: (search.dispatchesPending || 0) - pendingResults.length
+        });
+        
+        // Registrar no histórico de envios
+        await storage.createProspectingDispatchHistory({
+          searchId,
+          executedAt: new Date(),
+          success: true,
+          resultsCount: pendingResults.length,
+          executedBy: req.user.id,
+          scheduledId: scheduleId || null
+        });
+        
+        // Atualizar status do agendamento se for um envio agendado
+        if (scheduleId) {
+          await storage.updateProspectingSchedule(scheduleId, {
+            status: 'concluido',
+            executedAt: new Date()
+          });
+        }
+        
+        res.status(200).json({ 
+          success: true, 
+          message: `${pendingResults.length} resultados enviados com sucesso`
+        });
+      } catch (webhookError) {
+        console.error("Erro ao enviar para webhook:", webhookError);
+        
+        // Registrar falha no histórico
+        await storage.createProspectingDispatchHistory({
+          searchId,
+          executedAt: new Date(),
+          success: false,
+          resultsCount: 0,
+          errorMessage: webhookError instanceof Error ? webhookError.message : "Erro desconhecido",
+          executedBy: req.user.id,
+          scheduledId: scheduleId || null
+        });
+        
+        // Atualizar status do agendamento para falha
+        if (scheduleId) {
+          await storage.updateProspectingSchedule(scheduleId, {
+            status: 'falha',
+            executedAt: new Date()
+          });
+        }
+        
+        res.status(500).json({ 
+          success: false, 
+          message: "Erro ao enviar para webhook", 
+          error: webhookError instanceof Error ? webhookError.message : "Erro desconhecido"
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao processar envio de resultados:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Erro ao processar envio de resultados",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
