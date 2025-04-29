@@ -128,7 +128,7 @@ export default function ConnectionPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-6">
+    <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col items-center justify-center">
       <div className="max-w-3xl w-full">
         {/* Cabeçalho da página */}
         <div className="text-center mb-8">
