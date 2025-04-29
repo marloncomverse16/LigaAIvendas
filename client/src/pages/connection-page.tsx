@@ -213,6 +213,16 @@ export default function ConnectionPage() {
                         {/* Renderização condicional ao invés de logs inline */}
                         {/* Adicionar logs com useEffect */}
                         
+                        {/* Debugando o QR code */}
+                        <div className="text-xs text-gray-400 mb-2">
+                          {status.qrCode ? (
+                            <>QR code disponível ({status.qrCode.length} caracteres)</>
+                          ) : (
+                            <>QR code não disponível</>
+                          )}
+                        </div>
+                        
+                        {/* Exibindo o QR code */}
                         <img 
                           src={status.qrCode && status.qrCode.startsWith('data:') 
                             ? status.qrCode 
