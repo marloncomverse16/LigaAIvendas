@@ -480,6 +480,14 @@ export default function ProspectingPage() {
                                 "dd 'de' MMMM 'de' yyyy", 
                                 { locale: ptBR }
                               )}
+                              {searches.find(s => s.id === activeSearch)?.filters && (
+                                <>
+                                  <div className="mt-2 pt-2 border-t">
+                                    <span className="font-semibold">Filtros adicionais:</span> 
+                                    <span className="text-sm">{searches.find(s => s.id === activeSearch)?.filters}</span>
+                                  </div>
+                                </>
+                              )}
                             </CardDescription>
                           </div>
                           <div className="flex gap-2">
