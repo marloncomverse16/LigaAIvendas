@@ -558,7 +558,7 @@ export default function ProspectingPage() {
                                       <TableCell>{result.telefone || result.phone || '-'}</TableCell>
                                       <TableCell>{result.email || '-'}</TableCell>
                                       <TableCell className="max-w-[200px] truncate">{result.endereco || result.address || '-'}</TableCell>
-                                      <TableCell>{result.tipo || result.type || '-'}</TableCell>
+                                      <TableCell>{result.site || '-'}</TableCell>
                                     </TableRow>
                                   ))
                                 ) : (
@@ -792,8 +792,8 @@ export default function ProspectingPage() {
               </div>
               
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Tipo</h3>
-                <p className="text-lg">{selectedResult.tipo || selectedResult.type || "Não informado"}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Site</h3>
+                <p className="text-lg">{selectedResult.site || "Não informado"}</p>
               </div>
               
               <div>
