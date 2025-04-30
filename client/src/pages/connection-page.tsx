@@ -48,21 +48,36 @@ export default function ConnectionPage() {
     try {
       setConnecting(true);
       const response = await apiRequest("POST", "/api/connection/connect", {});
+      
       if (!response.ok) {
-        throw new Error("Falha ao iniciar conexão");
+        const errorData = await response.json();
+        if (response.status === 400 && errorData.message === "URL de webhook não configurada") {
+          toast({
+            title: "Configuração Necessária",
+            description: "Configure a URL do webhook do WhatsApp nas configurações de usuário antes de conectar",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw new Error(errorData.message || "Falha ao iniciar conexão");
       }
+      
       const data = await response.json();
       setStatus(data);
 
       // Se recebeu um QR code, começar a verificar o status periodicamente
       if (data.qrCode) {
+        toast({
+          title: "QR Code Gerado",
+          description: "Escaneie o QR code com seu WhatsApp para conectar",
+        });
         startPolling();
       }
     } catch (error) {
       console.error("Erro ao conectar:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível iniciar a conexão",
+        description: error.message || "Não foi possível iniciar a conexão. Verifique se o webhook está configurado corretamente.",
         variant: "destructive",
       });
     } finally {

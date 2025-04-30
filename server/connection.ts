@@ -7,22 +7,50 @@ export const connectionStatus: Record<number, any> = {};
 
 // Rota para verificar o status da conexão
 export async function checkConnectionStatus(req: Request, res: Response) {
+  if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+  
   try {
-    // Usar um ID fixo para testes se não estiver autenticado
-    const id = req.isAuthenticated() ? (req.user as Express.User).id : 1;
+    const userId = (req.user as Express.User).id;
     
     // Se não tiver status, retorna desconectado
-    if (!connectionStatus[id]) {
-      connectionStatus[id] = {
+    if (!connectionStatus[userId]) {
+      connectionStatus[userId] = {
         connected: false,
         lastUpdated: new Date()
       };
     }
     
-    res.json(connectionStatus[id]);
+    // Tentar obter status atualizado do webhook, se o usuário tiver configurado
+    const user = await storage.getUser(userId);
+    if (user?.whatsappWebhookUrl && connectionStatus[userId].connected) {
+      try {
+        // Verificar status real da conexão via webhook - usando POST conforme exigido pelo n8n
+        const statusResponse = await axios.post(user.whatsappWebhookUrl, {
+          action: "status",
+          userId: userId
+        });
+        
+        if (statusResponse.data && statusResponse.data.connected !== undefined) {
+          connectionStatus[userId] = {
+            ...connectionStatus[userId],
+            connected: statusResponse.data.connected,
+            lastUpdated: new Date()
+          };
+          
+          if (statusResponse.data.connected) {
+            connectionStatus[userId].name = statusResponse.data.name || connectionStatus[userId].name;
+            connectionStatus[userId].phone = statusResponse.data.phone || connectionStatus[userId].phone;
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao verificar status via webhook:", error);
+      }
+    }
+    
+    res.json(connectionStatus[userId]);
   } catch (error) {
-    console.error("Erro ao verificar status:", error);
-    res.status(500).json({ message: "Erro ao verificar status" });
+    console.error("Erro ao verificar status da conexão:", error);
+    res.status(500).json({ message: "Erro ao verificar status da conexão" });
   }
 }
 
@@ -40,27 +68,14 @@ export async function connectWhatsApp(req: Request, res: Response) {
     
     // Verificar se o webhook foi configurado
     if (!user.whatsappWebhookUrl) {
-      console.log("Webhook do WhatsApp não configurado para o usuário:", userId);
-      
-      // Usar QR Code mockado se não tiver webhook configurado
-      connectionStatus[userId] = {
-        connected: false,
-        qrCode: "data:image/png;base64,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",
-        lastUpdated: new Date()
-      };
-      
-      // Simular que após 8 segundos a conexão foi estabelecida
-      setTimeout(() => {
-        if (connectionStatus[userId]) {
-          connectionStatus[userId] = {
-            connected: true,
-            name: "Meu WhatsApp",
-            phone: "+5511999999999",
-            lastUpdated: new Date()
-          };
-        }
-      }, 8000);
-      
+      return res.status(400).json({ 
+        message: "URL de webhook não configurada", 
+        status: "error",
+      });
+    }
+    
+    // Verificar se já está conectado
+    if (connectionStatus[userId] && connectionStatus[userId].connected) {
       return res.json(connectionStatus[userId]);
     }
     
@@ -68,7 +83,7 @@ export async function connectWhatsApp(req: Request, res: Response) {
       console.log(`Chamando webhook do WhatsApp: ${user.whatsappWebhookUrl}`);
       
       // Chamar o webhook para obter o QR code - usando POST conforme exigido pelo n8n
-      const webhookResponse = await axios.post(user.whatsappWebhookUrl || '', {
+      const webhookResponse = await axios.post(user.whatsappWebhookUrl, {
         action: "connect",
         userId: userId
       });
@@ -84,11 +99,10 @@ export async function connectWhatsApp(req: Request, res: Response) {
         };
       } else {
         // Se não retornou um QR code específico
-        connectionStatus[userId] = {
-          connected: false,
-          qrCode: "data:image/png;base64,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",
-          lastUpdated: new Date()
-        };
+        return res.status(400).json({ 
+          message: "Webhook não retornou QR code",
+          status: "error" 
+        });
       }
       
       // Verificar status após 30 segundos para dar tempo suficiente para escanear o QR Code
@@ -127,27 +141,11 @@ export async function connectWhatsApp(req: Request, res: Response) {
       return res.json(connectionStatus[userId]);
     } catch (webhookError) {
       console.error("Erro ao chamar webhook:", webhookError);
-      
-      // Fallback para QR Code mockado em caso de erro no webhook
-      connectionStatus[userId] = {
-        connected: false,
-        qrCode: "data:image/png;base64,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",
-        lastUpdated: new Date()
-      };
-      
-      // Simular que após 8 segundos a conexão foi estabelecida
-      setTimeout(() => {
-        if (connectionStatus[userId]) {
-          connectionStatus[userId] = {
-            connected: true,
-            name: "Meu WhatsApp",
-            phone: "+5511999999999",
-            lastUpdated: new Date()
-          };
-        }
-      }, 8000);
-      
-      return res.json(connectionStatus[userId]);
+      return res.status(500).json({ 
+        message: "Erro ao chamar webhook de conexão",
+        error: webhookError.message,
+        status: "error"
+      });
     }
   } catch (error) {
     console.error("Erro ao conectar:", error);
@@ -171,7 +169,6 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
     if (user.whatsappWebhookUrl) {
       try {
         // Tentar chamar o webhook para desconectar - usando POST conforme exigido pelo n8n
-        if (!user.whatsappWebhookUrl) throw new Error("Webhook URL não configurada");
         await axios.post(user.whatsappWebhookUrl, {
           action: "disconnect",
           userId: userId
@@ -181,7 +178,7 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
       }
     }
     
-    // Simular desconexão
+    // Atualizar status de desconexão
     connectionStatus[userId] = {
       connected: false,
       lastUpdated: new Date()
