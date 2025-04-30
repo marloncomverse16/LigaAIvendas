@@ -93,6 +93,17 @@ export async function connectWhatsApp(req: Request, res: Response) {
       // Incluindo informações completas do usuário
       try {
         console.log("Tentando webhook com método POST...");
+        console.log("URL do webhook:", user.whatsappWebhookUrl);
+        console.log("Dados enviados:", JSON.stringify({
+          action: "connect",
+          userId: userId,
+          username: user.username,
+          email: user.email,
+          name: user.name,
+          company: user.company,
+          phone: user.phone
+        }));
+        
         const postResponse = await axios.post(user.whatsappWebhookUrl, {
           action: "connect",
           userId: userId,
@@ -105,6 +116,8 @@ export async function connectWhatsApp(req: Request, res: Response) {
         
         var webhookResponse = postResponse;
         console.log("Resposta POST bem-sucedida");
+        console.log("Tipo de resposta:", typeof webhookResponse.data);
+        console.log("Headers:", JSON.stringify(webhookResponse.headers));
       } catch (postError: any) {
         // Se POST falhar, tentar com GET
         console.log("POST falhou, tentando com GET...", postError.message);
@@ -125,19 +138,94 @@ export async function connectWhatsApp(req: Request, res: Response) {
         console.log("Resposta GET bem-sucedida");
       }
       
-      console.log("Resposta do webhook:", webhookResponse.data);
+      // Log detalhado da resposta
+      console.log("Resposta do webhook estrutura completa:", JSON.stringify(webhookResponse));
+      if (webhookResponse && webhookResponse.data) {
+        console.log("Resposta do webhook - tipo:", typeof webhookResponse.data);
+        console.log("Resposta do webhook data:", JSON.stringify(webhookResponse.data));
+        console.log("Resposta do webhook possui qrCode:", webhookResponse.data && webhookResponse.data.qrCode ? "Sim" : "Não");
+        if (webhookResponse.data.qrCode) {
+          console.log("Primeiros 100 caracteres do qrCode:", webhookResponse.data.qrCode.substring(0, 100) + "...");
+        }
+      } else {
+        console.log("Resposta do webhook não contém dados ou é vazia");
+      }
       
       // Se o webhook retornou dados, usar o QR code retornado
-      if (webhookResponse.data && webhookResponse.data.qrCode) {
-        connectionStatus[userId] = {
-          connected: false,
-          qrCode: webhookResponse.data.qrCode,
-          lastUpdated: new Date()
-        };
+      if (webhookResponse.data) {
+        // Verificação mais flexível para diferentes formatos possíveis de resposta
+        let qrCodeData = null;
+        
+        // Diretamente no objeto principal
+        if (webhookResponse.data.qrCode) {
+          qrCodeData = webhookResponse.data.qrCode;
+          console.log("QR Code encontrado diretamente no objeto principal");
+        } 
+        // Em um campo aninhado 'data'
+        else if (webhookResponse.data.data && webhookResponse.data.data.qrCode) {
+          qrCodeData = webhookResponse.data.data.qrCode;
+          console.log("QR Code encontrado em data.qrCode");
+        }
+        // Em um campo 'qrcode' (com minúsculas)
+        else if (webhookResponse.data.qrcode) {
+          qrCodeData = webhookResponse.data.qrcode;
+          console.log("QR Code encontrado em qrcode (minúsculo)");
+        }
+        // Em um campo aninhado com minúsculas
+        else if (webhookResponse.data.data && webhookResponse.data.data.qrcode) {
+          qrCodeData = webhookResponse.data.data.qrcode;
+          console.log("QR Code encontrado em data.qrcode (minúsculo)");
+        }
+        // Procurar diretamente por qualquer string que pareça ser base64 (começando com data:image)
+        else {
+          const deepCheckQrCode = (obj, maxDepth = 3, depth = 0) => {
+            if (depth > maxDepth || !obj || typeof obj !== 'object') return null;
+            for (const key in obj) {
+              if (typeof obj[key] === 'string' && obj[key].startsWith('data:image')) {
+                return obj[key];
+              } else if (typeof obj[key] === 'object') {
+                const found = deepCheckQrCode(obj[key], maxDepth, depth + 1);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+          
+          qrCodeData = deepCheckQrCode(webhookResponse.data);
+          if (qrCodeData) {
+            console.log("QR Code encontrado em busca profunda");
+          }
+        }
+        
+        if (qrCodeData) {
+          connectionStatus[userId] = {
+            connected: false,
+            qrCode: qrCodeData,
+            lastUpdated: new Date()
+          };
+          console.log("QR Code processado e armazenado no status");
+        } else {
+          // Como último recurso, tentar usar toda a resposta se for uma string
+          if (typeof webhookResponse.data === 'string' && webhookResponse.data.startsWith('data:image')) {
+            connectionStatus[userId] = {
+              connected: false,
+              qrCode: webhookResponse.data,
+              lastUpdated: new Date()
+            };
+            console.log("Usando resposta direta como QR Code");
+          } else {
+            // Se não retornou um QR code específico
+            return res.status(400).json({ 
+              message: "Webhook não retornou QR code em formato reconhecível",
+              status: "error",
+              responseFormat: typeof webhookResponse.data
+            });
+          }
+        }
       } else {
-        // Se não retornou um QR code específico
+        // Se não retornou dados
         return res.status(400).json({ 
-          message: "Webhook não retornou QR code",
+          message: "Webhook não retornou dados",
           status: "error" 
         });
       }
