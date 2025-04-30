@@ -83,9 +83,15 @@ export async function connectWhatsApp(req: Request, res: Response) {
       console.log(`Chamando webhook do WhatsApp: ${user.whatsappWebhookUrl}`);
       
       // Chamar o webhook para obter o QR code - usando POST conforme exigido pelo n8n
+      // Incluindo informações completas do usuário
       const webhookResponse = await axios.post(user.whatsappWebhookUrl, {
         action: "connect",
-        userId: userId
+        userId: userId,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        company: user.company,
+        phone: user.phone
       });
       
       console.log("Resposta do webhook:", webhookResponse.data);
@@ -113,7 +119,12 @@ export async function connectWhatsApp(req: Request, res: Response) {
             if (!user.whatsappWebhookUrl) throw new Error("Webhook URL não configurada");
             const statusResponse = await axios.post(user.whatsappWebhookUrl, {
               action: "status",
-              userId: userId
+              userId: userId,
+              username: user.username,
+              email: user.email,
+              name: user.name,
+              company: user.company,
+              phone: user.phone
             });
             
             console.log("Resposta de status do webhook:", statusResponse.data);
@@ -171,7 +182,12 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
         // Tentar chamar o webhook para desconectar - usando POST conforme exigido pelo n8n
         await axios.post(user.whatsappWebhookUrl, {
           action: "disconnect",
-          userId: userId
+          userId: userId,
+          username: user.username,
+          email: user.email,
+          name: user.name,
+          company: user.company,
+          phone: user.phone
         });
       } catch (webhookError) {
         console.error("Erro ao chamar webhook para desconexão:", webhookError);
