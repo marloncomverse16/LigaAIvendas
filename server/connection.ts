@@ -67,12 +67,10 @@ export async function connectWhatsApp(req: Request, res: Response) {
     try {
       console.log(`Chamando webhook do WhatsApp: ${user.whatsappWebhookUrl}`);
       
-      // Chamar o webhook para obter o QR code - usando GET em vez de POST
-      const webhookResponse = await axios.get(user.whatsappWebhookUrl || '', {
-        params: {
-          action: "connect",
-          userId: userId
-        }
+      // Chamar o webhook para obter o QR code - usando POST conforme exigido pelo n8n
+      const webhookResponse = await axios.post(user.whatsappWebhookUrl || '', {
+        action: "connect",
+        userId: userId
       });
       
       console.log("Resposta do webhook:", webhookResponse.data);
@@ -93,17 +91,15 @@ export async function connectWhatsApp(req: Request, res: Response) {
         };
       }
       
-      // Simular que após 8 segundos a conexão foi estabelecida
+      // Verificar status após 30 segundos para dar tempo suficiente para escanear o QR Code
       setTimeout(async () => {
         if (connectionStatus[userId]) {
           try {
-            // Verificar status real da conexão via webhook
+            // Verificar status real da conexão via webhook - usando POST conforme exigido pelo n8n
             if (!user.whatsappWebhookUrl) throw new Error("Webhook URL não configurada");
-            const statusResponse = await axios.get(user.whatsappWebhookUrl, {
-              params: {
-                action: "status",
-                userId: userId
-              }
+            const statusResponse = await axios.post(user.whatsappWebhookUrl, {
+              action: "status",
+              userId: userId
             });
             
             console.log("Resposta de status do webhook:", statusResponse.data);
@@ -116,26 +112,17 @@ export async function connectWhatsApp(req: Request, res: Response) {
                 lastUpdated: new Date()
               };
             } else {
-              // Fallback para simulação
-              connectionStatus[userId] = {
-                connected: true,
-                name: "Meu WhatsApp",
-                phone: "+5511999999999",
-                lastUpdated: new Date()
-              };
+              // Se o webhook retornou resposta mas não indica que está conectado
+              // Manter o status atual com o QR code até que o usuário escaneie
+              console.log("Webhook não confirmou conexão, mantendo QR code visível");
             }
           } catch (webhookError) {
             console.error("Erro ao verificar status via webhook:", webhookError);
-            // Fallback para simulação
-            connectionStatus[userId] = {
-              connected: true,
-              name: "Meu WhatsApp",
-              phone: "+5511999999999",
-              lastUpdated: new Date()
-            };
+            // Não alteramos o status automaticamente em caso de erro
+            // para manter o QR code visível
           }
         }
-      }, 8000);
+      }, 30000);
       
       return res.json(connectionStatus[userId]);
     } catch (webhookError) {
@@ -183,13 +170,11 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
     // Verificar se o webhook foi configurado
     if (user.whatsappWebhookUrl) {
       try {
-        // Tentar chamar o webhook para desconectar
+        // Tentar chamar o webhook para desconectar - usando POST conforme exigido pelo n8n
         if (!user.whatsappWebhookUrl) throw new Error("Webhook URL não configurada");
-        await axios.get(user.whatsappWebhookUrl, {
-          params: {
-            action: "disconnect",
-            userId: userId
-          }
+        await axios.post(user.whatsappWebhookUrl, {
+          action: "disconnect",
+          userId: userId
         });
       } catch (webhookError) {
         console.error("Erro ao chamar webhook para desconexão:", webhookError);
