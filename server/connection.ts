@@ -24,10 +24,17 @@ export async function checkConnectionStatus(req: Request, res: Response) {
     const user = await storage.getUser(userId);
     if (user?.whatsappWebhookUrl && connectionStatus[userId].connected) {
       try {
-        // Verificar status real da conexão via webhook - usando POST conforme exigido pelo n8n
-        const statusResponse = await axios.post(user.whatsappWebhookUrl, {
-          action: "status",
-          userId: userId
+        // Verificar status real da conexão via webhook - usando GET conforme solicitado
+        const statusResponse = await axios.get(user.whatsappWebhookUrl, {
+          params: {
+            action: "status",
+            userId: userId,
+            username: user.username,
+            email: user.email,
+            name: user.name,
+            company: user.company,
+            phone: user.phone
+          }
         });
         
         if (statusResponse.data && statusResponse.data.connected !== undefined) {
