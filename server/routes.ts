@@ -14,6 +14,7 @@ import { z } from "zod";
 import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { checkConnectionStatus, connectWhatsApp, disconnectWhatsApp } from "./connection";
 
 const scryptAsync = promisify(scrypt);
 
@@ -30,14 +31,8 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
-// Rastrear o status de conexão de cada usuário
-interface ConnectionData {
-  connected: boolean;
-  qrCode?: string;
-  lastUpdated: Date;
-}
-
-const connectionStatus: Record<number, ConnectionData> = {};
+// Rastrear o status de conexão de cada usuário 
+// (definido no /server/connection.ts)
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
@@ -435,86 +430,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Rota para verificar o status da conexão com WhatsApp
-  app.get("/api/connection/status", async (req, res) => {
-    // Removendo a verificação de autenticação temporariamente para fins de depuração
-    // if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      // Usar um ID fixo para testes se não estiver autenticado
-      const id = req.isAuthenticated() ? (req.user as Express.User).id : 1;
-      
-      // Se não tiver status, retorna desconectado
-      if (!connectionStatus[id]) {
-        connectionStatus[id] = {
-          connected: false,
-          lastUpdated: new Date()
-        };
-      }
-      
-      res.json(connectionStatus[id]);
-    } catch (error) {
-      console.error("Erro ao verificar status:", error);
-      res.status(500).json({ message: "Erro ao verificar status" });
-    }
-  });
+  app.get("/api/connection/status", checkConnectionStatus);
   
   // Rota para conectar o WhatsApp
-  app.post("/api/connection/connect", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const userId = (req.user as Express.User).id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
-      
-      // Preparar o QR Code ou status de conexão
-      connectionStatus[userId] = {
-        connected: false,
-        qrCode: "data:image/png;base64,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",
-        lastUpdated: new Date()
-      };
-      
-      // Simular que após 8 segundos a conexão foi estabelecida
-      setTimeout(() => {
-        if (connectionStatus[userId]) {
-          connectionStatus[userId] = {
-            connected: true,
-            name: "Meu WhatsApp",
-            phone: "+5511999999999",
-            lastUpdated: new Date()
-          };
-        }
-      }, 8000);
-      
-      res.json(connectionStatus[userId]);
-    } catch (error) {
-      console.error("Erro ao conectar:", error);
-      res.status(500).json({ message: "Erro ao conectar" });
-    }
-  });
+  app.post("/api/connection/connect", connectWhatsApp);
   
   // Rota para desconectar o WhatsApp
-  app.post("/api/connection/disconnect", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const userId = (req.user as Express.User).id;
-      
-      // Simular desconexão
-      connectionStatus[userId] = {
-        connected: false,
-        lastUpdated: new Date()
-      };
-      
-      res.json(connectionStatus[userId]);
-    } catch (error) {
-      console.error("Erro ao desconectar:", error);
-      res.status(500).json({ message: "Erro ao desconectar" });
-    }
-  });
+  app.post("/api/connection/disconnect", disconnectWhatsApp);
   
   // Admin - Usuários
   app.get("/api/admin/users", async (req, res) => {

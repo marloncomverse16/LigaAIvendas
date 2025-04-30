@@ -68,7 +68,7 @@ export async function connectWhatsApp(req: Request, res: Response) {
       console.log(`Chamando webhook do WhatsApp: ${user.whatsappWebhookUrl}`);
       
       // Chamar o webhook para obter o QR code - usando GET em vez de POST
-      const webhookResponse = await axios.get(user.whatsappWebhookUrl, {
+      const webhookResponse = await axios.get(user.whatsappWebhookUrl || '', {
         params: {
           action: "connect",
           userId: userId
@@ -98,6 +98,7 @@ export async function connectWhatsApp(req: Request, res: Response) {
         if (connectionStatus[userId]) {
           try {
             // Verificar status real da conexão via webhook
+            if (!user.whatsappWebhookUrl) throw new Error("Webhook URL não configurada");
             const statusResponse = await axios.get(user.whatsappWebhookUrl, {
               params: {
                 action: "status",
@@ -183,6 +184,7 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
     if (user.whatsappWebhookUrl) {
       try {
         // Tentar chamar o webhook para desconectar
+        if (!user.whatsappWebhookUrl) throw new Error("Webhook URL não configurada");
         await axios.get(user.whatsappWebhookUrl, {
           params: {
             action: "disconnect",
