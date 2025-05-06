@@ -1365,6 +1365,11 @@ export class MemStorage implements IStorage {
     return this.userServers.get(relationId);
   }
   
+  async getUserServerRelationsByUserId(userId: number): Promise<UserServer[]> {
+    return Array.from(this.userServers.values())
+      .filter(relation => relation.userId === userId);
+  }
+  
   async removeUserServerRelation(relationId: number): Promise<boolean> {
     if (!this.userServers.has(relationId)) return false;
     
@@ -2664,6 +2669,21 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Erro ao buscar relação usuário-servidor com ID ${relationId}:`, error);
       return undefined;
+    }
+  }
+  
+  async getUserServerRelationsByUserId(userId: number): Promise<UserServer[]> {
+    try {
+      console.log(`Buscando relações de servidor para o usuário ${userId}`);
+      const relations = await db.select()
+        .from(userServers)
+        .where(eq(userServers.userId, userId));
+      
+      console.log(`Encontradas ${relations.length} relações para o usuário ${userId}`);
+      return relations;
+    } catch (error) {
+      console.error(`Erro ao buscar relações de servidor para o usuário ${userId}:`, error);
+      return [];
     }
   }
   
