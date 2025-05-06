@@ -520,18 +520,9 @@ export default function ServerManagementPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Provedor</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o provedor" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="evolution-api">Evolution API</SelectItem>
-                          <SelectItem value="n8n">n8n</SelectItem>
-                          <SelectItem value="outro">Outro</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input placeholder="Ex: Evolution API, n8n, outro" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -552,44 +543,119 @@ export default function ServerManagementPage() {
                 )}
               />
               
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="apiToken"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Token da API (opcional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Token da API" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="instanceId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ID da Instância (opcional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ID da instância" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="apiToken"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Token da API</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Token de autenticação da API" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <FormField
                 control={form.control}
-                name="webhookUrl"
+                name="instanceId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>URL do Webhook (opcional)</FormLabel>
+                    <FormLabel>ID da Instância (Evolution API)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: https://webhook.example.com" {...field} />
+                      <Input placeholder="Ex: liguia" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    <FormDescription>
+                      Identificador único da instância na Evolution API.
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+              
+              {/* URLs de Webhook específicos */}
+              <Separator className="my-4" />
+              <h3 className="text-lg font-medium mb-2">URLs de Webhook</h3>
+              
+              <FormField
+                control={form.control}
+                name="whatsappWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook WhatsApp</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para integrações de WhatsApp" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="aiAgentWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook AI Agent</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para AI Agent" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="prospectingWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook Prospecção</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para prospecção" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="contactsWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook Contatos</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para gestão de contatos" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="schedulingWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook Agendamento</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para agendamentos" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="crmWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook CRM</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para CRM" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -600,11 +666,11 @@ export default function ServerManagementPage() {
                 control={form.control}
                 name="active"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Ativo</FormLabel>
+                      <FormLabel>Ativo</FormLabel>
                       <FormDescription>
-                        Define se o servidor está ativo e disponível para uso.
+                        Servidores ativos serão usados para conexões.
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -618,22 +684,10 @@ export default function ServerManagementPage() {
               />
               
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsCreateDialogOpen(false);
-                    form.reset();
-                  }}
-                >
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={createServerMutation.isPending}>
-                  {createServerMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Criar Servidor
-                </Button>
+                <Button type="submit">Criar Servidor</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -641,18 +695,12 @@ export default function ServerManagementPage() {
       </Dialog>
 
       {/* Modal para editar servidor */}
-      <Dialog open={isEditMode} onOpenChange={(open) => {
-        setIsEditMode(open);
-        if (!open) {
-          setSelectedServer(null);
-          form.reset();
-        }
-      }}>
+      <Dialog open={isEditMode} onOpenChange={setIsEditMode}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Editar Servidor</DialogTitle>
             <DialogDescription>
-              Atualize as informações do servidor.
+              Atualize as informações do servidor selecionado.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -692,18 +740,9 @@ export default function ServerManagementPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Provedor</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o provedor" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="evolution-api">Evolution API</SelectItem>
-                          <SelectItem value="n8n">n8n</SelectItem>
-                          <SelectItem value="outro">Outro</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input placeholder="Ex: Evolution API, n8n, outro" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -724,44 +763,119 @@ export default function ServerManagementPage() {
                 )}
               />
               
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="apiToken"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Token da API (opcional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Token da API" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="instanceId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ID da Instância (opcional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ID da instância" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="apiToken"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Token da API</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Token de autenticação da API" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <FormField
                 control={form.control}
-                name="webhookUrl"
+                name="instanceId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>URL do Webhook (opcional)</FormLabel>
+                    <FormLabel>ID da Instância (Evolution API)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: https://webhook.example.com" {...field} />
+                      <Input placeholder="Ex: liguia" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    <FormDescription>
+                      Identificador único da instância na Evolution API.
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+              
+              {/* URLs de Webhook específicos */}
+              <Separator className="my-4" />
+              <h3 className="text-lg font-medium mb-2">URLs de Webhook</h3>
+              
+              <FormField
+                control={form.control}
+                name="whatsappWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook WhatsApp</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para integrações de WhatsApp" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="aiAgentWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook AI Agent</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para AI Agent" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="prospectingWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook Prospecção</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para prospecção" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="contactsWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook Contatos</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para gestão de contatos" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="schedulingWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook Agendamento</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para agendamentos" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="crmWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook CRM</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL do webhook para CRM" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -772,11 +886,11 @@ export default function ServerManagementPage() {
                 control={form.control}
                 name="active"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Ativo</FormLabel>
+                      <FormLabel>Ativo</FormLabel>
                       <FormDescription>
-                        Define se o servidor está ativo e disponível para uso.
+                        Servidores ativos serão usados para conexões.
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -790,23 +904,13 @@ export default function ServerManagementPage() {
               />
               
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditMode(false);
-                    setSelectedServer(null);
-                    form.reset();
-                  }}
-                >
+                <Button type="button" variant="outline" onClick={() => {
+                  setIsEditMode(false);
+                  setSelectedServer(null);
+                }}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={updateServerMutation.isPending}>
-                  {updateServerMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Atualizar Servidor
-                </Button>
+                <Button type="submit">Salvar Alterações</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -815,12 +919,11 @@ export default function ServerManagementPage() {
 
       {/* Modal de confirmação para excluir servidor */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
             <DialogDescription>
-              Você tem certeza que deseja excluir o servidor "{selectedServer?.name}"?
-              Esta ação não pode ser desfeita.
+              Tem certeza de que deseja excluir este servidor? Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -832,75 +935,68 @@ export default function ServerManagementPage() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => selectedServer && deleteServerMutation.mutate(selectedServer.id)}
-              disabled={deleteServerMutation.isPending}
+              onClick={() => {
+                if (selectedServer) {
+                  deleteServerMutation.mutate(selectedServer.id);
+                }
+              }}
             >
-              {deleteServerMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
               Excluir
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal para associar servidor a usuário */}
-      {user?.isAdmin && (
-        <Dialog open={userServerDialogOpen} onOpenChange={setUserServerDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Associar Servidor a Usuário</DialogTitle>
-              <DialogDescription>
-                Selecione um usuário para associar ao servidor "{selectedServer?.name}".
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="py-4 space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="user-select" className="text-sm font-medium">
-                  Usuário
-                </label>
-                <Select
-                  onValueChange={(value) => setSelectedUserId(parseInt(value))}
-                  disabled={isLoadingUsers}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um usuário" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users?.map((user: any) => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.name || user.username} ({user.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      {/* Modal para associar usuário a servidor */}
+      <Dialog open={userServerDialogOpen} onOpenChange={setUserServerDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Associar Usuário ao Servidor</DialogTitle>
+            <DialogDescription>
+              Selecione um usuário para associar ao servidor {selectedServer?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {isLoadingUsers ? (
+              <div className="flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setUserServerDialogOpen(false);
-                  setSelectedUserId(null);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleAddUserServer}
-                disabled={!selectedUserId || addUserServerMutation.isPending}
-              >
-                {addUserServerMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Associar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+            ) : users && users.length > 0 ? (
+              <Select onValueChange={(value) => setSelectedUserId(Number(value))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um usuário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user: any) => (
+                    <SelectItem key={user.id} value={user.id.toString()}>
+                      {user.name || user.username} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <p>Nenhum usuário disponível para associar.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUserServerDialogOpen(false);
+                setSelectedUserId(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAddUserServer}
+              disabled={!selectedUserId}
+            >
+              Associar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
