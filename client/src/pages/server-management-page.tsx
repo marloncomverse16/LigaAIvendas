@@ -102,10 +102,10 @@ export default function ServerManagementPage() {
 
   // Busca usuários (apenas para admin associar servidores a usuários)
   const { data: users, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/admin/users"],
     queryFn: async () => {
       if (!user?.isAdmin) return [];
-      const res = await apiRequest("GET", "/api/users");
+      const res = await apiRequest("GET", "/api/admin/users");
       return res.json();
     },
     enabled: !!user?.isAdmin,
