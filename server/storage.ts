@@ -2555,20 +2555,31 @@ export class DatabaseStorage implements IStorage {
   async getServerUsers(serverId: number): Promise<any[]> {
     try {
       // Buscar as relações usuário-servidor para o servidor específico
-      const relations = await db.select()
+      const query = db.select()
         .from(userServers)
         .where(eq(userServers.serverId, serverId));
       
-      if (relations.length === 0) {
+      console.log(`Executando consulta para servidor ${serverId}:`, query.toSQL());
+      
+      const relations = await query;
+      console.log(`Relações encontradas para o servidor ${serverId}:`, relations);
+      
+      if (!relations || relations.length === 0) {
         return [];
       }
       
       // Buscar informações completas de cada usuário
       const userDetails = await Promise.all(
         relations.map(async (relation) => {
+          console.log(`Buscando detalhes do usuário ${relation.userId}`);
           const user = await this.getUser(relation.userId);
+          console.log(`Usuário ${relation.userId} encontrado:`, user ? "sim" : "não");
+          
           return {
-            ...relation,
+            id: relation.id,
+            userId: relation.userId, 
+            serverId: relation.serverId,
+            createdAt: relation.createdAt,
             user: user ? {
               id: user.id,
               name: user.name,
@@ -2580,6 +2591,7 @@ export class DatabaseStorage implements IStorage {
         })
       );
       
+      console.log(`Detalhes dos usuários do servidor ${serverId}:`, userDetails);
       return userDetails;
     } catch (error) {
       console.error(`Erro ao buscar usuários do servidor ${serverId}:`, error);
