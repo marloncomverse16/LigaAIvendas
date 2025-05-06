@@ -169,6 +169,7 @@ export interface IStorage {
   addUserServer(userId: number, serverId: number): Promise<UserServer | undefined>;
   removeUserServer(userId: number, serverId: number): Promise<boolean>;
   getUserServerRelationById(relationId: number): Promise<UserServer | undefined>;
+  getUserServerRelationsByUserId(userId: number): Promise<UserServer[]>;
   removeUserServerRelation(relationId: number): Promise<boolean>;
   getServerWithLeastUsers(onlyActive?: boolean): Promise<Server | undefined>;
   updateUserServerId(userId: number, serverId: number): Promise<User | undefined>;

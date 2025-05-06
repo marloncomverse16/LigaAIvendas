@@ -2148,6 +2148,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // API para remover uma relação específica de usuário-servidor pelo ID da relação
+  // Novo endpoint para obter as relações de servidor de um usuário específico
+  app.get("/api/user-servers/user/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    const userId = parseInt(req.params.userId);
+    const isAdmin = req.user.isAdmin;
+    
+    // Verificar permissão: deve ser o próprio usuário ou um admin
+    if (userId !== req.user.id && !isAdmin) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    
+    try {
+      console.log(`Buscando relações de servidor para o usuário ${userId} (admin: ${isAdmin})`);
+      const relations = await storage.getUserServerRelationsByUserId(userId);
+      console.log(`Encontradas ${relations.length} relações para o usuário ${userId}`);
+      return res.json(relations);
+    } catch (error) {
+      console.error("Erro ao buscar relações de servidor:", error);
+      return res.status(500).json({ message: "Erro ao buscar relações de servidor" });
+    }
+  });
+  
   app.delete("/api/user-servers/relation/:relationId", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
