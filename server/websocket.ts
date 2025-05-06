@@ -474,14 +474,16 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
-            // Remover barras extras da URL para evitar // na solicitação
+            // Remover barras extras da URL para evitar problemas com caminhos duplicados
             const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+            const path = `/instances/${user.whatsappInstanceId}/status`.replace(/^\/+/, "");
+            const fullUrl = `${baseUrl}/${path}`;
             
-            console.log(`Conectando à Evolution API: ${baseUrl}/instances/${user.whatsappInstanceId}/status`);
+            console.log(`Conectando à Evolution API: ${fullUrl}`);
             
             // Verificar status atual da instância
             const response = await axios.get(
-              `${baseUrl}/instances/${user.whatsappInstanceId}/status`,
+              fullUrl,
               { 
                 headers: { 
                   Authorization: `Bearer ${user.whatsappApiToken}` 
@@ -546,14 +548,16 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
-            // Remover barras extras da URL para evitar // na solicitação
+            // Remover barras extras da URL para evitar problemas com caminhos duplicados
             const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+            const path = `/instances/${user.whatsappInstanceId}/logout`.replace(/^\/+/, "");
+            const fullUrl = `${baseUrl}/${path}`;
             
-            console.log(`Desconectando da Evolution API: ${baseUrl}/instances/${user.whatsappInstanceId}/logout`);
+            console.log(`Desconectando da Evolution API: ${fullUrl}`);
             
             // Fazer logout da instância
             const response = await axios.post(
-              `${baseUrl}/instances/${user.whatsappInstanceId}/logout`,
+              fullUrl,
               {},
               { 
                 headers: { 
