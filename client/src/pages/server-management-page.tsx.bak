@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, Trash2, Server, RefreshCw, Pencil, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Plus, Trash2, Server, RefreshCw, Pencil, CheckCircle2, XCircle, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -49,14 +49,7 @@ const serverFormSchema = z.object({
   provider: z.string().min(1, { message: "O nome do provedor é obrigatório" }),
   apiUrl: z.string().min(1, { message: "A URL da API é obrigatória" }),
   apiToken: z.string().optional(),
-  whatsappWebhookUrl: z.string().optional(),
-  aiAgentWebhookUrl: z.string().optional(),
-  prospectingWebhookUrl: z.string().optional(),
-  contactsWebhookUrl: z.string().optional(),
-  schedulingWebhookUrl: z.string().optional(),
-  crmWebhookUrl: z.string().optional(),
-  instanceId: z.string().optional(),
-  maxUsers: z.number().min(1, { message: "Defina pelo menos 1 usuário" }).default(10),
+  maxUsers: z.coerce.number().min(1, { message: "Defina pelo menos 1 usuário" }).default(10),
   active: z.boolean().default(true),
 });
 
@@ -86,12 +79,19 @@ export default function ServerManagementPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("all");
+  const [serverUsersCountMap, setServerUsersCountMap] = useState<Record<number, number>>({});
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userServerDialogOpen, setUserServerDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  
+  // Estados para filtros
+  const [nameFilter, setNameFilter] = useState("");
+  const [ipFilter, setIpFilter] = useState("");
+  const [providerFilter, setProviderFilter] = useState("");
+  const [showWithVacanciesOnly, setShowWithVacanciesOnly] = useState(false);
 
   // Busca todos os servidores
   const { data: servers, isLoading } = useQuery<Server[]>({
@@ -122,6 +122,7 @@ export default function ServerManagementPage() {
       if (!selectedServer) return [];
       console.log("Buscando usuários para o servidor:", selectedServer.id);
       try {
+        // Usuários só podem ser gerenciados por admin, então usamos a rota de admin
         const res = await apiRequest("GET", `/api/user-servers/${selectedServer.id}`);
         const data = await res.json();
         console.log("Usuários do servidor retornados:", data);
@@ -131,7 +132,32 @@ export default function ServerManagementPage() {
         return [];
       }
     },
-    enabled: !!selectedServer && userServerDialogOpen,
+    enabled: !!selectedServer && userServerDialogOpen && !!user?.isAdmin,
+  });
+  
+  // Busca a contagem de usuários para todos os servidores
+  const { data: allServerUsers } = useQuery({
+    queryKey: ["/api/servers/users-count"],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", "/api/servers/users-count");
+        const data = await res.json();
+        console.log("Contagem de usuários por servidor:", data);
+        
+        // Atualizar o mapa de contagem de usuários por servidor
+        const countMap: Record<number, number> = {};
+        data.forEach((item: { serverId: number; userCount: number }) => {
+          countMap[item.serverId] = item.userCount;
+        });
+        setServerUsersCountMap(countMap);
+        
+        return data;
+      } catch (error) {
+        console.error("Erro ao buscar contagem de usuários:", error);
+        return [];
+      }
+    },
+    enabled: !!user?.isAdmin,
   });
 
   // Formulário para criar/editar servidor
@@ -143,13 +169,6 @@ export default function ServerManagementPage() {
       provider: "",
       apiUrl: "",
       apiToken: "",
-      whatsappWebhookUrl: "",
-      aiAgentWebhookUrl: "",
-      prospectingWebhookUrl: "",
-      contactsWebhookUrl: "",
-      schedulingWebhookUrl: "",
-      crmWebhookUrl: "",
-      instanceId: "",
       maxUsers: 10,
       active: true,
     },
@@ -305,13 +324,6 @@ export default function ServerManagementPage() {
       provider: server.provider,
       apiUrl: server.apiUrl,
       apiToken: server.apiToken || "",
-      whatsappWebhookUrl: server.whatsappWebhookUrl || "",
-      aiAgentWebhookUrl: server.aiAgentWebhookUrl || "",
-      prospectingWebhookUrl: server.prospectingWebhookUrl || "",
-      contactsWebhookUrl: server.contactsWebhookUrl || "",
-      schedulingWebhookUrl: server.schedulingWebhookUrl || "",
-      crmWebhookUrl: server.crmWebhookUrl || "",
-      instanceId: server.instanceId || "",
       maxUsers: server.maxUsers || 10,
       active: server.active === null ? true : server.active,
     });
@@ -373,19 +385,57 @@ export default function ServerManagementPage() {
   // Verifica se o servidor atingiu o limite máximo de usuários
   const isServerUserLimitReached = () => {
     if (!selectedServer || !serverUsers) return false;
+    console.log(`Verificando limite de usuários: ${serverUsers.length} de ${selectedServer.maxUsers}`);
     return serverUsers.length >= selectedServer.maxUsers;
+  };
+
+  // Função para filtrar servidores com múltiplos critérios
+  const filterServers = (servers: Server[] = []) => {
+    // Primeiro aplicamos o filtro por guia
+    let filteredServers = filterServersByTab(servers);
+    
+    // Então aplicamos os filtros adicionais
+    if (nameFilter) {
+      filteredServers = filteredServers.filter(server => 
+        server.name.toLowerCase().includes(nameFilter.toLowerCase())
+      );
+    }
+    
+    if (ipFilter) {
+      filteredServers = filteredServers.filter(server => 
+        server.ipAddress.toLowerCase().includes(ipFilter.toLowerCase())
+      );
+    }
+    
+    if (providerFilter) {
+      filteredServers = filteredServers.filter(server => 
+        server.provider.toLowerCase().includes(providerFilter.toLowerCase())
+      );
+    }
+    
+    if (showWithVacanciesOnly) {
+      filteredServers = filteredServers.filter(server => {
+        const userCount = serverUsersCountMap[server.id] || 0;
+        return userCount < (server.maxUsers || 10);
+      });
+    }
+    
+    return filteredServers;
   };
 
   const filterServersByTab = (servers: Server[] = []) => {
     switch (selectedTab) {
-      case "evolution":
-        return servers.filter(server => server.provider === "evolution-api");
-      case "n8n":
-        return servers.filter(server => server.provider === "n8n");
       case "active":
         return servers.filter(server => server.active);
       case "inactive":
         return servers.filter(server => !server.active);
+      case "available":
+        return servers.filter(server => {
+          // Buscar a quantidade atual de usuários para este servidor
+          const serverUsersCount = serverUsersCountMap[server.id] || 0;
+          // Retornar apenas servidores com vagas disponíveis
+          return serverUsersCount < (server.maxUsers || 10);
+        });
       default:
         return servers;
     }
@@ -415,13 +465,59 @@ export default function ServerManagementPage() {
         )}
       </div>
 
+      {/* Barra de filtros */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label htmlFor="nameFilter" className="text-sm font-medium mb-2 block">Nome do Servidor</label>
+              <Input
+                id="nameFilter"
+                placeholder="Filtrar por nome"
+                value={nameFilter}
+                onChange={(e) => setNameFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="ipFilter" className="text-sm font-medium mb-2 block">Endereço IP</label>
+              <Input
+                id="ipFilter"
+                placeholder="Filtrar por IP"
+                value={ipFilter}
+                onChange={(e) => setIpFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="providerFilter" className="text-sm font-medium mb-2 block">Provedor</label>
+              <Input
+                id="providerFilter"
+                placeholder="Filtrar por provedor"
+                value={providerFilter}
+                onChange={(e) => setProviderFilter(e.target.value)}
+              />
+            </div>
+            <div className="flex items-end">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="showWithVacanciesOnly"
+                  checked={showWithVacanciesOnly}
+                  onCheckedChange={setShowWithVacanciesOnly}
+                />
+                <label htmlFor="showWithVacanciesOnly" className="text-sm font-medium">
+                  Apenas com vagas disponíveis
+                </label>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="all" className="w-full" onValueChange={setSelectedTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="all">Todos</TabsTrigger>
-          <TabsTrigger value="evolution">Evolution API</TabsTrigger>
-          <TabsTrigger value="n8n">n8n</TabsTrigger>
           <TabsTrigger value="active">Ativos</TabsTrigger>
           <TabsTrigger value="inactive">Inativos</TabsTrigger>
+          <TabsTrigger value="available">Com Vagas</TabsTrigger>
         </TabsList>
 
         <TabsContent value={selectedTab} className="space-y-4">
@@ -452,7 +548,7 @@ export default function ServerManagementPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filterServersByTab(servers).map((server) => (
+                    {filterServers(servers).map((server) => (
                       <TableRow key={server.id}>
                         <TableCell className="font-medium">{server.name}</TableCell>
                         <TableCell>{server.ipAddress}</TableCell>
@@ -472,6 +568,18 @@ export default function ServerManagementPage() {
                               <XCircle className="h-3 w-3 mr-1" /> Inativo
                             </Badge>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Badge variant={
+                              (serverUsersCountMap[server.id] || 0) >= (server.maxUsers || 10) 
+                                ? "destructive" 
+                                : "outline"
+                            }>
+                              <Users className="h-3 w-3 mr-1" /> 
+                              {serverUsersCountMap[server.id] || 0}/{server.maxUsers || 10}
+                            </Badge>
+                          </div>
                         </TableCell>
                         <TableCell>{formatDate(server.createdAt)}</TableCell>
                         <TableCell>
