@@ -9,9 +9,9 @@ const INSTANCE_NAME = 'admin';
 
 // Lista de tokens para testar
 const TOKENS = [
-  process.env.EVOLUTION_API_TOKEN, // Token do ambiente
-  'LigAi01',                       // Token específico da aplicação
-  '4db623449606bcf2814521b73657dbc0' // Token de fallback
+  '4db623449606bcf2814521b73657dbc0', // Token que sabemos que funciona para criação
+  process.env.EVOLUTION_API_TOKEN,    // Token do ambiente
+  'LigAi01',                          // Token específico da aplicação
 ];
 
 // Função para verificar status da API
@@ -122,32 +122,107 @@ async function getQrCode(token) {
       'AUTHENTICATION_API_KEY': token
     };
     
+    // Verificar status da instância primeiro
+    try {
+      console.log(`Verificando status da instância ${INSTANCE_NAME}...`);
+      const statusUrl = `${BASE_URL}/instance/connectionState/${INSTANCE_NAME}`;
+      const statusResponse = await axios.get(statusUrl, { headers });
+      console.log(`Status da instância: ${JSON.stringify(statusResponse.data)}`);
+      
+      // Se já estiver conectado, não precisa de QR code
+      if (statusResponse.data?.state === 'open' || 
+          statusResponse.data?.state === 'connected') {
+        console.log(`✅ Instância já conectada!`);
+        return { 
+          success: true, 
+          alreadyConnected: true,
+          connectionInfo: statusResponse.data 
+        };
+      }
+    } catch (error) {
+      console.log(`Não foi possível verificar status: ${error.message}`);
+      // Continuar mesmo com erro, tentando obter o QR code
+    }
+    
+    // Tentar POST para sessão primeiro
+    try {
+      console.log(`Iniciando sessão para ${INSTANCE_NAME}...`);
+      const sessionUrl = `${BASE_URL}/instance/connect/${INSTANCE_NAME}`;
+      const sessionResponse = await axios.post(sessionUrl, {}, { headers });
+      console.log(`Resposta da sessão: ${JSON.stringify(sessionResponse.data)}`);
+    } catch (error) {
+      console.log(`Erro ao iniciar sessão: ${error.message}`);
+      // Continuar mesmo com erro, tentando obter o QR code
+    }
+    
     // Lista de endpoints para tentar
     const endpoints = [
       `${BASE_URL}/instance/qrcode/${INSTANCE_NAME}`,
       `${BASE_URL}/qrcode/${INSTANCE_NAME}`,
+      `${BASE_URL}/instance/connect/${INSTANCE_NAME}`, // Novo endpoint para conectar e obter QR
       `${BASE_URL}/manager/instance/qrcode/${INSTANCE_NAME}`,
       `${BASE_URL}/manager/qrcode/${INSTANCE_NAME}`
     ];
     
+    // Para cada endpoint, tentar POST primeiro, depois GET
     for (const endpoint of endpoints) {
       try {
-        console.log(`Tentando endpoint: ${endpoint}`);
+        // Tentar POST primeiro
+        console.log(`Tentando POST para: ${endpoint}`);
+        const postResponse = await axios.post(endpoint, {}, { headers });
+        
+        if (postResponse.status === 200 || postResponse.status === 201) {
+          console.log(`QR code obtido via POST em ${endpoint}!`);
+          
+          if (typeof postResponse.data === 'object') {
+            console.log(`Detalhes da resposta POST: ${JSON.stringify(postResponse.data)}`);
+          }
+          
+          // Verificar se a resposta tem QR code
+          if (postResponse.data?.qrcode || postResponse.data?.qrCode || 
+              postResponse.data?.base64 || postResponse.data?.code) {
+            const qrCode = postResponse.data?.qrcode || postResponse.data?.qrCode || 
+                          postResponse.data?.base64 || postResponse.data?.code;
+            console.log(`QR code encontrado via POST!`);
+            return { success: true, qrCode };
+          }
+        }
+      } catch (error) {
+        console.log(`POST para ${endpoint} falhou: ${error.message}`);
+      }
+      
+      // Tentar GET
+      try {
+        console.log(`Tentando GET para: ${endpoint}`);
         const response = await axios.get(endpoint, { headers });
         
         if (response.status === 200 || response.status === 201) {
-          console.log(`QR code obtido via GET em ${endpoint}!`);
+          console.log(`Resposta obtida via GET em ${endpoint}!`);
           
           // Examinar o tipo de resposta
           const responseType = typeof response.data;
           console.log(`Tipo de resposta: ${responseType}`);
+          
+          // Se for objeto, mostrar detalhes
+          if (responseType === 'object') {
+            console.log(`Detalhes da resposta: ${JSON.stringify(response.data)}`);
+          }
           
           // Se for HTML, reportar erro
           if (responseType === 'string' && 
              (response.data.includes('<!DOCTYPE html>') || 
               response.data.includes('<html>'))) {
             console.log(`ERRO: Recebido HTML em vez de QR code`);
-            return { success: false, error: 'Recebido HTML em vez de QR code' };
+            // Verificar se há dicas no HTML sobre o problema
+            if (response.data.includes('Forbidden') || response.data.includes('403')) {
+              console.log(`HTML indica erro 403 - Acesso Proibido`);
+            } else if (response.data.includes('Unauthorized') || response.data.includes('401')) {
+              console.log(`HTML indica erro 401 - Não Autorizado`);
+            } else if (response.data.includes('Not Found') || response.data.includes('404')) {
+              console.log(`HTML indica erro 404 - Não Encontrado`);
+            }
+            // Continuar tentando outros endpoints
+            continue;
           }
           
           // Tentar identificar se há um QR code na resposta
@@ -181,8 +256,21 @@ async function getQrCode(token) {
           }
         }
       } catch (error) {
-        console.log(`Falha no endpoint ${endpoint}: ${error.message}`);
+        console.log(`GET para ${endpoint} falhou: ${error.message}`);
       }
+    }
+    
+    // Ainda não encontramos QR code, tentar verificar logs da instância
+    try {
+      console.log(`\nVerificando logs da instância ${INSTANCE_NAME}...`);
+      const logsUrl = `${BASE_URL}/instance/logs/${INSTANCE_NAME}`;
+      const logsResponse = await axios.get(logsUrl, { headers });
+      if (logsResponse.data && Array.isArray(logsResponse.data)) {
+        const lastLogs = logsResponse.data.slice(-5);
+        console.log(`Últimos logs: ${JSON.stringify(lastLogs)}`);
+      }
+    } catch (error) {
+      console.log(`Não foi possível obter logs: ${error.message}`);
     }
     
     return { success: false, error: 'Não foi possível obter QR code em nenhum endpoint' };

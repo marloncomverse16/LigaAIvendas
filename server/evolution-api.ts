@@ -197,16 +197,16 @@ export class EvolutionApiClient {
       // Endpoints a tentar - adaptados para versão 2.x da Evolution API
       const endpoints = [];
       
-      // Se temos a URL do Manager, adicioná-la primeiro
+      // Adicionar primeiro o endpoint que sabemos que funciona com certeza!
+      // Para a versão 2.2.3, o endpoint principal para conexão é /instance/connect/INSTANCE_NAME
+      endpoints.push(`${this.baseUrl}/instance/connect/${this.instance}`); // Este é o endpoint que sabemos que funciona!
+      
+      // Se temos a URL do Manager, adicioná-la em seguida
       if (secureManagerUrl) {
         // Endpoints via manager (interface web)
         endpoints.push(`${secureManagerUrl}/api/qrcode/${this.instance}`);
         endpoints.push(`${secureManagerUrl}/instance/qrcode/${this.instance}`);
       }
-      
-      // Endpoints diretos na API
-      // Para a versão 2.2.3, o endpoint principal para conexão é /instance/connect/INSTANCE_NAME
-      endpoints.push(`${this.baseUrl}/instance/connect/${this.instance}`); // Este é o endpoint que sabemos que funciona!
       
       if (isVersion2) {
         // Endpoints da versão 2.x
@@ -329,24 +329,69 @@ export class EvolutionApiClient {
               // Logar a resposta para diagnóstico
               console.log("Dados da resposta:", JSON.stringify(getResponse.data).substring(0, 200) + "...");
               
-              // Checar se existe QR code na resposta
-              const qrCode = getResponse.data?.qrcode || 
+              // Tratamento especial para o endpoint de conectar
+              if (endpoint.includes('/instance/connect/')) {
+                // Verificar se temos QR code na resposta do endpoint de conexão
+                const qrCode = getResponse.data?.qrcode || 
+                             getResponse.data?.qrCode || 
+                             getResponse.data?.base64 || 
+                             getResponse.data?.code;
+                             
+                if (qrCode) {
+                  return {
+                    success: true,
+                    qrCode: qrCode,
+                    base64: getResponse.data?.base64 || null,
+                    data: getResponse.data,
+                    endpoint: endpoint,
+                    method: 'GET (via instance/connect)'
+                  };
+                } else if (typeof getResponse.data === 'object') {
+                  // Este endpoint pode estar retornando informações de conexão
+                  // sem QR code se já estiver conectado
+                  
+                  if (getResponse.data?.state === 'open' || 
+                      getResponse.data?.state === 'connected' ||
+                      getResponse.data?.connected === true) {
+                    return {
+                      success: true,
+                      connected: true,
+                      qrCode: null,
+                      data: getResponse.data,
+                      endpoint: endpoint,
+                      method: 'GET (already connected)'
+                    };
+                  } else if (getResponse.data?.qr) {
+                    // A qr pode estar em um formato específico
+                    return {
+                      success: true,
+                      qrCode: getResponse.data.qr,
+                      data: getResponse.data,
+                      endpoint: endpoint,
+                      method: 'GET (qr field)'
+                    };
+                  }
+                }
+              } else {
+                // Checar se existe QR code na resposta para outros endpoints
+                const qrCode = getResponse.data?.qrcode || 
                             getResponse.data?.qrCode || 
                             getResponse.data?.base64 || 
                             getResponse.data?.code || // Novo formato presente na versão 2.2.3
                             (typeof getResponse.data === 'string' ? getResponse.data : null);
-              
-              if (qrCode) {
-                return {
-                  success: true,
-                  qrCode: qrCode,
-                  base64: getResponse.data?.base64 || null,
-                  data: getResponse.data,
-                  endpoint: endpoint,
-                  method: 'GET'
-                };
-              } else {
-                console.log("Resposta sem QR code");
+                
+                if (qrCode) {
+                  return {
+                    success: true,
+                    qrCode: qrCode,
+                    base64: getResponse.data?.base64 || null,
+                    data: getResponse.data,
+                    endpoint: endpoint,
+                    method: 'GET'
+                  };
+                } else {
+                  console.log("Resposta sem QR code");
+                }
               }
             }
           } catch (getError) {
