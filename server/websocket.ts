@@ -41,8 +41,15 @@ export async function syncContacts(userId: number, force = false) {
     }
     
     // Buscar contatos da Evolution API
+    // Corrigir formato da URL para evitar barras duplicadas
+    const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+    const path = `/instances/${user.whatsappInstanceId}/contacts`.replace(/^\/+/, "");
+    const fullUrl = `${baseUrl}/${path}`;
+    
+    console.log(`Sincronizando contatos da Evolution API: ${fullUrl}`);
+    
     const response = await axios.get(
-      `${user.whatsappApiUrl}/instances/${user.whatsappInstanceId}/contacts`,
+      fullUrl,
       { 
         headers: { 
           Authorization: `Bearer ${user.whatsappApiToken}` 
@@ -116,8 +123,15 @@ export async function syncMessages(userId: number, contactId: number) {
     }
     
     // Buscar mensagens da Evolution API
+    // Corrigir formato da URL para evitar barras duplicadas
+    const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+    const path = `/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`.replace(/^\/+/, "");
+    const fullUrl = `${baseUrl}/${path}`;
+    
+    console.log(`Sincronizando mensagens da Evolution API: ${fullUrl}`);
+    
     const response = await axios.get(
-      `${user.whatsappApiUrl}/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`,
+      fullUrl,
       { 
         headers: { 
           Authorization: `Bearer ${user.whatsappApiToken}` 
@@ -191,8 +205,15 @@ export async function sendMessage(userId: number, contactId: number, content: st
     }
     
     // Enviar mensagem via Evolution API
+    // Corrigir formato da URL para evitar barras duplicadas
+    const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+    const path = `/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`.replace(/^\/+/, "");
+    const fullUrl = `${baseUrl}/${path}`;
+    
+    console.log(`Enviando mensagem via Evolution API: ${fullUrl}`);
+    
     const response = await axios.post(
-      `${user.whatsappApiUrl}/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`,
+      fullUrl,
       { 
         content
       },
@@ -501,10 +522,14 @@ export function setupWebSocketServer(server: HttpServer) {
             // Se não estiver conectado, iniciar processo de conexão
             if (!status.connected) {
               // Iniciar conexão com QR code
-              console.log(`Iniciando conexão com a Evolution API: ${baseUrl}/instances/${user.whatsappInstanceId}/connect`);
+              // Corrigir formato da URL para evitar barras duplicadas
+              const connectPath = `/instances/${user.whatsappInstanceId}/connect`.replace(/^\/+/, "");
+              const connectUrl = `${baseUrl}/${connectPath}`;
+              
+              console.log(`Iniciando conexão com a Evolution API: ${connectUrl}`);
               
               const connectResponse = await axios.post(
-                `${baseUrl}/instances/${user.whatsappInstanceId}/connect`,
+                connectUrl,
                 {},
                 { 
                   headers: { 
