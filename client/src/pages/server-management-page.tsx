@@ -122,6 +122,7 @@ export default function ServerManagementPage() {
       if (!selectedServer) return [];
       console.log("Buscando usuários para o servidor:", selectedServer.id);
       try {
+        // Usuários só podem ser gerenciados por admin, então usamos a rota de admin
         const res = await apiRequest("GET", `/api/user-servers/${selectedServer.id}`);
         const data = await res.json();
         console.log("Usuários do servidor retornados:", data);
@@ -131,7 +132,7 @@ export default function ServerManagementPage() {
         return [];
       }
     },
-    enabled: !!selectedServer && userServerDialogOpen,
+    enabled: !!selectedServer && userServerDialogOpen && !!user?.isAdmin,
   });
 
   // Formulário para criar/editar servidor
@@ -373,6 +374,7 @@ export default function ServerManagementPage() {
   // Verifica se o servidor atingiu o limite máximo de usuários
   const isServerUserLimitReached = () => {
     if (!selectedServer || !serverUsers) return false;
+    console.log(`Verificando limite de usuários: ${serverUsers.length} de ${selectedServer.maxUsers}`);
     return serverUsers.length >= selectedServer.maxUsers;
   };
 
