@@ -106,7 +106,9 @@ export default function ServerManagementPage() {
     queryFn: async () => {
       if (!user?.isAdmin) return [];
       const res = await apiRequest("GET", "/api/admin/users");
-      return res.json();
+      const userData = await res.json();
+      console.log("Dados dos usuários:", userData);
+      return userData;
     },
     enabled: !!user?.isAdmin,
   });
@@ -311,7 +313,15 @@ export default function ServerManagementPage() {
 
   // Função para adicionar servidor a um usuário
   const handleAddUserServer = () => {
-    if (!selectedServer || !selectedUserId) return;
+    if (!selectedServer || !selectedUserId) {
+      console.log("Dados inválidos:", { selectedServer, selectedUserId });
+      return;
+    }
+    
+    console.log("Associando servidor a usuário:", { 
+      userId: selectedUserId, 
+      serverId: selectedServer.id 
+    });
     
     addUserServerMutation.mutate({
       userId: selectedUserId,
