@@ -23,16 +23,11 @@ export class EvolutionApiClient {
     // Remove barras finais da URL
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.token = token;
-    
-    // ALTERAÇÃO PARA TESTES: Se o nome da instância for "admin", vamos criar um nome único
-    // para evitar conflitos com uma instância que possa já existir no servidor
-    const timestamp = Date.now().toString().substring(8);
-    this.instance = instance === "admin" ? `user_${timestamp}` : instance;
+    this.instance = instance;
     
     console.log(`Inicializando Evolution API Client:
       URL Base: ${this.baseUrl}
-      Instance Original: ${instance}
-      Instance Usada: ${this.instance} ${instance !== this.instance ? '(nome único gerado para testes)' : ''}
+      Instance: ${this.instance}
       Token: ${this.token.substring(0, 5)}...${this.token.substring(this.token.length - 5)}
       Token de ambiente presente: ${process.env.EVOLUTION_API_TOKEN ? 'Sim' : 'Não'}
     `);
@@ -62,10 +57,6 @@ export class EvolutionApiClient {
     }
   }
 
-  /**
-   * Obtém o QR Code para conexão da instância
-   * @returns URL do QR Code ou objeto de erro
-   */
   /**
    * Cria a instância para o usuário
    * CRÍTICO: Esta etapa é necessária antes de qualquer operação com a instância
@@ -163,9 +154,15 @@ export class EvolutionApiClient {
     }
   }
 
+  /**
+   * Obtém o QR Code para conexão da instância
+   * MÉTODO SIMPLIFICADO: Usa apenas o endpoint GET de /instance/connect/
+   * que demonstramos funcionar nos testes
+   * @returns QR code ou objeto de erro
+   */
   async getQrCode(): Promise<any> {
     try {
-      // Verificamos primeiro se a API está online
+      // Verificar se a API está online primeiro
       const apiStatus = await this.checkApiStatus();
       if (!apiStatus.online) {
         return {
@@ -175,291 +172,109 @@ export class EvolutionApiClient {
         };
       }
 
-      console.log("API Evolution online. Tentando obter QR code...");
+      console.log("API Evolution online. Tentando obter QR code diretamente...");
       
-      // MODO SIMPLIFICADO: Apenas GET conforme solicitado pelo usuário
-      // Testes mostraram que o seguinte endpoint funciona para obter QR code:
+      // MODO SIMPLIFICADO: Usar apenas o endpoint que sabemos que funciona
+      // Nossos testes confirmaram que este endpoint funciona com GET:
       // GET /instance/connect/{nome_da_instancia}
-      console.log("Usando exclusivamente o método GET com endpoint /instance/connect/");
-
-      // PASSO CRÍTICO: Primeiro criar a instância se não existir
-      console.log("Verificando se precisamos criar a instância primeiro...");
-      const createResult = await this.createInstance();
-      if (createResult.success) {
-        console.log("Instância criada ou já existente");
-      } else {
-        console.log("Aviso: Não foi possível criar a instância, mas continuaremos tentando obter o QR code");
-      }
-
-      // Verificação adicional da versão
-      // A conexão é diferente dependendo da versão
-      const isVersion2 = apiStatus.data && apiStatus.data.version && apiStatus.data.version.startsWith('2');
-      console.log(`Versão da API: ${apiStatus.data?.version || 'desconhecida'}`);
+      const connectEndpoint = `${this.baseUrl}/instance/connect/${this.instance}`;
+      console.log(`Usando exclusivamente o endpoint: ${connectEndpoint}`);
       
-      // Como a API retorna o manager URL, vamos tentar isso primeiro
-      // mas também tentaremos outros endpoints conhecidos
-      const managerUrl = apiStatus.data?.manager || null;
-      
-      // Corrigir protocolo - garantir https
-      const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
-      
-      // Endpoints a tentar - reorganizados baseados em experiência e prioridade
-      const endpoints = [];
-      
-      // SABEMOS QUE ESTES FUNCIONAM - Prioridade 1 - Adicionar primeiro os endpoints que sabemos que funcionam
-      const knownWorkingEndpoint = `${this.baseUrl}/instance/connect/${this.instance}`;
-      endpoints.push(knownWorkingEndpoint); // ESTE É O PRINCIPAL - funciona no Evolution API 2.2.3
-      endpoints.push(`${this.baseUrl}/manager/instance/qrcode/${this.instance}`); // Este também funciona
-      
-      // Special handling - também tentaremos estes endpoints
-      endpoints.push(`${this.baseUrl}/instance/fetchInstances`); // Lista todas as instâncias
-      endpoints.push(`${this.baseUrl}/instance/connectionState/${this.instance}`); // Verifica o estado da conexão
-      
-      // Prioridade 2 - Endpoints relacionados a instâncias (para versão 2.x)
-      if (isVersion2) {
-        endpoints.push(`${this.baseUrl}/instance/qrcode/${this.instance}`);
-        endpoints.push(`${this.baseUrl}/instance/qrcode`); // POST com instanceName
-        endpoints.push(`${this.baseUrl}/instance/connect`); // POST com instanceName
-        endpoints.push(`${this.baseUrl}/qrcode/${this.instance}`);
-        endpoints.push(`${this.baseUrl}/client/qrcode/${this.instance}`);
-      } 
-      
-      // Prioridade 3 - Endpoints via Manager URL (se disponível)
-      if (secureManagerUrl) {
-        endpoints.push(`${secureManagerUrl}/api/qrcode/${this.instance}`);
-        endpoints.push(`${secureManagerUrl}/instance/connect/${this.instance}`);
-        endpoints.push(`${secureManagerUrl}/instance/qrcode/${this.instance}`);
-      }
-      
-      // Prioridade 4 - Endpoints legados ou alternativos
-      endpoints.push(`${this.baseUrl}/start`); // POST com session
-      endpoints.push(`${this.baseUrl}/api/session/start/${this.instance}`);
-      endpoints.push(`${this.baseUrl}/api/session/qrcode/${this.instance}`);
-      
-      // Metadados para a requisição
-      const postBodyV2 = { instanceName: this.instance };
-      const postBodyLegacy = { session: this.instance };
-      
-      console.log(`Tentando ${endpoints.length} endpoints possíveis...`);
-      
-      // Tentar cada endpoint
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`Tentando obter QR code em: ${endpoint}`);
-          
-          // Tentar com POST primeiro (v2)
-          try {
-            console.log(`POST com payload V2: ${JSON.stringify(postBodyV2)}`);
-            const postResponse = await axios.post(
-              endpoint, 
-              postBodyV2,
-              { headers: this.getHeaders() }
-            );
+      try {
+        // Fazer a requisição GET para o endpoint que confirmamos funcionar
+        const response = await axios.get(connectEndpoint, {
+          headers: this.getHeaders(),
+          timeout: 10000 // Timeout adequado de 10 segundos
+        });
+        
+        console.log(`Resposta do endpoint: Status ${response.status}`);
+        
+        if (response.status === 200 || response.status === 201) {
+          // Verificar se a resposta contém HTML (erro comum)
+          const responseStr = typeof response.data === 'string' 
+            ? response.data 
+            : JSON.stringify(response.data);
             
-            console.log(`Resposta POST (V2): Status ${postResponse.status}`);
-            
-            if (postResponse.status === 200 || postResponse.status === 201) {
-              console.log("QR Code obtido com sucesso via POST (V2)");
-              // Logar a resposta para diagnóstico
-              console.log("Dados da resposta:", JSON.stringify(postResponse.data).substring(0, 200) + "...");
-              
-              // Checar se existe QR code na resposta
-              const qrCode = postResponse.data?.qrcode || 
-                            postResponse.data?.qrCode || 
-                            postResponse.data?.base64 || 
-                            postResponse.data?.code || // Novo formato presente na versão 2.2.3
-                            (typeof postResponse.data === 'string' ? postResponse.data : null);
-              
-              if (qrCode) {
-                return {
-                  success: true,
-                  qrCode: qrCode,
-                  base64: postResponse.data?.base64 || null,
-                  data: postResponse.data,
-                  endpoint: endpoint,
-                  method: 'POST (V2)'
-                };
-              } else {
-                console.log("Resposta sem QR code");
-              }
-            }
-          } catch (postError) {
-            console.log(`POST (V2) falhou em ${endpoint}: ${postError.message}`);
+          if (responseStr.includes('<!DOCTYPE html>') || 
+              responseStr.includes('<html') || 
+              responseStr.includes('<body')) {
+            console.log("Resposta contém HTML, isso indica um erro de autenticação ou permissão");
+            return {
+              success: false,
+              error: 'A API Evolution está retornando HTML em vez de um QR code válido. Verifique as credenciais e permissões.'
+            };
           }
           
-          // Tentar com POST (legacy)
-          try {
-            console.log(`POST com payload Legacy: ${JSON.stringify(postBodyLegacy)}`);
-            const postLegacyResponse = await axios.post(
-              endpoint, 
-              postBodyLegacy,
-              { headers: this.getHeaders() }
-            );
-            
-            console.log(`Resposta POST (Legacy): Status ${postLegacyResponse.status}`);
-            
-            if (postLegacyResponse.status === 200 || postLegacyResponse.status === 201) {
-              console.log("QR Code obtido com sucesso via POST (Legacy)");
-              // Logar a resposta para diagnóstico
-              console.log("Dados da resposta:", JSON.stringify(postLegacyResponse.data).substring(0, 200) + "...");
-              
-              // Checar se existe QR code na resposta
-              const qrCode = postLegacyResponse.data?.qrcode || 
-                            postLegacyResponse.data?.qrCode || 
-                            postLegacyResponse.data?.base64 || 
-                            postLegacyResponse.data?.code || // Novo formato presente na versão 2.2.3
-                            (typeof postLegacyResponse.data === 'string' ? postLegacyResponse.data : null);
-              
-              if (qrCode) {
-                return {
-                  success: true,
-                  qrCode: qrCode,
-                  base64: postLegacyResponse.data?.base64 || null,
-                  data: postLegacyResponse.data,
-                  endpoint: endpoint,
-                  method: 'POST (Legacy)'
-                };
-              } else {
-                console.log("Resposta sem QR code");
-              }
-            }
-          } catch (postLegacyError) {
-            console.log(`POST (Legacy) falhou em ${endpoint}: ${postLegacyError.message}`);
+          // Extrair o QR code da resposta (como string ou em um campo específico)
+          const qrCode = response.data?.qrcode || 
+                      response.data?.qrCode || 
+                      response.data?.base64 || 
+                      response.data?.code ||
+                      (typeof response.data === 'string' ? response.data : null);
+          
+          if (qrCode) {
+            console.log("QR Code obtido com sucesso!");
+            return {
+              success: true,
+              qrCode: qrCode,
+              endpoint: connectEndpoint,
+              method: 'GET'
+            };
+          } else if (response.data?.state === 'open' || 
+                    response.data?.state === 'connected' ||
+                    response.data?.connected === true) {
+            // Já está conectado
+            console.log("Instância já está conectada!");
+            return {
+              success: true,
+              connected: true,
+              qrCode: null,
+              data: response.data
+            };
           }
           
-          // Se POST falhar, tentar com GET
-          try {
-            console.log(`GET para ${endpoint}`);
-            const getResponse = await axios.get(endpoint, {
-              headers: this.getHeaders()
-            });
-            
-            console.log(`Resposta GET: Status ${getResponse.status}`);
-            
-            if (getResponse.status === 200 || getResponse.status === 201) {
-              console.log("QR Code obtido com sucesso via GET em " + endpoint);
-              
-              // VERIFICAÇÃO IMPORTANTE: Se a resposta contiver HTML (<!DOCTYPE html> ou <html), é um erro
-              const responseString = typeof getResponse.data === 'string' 
-                ? getResponse.data 
-                : JSON.stringify(getResponse.data);
-                
-              if (responseString && 
-                 (responseString.includes('<!DOCTYPE html>') || 
-                  responseString.includes('<html') || 
-                  responseString.includes('<body'))) {
-                console.log("QR Code contém HTML, enviando mensagem de erro");
-                console.log("Detalhes do problema: A API Evolution está retornando HTML em vez de um QR code válido.");
-                console.log("Isso geralmente acontece quando:");
-                console.log("1. A instância já existe mas está em estado inválido");
-                console.log("2. O token de autorização está incorreto ou não tem permissões suficientes");
-                console.log("3. A URL do webhook configurada não está acessível");
-                continue; // Pular para o próximo endpoint
-              }
-              
-              // Logar a resposta para diagnóstico (limitando a 200 caracteres)
-              if (typeof getResponse.data === 'string') {
-                console.log("Dados da resposta (string):", getResponse.data.substring(0, 200) + "...");
-              } else {
-                console.log("Dados da resposta (objeto):", JSON.stringify(getResponse.data).substring(0, 200) + "...");
-              }
-              
-              // Tratamento especial para o endpoint de conectar
-              if (endpoint.includes('/instance/connect/')) {
-                // Verificar se temos QR code na resposta do endpoint de conexão
-                const qrCode = getResponse.data?.qrcode || 
-                             getResponse.data?.qrCode || 
-                             getResponse.data?.base64 || 
-                             getResponse.data?.code;
-                             
-                if (qrCode) {
-                  return {
-                    success: true,
-                    qrCode: qrCode,
-                    base64: getResponse.data?.base64 || null,
-                    data: getResponse.data,
-                    endpoint: endpoint,
-                    method: 'GET (via instance/connect)'
-                  };
-                } else if (typeof getResponse.data === 'object') {
-                  // Este endpoint pode estar retornando informações de conexão
-                  // sem QR code se já estiver conectado
-                  
-                  if (getResponse.data?.state === 'open' || 
-                      getResponse.data?.state === 'connected' ||
-                      getResponse.data?.connected === true) {
-                    return {
-                      success: true,
-                      connected: true,
-                      qrCode: null,
-                      data: getResponse.data,
-                      endpoint: endpoint,
-                      method: 'GET (already connected)'
-                    };
-                  } else if (getResponse.data?.qr) {
-                    // A qr pode estar em um formato específico
-                    return {
-                      success: true,
-                      qrCode: getResponse.data.qr,
-                      data: getResponse.data,
-                      endpoint: endpoint,
-                      method: 'GET (qr field)'
-                    };
-                  }
-                }
-              } else {
-                // Checar se existe QR code na resposta para outros endpoints
-                const qrCode = getResponse.data?.qrcode || 
-                            getResponse.data?.qrCode || 
-                            getResponse.data?.base64 || 
-                            getResponse.data?.code || // Novo formato presente na versão 2.2.3
-                            (typeof getResponse.data === 'string' ? getResponse.data : null);
-                
-                if (qrCode) {
-                  return {
-                    success: true,
-                    qrCode: qrCode,
-                    base64: getResponse.data?.base64 || null,
-                    data: getResponse.data,
-                    endpoint: endpoint,
-                    method: 'GET'
-                  };
-                } else {
-                  console.log("Resposta sem QR code");
-                }
-              }
-            }
-          } catch (getError) {
-            console.log(`GET falhou em ${endpoint}: ${getError.message}`);
-          }
-        } catch (endpointError) {
-          console.log(`Falha no endpoint ${endpoint}: ${endpointError.message}`);
+          // Resposta sem QR code reconhecível
+          console.log("Resposta não contém QR code reconhecível");
+          return {
+            success: false,
+            error: 'Não foi possível identificar um QR code na resposta da API'
+          };
         }
+        
+        // Status inesperado
+        return {
+          success: false,
+          error: `Resposta com status inesperado: ${response.status}`
+        };
+      } catch (error) {
+        console.error(`Erro ao tentar obter QR code: ${error.message}`);
+        
+        // Em caso de erro, podemos tentar verificar o estado da conexão
+        console.log("Verificando status da conexão como alternativa...");
+        try {
+          const connectionState = await this.checkConnectionStatus();
+          if (connectionState.success && connectionState.connected) {
+            return {
+              success: true,
+              connected: true,
+              qrCode: null,
+              data: connectionState.data
+            };
+          }
+        } catch (stateError) {
+          console.log(`Erro ao verificar estado da conexão: ${stateError.message}`);
+        }
+        
+        return {
+          success: false,
+          error: `Falha ao obter QR code: ${error.message}`
+        };
       }
-      
-      // Se chegamos aqui, todos os endpoints falharam
-      console.log("Todos os endpoints falharam. Retornando QR code alternativo");
-      
-      // Fornecer um QR code alternativo
-      const testQrCode = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WhatsAppConnectionTest-Evolution';
-      
-      return {
-        success: false,
-        error: 'Não foi possível obter QR Code da API Evolution após testar múltiplos endpoints',
-        testQrCode: testQrCode,
-        apiStatus: apiStatus,
-        tried_endpoints: endpoints
-      };
     } catch (error) {
-      console.error('Erro ao obter QR Code:', error);
-      
-      // Fornecer um QR code alternativo
-      const testQrCode = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WhatsAppConnectionTest-Evolution';
-      
+      console.error("Erro geral ao obter QR code:", error);
       return {
         success: false,
-        error: error.message,
-        testQrCode: testQrCode
+        error: error.message
       };
     }
   }
@@ -480,57 +295,58 @@ export class EvolutionApiClient {
         };
       }
       
-      // Como a API retorna o manager URL, vamos usá-lo
-      const managerUrl = apiStatus.data.manager || null;
+      // Verificação adicional da versão e manager URL
+      const isVersion2 = apiStatus.data && apiStatus.data.version && apiStatus.data.version.startsWith('2');
+      const managerUrl = apiStatus.data?.manager || null;
+      const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
       
-      if (managerUrl) {
-        // Corrigir protocolo - garantir https
-        const secureManagerUrl = managerUrl.replace(/^http:/, 'https:');
-        
-        // Diferentes tentativas de endpoints baseados na documentação da API
-        const endpoints = [
-          // Baseado no manager URL retornado pela API
-          `${secureManagerUrl}/instance/connectionState/${this.instance}`,
-          `${secureManagerUrl}/connection/status/${this.instance}`,
-          `${secureManagerUrl}/status/${this.instance}`,
-          // Endpoints alternativos
-          `${this.baseUrl}/instance/connectionState/${this.instance}`,
-          `${this.baseUrl}/manager/instance/connectionState/${this.instance}`
-        ];
-        
-        // Tentar cada endpoint
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`Tentando verificar status de conexão em: ${endpoint}`);
+      // Listar endpoints possíveis em ordem de prioridade
+      const endpoints = [
+        // Baseado no manager URL retornado pela API
+        `${secureManagerUrl}/instance/connectionState/${this.instance}`,
+        `${secureManagerUrl}/connection/status/${this.instance}`,
+        `${secureManagerUrl}/status/${this.instance}`,
+        // Endpoints alternativos
+        `${this.baseUrl}/instance/connectionState/${this.instance}`,
+        `${this.baseUrl}/manager/instance/connectionState/${this.instance}`
+      ];
+      
+      // Tentar cada endpoint
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Verificando status de conexão em: ${endpoint}`);
+          
+          const response = await axios.get(endpoint, {
+            headers: this.getHeaders()
+          });
+          
+          if (response.status === 200) {
+            console.log(`Status obtido com sucesso: ${JSON.stringify(response.data)}`);
             
-            const response = await axios.get(endpoint, {
-              headers: this.getHeaders()
-            });
+            // Determinar se está conectado com base nos campos retornados
+            const isConnected = response.data.state === 'open' || 
+                                response.data.state === 'connected' ||
+                                response.data.connected === true;
             
-            if (response.status === 200) {
-              console.log(`Status de conexão obtido com sucesso em ${endpoint}`);
-              return {
-                success: true,
-                connected: response.data?.state === 'open' || response.data?.connected === true,
-                state: response.data?.state || 'unknown',
-                data: response.data,
-                endpoint: endpoint
-              };
-            }
-          } catch (endpointError) {
-            console.log(`Falha ao verificar status em ${endpoint}: ${endpointError.message}`);
+            return {
+              success: true,
+              connected: isConnected,
+              data: response.data,
+              endpoint: endpoint
+            };
           }
+        } catch (error) {
+          console.log(`Erro ao verificar status em ${endpoint}: ${error.message}`);
         }
       }
       
-      // Se chegamos aqui, todos os endpoints falharam
+      // Se chegamos aqui, não conseguimos verificar o status
       return {
         success: false,
-        error: 'Não foi possível obter status de conexão após múltiplas tentativas',
-        apiStatus: apiStatus
+        error: "Não foi possível verificar o status da conexão"
       };
     } catch (error) {
-      console.error('Erro ao verificar status de conexão:', error);
+      console.error(`Erro geral ao verificar status da conexão:`, error.message);
       return {
         success: false,
         error: error.message
@@ -554,54 +370,55 @@ export class EvolutionApiClient {
         };
       }
       
-      // Como a API retorna o manager URL, vamos usá-lo
-      const managerUrl = apiStatus.data.manager || null;
+      // Verificação adicional da versão e manager URL
+      const managerUrl = apiStatus.data?.manager || null;
+      const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
       
-      if (managerUrl) {
-        // Corrigir protocolo - garantir https
-        const secureManagerUrl = managerUrl.replace(/^http:/, 'https:');
-        
-        // Diferentes tentativas de endpoints baseados na documentação da API
-        const endpoints = [
-          // Baseado no manager URL
-          `${secureManagerUrl}/instance/logout/${this.instance}`,
-          `${secureManagerUrl}/disconnect/${this.instance}`,
-          // Endpoints alternativos
-          `${this.baseUrl}/instance/logout/${this.instance}`,
-          `${this.baseUrl}/manager/instance/logout/${this.instance}`
-        ];
-        
-        // Tentar cada endpoint
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`Tentando desconectar instância em: ${endpoint}`);
+      // Listar endpoints possíveis em ordem de prioridade
+      const endpoints = [
+        // Baseado no manager URL
+        `${secureManagerUrl}/instance/logout/${this.instance}`,
+        `${secureManagerUrl}/disconnect/${this.instance}`,
+        // Endpoints alternativos
+        `${this.baseUrl}/instance/logout/${this.instance}`,
+        `${this.baseUrl}/manager/instance/logout/${this.instance}`
+      ];
+      
+      // Tentar cada endpoint
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Tentando desconectar em: ${endpoint}`);
+          
+          const response = await axios.post(endpoint, {}, {
+            headers: this.getHeaders()
+          });
+          
+          if (response.status === 200) {
+            console.log(`Desconexão realizada com sucesso: ${JSON.stringify(response.data)}`);
             
-            const response = await axios.post(endpoint, {}, {
-              headers: this.getHeaders()
-            });
+            // Determinar se a desconexão foi bem-sucedida
+            const success = response.data.success === true || 
+                           response.data.disconnected === true ||
+                           response.data.state === 'close';
             
-            if (response.status === 200 || response.status === 201) {
-              console.log(`Instância desconectada com sucesso em ${endpoint}`);
-              return {
-                success: true,
-                data: response.data,
-                endpoint: endpoint
-              };
-            }
-          } catch (endpointError) {
-            console.log(`Falha ao desconectar em ${endpoint}: ${endpointError.message}`);
+            return {
+              success: success,
+              data: response.data,
+              endpoint: endpoint
+            };
           }
+        } catch (error) {
+          console.log(`Erro ao desconectar em ${endpoint}: ${error.message}`);
         }
       }
       
-      // Se chegamos aqui, todos os endpoints falharam
+      // Se chegamos aqui, não conseguimos desconectar
       return {
         success: false,
-        error: 'Não foi possível desconectar a instância após múltiplas tentativas',
-        apiStatus: apiStatus
+        error: "Não foi possível desconectar a instância"
       };
     } catch (error) {
-      console.error('Erro ao desconectar instância:', error);
+      console.error(`Erro geral ao desconectar:`, error.message);
       return {
         success: false,
         error: error.message
@@ -627,70 +444,65 @@ export class EvolutionApiClient {
         };
       }
       
-      // Como a API retorna o manager URL, vamos usá-lo
-      const managerUrl = apiStatus.data.manager || null;
+      // Verificação adicional da versão e manager URL
+      const managerUrl = apiStatus.data?.manager || null;
+      const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
       
-      if (managerUrl) {
-        // Corrigir protocolo - garantir https
-        const secureManagerUrl = managerUrl.replace(/^http:/, 'https:');
-        
-        // Diferentes tentativas de endpoints baseados na documentação da API
-        const endpoints = [
-          // Baseado no manager URL
-          `${secureManagerUrl}/message/text/${this.instance}`,
-          `${secureManagerUrl}/send/text/${this.instance}`,
-          // Endpoints alternativos
-          `${this.baseUrl}/message/text/${this.instance}`,
-          `${this.baseUrl}/manager/message/text/${this.instance}`
-        ];
-        
-        // Formatar o telefone para garantir que está no formato correto
-        const cleanPhone = phone.replace(/\D/g, '');
-        
-        // Tentar cada endpoint
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`Tentando enviar mensagem para ${cleanPhone} em: ${endpoint}`);
+      // Listar endpoints possíveis em ordem de prioridade
+      const endpoints = [
+        // Baseado no manager URL
+        `${secureManagerUrl}/message/text/${this.instance}`,
+        `${secureManagerUrl}/send/text/${this.instance}`,
+        // Endpoints alternativos
+        `${this.baseUrl}/message/text/${this.instance}`,
+        `${this.baseUrl}/manager/message/text/${this.instance}`
+      ];
+      
+      // Formatar o telefone para garantir que está no formato correto
+      const cleanPhone = phone.replace(/\D/g, '');
+      
+      // Dados para envio da mensagem
+      const messageData = {
+        number: cleanPhone,
+        options: {
+          delay: 1200
+        },
+        textMessage: {
+          text: message
+        }
+      };
+      
+      // Tentar cada endpoint
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Tentando enviar mensagem em: ${endpoint}`);
+          console.log(`Dados: ${JSON.stringify(messageData)}`);
+          
+          const response = await axios.post(endpoint, messageData, {
+            headers: this.getHeaders()
+          });
+          
+          if (response.status === 200 || response.status === 201) {
+            console.log(`Mensagem enviada com sucesso: ${JSON.stringify(response.data)}`);
             
-            const payload = {
-              number: cleanPhone,
-              options: {
-                delay: 1200,
-                presence: "composing"
-              },
-              textMessage: {
-                text: message
-              }
+            return {
+              success: true,
+              data: response.data,
+              endpoint: endpoint
             };
-            
-            console.log("Payload da mensagem:", JSON.stringify(payload));
-            
-            const response = await axios.post(endpoint, payload, {
-              headers: this.getHeaders()
-            });
-            
-            if (response.status === 201 || response.status === 200) {
-              console.log(`Mensagem enviada com sucesso em ${endpoint}`);
-              return {
-                success: true,
-                data: response.data,
-                endpoint: endpoint
-              };
-            }
-          } catch (endpointError) {
-            console.log(`Falha ao enviar mensagem em ${endpoint}: ${endpointError.message}`);
           }
+        } catch (error) {
+          console.log(`Erro ao enviar mensagem em ${endpoint}: ${error.message}`);
         }
       }
       
-      // Se chegamos aqui, todos os endpoints falharam
+      // Se chegamos aqui, não conseguimos enviar a mensagem
       return {
         success: false,
-        error: 'Não foi possível enviar a mensagem após múltiplas tentativas',
-        apiStatus: apiStatus
+        error: "Não foi possível enviar a mensagem"
       };
     } catch (error) {
-      console.error(`Erro ao enviar mensagem para ${phone}:`, error);
+      console.error(`Erro geral ao enviar mensagem:`, error.message);
       return {
         success: false,
         error: error.message
@@ -702,32 +514,14 @@ export class EvolutionApiClient {
    * Retorna os cabeçalhos HTTP padrão com token de autorização
    */
   private getHeaders() {
-    // Testar diferentes tokens da mais alta para a mais baixa prioridade
-    // 1. Token do ambiente (mais seguro)
-    // 2. Token ligAi01 (token fixo específico para este sistema)
-    // 3. Token fornecido pelo usuário
-    // 4. Token de fallback
-    const environmentToken = process.env.EVOLUTION_API_TOKEN;
-    const ligAiToken = 'LigAi01'; // Token específico para esta aplicação
-    const userToken = this.token;
-    const fallbackToken = '4db623449606bcf2814521b73657dbc0';
+    // Priorizar token do ambiente, depois o token do construtor
+    const token = process.env.EVOLUTION_API_TOKEN || 
+      this.token || 
+      '4db623449606bcf2814521b73657dbc0'; // default fallback conhecido por funcionar
     
-    // Array de tokens para tentar
-    const tokensToTry = [
-      environmentToken, 
-      ligAiToken,
-      userToken,
-      fallbackToken
-    ].filter(Boolean); // Remover valores undefined/null/vazios
-    
-    // Se não temos nenhum token, usar o fallback
-    const token = tokensToTry.length > 0 ? tokensToTry[0] : fallbackToken;
-    
-    // Para debug, mostrar qual token estamos usando
-    const source = 
-      token === environmentToken ? 'ambiente' :
-      token === ligAiToken ? 'fixo LigAi01' :
-      token === userToken ? 'usuário' :
+    // Registrar a fonte do token para diagnóstico
+    const source = process.env.EVOLUTION_API_TOKEN ? 'ambiente' : 
+      this.token ? 'construtor' : 
       'fallback';
     
     console.log(`Usando token nos headers: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'NENHUM TOKEN'} (origem: ${source})`);
