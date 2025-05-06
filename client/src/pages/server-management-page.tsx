@@ -467,64 +467,83 @@ export default function ServerManagementPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : filteredServers.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredServers.map((server: Server) => {
-                const userCount = getServerUserCount(server.id);
-                const percentageUsed = server.maxUsers > 0 ? (userCount / server.maxUsers) * 100 : 0;
-                const badgeColor = percentageUsed >= 90 ? "destructive" : percentageUsed >= 70 ? "warning" : "success";
-                
-                return (
-                  <Card key={server.id} className={`overflow-hidden ${!server.active ? 'opacity-70' : ''}`}>
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-start">
-                        <CardTitle className="text-lg">{server.name}</CardTitle>
-                        <div className="flex space-x-1">
-                          <Badge variant={badgeColor as any}>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>IP</TableHead>
+                    <TableHead>Provedor</TableHead>
+                    <TableHead>API URL</TableHead>
+                    <TableHead>Usuários</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredServers.map((server: Server) => {
+                    const userCount = getServerUserCount(server.id);
+                    const percentageUsed = server.maxUsers > 0 ? (userCount / server.maxUsers) * 100 : 0;
+                    const badgeColor = percentageUsed >= 90 ? "destructive" : percentageUsed >= 70 ? "warning" : "success";
+                    
+                    return (
+                      <TableRow key={server.id} className={!server.active ? 'opacity-70' : ''}>
+                        <TableCell className="font-medium">{server.name}</TableCell>
+                        <TableCell>{server.ipAddress}</TableCell>
+                        <TableCell>{server.provider}</TableCell>
+                        <TableCell className="truncate max-w-[150px]" title={server.apiUrl}>
+                          {server.apiUrl}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={badgeColor as any} className="whitespace-nowrap">
                             {userCount}/{server.maxUsers} usuários
                           </Badge>
-                          {!server.active && <Badge variant="outline">Inativo</Badge>}
-                        </div>
-                      </div>
-                      <CardDescription>{server.ipAddress}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="text-sm">
-                        <div><span className="font-medium">Provedor:</span> {server.provider}</div>
-                        <div><span className="font-medium">API URL:</span> {server.apiUrl}</div>
-                      </div>
-                      
-                      <div className="flex justify-between mt-4">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleManageServerUsers(server)}
-                        >
-                          Usuários Conectados
-                        </Button>
-                        
-                        {user?.isAdmin && (
-                          <div className="space-x-2">
+                        </TableCell>
+                        <TableCell>
+                          {server.active ? (
+                            <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Ativo</Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">Inativo</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => handleEditServer(server)}
+                              onClick={() => handleManageServerUsers(server)}
+                              title="Usuários Conectados"
                             >
-                              Editar
+                              <Users className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="destructive" 
-                              size="sm"
-                              onClick={() => handleDeleteServer(server)}
-                            >
-                              Excluir
-                            </Button>
+                            
+                            {user?.isAdmin && (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleEditServer(server)}
+                                  title="Editar servidor"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm"
+                                  onClick={() => handleDeleteServer(server)}
+                                  title="Excluir servidor"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <Card>
