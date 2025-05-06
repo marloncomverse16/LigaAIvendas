@@ -23,11 +23,16 @@ export class EvolutionApiClient {
     // Remove barras finais da URL
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.token = token;
-    this.instance = instance;
+    
+    // ALTERAÇÃO PARA TESTES: Se o nome da instância for "admin", vamos criar um nome único
+    // para evitar conflitos com uma instância que possa já existir no servidor
+    const timestamp = Date.now().toString().substring(8);
+    this.instance = instance === "admin" ? `user_${timestamp}` : instance;
     
     console.log(`Inicializando Evolution API Client:
       URL Base: ${this.baseUrl}
-      Instance: ${this.instance}
+      Instance Original: ${instance}
+      Instance Usada: ${this.instance} ${instance !== this.instance ? '(nome único gerado para testes)' : ''}
       Token: ${this.token.substring(0, 5)}...${this.token.substring(this.token.length - 5)}
       Token de ambiente presente: ${process.env.EVOLUTION_API_TOKEN ? 'Sim' : 'Não'}
     `);
