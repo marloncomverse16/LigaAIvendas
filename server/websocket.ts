@@ -9,6 +9,93 @@ const userConnections: Map<number, WebSocket[]> = new Map();
 // Armazenar os clientes do Evolution API por usuário
 const evolutionClients: Map<number, WebSocket | null> = new Map();
 
+// Função para conectar diretamente ao WebSocket da Evolution API
+async function connectToEvolutionSocket(userId: number, apiUrl: string, token: string) {
+  try {
+    // Fechar qualquer conexão existente
+    const existingSocket = evolutionClients.get(userId);
+    if (existingSocket && existingSocket.readyState === WebSocket.OPEN) {
+      existingSocket.close();
+    }
+    
+    // Formatar a URL do WebSocket
+    const wsProtocol = apiUrl.startsWith('https') ? 'wss://' : 'ws://';
+    const baseUrl = apiUrl.replace(/^https?:\/\//, '').replace(/\/+$/, "");
+    const wsUrl = `${wsProtocol}${baseUrl}/socket`;
+    
+    console.log(`Conectando ao WebSocket da Evolution API: ${wsUrl}`);
+    
+    // Criar nova conexão WebSocket
+    const socket = new WebSocket(wsUrl, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    socket.on('open', () => {
+      console.log(`Conexão WebSocket com Evolution API estabelecida para usuário ${userId}`);
+      sendToUser(userId, {
+        type: 'connection_status',
+        data: { connected: true, state: 'CONNECTED' }
+      });
+      
+      // Armazenar cliente
+      evolutionClients.set(userId, socket);
+    });
+    
+    socket.on('message', (data) => {
+      try {
+        console.log(`Mensagem recebida da Evolution API para usuário ${userId}:`, data.toString());
+        const message = JSON.parse(data.toString());
+        
+        // Processar mensagem recebida e encaminhar para o cliente
+        if (message.event === 'status.instance') {
+          sendToUser(userId, {
+            type: 'connection_status',
+            data: {
+              connected: message.data?.connected || false,
+              state: message.data?.state,
+              phone: message.data?.phone,
+              batteryLevel: message.data?.batteryLevel
+            }
+          });
+        }
+        // Adicionar outros eventos conforme necessário
+      } catch (error) {
+        console.error(`Erro ao processar mensagem da Evolution API:`, error);
+      }
+    });
+    
+    socket.on('error', (error) => {
+      console.error(`Erro na conexão WebSocket da Evolution API para usuário ${userId}:`, error);
+      sendToUser(userId, {
+        type: 'connection_error',
+        error: `Erro na conexão com Evolution API: ${error.message}`
+      });
+    });
+    
+    socket.on('close', () => {
+      console.log(`Conexão WebSocket com Evolution API fechada para usuário ${userId}`);
+      sendToUser(userId, {
+        type: 'connection_status',
+        data: { connected: false, state: 'DISCONNECTED' }
+      });
+      
+      // Remover cliente
+      evolutionClients.set(userId, null);
+    });
+    
+    return socket;
+  } catch (error) {
+    console.error(`Erro ao conectar ao WebSocket da Evolution API para usuário ${userId}:`, error);
+    sendToUser(userId, {
+      type: 'connection_error',
+      error: `Erro ao conectar: ${error.message}`
+    });
+    return null;
+  }
+}
+
 interface WebSocketMessage {
   type: string;
   data?: any;
@@ -194,7 +281,7 @@ export async function syncMessages(userId: number, contactId: number) {
   }
 }
 
-// Função para enviar mensagem via Evolution API
+// Função para enviar mensagem via Evolution API WebSocket
 export async function sendMessage(userId: number, contactId: number, content: string) {
   try {
     const user = await storage.getUser(userId);
@@ -202,43 +289,51 @@ export async function sendMessage(userId: number, contactId: number, content: st
     
     if (!user || !contact) return { success: false, error: 'Usuário ou contato não encontrado' };
     
-    // Verificar se temos URL e token da API
-    if (!user.whatsappApiUrl || !user.whatsappApiToken || !user.whatsappInstanceId) {
-      return { success: false, error: 'Configuração da Evolution API não encontrada' };
+    // Verificar se há um socket WebSocket ativo para o usuário
+    const socket = evolutionClients.get(userId);
+    
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      console.log(`Socket da Evolution API não está disponível para usuário ${userId}, tentando conectar...`);
+      
+      if (!user.whatsappApiUrl || !user.whatsappApiToken) {
+        return { success: false, error: 'Configuração da Evolution API não encontrada' };
+      }
+      
+      // Tentar estabelecer nova conexão
+      const newSocket = await connectToEvolutionSocket(userId, user.whatsappApiUrl, user.whatsappApiToken);
+      if (!newSocket || newSocket.readyState !== WebSocket.OPEN) {
+        return { success: false, error: 'Não foi possível estabelecer conexão com a Evolution API' };
+      }
     }
     
-    // Enviar mensagem via Evolution API
-    // Corrigir formato da URL e garantir que temos o caminho manager
-    const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+    // A este ponto temos um socket válido
+    const activeSocket = evolutionClients.get(userId);
     
-    // Verificar se a URL já contém 'manager', senão adicionar
-    const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
-    const path = `${managerPath}/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`.replace(/^\/+/, "");
-    const fullUrl = `${baseUrl}/${path}`;
+    if (!activeSocket) {
+      return { success: false, error: 'Socket não encontrado após conexão' };
+    }
     
-    console.log(`Enviando mensagem via Evolution API: ${fullUrl}`);
+    console.log(`Enviando mensagem via Evolution API WebSocket para ${contact.number || contact.contactId}`);
     
-    const response = await axios.post(
-      fullUrl,
-      { 
-        content
-      },
-      { 
-        headers: { 
-          Authorization: `Bearer ${user.whatsappApiToken}` 
+    // Enviar mensagem utilizando WebSocket
+    const messageId = `msg_${Date.now()}`;
+    activeSocket.send(JSON.stringify({
+      event: 'send-message',
+      data: {
+        instanceName: user.whatsappInstanceId || 'admin',
+        phone: contact.number || contact.contactId,
+        message: content,
+        options: {
+          messageId
         }
       }
-    );
-    
-    if (!response.data || !response.data.success) {
-      return { success: false, error: 'Falha ao enviar mensagem via API' };
-    }
+    }));
     
     // Criar registro da mensagem enviada no banco de dados
     const message = await storage.createWhatsappMessage({
       userId,
       contactId,
-      messageId: response.data.messageId || `local-${Date.now()}`,
+      messageId,
       content,
       fromMe: true,
       timestamp: new Date(),
@@ -484,7 +579,7 @@ export function setupWebSocketServer(server: HttpServer) {
           }));
         }
         
-        // Conectar à Evolution API
+        // Conectar à Evolution API via WebSocket direto
         else if (data.type === 'connect_evolution') {
           if (!userId) {
             ws.send(JSON.stringify({ type: 'error', error: 'Não autenticado' }));
@@ -492,7 +587,7 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           const user = await storage.getUser(userId);
-          if (!user || !user.whatsappApiUrl || !user.whatsappApiToken || !user.whatsappInstanceId) {
+          if (!user || !user.whatsappApiUrl || !user.whatsappApiToken) {
             ws.send(JSON.stringify({ 
               type: 'connection_error', 
               error: 'Configuração da Evolution API não encontrada' 
@@ -501,62 +596,33 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
-            // Remover barras extras e garantir que temos o caminho correto incluindo 'manager'
-            const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+            // Iniciar conexão WebSocket diretamente com a API da Evolution
+            console.log(`Iniciando conexão WebSocket com a Evolution API para usuário ${userId}`);
             
-            // Verificar se a URL já contém 'manager', senão adicionar
-            const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
-            const path = `${managerPath}/instances/${user.whatsappInstanceId}/status`.replace(/^\/+/, "");
-            const fullUrl = `${baseUrl}/${path}`;
+            // Conectar utilizando o método de conexão direta por WebSocket
+            const socket = await connectToEvolutionSocket(userId, user.whatsappApiUrl, user.whatsappApiToken);
             
-            console.log(`Conectando à Evolution API: ${fullUrl}`);
-            
-            // Verificar status atual da instância
-            const response = await axios.get(
-              fullUrl,
-              { 
-                headers: { 
-                  Authorization: `Bearer ${user.whatsappApiToken}` 
+            if (socket) {
+              ws.send(JSON.stringify({
+                type: 'connection_status',
+                data: { 
+                  status: 'connecting', 
+                  message: 'Conexão WebSocket com Evolution API estabelecida. Aguardando status.' 
                 }
-              }
-            );
-            
-            const status = response.data;
-            
-            ws.send(JSON.stringify({
-              type: 'connection_status',
-              data: status
-            }));
-            
-            // Se não estiver conectado, iniciar processo de conexão
-            if (!status.connected) {
-              // Iniciar conexão com QR code
-              // Corrigir formato da URL e garantir que temos o caminho manager
-              // Verificar se a URL já contém 'manager', senão adicionar
-              const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
-              const connectPath = `${managerPath}/instances/${user.whatsappInstanceId}/connect`.replace(/^\/+/, "");
-              const connectUrl = `${baseUrl}/${connectPath}`;
+              }));
               
-              console.log(`Iniciando conexão com a Evolution API: ${connectUrl}`);
-              
-              const connectResponse = await axios.post(
-                connectUrl,
-                {},
-                { 
-                  headers: { 
-                    Authorization: `Bearer ${user.whatsappApiToken}` 
-                  }
+              // Solicitar QR Code
+              socket.send(JSON.stringify({
+                event: 'create-instance',
+                data: {
+                  instanceName: user.whatsappInstanceId || 'admin'
                 }
-              );
-              
-              if (connectResponse.data && connectResponse.data.qrcode) {
-                ws.send(JSON.stringify({
-                  type: 'qr_code',
-                  data: {
-                    qrCode: connectResponse.data.qrcode
-                  }
-                }));
-              }
+              }));
+            } else {
+              ws.send(JSON.stringify({
+                type: 'connection_error',
+                error: 'Não foi possível estabelecer conexão com o WebSocket da Evolution API'
+              }));
             }
           } catch (error) {
             console.error(`Erro ao conectar à Evolution API para usuário ${userId}:`, error);
@@ -567,50 +633,50 @@ export function setupWebSocketServer(server: HttpServer) {
           }
         }
         
-        // Desconectar da Evolution API
+        // Desconectar da Evolution API via WebSocket
         else if (data.type === 'disconnect_evolution') {
           if (!userId) {
             ws.send(JSON.stringify({ type: 'error', error: 'Não autenticado' }));
             return;
           }
           
-          const user = await storage.getUser(userId);
-          if (!user || !user.whatsappApiUrl || !user.whatsappApiToken || !user.whatsappInstanceId) {
-            ws.send(JSON.stringify({ 
-              type: 'connection_error', 
-              error: 'Configuração da Evolution API não encontrada' 
-            }));
-            return;
-          }
-          
           try {
-            // Remover barras extras e garantir que temos o caminho correto incluindo 'manager'
-            const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+            // Verificar se temos uma conexão WebSocket ativa
+            const socket = evolutionClients.get(userId);
             
-            // Verificar se a URL já contém 'manager', senão adicionar
-            const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
-            const path = `${managerPath}/instances/${user.whatsappInstanceId}/logout`.replace(/^\/+/, "");
-            const fullUrl = `${baseUrl}/${path}`;
-            
-            console.log(`Desconectando da Evolution API: ${fullUrl}`);
-            
-            // Fazer logout da instância
-            const response = await axios.post(
-              fullUrl,
-              {},
-              { 
-                headers: { 
-                  Authorization: `Bearer ${user.whatsappApiToken}` 
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              // Obter o nome da instância
+              const user = await storage.getUser(userId);
+              const instanceName = user?.whatsappInstanceId || 'admin';
+              
+              console.log(`Desconectando da Evolution API via WebSocket para usuário ${userId}`);
+              
+              // Enviar comando de logout
+              socket.send(JSON.stringify({
+                event: 'logout-instance',
+                data: {
+                  instanceName
                 }
-              }
-            );
-            
-            // Notificar cliente sobre desconexão
-            ws.send(JSON.stringify({
-              type: 'connection_status',
-              data: { connected: false }
-            }));
-            
+              }));
+              
+              // Fechar a conexão WebSocket
+              socket.close();
+              
+              // Remover da lista de conexões
+              evolutionClients.set(userId, null);
+              
+              // Notificar cliente sobre desconexão
+              ws.send(JSON.stringify({
+                type: 'connection_status',
+                data: { connected: false, state: 'DISCONNECTED' }
+              }));
+            } else {
+              console.log(`Não há conexão WebSocket ativa para o usuário ${userId}`);
+              ws.send(JSON.stringify({
+                type: 'connection_status',
+                data: { connected: false, state: 'DISCONNECTED' }
+              }));
+            }
           } catch (error) {
             console.error(`Erro ao desconectar da Evolution API para usuário ${userId}:`, error);
             ws.send(JSON.stringify({ 
