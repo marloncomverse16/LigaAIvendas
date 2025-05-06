@@ -590,6 +590,66 @@ export function setupWebSocketServer(server: HttpServer) {
           }));
         }
         
+        // Criar instância na Evolution API
+        else if (data.type === 'create_evolution_instance') {
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', error: 'Não autenticado' }));
+            return;
+          }
+          
+          const user = await storage.getUser(userId);
+          if (!user) {
+            ws.send(JSON.stringify({ 
+              type: 'connection_error', 
+              error: 'Usuário não encontrado' 
+            }));
+            return;
+          }
+          
+          // Primeiro buscar servidores do usuário para obter credenciais
+          const userServer = await storage.getUserServer(userId);
+          if (!userServer || !userServer.server || !userServer.server.apiUrl || !userServer.server.apiToken) {
+            ws.send(JSON.stringify({ 
+              type: 'connection_error', 
+              error: 'Servidor não configurado. Configure um servidor com API Evolution.' 
+            }));
+            return;
+          }
+          
+          try {
+            console.log(`Tentando criar instância para o usuário ${user.username}`);
+            const evolutionClient = new EvolutionApiClient(
+              userServer.server.apiUrl,
+              userServer.server.apiToken,
+              user.username // Nome do usuário como instância
+            );
+            
+            // Tentar criar a instância
+            const createResult = await evolutionClient.createInstance();
+            
+            ws.send(JSON.stringify({
+              type: 'instance_created',
+              data: {
+                success: createResult.success,
+                message: createResult.success 
+                  ? 'Instância criada com sucesso' 
+                  : 'Não foi possível criar a instância, mas tentaremos continuar',
+                details: createResult
+              }
+            }));
+            
+          } catch (error) {
+            console.error(`Erro ao criar instância para usuário ${userId}:`, error);
+            ws.send(JSON.stringify({ 
+              type: 'instance_created', 
+              data: {
+                success: false,
+                error: `Erro ao criar instância: ${error.message}`
+              }
+            }));
+          }
+        }
+        
         // Conectar à Evolution API via WebSocket direto
         else if (data.type === 'connect_evolution') {
           if (!userId) {

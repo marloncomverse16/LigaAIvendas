@@ -203,19 +203,40 @@ export class WebSocketService {
     setTimeout(removeHandler, 10000);
   }
   
-  public getQRCode(callback: (qrCode: string) => void): void {
-    const removeHandler = this.on('qr_code', (message) => {
-      if (message.data?.qrCode) {
-        callback(message.data.qrCode);
-      }
-    });
+  public createInstance(callback?: (result: any) => void): void {
+    const removeHandler = callback ? this.on('instance_created', (message) => {
+      callback(message.data);
+      removeHandler();
+    }) : () => {};
     
     this.sendMessage({
-      type: 'connect_evolution',
+      type: 'create_evolution_instance',
     });
     
-    // Remover handler após 60 segundos (tempo para escanear QR)
-    setTimeout(removeHandler, 60000);
+    // Remover handler após 10 segundos se tiver callback
+    if (callback) {
+      setTimeout(removeHandler, 10000);
+    }
+  }
+  
+  public getQRCode(callback: (qrCode: string) => void): void {
+    // Primeiro criar a instância, depois obter o QR code
+    this.createInstance(() => {
+      console.log("Instância criada, obtendo QR code...");
+      
+      const removeHandler = this.on('qr_code', (message) => {
+        if (message.data?.qrCode) {
+          callback(message.data.qrCode);
+        }
+      });
+      
+      this.sendMessage({
+        type: 'connect_evolution',
+      });
+      
+      // Remover handler após 60 segundos (tempo para escanear QR)
+      setTimeout(removeHandler, 60000);
+    });
   }
   
   public getContacts(callback: (contacts: any[]) => void): void {
