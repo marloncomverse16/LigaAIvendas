@@ -296,6 +296,62 @@ export function setupWebSocketServer(server: HttpServer) {
           
           console.log(`Usuário ${userId} autenticado via WebSocket`);
           
+          // Verificar se o usuário tem as configurações da Evolution API
+          // Se não tiver, tenta buscar do servidor associado
+          const user = await storage.getUser(userId);
+          if (!user || (!user.whatsappApiUrl || !user.whatsappApiToken || !user.whatsappInstanceId)) {
+            console.log(`Usuário ${userId} não tem configuração da Evolution API, tentando buscar do servidor`);
+            
+            // Buscar servidor ativo do usuário
+            const userServers = await storage.getUserServers(userId);
+            if (userServers && userServers.length > 0) {
+              // Pegar o primeiro servidor ativo
+              const activeServers = userServers.filter((us: any) => {
+                return us.server && us.server.active;
+              });
+              
+              if (activeServers.length > 0) {
+                const firstServer = activeServers[0].server;
+                
+                // Atualizar informações do usuário com os dados do servidor
+                if (firstServer) {
+                  console.log(`Atualizando configurações da Evolution API para usuário ${userId} com dados do servidor ${firstServer.id}`);
+                  
+                  await storage.updateUser(userId, {
+                    whatsappApiUrl: firstServer.apiUrl,
+                    whatsappApiToken: firstServer.apiToken,
+                    whatsappInstanceId: firstServer.instanceId || `instance${userId}`
+                  });
+                  
+                  // Notificar cliente que as configurações foram atualizadas
+                  ws.send(JSON.stringify({
+                    type: 'api_config_updated',
+                    data: {
+                      whatsappApiUrl: firstServer.apiUrl,
+                      whatsappApiToken: firstServer.apiToken,
+                      whatsappInstanceId: firstServer.instanceId || `instance${userId}`
+                    }
+                  }));
+                } else {
+                  ws.send(JSON.stringify({
+                    type: 'connection_error',
+                    error: 'Servidor ativo encontrado, mas sem configurações completas'
+                  }));
+                }
+              } else {
+                ws.send(JSON.stringify({
+                  type: 'connection_error',
+                  error: 'Nenhum servidor ativo encontrado para o usuário'
+                }));
+              }
+            } else {
+              ws.send(JSON.stringify({
+                type: 'connection_error',
+                error: 'Usuário não tem servidores associados'
+              }));
+            }
+          }
+          
           // Enviar dados iniciais
           const contacts = await storage.getWhatsappContacts(userId);
           ws.send(JSON.stringify({

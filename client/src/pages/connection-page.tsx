@@ -66,16 +66,32 @@ export default function ConnectionPage() {
       });
     };
     
+    const handleApiConfigUpdated = (message: any) => {
+      if (message.data) {
+        toast({
+          title: "Configurações Atualizadas",
+          description: "Informações da API do WhatsApp foram atualizadas automaticamente",
+        });
+        
+        // Tentar reconectar após atualização das configurações
+        setTimeout(() => {
+          handleConnect();
+        }, 1000);
+      }
+    };
+    
     // Registrar os handlers
     const removeStatusHandler = websocketService.on('connection_status', handleConnectionStatus);
     const removeQrCodeHandler = websocketService.on('qr_code', handleQrCode);
     const removeErrorHandler = websocketService.on('connection_error', handleConnectionError);
+    const removeConfigHandler = websocketService.on('api_config_updated', handleApiConfigUpdated);
     
     // Limpar os handlers ao desmontar
     return () => {
       removeStatusHandler();
       removeQrCodeHandler();
       removeErrorHandler();
+      removeConfigHandler();
     };
   }, [toast]);
 
