@@ -86,6 +86,7 @@ export default function ServerManagementPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("all");
+  const [serverUsersCountMap, setServerUsersCountMap] = useState<Record<number, number>>({});
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -133,6 +134,31 @@ export default function ServerManagementPage() {
       }
     },
     enabled: !!selectedServer && userServerDialogOpen && !!user?.isAdmin,
+  });
+  
+  // Busca a contagem de usuários para todos os servidores
+  const { data: allServerUsers } = useQuery({
+    queryKey: ["/api/servers/users-count"],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", "/api/servers/users-count");
+        const data = await res.json();
+        console.log("Contagem de usuários por servidor:", data);
+        
+        // Atualizar o mapa de contagem de usuários por servidor
+        const countMap: Record<number, number> = {};
+        data.forEach((item: { serverId: number; userCount: number }) => {
+          countMap[item.serverId] = item.userCount;
+        });
+        setServerUsersCountMap(countMap);
+        
+        return data;
+      } catch (error) {
+        console.error("Erro ao buscar contagem de usuários:", error);
+        return [];
+      }
+    },
+    enabled: !!user?.isAdmin,
   });
 
   // Formulário para criar/editar servidor
@@ -388,6 +414,13 @@ export default function ServerManagementPage() {
         return servers.filter(server => server.active);
       case "inactive":
         return servers.filter(server => !server.active);
+      case "available":
+        return servers.filter(server => {
+          // Buscar a quantidade atual de usuários para este servidor
+          const serverUsersCount = serverUsersCountMap[server.id] || 0;
+          // Retornar apenas servidores com vagas disponíveis
+          return serverUsersCount < (server.maxUsers || 10);
+        });
       default:
         return servers;
     }
@@ -424,6 +457,7 @@ export default function ServerManagementPage() {
           <TabsTrigger value="n8n">n8n</TabsTrigger>
           <TabsTrigger value="active">Ativos</TabsTrigger>
           <TabsTrigger value="inactive">Inativos</TabsTrigger>
+          <TabsTrigger value="available">Com Vagas</TabsTrigger>
         </TabsList>
 
         <TabsContent value={selectedTab} className="space-y-4">
@@ -474,6 +508,18 @@ export default function ServerManagementPage() {
                               <XCircle className="h-3 w-3 mr-1" /> Inativo
                             </Badge>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Badge variant={
+                              (serverUsersCountMap[server.id] || 0) >= (server.maxUsers || 10) 
+                                ? "destructive" 
+                                : "outline"
+                            }>
+                              <Users className="h-3 w-3 mr-1" /> 
+                              {serverUsersCountMap[server.id] || 0}/{server.maxUsers || 10}
+                            </Badge>
+                          </div>
                         </TableCell>
                         <TableCell>{formatDate(server.createdAt)}</TableCell>
                         <TableCell>
