@@ -622,13 +622,35 @@ export class EvolutionApiClient {
    * Retorna os cabeçalhos HTTP padrão com token de autorização
    */
   private getHeaders() {
-    // Priorizar o token de ambiente se disponível
-    // Conforme configuração no docker-compose, o token correto é AUTHENTICATION_API_KEY
-    // A variável de ambiente EVOLUTION_API_TOKEN deve corresponder a esse valor
-    const token = process.env.EVOLUTION_API_TOKEN || this.token || '4db623449606bcf2814521b73657dbc0';
+    // Testar diferentes tokens da mais alta para a mais baixa prioridade
+    // 1. Token do ambiente (mais seguro)
+    // 2. Token ligAi01 (token fixo específico para este sistema)
+    // 3. Token fornecido pelo usuário
+    // 4. Token de fallback
+    const environmentToken = process.env.EVOLUTION_API_TOKEN;
+    const ligAiToken = 'LigAi01'; // Token específico para esta aplicação
+    const userToken = this.token;
+    const fallbackToken = '4db623449606bcf2814521b73657dbc0';
     
-    console.log(`Usando token nos headers: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'NENHUM TOKEN'}`);
-    console.log(`Token é do ambiente: ${process.env.EVOLUTION_API_TOKEN ? 'Sim' : 'Não'}`);
+    // Array de tokens para tentar
+    const tokensToTry = [
+      environmentToken, 
+      ligAiToken,
+      userToken,
+      fallbackToken
+    ].filter(Boolean); // Remover valores undefined/null/vazios
+    
+    // Se não temos nenhum token, usar o fallback
+    const token = tokensToTry.length > 0 ? tokensToTry[0] : fallbackToken;
+    
+    // Para debug, mostrar qual token estamos usando
+    const source = 
+      token === environmentToken ? 'ambiente' :
+      token === ligAiToken ? 'fixo LigAi01' :
+      token === userToken ? 'usuário' :
+      'fallback';
+    
+    console.log(`Usando token nos headers: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'NENHUM TOKEN'} (origem: ${source})`);
     
     // Na configuração do Portainer.io, o formato é AUTHENTICATION_API_KEY
     // Vamos tentar usar ambos os formatos para garantir compatibilidade

@@ -276,14 +276,16 @@ export default function ConnectionPage() {
                     {/* QR Code */}
                     <div className="bg-white p-6 mx-auto rounded-xl shadow-md">
                       <div className="w-56 h-56 relative mx-auto">
-                        {/* Debugando o QR code */}
-                        <div className="text-xs text-gray-400 mb-2">
-                          {status.qrCode ? (
-                            <>QR code disponível ({status.qrCode.substring(0, 30)}...)</>
-                          ) : (
-                            <>QR code não disponível</>
-                          )}
-                        </div>
+                        {/* Info para debug - apenas visível durante desenvolvimento */}
+                        {process.env.NODE_ENV === 'development' && (
+                          <div className="text-xs text-gray-400 mb-2">
+                            {status.qrCode ? (
+                              <>QR code disponível ({status.qrCode.substring(0, 30)}...)</>
+                            ) : (
+                              <>QR code não disponível</>
+                            )}
+                          </div>
+                        )}
                         
                         {/* Exibindo o QR code */}
                         {status.qrCode ? (
