@@ -255,6 +255,7 @@ export class EvolutionApiClient {
               const qrCode = postResponse.data?.qrcode || 
                             postResponse.data?.qrCode || 
                             postResponse.data?.base64 || 
+                            postResponse.data?.code || // Novo formato presente na versão 2.2.3
                             (typeof postResponse.data === 'string' ? postResponse.data : null);
               
               if (qrCode) {
