@@ -29,6 +29,7 @@ export class EvolutionApiClient {
       URL Base: ${this.baseUrl}
       Instance: ${this.instance}
       Token: ${this.token.substring(0, 5)}...${this.token.substring(this.token.length - 5)}
+      Token de ambiente presente: ${process.env.EVOLUTION_API_TOKEN ? 'Sim' : 'Não'}
     `);
   }
 
@@ -90,7 +91,10 @@ export class EvolutionApiClient {
         ignore_group: false,
         ignore_broadcast: false,
         save_message: true,
-        webhook_base64: true
+        webhook_base64: true,
+        language: "pt-BR",
+        qrcode: true,
+        qrcodeImage: true
       };
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
@@ -611,11 +615,20 @@ export class EvolutionApiClient {
    */
   private getHeaders() {
     // Priorizar o token de ambiente se disponível
-    const token = process.env.EVOLUTION_API_TOKEN || this.token;
+    // Conforme configuração no docker-compose, o token correto é AUTHENTICATION_API_KEY
+    // A variável de ambiente EVOLUTION_API_TOKEN deve corresponder a esse valor
+    const token = process.env.EVOLUTION_API_TOKEN || this.token || '4db623449606bcf2814521b73657dbc0';
     
+    console.log(`Usando token nos headers: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'NENHUM TOKEN'}`);
+    console.log(`Token é do ambiente: ${process.env.EVOLUTION_API_TOKEN ? 'Sim' : 'Não'}`);
+    
+    // Na configuração do Portainer.io, o formato é AUTHENTICATION_API_KEY
+    // Vamos tentar usar ambos os formatos para garantir compatibilidade
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'apikey': token,
+      'AUTHENTICATION_API_KEY': token
     };
   }
 }
