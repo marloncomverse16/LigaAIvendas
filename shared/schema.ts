@@ -592,6 +592,7 @@ export const servers = pgTable("servers", {
   crmWebhookUrl: text("crm_webhook_url"),
   
   instanceId: text("instance_id"), // Para servidores Evolution API (configurado separadamente)
+  maxUsers: integer("max_users").default(10), // Limite de usuários que podem ser associados ao servidor
   active: boolean("active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -619,6 +620,7 @@ export const insertServerSchema = createInsertSchema(servers).pick({
   schedulingWebhookUrl: true,
   crmWebhookUrl: true,
   instanceId: true,
+  maxUsers: true,
   active: true,
 });
 
