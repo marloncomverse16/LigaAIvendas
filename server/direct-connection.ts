@@ -41,6 +41,33 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
       Instância: ${instance}
       Token: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'não definido'}
     `);
+    
+    // Importante: Primeiro tente criar a instância se ela não existir
+    try {
+      const createEndpoint = `${baseUrl}/instance/create`;
+      console.log(`Criando instância primeiro (se não existir): ${createEndpoint}`);
+      
+      const createData = {
+        instanceName: instance,
+        token: token,
+        webhook: null,
+        webhookByEvents: false,
+        integration: "WHATSAPP-BAILEYS", 
+        language: "pt-BR"
+      };
+      
+      await axios.post(createEndpoint, createData, { 
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': token
+        }
+      });
+      
+      console.log('Instância criada com sucesso ou já existente');
+    } catch (createError) {
+      // Ignorar erros de criação (instância pode já existir)
+      console.log('Criação de instância retornou erro (pode ser normal se já existir):', createError.message);
+    }
 
     // Headers de autenticação (importante: 'apikey' é o formato correto para v2.2.3)
     const headers = {
@@ -49,9 +76,9 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
       'Authorization': `Bearer ${token}`
     };
 
-    // Endpoint específico que foi validado em testes
+    // Endpoint específico para iniciar conexão baseado na documentação da API v2.2.3
     const endpoint = `${baseUrl}/instance/connect/${instance}`;
-    console.log(`Fazendo requisição GET para: ${endpoint}`);
+    console.log(`Fazendo requisição GET para o endpoint Instance Connect: ${endpoint}`);
     
     // Fazer requisição direta para o endpoint que sabemos que funciona
     const response = await axios.get(endpoint, { 
@@ -75,11 +102,14 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
       });
     }
     
-    // Extrair QR code da resposta
-    const qrCode = response.data?.qrcode || 
+    // Extrair QR code da resposta - o formato varia dependendo da versão da API
+    // Na versão 2.2.3, o QR code geralmente vem em response.data.code, então priorizamos esse campo
+    console.log('Analisando resposta para extrair QR code. Estrutura:', JSON.stringify(response.data).substring(0, 300) + '...');
+    
+    const qrCode = response.data?.code || 
+                   response.data?.qrcode || 
                    response.data?.qrCode || 
                    response.data?.base64 || 
-                   response.data?.code ||
                    (typeof response.data === 'string' ? response.data : null);
     
     if (qrCode) {
