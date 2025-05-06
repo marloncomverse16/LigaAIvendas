@@ -14,7 +14,8 @@ import { z } from "zod";
 import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { checkConnectionStatus, connectWhatsApp, disconnectWhatsApp } from "./connection";
+import { checkConnectionStatus, disconnectWhatsApp } from "./connection";
+import { getWhatsAppQrCode } from "./direct-connection";
 import { setupWebSocketServer, sendMessage } from "./websocket";
 
 const scryptAsync = promisify(scrypt);
@@ -433,8 +434,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota para verificar o status da conexão com WhatsApp
   app.get("/api/connection/status", checkConnectionStatus);
   
-  // Rota para conectar o WhatsApp
-  app.post("/api/connection/connect", connectWhatsApp);
+  // Rota para conectar o WhatsApp (usando o método otimizado)
+  app.post("/api/connection/connect", getWhatsAppQrCode);
   
   // Rota para desconectar o WhatsApp
   app.post("/api/connection/disconnect", disconnectWhatsApp);
