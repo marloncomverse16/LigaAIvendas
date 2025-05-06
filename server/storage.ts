@@ -1360,6 +1360,17 @@ export class MemStorage implements IStorage {
     return true;
   }
   
+  async getUserServerRelationById(relationId: number): Promise<UserServer | undefined> {
+    return this.userServers.get(relationId);
+  }
+  
+  async removeUserServerRelation(relationId: number): Promise<boolean> {
+    if (!this.userServers.has(relationId)) return false;
+    
+    this.userServers.delete(relationId);
+    return true;
+  }
+  
   async updateUserServerId(userId: number, serverId: number): Promise<User | undefined> {
     const user = await this.getUser(userId);
     if (!user) return undefined;
@@ -2637,6 +2648,33 @@ export class DatabaseStorage implements IStorage {
       return result.count > 0;
     } catch (error) {
       console.error("Erro ao remover servidor do usuário:", error);
+      return false;
+    }
+  }
+  
+  async getUserServerRelationById(relationId: number): Promise<UserServer | undefined> {
+    try {
+      const [relation] = await db.select()
+        .from(userServers)
+        .where(eq(userServers.id, relationId));
+      
+      console.log(`Buscando relação com ID ${relationId}:`, relation);
+      return relation;
+    } catch (error) {
+      console.error(`Erro ao buscar relação usuário-servidor com ID ${relationId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async removeUserServerRelation(relationId: number): Promise<boolean> {
+    try {
+      console.log(`Removendo relação com ID ${relationId}`);
+      const result = await db.delete(userServers)
+        .where(eq(userServers.id, relationId));
+      
+      return result.count > 0;
+    } catch (error) {
+      console.error(`Erro ao remover relação usuário-servidor com ID ${relationId}:`, error);
       return false;
     }
   }
