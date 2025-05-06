@@ -1429,21 +1429,25 @@ export class MemStorage implements IStorage {
     // Obter contagem de usuários por servidor
     const userCountMap = await this.countUsersByServer();
     
-    // Encontrar o servidor com menos usuários que não exceda o limite máximo
+    // Encontrar o servidor que está mais próximo de atingir sua capacidade máxima (menor disponibilidade proporcional)
     let bestServer: Server | undefined = undefined;
-    let lowestUserCount = Number.MAX_SAFE_INTEGER;
+    let highestUtilizationRatio = -1; // Começamos com -1 para garantir que qualquer razão positiva seja maior
     
     for (const server of serversList) {
       const userCount = userCountMap.find(uc => uc.serverId === server.id)?.userCount || 0;
       const maxUsers = server.maxUsers || 10; // Default de 10 se não especificado
       
-      // Verificar se o servidor tem vagas disponíveis
-      if (userCount < maxUsers && userCount < lowestUserCount) {
-        lowestUserCount = userCount;
+      // Calcular a razão de utilização (quanto maior, mais próximo de estar cheio)
+      const utilizationRatio = userCount / maxUsers;
+      
+      // Verificar se o servidor ainda tem capacidade disponível e se tem uma taxa de utilização maior
+      if (userCount < maxUsers && utilizationRatio > highestUtilizationRatio) {
+        highestUtilizationRatio = utilizationRatio;
         bestServer = server;
       }
     }
     
+    console.log(`Selecionado servidor com maior taxa de utilização: ${bestServer?.name} (${highestUtilizationRatio.toFixed(2)})`);
     return bestServer;
   }
 }
@@ -2742,21 +2746,25 @@ export class DatabaseStorage implements IStorage {
       
       if (serversList.length === 0) return undefined;
       
-      // Encontrar o servidor com menos usuários que não exceda o limite máximo
+      // Encontrar o servidor que está mais próximo de atingir sua capacidade máxima (menor disponibilidade proporcional)
       let bestServer: Server | undefined = undefined;
-      let lowestUserCount = Number.MAX_SAFE_INTEGER;
+      let highestUtilizationRatio = -1; // Começamos com -1 para garantir que qualquer razão positiva seja maior
       
       for (const server of serversList) {
         const userCount = userCountMap.find(uc => uc.serverId === server.id)?.userCount || 0;
         const maxUsers = server.maxUsers || 10; // Default de 10 se não especificado
         
-        // Verificar se o servidor tem vagas disponíveis
-        if (userCount < maxUsers && userCount < lowestUserCount) {
-          lowestUserCount = userCount;
+        // Calcular a razão de utilização (quanto maior, mais próximo de estar cheio)
+        const utilizationRatio = userCount / maxUsers;
+        
+        // Verificar se o servidor ainda tem capacidade disponível e se tem uma taxa de utilização maior
+        if (userCount < maxUsers && utilizationRatio > highestUtilizationRatio) {
+          highestUtilizationRatio = utilizationRatio;
           bestServer = server;
         }
       }
       
+      console.log(`Selecionado servidor com maior taxa de utilização: ${bestServer?.name} (${highestUtilizationRatio.toFixed(2)})`);
       return bestServer;
     } catch (error) {
       console.error("Erro ao buscar servidor com menos usuários:", error);
