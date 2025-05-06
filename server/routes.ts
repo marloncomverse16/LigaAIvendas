@@ -1925,6 +1925,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para buscar usuários associados a um servidor
+  app.get("/api/user-servers/:serverId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Verificar se o usuário é admin
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: "Apenas administradores podem visualizar todos os usuários de um servidor" });
+    }
+    
+    try {
+      const serverId = parseInt(req.params.serverId);
+      
+      // Buscar usuários do servidor com informações completas
+      const serverUsers = await storage.getServerUsers(serverId);
+      
+      res.json(serverUsers);
+    } catch (error) {
+      console.error(`Erro ao buscar usuários do servidor ${req.params.serverId}:`, error);
+      res.status(500).json({ message: "Erro ao buscar usuários do servidor" });
+    }
+  });
+  
   app.post("/api/user-servers", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
