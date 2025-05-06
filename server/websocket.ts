@@ -318,6 +318,7 @@ export function setupWebSocketServer(server: HttpServer) {
                 
                 if (activeServers.length > 0) {
                   const firstServer = activeServers[0].server;
+                  console.log('Dados do servidor encontrado:', JSON.stringify(firstServer, null, 2));
                   
                   // Verificar se temos todas as informações necessárias
                   if (firstServer && firstServer.apiUrl && (firstServer.apiToken || firstServer.apiToken === null)) {

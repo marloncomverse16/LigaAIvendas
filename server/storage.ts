@@ -1342,11 +1342,29 @@ export class MemStorage implements IStorage {
       // Obter IDs dos servidores
       const serverIds = relations.map(r => r.serverId);
       
-      // Buscar informações completas de cada servidor
-      const serverList = await db
-        .select()
-        .from(servers)
-        .where(inArray(servers.id, serverIds));
+      // Verificar se há IDs para buscar
+      if (serverIds.length === 0) {
+        return [];
+      }
+      
+      // Buscar informações completas de cada servidor individualmente
+      // para evitar problemas com o inArray em alguns casos
+      const serverList: any[] = [];
+      for (const serverId of serverIds) {
+        try {
+          const server = await db
+            .select()
+            .from(servers)
+            .where(eq(servers.id, serverId))
+            .limit(1);
+            
+          if (server && server.length > 0) {
+            serverList.push(server[0]);
+          }
+        } catch (serverErr) {
+          console.error(`Erro ao buscar servidor ${serverId}:`, serverErr);
+        }
+      }
       
       console.log(`Servidores encontrados: ${serverList.length}`);
       
@@ -2639,28 +2657,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   // UserServer Methods
-  async getUserServers(userId: number): Promise<(Server & { id: number })[]> {
+  async getUserServers(userId: number): Promise<(UserServer & { server: Server | null })[]> {
     try {
-      const result = await db.select({
-        id: servers.id,
-        name: servers.name,
-        ipAddress: servers.ipAddress,
-        provider: servers.provider,
-        apiUrl: servers.apiUrl,
-        apiToken: servers.apiToken,
-        webhookUrl: servers.webhookUrl,
-        instanceId: servers.instanceId,
-        active: servers.active,
-        createdAt: servers.createdAt,
-        updatedAt: servers.updatedAt
-      })
-      .from(userServers)
-      .innerJoin(servers, eq(userServers.serverId, servers.id))
-      .where(eq(userServers.userId, userId));
+      console.log(`Buscando servidores do usuário ${userId} (implementação corrigida)`);
       
+      // Primeiro buscar as relações usuário-servidor
+      const relations = await db
+        .select()
+        .from(userServers)
+        .where(eq(userServers.userId, userId));
+      
+      console.log(`Encontradas ${relations.length} relações usuário-servidor para o usuário ${userId}`);
+      
+      if (!relations || relations.length === 0) {
+        return [];
+      }
+      
+      // Para cada relação, buscar os detalhes do servidor individualmente
+      const result: (UserServer & { server: Server | null })[] = [];
+      
+      for (const relation of relations) {
+        try {
+          // Buscar servidor específico
+          const [serverData] = await db
+            .select()
+            .from(servers)
+            .where(eq(servers.id, relation.serverId));
+          
+          result.push({
+            ...relation,
+            server: serverData || null
+          });
+        } catch (serverError) {
+          console.error(`Erro ao buscar servidor ${relation.serverId}:`, serverError);
+          result.push({
+            ...relation,
+            server: null
+          });
+        }
+      }
+      
+      console.log(`Retornando ${result.length} servidores para o usuário ${userId}`);
       return result;
     } catch (error) {
-      console.error("Erro ao buscar servidores do usuário:", error);
+      console.error(`Erro ao buscar servidores do usuário ${userId}:`, error);
       return [];
     }
   }
