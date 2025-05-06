@@ -15,6 +15,7 @@ import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { checkConnectionStatus, connectWhatsApp, disconnectWhatsApp } from "./connection";
+import { setupWebSocketServer, sendMessage } from "./websocket";
 
 const scryptAsync = promisify(scrypt);
 
@@ -1651,8 +1652,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // WhatsApp API Routes
+  app.get("/api/whatsapp/contacts", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const contacts = await storage.getWhatsappContacts(userId);
+      res.json(contacts);
+    } catch (error) {
+      console.error("Erro ao buscar contatos do WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar contatos do WhatsApp" });
+    }
+  });
+  
+  app.get("/api/whatsapp/contacts/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const contactId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      const contact = await storage.getWhatsappContact(contactId);
+      
+      if (!contact) {
+        return res.status(404).json({ message: "Contato não encontrado" });
+      }
+      
+      // Verificar se o contato pertence ao usuário
+      if (contact.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      res.json(contact);
+    } catch (error) {
+      console.error("Erro ao buscar contato do WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar contato do WhatsApp" });
+    }
+  });
+  
+  app.get("/api/whatsapp/contacts/:id/messages", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const contactId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      const contact = await storage.getWhatsappContact(contactId);
+      
+      if (!contact) {
+        return res.status(404).json({ message: "Contato não encontrado" });
+      }
+      
+      // Verificar se o contato pertence ao usuário
+      if (contact.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      const messages = await storage.getWhatsappMessages(userId, contactId, limit);
+      res.json(messages);
+    } catch (error) {
+      console.error("Erro ao buscar mensagens do WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar mensagens do WhatsApp" });
+    }
+  });
+  
+  app.post("/api/whatsapp/send", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const { contactId, message } = req.body;
+      
+      if (!contactId || !message) {
+        return res.status(400).json({ message: "Contato e mensagem são obrigatórios" });
+      }
+      
+      const contact = await storage.getWhatsappContact(parseInt(contactId));
+      
+      if (!contact) {
+        return res.status(404).json({ message: "Contato não encontrado" });
+      }
+      
+      // Verificar se o contato pertence ao usuário
+      if (contact.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Importar a função para enviar mensagem WebSocket
+      const { sendMessage } = require('./websocket');
+      await sendMessage(userId, contact.id, message);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erro ao enviar mensagem WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao enviar mensagem WhatsApp" });
+    }
+  });
+  
+  app.put("/api/whatsapp/user", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const { whatsappApiUrl, whatsappApiToken, whatsappInstanceId } = req.body;
+      
+      // Atualizar configurações do usuário
+      const user = await storage.updateUser(userId, {
+        whatsappApiUrl,
+        whatsappApiToken,
+        whatsappInstanceId
+      });
+      
+      res.json({ success: true, user });
+    } catch (error) {
+      console.error("Erro ao atualizar configurações do WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao atualizar configurações do WhatsApp" });
+    }
+  });
+  
   // Configure HTTP server
   const httpServer = createServer(app);
+  
+  // Configurar WebSocket Server no arquivo websocket.ts
+  // Esta função será chamada externamente após a criação do servidor HTTP
   
   return httpServer;
 }
