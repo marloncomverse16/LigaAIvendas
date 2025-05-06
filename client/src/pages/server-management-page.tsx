@@ -49,14 +49,7 @@ const serverFormSchema = z.object({
   provider: z.string().min(1, { message: "O nome do provedor é obrigatório" }),
   apiUrl: z.string().min(1, { message: "A URL da API é obrigatória" }),
   apiToken: z.string().optional(),
-  whatsappWebhookUrl: z.string().optional(),
-  aiAgentWebhookUrl: z.string().optional(),
-  prospectingWebhookUrl: z.string().optional(),
-  contactsWebhookUrl: z.string().optional(),
-  schedulingWebhookUrl: z.string().optional(),
-  crmWebhookUrl: z.string().optional(),
-  instanceId: z.string().optional(),
-  maxUsers: z.number().min(1, { message: "Defina pelo menos 1 usuário" }).default(10),
+  maxUsers: z.coerce.number().min(1, { message: "Defina pelo menos 1 usuário" }).default(10),
   active: z.boolean().default(true),
 });
 
@@ -176,13 +169,6 @@ export default function ServerManagementPage() {
       provider: "",
       apiUrl: "",
       apiToken: "",
-      whatsappWebhookUrl: "",
-      aiAgentWebhookUrl: "",
-      prospectingWebhookUrl: "",
-      contactsWebhookUrl: "",
-      schedulingWebhookUrl: "",
-      crmWebhookUrl: "",
-      instanceId: "",
       maxUsers: 10,
       active: true,
     },
@@ -338,13 +324,6 @@ export default function ServerManagementPage() {
       provider: server.provider,
       apiUrl: server.apiUrl,
       apiToken: server.apiToken || "",
-      whatsappWebhookUrl: server.whatsappWebhookUrl || "",
-      aiAgentWebhookUrl: server.aiAgentWebhookUrl || "",
-      prospectingWebhookUrl: server.prospectingWebhookUrl || "",
-      contactsWebhookUrl: server.contactsWebhookUrl || "",
-      schedulingWebhookUrl: server.schedulingWebhookUrl || "",
-      crmWebhookUrl: server.crmWebhookUrl || "",
-      instanceId: server.instanceId || "",
       maxUsers: server.maxUsers || 10,
       active: server.active === null ? true : server.active,
     });
@@ -446,10 +425,6 @@ export default function ServerManagementPage() {
 
   const filterServersByTab = (servers: Server[] = []) => {
     switch (selectedTab) {
-      case "evolution":
-        return servers.filter(server => server.provider === "evolution-api");
-      case "n8n":
-        return servers.filter(server => server.provider === "n8n");
       case "active":
         return servers.filter(server => server.active);
       case "inactive":
@@ -540,8 +515,6 @@ export default function ServerManagementPage() {
       <Tabs defaultValue="all" className="w-full" onValueChange={setSelectedTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="all">Todos</TabsTrigger>
-          <TabsTrigger value="evolution">Evolution API</TabsTrigger>
-          <TabsTrigger value="n8n">n8n</TabsTrigger>
           <TabsTrigger value="active">Ativos</TabsTrigger>
           <TabsTrigger value="inactive">Inativos</TabsTrigger>
           <TabsTrigger value="available">Com Vagas</TabsTrigger>
