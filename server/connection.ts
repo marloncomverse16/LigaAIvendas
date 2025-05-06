@@ -5,6 +5,50 @@ import { storage } from "./storage";
 // Status de conexão do WhatsApp por usuário
 export const connectionStatus: Record<number, any> = {};
 
+// Função para verificar o status da API Evolution
+async function checkEvolutionApiStatus(apiUrl: string, apiToken: string) {
+  try {
+    // Formatar corretamente a URL da API
+    const baseUrl = apiUrl.replace(/\/+$/, "");
+    
+    console.log(`Verificando API Evolution em: ${baseUrl}`);
+    
+    // Fazer requisição ao endpoint raiz da API
+    const response = await axios.get(baseUrl, {
+      headers: {
+        Authorization: `Bearer ${apiToken}`
+      }
+    });
+    
+    if (response.status === 200) {
+      console.log(`API Evolution respondeu com status 200`);
+      console.log(`Versão da API: ${response.data.version || 'desconhecida'}`);
+      return response.data;
+    }
+    
+    console.log(`API Evolution respondeu com status ${response.status}`);
+    return null;
+  } catch (error) {
+    console.error('Erro ao verificar status da API Evolution:', error);
+    throw error;
+  }
+}
+
+// Função para buscar informações do servidor associado ao usuário
+async function fetchUserServer(userId: number) {
+  try {
+    // Buscar dados do servidor associado ao usuário
+    const userServers = await storage.getUserServers(userId);
+    if (userServers && userServers.length > 0) {
+      return userServers[0]; // Retorna o primeiro servidor
+    }
+    return null;
+  } catch (error) {
+    console.error('Erro ao buscar servidor do usuário:', error);
+    return null;
+  }
+}
+
 // Rota para verificar o status da conexão
 export async function checkConnectionStatus(req: Request, res: Response) {
   if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });

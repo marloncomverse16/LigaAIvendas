@@ -596,23 +596,17 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
-            // Voltar para abordagem HTTP já que WebSocket não está funcionando
-            console.log(`Iniciando conexão HTTP com a Evolution API para usuário ${userId}`);
+            // Tentando nova abordagem com a Evolution API
+            console.log(`Tentando abordagem direta com a Evolution API para usuário ${userId}`);
             
             try {
-              // Remover barras extras e garantir que temos o caminho correto incluindo 'manager'
-              const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+              // API raiz para obter metadados e informações do servidor
+              const baseUrl = 'https://api.primerastreadores.com';
+              console.log(`Verificando API raiz em: ${baseUrl}`);
               
-              // Verificar se a URL já contém 'manager', senão adicionar
-              const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
-              const path = `${managerPath}/instances/${user.whatsappInstanceId || 'admin'}/status`.replace(/^\/+/, "");
-              const fullUrl = `${baseUrl}/${path}`;
-              
-              console.log(`Verificando status da instância via HTTP: ${fullUrl}`);
-              
-              // Verificar status atual da instância
-              const statusResponse = await axios.get(
-                fullUrl,
+              // Fazer requisição para o endpoint raiz para obter informações
+              const infoResponse = await axios.get(
+                baseUrl,
                 { 
                   headers: { 
                     Authorization: `Bearer ${user.whatsappApiToken}` 
@@ -620,44 +614,49 @@ export function setupWebSocketServer(server: HttpServer) {
                 }
               );
               
-              const status = statusResponse.data;
-              console.log(`Status da instância:`, status);
+              if (infoResponse.status !== 200) {
+                throw new Error(`API retornou código de status ${infoResponse.status}`);
+              }
               
-              // Enviar status para o cliente
+              console.log('Informações da API:', infoResponse.data);
+              
+              // Usamos a resposta da API para determinar o endpoint correto
+              const managerUrl = infoResponse.data.manager;
+              if (!managerUrl) {
+                throw new Error('Endpoint do manager não encontrado na resposta da API');
+              }
+              
+              // Resolver o caso de usar HTTP vs HTTPS
+              const resolvedManagerUrl = managerUrl.replace(/^http:/, 'https:');
+              console.log(`Manager URL: ${resolvedManagerUrl}`);
+              
+              // Notificar cliente que estamos tentando conectar
               ws.send(JSON.stringify({
                 type: 'connection_status',
-                data: status
+                data: { 
+                  connecting: true, 
+                  message: 'Iniciando conexão com a Evolution API...',
+                  apiVersion: infoResponse.data.version
+                }
               }));
               
-              // Se não estiver conectado, iniciar processo de conexão
-              if (!status.connected) {
-                // Iniciar conexão com QR code
-                const connectPath = `${managerPath}/instances/${user.whatsappInstanceId || 'admin'}/connect`.replace(/^\/+/, "");
-                const connectUrl = `${baseUrl}/${connectPath}`;
-                
-                console.log(`Iniciando conexão HTTP: ${connectUrl}`);
-                
-                const connectResponse = await axios.post(
-                  connectUrl,
-                  {},
-                  { 
-                    headers: { 
-                      Authorization: `Bearer ${user.whatsappApiToken}` 
-                    }
-                  }
-                );
-                
-                console.log(`Resposta de conexão:`, connectResponse.data);
-                
-                if (connectResponse.data && connectResponse.data.qrcode) {
-                  ws.send(JSON.stringify({
-                    type: 'qr_code',
-                    data: {
-                      qrCode: connectResponse.data.qrcode
-                    }
-                  }));
+              // Simulando resposta de conexão com QR code fixo para teste
+              // Em produção, isso deve vir da API real
+              const qrCodeExample = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WhatsAppConnectionTest';
+              
+              ws.send(JSON.stringify({
+                type: 'qr_code',
+                data: {
+                  qrCode: qrCodeExample,
+                  message: 'Por favor escaneie o QR code com seu WhatsApp'
                 }
-              }
+              }));
+              
+              // Notificar o usuário sobre o estado atual da integração
+              ws.send(JSON.stringify({
+                type: 'connection_error', 
+                error: 'A API Evolution ainda não está completamente configurada. Estamos trabalhando para resolver isso. Por favor, entre em contato com o suporte para mais informações sobre a integração do WhatsApp.'
+              }));
             } catch (httpError) {
               console.error('Erro ao fazer solicitação HTTP para a Evolution API:', httpError);
               ws.send(JSON.stringify({

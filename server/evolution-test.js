@@ -56,13 +56,14 @@ async function testHTTPConnection() {
       
       // Tentando variações de endpoints para encontrar o correto
       const endpoints = [
-        '/instances/admin/qrcode',
-        '/instance/admin/qrcode',
-        '/api/instances/admin/qrcode',
-        '/manager/instances/admin/qrcode',
-        '/manager/api/instances/admin/qrcode',
-        '/v1/instances/admin/qrcode',
-        '/v3/instances/admin/qrcode'
+        '/instances/admin/connect',
+        '/instance/admin/connect',
+        '/api/instances/admin/connect',
+        '/api/v3/instance/connect',
+        '/manager/api/v3/instance/connect',
+        '/api/status',
+        '/api/v3/status',
+        '/manager/api/v3/status'
       ];
       
       for (const endpoint of endpoints) {
@@ -70,11 +71,21 @@ async function testHTTPConnection() {
           const url = `${apiUrl}${endpoint}`;
           console.log(`Testando: ${url}`);
           
-          const response = await axios.get(url, {
-            headers: {
-              Authorization: 'Bearer 4db623449606bcf2814521b73657dbc0'
-            }
-          });
+          // Usar POST para endpoints de connect
+      let response;
+      if (endpoint.includes('/connect')) {
+        response = await axios.post(url, {}, {
+          headers: {
+            Authorization: 'Bearer 4db623449606bcf2814521b73657dbc0'
+          }
+        });
+      } else {
+        response = await axios.get(url, {
+          headers: {
+            Authorization: 'Bearer 4db623449606bcf2814521b73657dbc0'
+          }
+        });
+      }
           
           console.log(`✅ Sucesso! Status: ${response.status}`);
           console.log(`Dados: ${JSON.stringify(response.data, null, 2)}`);
