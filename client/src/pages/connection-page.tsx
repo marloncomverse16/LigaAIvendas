@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, XCircle, Smartphone, QrCode } from "lucide-react";
+import { Loader2, XCircle, Smartphone, QrCode, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import websocketService from "@/services/websocket-service";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ConnectionStatus {
   connected: boolean;
