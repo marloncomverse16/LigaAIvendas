@@ -56,6 +56,7 @@ const serverFormSchema = z.object({
   schedulingWebhookUrl: z.string().optional(),
   crmWebhookUrl: z.string().optional(),
   instanceId: z.string().optional(),
+  maxUsers: z.number().min(1, { message: "Defina pelo menos 1 usuário" }).default(10),
   active: z.boolean().default(true),
 });
 
@@ -75,6 +76,7 @@ interface Server {
   schedulingWebhookUrl: string | null;
   crmWebhookUrl: string | null;
   instanceId: string | null;
+  maxUsers: number;
   active: boolean | null;
   createdAt: string | Date;
   updatedAt: string | Date | null;
@@ -129,6 +131,7 @@ export default function ServerManagementPage() {
       schedulingWebhookUrl: "",
       crmWebhookUrl: "",
       instanceId: "",
+      maxUsers: 10,
       active: true,
     },
   });
@@ -290,6 +293,7 @@ export default function ServerManagementPage() {
       schedulingWebhookUrl: server.schedulingWebhookUrl || "",
       crmWebhookUrl: server.crmWebhookUrl || "",
       instanceId: server.instanceId || "",
+      maxUsers: server.maxUsers || 10,
       active: server.active === null ? true : server.active,
     });
   };
