@@ -571,3 +571,50 @@ export type InsertWhatsappContact = z.infer<typeof insertWhatsappContactSchema>;
 
 export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
 export type InsertWhatsappMessage = z.infer<typeof insertWhatsappMessageSchema>;
+
+// Tabela para servidores (N8N, Evolution API, etc)
+export const servers = pgTable("servers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  ipAddress: text("ip_address").notNull(),
+  provider: text("provider").notNull(), // ex: 'n8n', 'evolutionapi'
+  apiUrl: text("api_url").notNull(),
+  apiToken: text("api_token"),
+  webhookUrl: text("webhook_url"),
+  instanceId: text("instance_id"), // Para servidores Evolution API
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Relação entre usuários e servidores
+export const userServers = pgTable("user_servers", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  serverId: integer("server_id").notNull().references(() => servers.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Schemas para inserção
+export const insertServerSchema = createInsertSchema(servers).pick({
+  name: true,
+  ipAddress: true,
+  provider: true,
+  apiUrl: true,
+  apiToken: true,
+  webhookUrl: true,
+  instanceId: true,
+  active: true,
+});
+
+export const insertUserServerSchema = createInsertSchema(userServers).pick({
+  userId: true,
+  serverId: true,
+});
+
+// Types
+export type Server = typeof servers.$inferSelect;
+export type InsertServer = z.infer<typeof insertServerSchema>;
+
+export type UserServer = typeof userServers.$inferSelect;
+export type InsertUserServer = z.infer<typeof insertUserServerSchema>;
