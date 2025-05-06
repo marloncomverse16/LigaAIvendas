@@ -123,9 +123,12 @@ export async function syncMessages(userId: number, contactId: number) {
     }
     
     // Buscar mensagens da Evolution API
-    // Corrigir formato da URL para evitar barras duplicadas
+    // Corrigir formato da URL e garantir que temos o caminho manager
     const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
-    const path = `/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`.replace(/^\/+/, "");
+    
+    // Verificar se a URL já contém 'manager', senão adicionar
+    const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
+    const path = `${managerPath}/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`.replace(/^\/+/, "");
     const fullUrl = `${baseUrl}/${path}`;
     
     console.log(`Sincronizando mensagens da Evolution API: ${fullUrl}`);
@@ -495,9 +498,12 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
-            // Remover barras extras da URL para evitar problemas com caminhos duplicados
+            // Remover barras extras e garantir que temos o caminho correto incluindo 'manager'
             const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
-            const path = `/instances/${user.whatsappInstanceId}/status`.replace(/^\/+/, "");
+            
+            // Verificar se a URL já contém 'manager', senão adicionar
+            const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
+            const path = `${managerPath}/instances/${user.whatsappInstanceId}/status`.replace(/^\/+/, "");
             const fullUrl = `${baseUrl}/${path}`;
             
             console.log(`Conectando à Evolution API: ${fullUrl}`);
@@ -522,8 +528,10 @@ export function setupWebSocketServer(server: HttpServer) {
             // Se não estiver conectado, iniciar processo de conexão
             if (!status.connected) {
               // Iniciar conexão com QR code
-              // Corrigir formato da URL para evitar barras duplicadas
-              const connectPath = `/instances/${user.whatsappInstanceId}/connect`.replace(/^\/+/, "");
+              // Corrigir formato da URL e garantir que temos o caminho manager
+              // Verificar se a URL já contém 'manager', senão adicionar
+              const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
+              const connectPath = `${managerPath}/instances/${user.whatsappInstanceId}/connect`.replace(/^\/+/, "");
               const connectUrl = `${baseUrl}/${connectPath}`;
               
               console.log(`Iniciando conexão com a Evolution API: ${connectUrl}`);
@@ -573,9 +581,12 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
-            // Remover barras extras da URL para evitar problemas com caminhos duplicados
+            // Remover barras extras e garantir que temos o caminho correto incluindo 'manager'
             const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
-            const path = `/instances/${user.whatsappInstanceId}/logout`.replace(/^\/+/, "");
+            
+            // Verificar se a URL já contém 'manager', senão adicionar
+            const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
+            const path = `${managerPath}/instances/${user.whatsappInstanceId}/logout`.replace(/^\/+/, "");
             const fullUrl = `${baseUrl}/${path}`;
             
             console.log(`Desconectando da Evolution API: ${fullUrl}`);
