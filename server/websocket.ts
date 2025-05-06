@@ -607,14 +607,18 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           // Primeiro buscar servidores do usuário para obter credenciais
-          const userServer = await storage.getUserServer(userId);
-          if (!userServer || !userServer.server || !userServer.server.apiUrl || !userServer.server.apiToken) {
+          const userServers = await storage.getUserServers(userId);
+          if (!userServers || userServers.length === 0 || !userServers[0].server || 
+              !userServers[0].server.apiUrl || !userServers[0].server.apiToken) {
             ws.send(JSON.stringify({ 
               type: 'connection_error', 
               error: 'Servidor não configurado. Configure um servidor com API Evolution.' 
             }));
             return;
           }
+          
+          // Selecionar o primeiro servidor ativo
+          const userServer = userServers[0];
           
           try {
             console.log(`Tentando criar instância para o usuário ${user.username}`);
