@@ -236,22 +236,22 @@ export default function ConnectionPage() {
                         
                         {/* Exibindo o QR code */}
                         {status.qrCode ? (
-                          <img 
-                            src={status.qrCode.startsWith('data:') 
-                              ? status.qrCode 
-                              : `data:image/png;base64,${status.qrCode}`} 
-                            alt="QR Code" 
-                            className="w-full h-full"
-                            onError={(e) => {
-                              console.error("Erro ao carregar QR code:", status.qrCode?.substring(0, 100));
-                              toast({
-                                title: "Erro ao carregar QR code",
-                                description: "Verifique se a URL do webhook está configurada corretamente nas configurações de usuário",
-                                variant: "destructive",
-                              });
-                              e.currentTarget.src = "data:image/png;base64,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";
-                            }}
-                          />
+                          <div>
+                            <img 
+                              src={status.qrCode} 
+                              alt="QR Code" 
+                              className="w-full h-full"
+                              onError={(e) => {
+                                console.error("Erro ao carregar QR code:", status.qrCode?.substring(0, 100));
+                                toast({
+                                  title: "Erro ao carregar QR code",
+                                  description: "Verifique se a URL do webhook está configurada corretamente nas configurações de usuário",
+                                  variant: "destructive",
+                                });
+                                e.currentTarget.src = "data:image/png;base64,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";
+                              }}
+                            />
+                          </div>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
                             <p className="text-gray-500 dark:text-gray-400 text-sm">
