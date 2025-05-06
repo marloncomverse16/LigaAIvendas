@@ -15,6 +15,7 @@ import ChatPage from "@/pages/chat-page";
 import MessageSendingPage from "@/pages/message-sending-page";
 import AdminUsersPage from "@/pages/admin-users-page";
 import UserPermissionsPage from "@/pages/user-permissions-page";
+import ServerManagementPage from "@/pages/server-management-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 
@@ -32,6 +33,7 @@ function Router() {
       <ProtectedRoute path="/message-sending" component={MessageSendingPage} />
       <ProtectedRoute path="/admin-users" component={AdminUsersPage} />
       <ProtectedRoute path="/admin-users/permissions/:userId" component={UserPermissionsPage} />
+      <ProtectedRoute path="/servers" component={ServerManagementPage} />
       <Route component={NotFound} />
     </Switch>
   );

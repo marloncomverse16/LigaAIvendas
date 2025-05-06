@@ -1772,6 +1772,214 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rotas de Servidores
+  app.get("/api/servers", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Verificar se o usuário é admin
+      if (!req.user.isAdmin) {
+        // Se não for admin, retornar apenas os servidores associados a este usuário
+        const servers = await storage.getUserServers(req.user.id);
+        return res.json(servers);
+      }
+      
+      // Se for admin, retornar todos os servidores
+      const servers = await storage.getAllServers();
+      res.json(servers);
+    } catch (error) {
+      console.error("Erro ao buscar servidores:", error);
+      res.status(500).json({ message: "Erro ao buscar servidores" });
+    }
+  });
+  
+  app.get("/api/servers/active", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const servers = await storage.getActiveServers();
+      res.json(servers);
+    } catch (error) {
+      console.error("Erro ao buscar servidores ativos:", error);
+      res.status(500).json({ message: "Erro ao buscar servidores ativos" });
+    }
+  });
+  
+  app.get("/api/servers/provider/:provider", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const provider = req.params.provider;
+      const servers = await storage.getServersByProvider(provider);
+      res.json(servers);
+    } catch (error) {
+      console.error(`Erro ao buscar servidores do provedor ${req.params.provider}:`, error);
+      res.status(500).json({ message: `Erro ao buscar servidores do provedor ${req.params.provider}` });
+    }
+  });
+  
+  app.get("/api/servers/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const id = parseInt(req.params.id);
+      const server = await storage.getServerById(id);
+      
+      if (!server) {
+        return res.status(404).json({ message: "Servidor não encontrado" });
+      }
+      
+      // Verificar se o usuário é admin ou se o servidor está associado ao usuário
+      if (!req.user.isAdmin) {
+        const userServers = await storage.getUserServers(req.user.id);
+        const isUserServer = userServers.some(s => s.id === id);
+        
+        if (!isUserServer) {
+          return res.status(403).json({ message: "Acesso negado a este servidor" });
+        }
+      }
+      
+      res.json(server);
+    } catch (error) {
+      console.error(`Erro ao buscar servidor ${req.params.id}:`, error);
+      res.status(500).json({ message: `Erro ao buscar servidor` });
+    }
+  });
+  
+  app.post("/api/servers", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Verificar se o usuário é admin
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: "Apenas administradores podem criar servidores" });
+    }
+    
+    try {
+      const serverData = insertServerSchema.parse(req.body);
+      const newServer = await storage.createServer(serverData);
+      res.status(201).json(newServer);
+    } catch (error) {
+      console.error("Erro ao criar servidor:", error);
+      res.status(500).json({ message: "Erro ao criar servidor" });
+    }
+  });
+  
+  app.put("/api/servers/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Verificar se o usuário é admin
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: "Apenas administradores podem atualizar servidores" });
+    }
+    
+    try {
+      const id = parseInt(req.params.id);
+      const serverData = req.body;
+      
+      const updatedServer = await storage.updateServer(id, serverData);
+      
+      if (!updatedServer) {
+        return res.status(404).json({ message: "Servidor não encontrado" });
+      }
+      
+      res.json(updatedServer);
+    } catch (error) {
+      console.error(`Erro ao atualizar servidor ${req.params.id}:`, error);
+      res.status(500).json({ message: "Erro ao atualizar servidor" });
+    }
+  });
+  
+  app.delete("/api/servers/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Verificar se o usuário é admin
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: "Apenas administradores podem excluir servidores" });
+    }
+    
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteServer(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Servidor não encontrado" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error(`Erro ao excluir servidor ${req.params.id}:`, error);
+      res.status(500).json({ message: "Erro ao excluir servidor" });
+    }
+  });
+  
+  // Rotas de associação de usuário com servidor
+  app.get("/api/user-servers", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userServers = await storage.getUserServers(req.user.id);
+      res.json(userServers);
+    } catch (error) {
+      console.error("Erro ao buscar servidores do usuário:", error);
+      res.status(500).json({ message: "Erro ao buscar servidores do usuário" });
+    }
+  });
+  
+  app.post("/api/user-servers", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Verificar se o usuário é admin
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: "Apenas administradores podem associar servidores a usuários" });
+    }
+    
+    try {
+      const { userId, serverId } = req.body;
+      
+      if (!userId || !serverId) {
+        return res.status(400).json({ message: "userId e serverId são obrigatórios" });
+      }
+      
+      const userServer = await storage.addUserServer(userId, serverId);
+      
+      if (!userServer) {
+        return res.status(400).json({ message: "Não foi possível adicionar o servidor ao usuário" });
+      }
+      
+      res.status(201).json(userServer);
+    } catch (error) {
+      console.error("Erro ao adicionar servidor ao usuário:", error);
+      res.status(500).json({ message: "Erro ao adicionar servidor ao usuário" });
+    }
+  });
+  
+  app.delete("/api/user-servers/:serverId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    const serverId = parseInt(req.params.serverId);
+    
+    try {
+      // Usuários não-admin só podem remover seus próprios servidores
+      let userId = req.user.id;
+      
+      // Se for um admin e especificou userId no query, pode remover de qualquer usuário
+      if (req.user.isAdmin && req.query.userId) {
+        userId = parseInt(req.query.userId as string);
+      }
+      
+      const success = await storage.removeUserServer(userId, serverId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Associação não encontrada" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error(`Erro ao remover servidor ${req.params.serverId} do usuário:`, error);
+      res.status(500).json({ message: "Erro ao remover servidor do usuário" });
+    }
+  });
+  
   // Configure HTTP server
   const httpServer = createServer(app);
   
