@@ -1936,9 +1936,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const serverId = parseInt(req.params.serverId);
+      console.log(`Buscando usuários para o servidor ${serverId} (admin: ${req.user.isAdmin})`);
       
       // Buscar usuários do servidor com informações completas
       const serverUsers = await storage.getServerUsers(serverId);
+      console.log(`Encontrados ${serverUsers.length} usuários associados ao servidor ${serverId}`);
       
       res.json(serverUsers);
     } catch (error) {

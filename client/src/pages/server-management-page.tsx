@@ -120,10 +120,16 @@ export default function ServerManagementPage() {
     queryKey: ["/api/user-servers", selectedServer?.id],
     queryFn: async () => {
       if (!selectedServer) return [];
-      const res = await apiRequest("GET", `/api/user-servers/${selectedServer.id}`);
-      const data = await res.json();
-      console.log("Usuários do servidor:", data);
-      return data;
+      console.log("Buscando usuários para o servidor:", selectedServer.id);
+      try {
+        const res = await apiRequest("GET", `/api/user-servers/${selectedServer.id}`);
+        const data = await res.json();
+        console.log("Usuários do servidor retornados:", data);
+        return data;
+      } catch (error) {
+        console.error("Erro ao buscar usuários do servidor:", error);
+        return [];
+      }
     },
     enabled: !!selectedServer && userServerDialogOpen,
   });
