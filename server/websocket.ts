@@ -474,9 +474,14 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
+            // Remover barras extras da URL para evitar // na solicitação
+            const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+            
+            console.log(`Conectando à Evolution API: ${baseUrl}/instances/${user.whatsappInstanceId}/status`);
+            
             // Verificar status atual da instância
             const response = await axios.get(
-              `${user.whatsappApiUrl}/instances/${user.whatsappInstanceId}/status`,
+              `${baseUrl}/instances/${user.whatsappInstanceId}/status`,
               { 
                 headers: { 
                   Authorization: `Bearer ${user.whatsappApiToken}` 
@@ -494,8 +499,10 @@ export function setupWebSocketServer(server: HttpServer) {
             // Se não estiver conectado, iniciar processo de conexão
             if (!status.connected) {
               // Iniciar conexão com QR code
+              console.log(`Iniciando conexão com a Evolution API: ${baseUrl}/instances/${user.whatsappInstanceId}/connect`);
+              
               const connectResponse = await axios.post(
-                `${user.whatsappApiUrl}/instances/${user.whatsappInstanceId}/connect`,
+                `${baseUrl}/instances/${user.whatsappInstanceId}/connect`,
                 {},
                 { 
                   headers: { 
@@ -539,9 +546,14 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
+            // Remover barras extras da URL para evitar // na solicitação
+            const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+            
+            console.log(`Desconectando da Evolution API: ${baseUrl}/instances/${user.whatsappInstanceId}/logout`);
+            
             // Fazer logout da instância
             const response = await axios.post(
-              `${user.whatsappApiUrl}/instances/${user.whatsappInstanceId}/logout`,
+              `${baseUrl}/instances/${user.whatsappInstanceId}/logout`,
               {},
               { 
                 headers: { 
