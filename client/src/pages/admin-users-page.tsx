@@ -279,38 +279,60 @@ export default function AdminUsersPage() {
 
     // Se houve mudança no servidor, fazer uma chamada separada para associar o servidor
     if (formValues.serverId !== currentUser.serverId) {
-      // Se o servidor anterior existe, remover a associação
-      if (currentUser.serverId) {
-        apiRequest("DELETE", `/api/user-servers/${currentUser.serverId}?userId=${currentUser.id}`)
-          .then(() => {
-            console.log("Associação anterior removida com sucesso");
-          })
-          .catch((error) => {
-            console.error("Erro ao remover associação anterior:", error);
-          });
-      }
-      
-      // Se um novo servidor foi selecionado, criar a associação
-      if (formValues.serverId) {
-        apiRequest("POST", "/api/user-servers", { 
-          userId: currentUser.id, 
-          serverId: formValues.serverId 
-        }).then(() => {
-          toast({
-            title: "Servidor associado com sucesso",
-            description: "O usuário foi associado ao servidor selecionado.",
-          });
+      // Buscar a relação atual do usuário com servidores (pode haver várias)
+      const getUserServerRelations = async () => {
+        try {
+          const res = await apiRequest("GET", `/api/user-servers/user/${currentUser.id}`);
+          const userServerRelations = await res.json();
+          console.log("Relações atuais do usuário:", userServerRelations);
           
-          // Invalidar consultas para atualizar listas
+          // Remover todas as associações existentes
+          if (userServerRelations && userServerRelations.length > 0) {
+            for (const relation of userServerRelations) {
+              await apiRequest("DELETE", `/api/user-servers/relation/${relation.id}`);
+              console.log(`Removida relação ${relation.id} do usuário ${currentUser.id} com servidor ${relation.serverId}`);
+            }
+            console.log("Associações anteriores removidas com sucesso");
+          }
+          
+          // Se um novo servidor foi selecionado, criar a associação
+          if (formValues.serverId) {
+            await apiRequest("POST", "/api/user-servers", { 
+              userId: currentUser.id, 
+              serverId: formValues.serverId 
+            });
+            
+            console.log(`Usuário ${currentUser.id} associado ao servidor ${formValues.serverId}`);
+            
+            toast({
+              title: "Servidor associado com sucesso",
+              description: "O usuário foi associado ao servidor selecionado.",
+            });
+          }
+          
+          // Invalidar todas as consultas necessárias para atualizar os dados em ambas as páginas
           queryClient.invalidateQueries({ queryKey: ["/api/user-servers"] });
-        }).catch((error) => {
+          queryClient.invalidateQueries({ queryKey: ["/api/servers/users-count"] });
+          // Para invalidar queries específicas de servidor, incluindo a nova
+          if (formValues.serverId) {
+            queryClient.invalidateQueries({ queryKey: ["/api/user-servers", formValues.serverId] });
+          }
+          // Para invalidar queries específicas da relação anterior
+          if (currentUser.serverId) {
+            queryClient.invalidateQueries({ queryKey: ["/api/user-servers", currentUser.serverId] });
+          }
+          
+        } catch (error) {
+          console.error("Erro ao gerenciar associações de servidor:", error);
           toast({
-            title: "Erro ao associar servidor",
-            description: error.message || "Ocorreu um erro ao associar o servidor ao usuário.",
+            title: "Erro ao gerenciar servidores",
+            description: "Ocorreu um erro ao atualizar as associações de servidor.",
             variant: "destructive",
           });
-        });
-      }
+        }
+      };
+      
+      getUserServerRelations();
     }
 
     updateUserMutation.mutate({ id: currentUser.id, userData });
