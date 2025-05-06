@@ -1936,6 +1936,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, serverId } = req.body;
       
+      console.log("Recebido na API /api/user-servers:", { userId, serverId, body: req.body });
+      
       if (!userId || !serverId) {
         return res.status(400).json({ message: "userId e serverId são obrigatórios" });
       }
@@ -1944,19 +1946,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userServer = await storage.addUserServer(userId, serverId);
       
       if (!userServer) {
+        console.error("Não foi possível adicionar o servidor ao usuário");
         return res.status(400).json({ message: "Não foi possível adicionar o servidor ao usuário" });
       }
+      
+      console.log("Servidor adicionado à associação user_servers:", userServer);
       
       // Atualizar o campo serverId do usuário
       const updatedUser = await storage.updateUserServerId(userId, serverId);
       
       if (!updatedUser) {
         console.error("Servidor associado à tabela user_servers, mas não foi possível atualizar o serverId do usuário");
+      } else {
+        console.log("Campo serverId do usuário atualizado:", updatedUser.serverId);
       }
       
       res.status(201).json({
         userServer,
-        userUpdated: !!updatedUser
+        userUpdated: !!updatedUser,
+        user: updatedUser
       });
     } catch (error) {
       console.error("Erro ao adicionar servidor ao usuário:", error);
