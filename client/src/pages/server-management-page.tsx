@@ -246,6 +246,29 @@ export default function ServerManagementPage() {
       });
     },
   });
+  
+  // Mutação para selecionar um servidor como padrão do usuário
+  const selectServerMutation = useMutation({
+    mutationFn: async (serverId: number) => {
+      const res = await apiRequest("POST", "/api/user/select-server", { serverId });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Servidor selecionado como padrão",
+        description: "Este servidor agora é o seu servidor padrão para todas as operações.",
+      });
+      // Atualiza os dados do usuário
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao selecionar servidor",
+        description: error.message || "Ocorreu um erro ao selecionar o servidor como padrão",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Função para abrir o modal de edição com os dados do servidor selecionado
   const handleEditServer = (server: Server) => {
@@ -409,6 +432,28 @@ export default function ServerManagementPage() {
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   <p>Editar servidor</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant={user?.serverId === server.id ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => selectServerMutation.mutate(server.id)}
+                                    disabled={selectServerMutation.isPending}
+                                  >
+                                    {selectServerMutation.isPending ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <CheckCircle2 className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{user?.serverId === server.id ? "Servidor padrão atual" : "Selecionar como servidor padrão"}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
