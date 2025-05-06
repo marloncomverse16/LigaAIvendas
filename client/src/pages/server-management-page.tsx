@@ -93,6 +93,12 @@ export default function ServerManagementPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userServerDialogOpen, setUserServerDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  
+  // Estados para filtros
+  const [nameFilter, setNameFilter] = useState("");
+  const [ipFilter, setIpFilter] = useState("");
+  const [providerFilter, setProviderFilter] = useState("");
+  const [showWithVacanciesOnly, setShowWithVacanciesOnly] = useState(false);
 
   // Busca todos os servidores
   const { data: servers, isLoading } = useQuery<Server[]>({
@@ -404,6 +410,40 @@ export default function ServerManagementPage() {
     return serverUsers.length >= selectedServer.maxUsers;
   };
 
+  // Função para filtrar servidores com múltiplos critérios
+  const filterServers = (servers: Server[] = []) => {
+    // Primeiro aplicamos o filtro por guia
+    let filteredServers = filterServersByTab(servers);
+    
+    // Então aplicamos os filtros adicionais
+    if (nameFilter) {
+      filteredServers = filteredServers.filter(server => 
+        server.name.toLowerCase().includes(nameFilter.toLowerCase())
+      );
+    }
+    
+    if (ipFilter) {
+      filteredServers = filteredServers.filter(server => 
+        server.ipAddress.toLowerCase().includes(ipFilter.toLowerCase())
+      );
+    }
+    
+    if (providerFilter) {
+      filteredServers = filteredServers.filter(server => 
+        server.provider.toLowerCase().includes(providerFilter.toLowerCase())
+      );
+    }
+    
+    if (showWithVacanciesOnly) {
+      filteredServers = filteredServers.filter(server => {
+        const userCount = serverUsersCountMap[server.id] || 0;
+        return userCount < (server.maxUsers || 10);
+      });
+    }
+    
+    return filteredServers;
+  };
+
   const filterServersByTab = (servers: Server[] = []) => {
     switch (selectedTab) {
       case "evolution":
@@ -488,7 +528,7 @@ export default function ServerManagementPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filterServersByTab(servers).map((server) => (
+                    {filterServers(servers).map((server) => (
                       <TableRow key={server.id}>
                         <TableCell className="font-medium">{server.name}</TableCell>
                         <TableCell>{server.ipAddress}</TableCell>
