@@ -24,7 +24,7 @@ import createMemoryStore from "memorystore";
 import connectPg from "connect-pg-simple";
 import pg from "pg";
 import { db } from "./db";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, inArray } from "drizzle-orm";
 
 const MemoryStore = createMemoryStore(session);
 const PostgresSessionStore = connectPg(session);
@@ -1323,14 +1323,47 @@ export class MemStorage implements IStorage {
   }
 
   // UserServer methods
-  async getUserServers(userId: number): Promise<(Server & { id: number })[]> {
-    const userServerIds = Array.from(this.userServers.values())
-      .filter(us => us.userId === userId)
-      .map(us => us.serverId);
+  async getUserServers(userId: number): Promise<any[]> {
+    try {
+      console.log(`Buscando relações de servidor para o usuário ${userId}`);
       
-    return Array.from(this.servers.values())
-      .filter(server => userServerIds.includes(server.id))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      // Obter todas as relações deste usuário com servidores
+      const relations = await db
+        .select()
+        .from(userServers)
+        .where(eq(userServers.userId, userId));
+        
+      console.log(`Encontradas ${relations.length} relações para o usuário ${userId}`);
+      
+      if (!relations || relations.length === 0) {
+        return [];
+      }
+      
+      // Obter IDs dos servidores
+      const serverIds = relations.map(r => r.serverId);
+      
+      // Buscar informações completas de cada servidor
+      const serverList = await db
+        .select()
+        .from(servers)
+        .where(inArray(servers.id, serverIds));
+      
+      console.log(`Servidores encontrados: ${serverList.length}`);
+      
+      // Combinar relações com servidores
+      const result = relations.map(relation => {
+        const serverInfo = serverList.find(s => s.id === relation.serverId);
+        return {
+          ...relation,
+          server: serverInfo || null
+        };
+      });
+      
+      return result;
+    } catch (error) {
+      console.error(`Erro ao buscar servidores do usuário ${userId}:`, error);
+      return [];
+    }
   }
 
   async addUserServer(userId: number, serverId: number): Promise<UserServer | undefined> {
@@ -2703,43 +2736,47 @@ export class DatabaseStorage implements IStorage {
   async getServerUsers(serverId: number): Promise<any[]> {
     try {
       // Buscar as relações usuário-servidor para o servidor específico
-      const query = db.select()
+      const relations = await db
+        .select()
         .from(userServers)
         .where(eq(userServers.serverId, serverId));
       
-      console.log(`Executando consulta para servidor ${serverId}:`, query.toSQL());
-      
-      const relations = await query;
-      console.log(`Relações encontradas para o servidor ${serverId}:`, relations);
+      console.log(`Relações encontradas para o servidor ${serverId}:`, relations.length);
       
       if (!relations || relations.length === 0) {
         return [];
       }
       
-      // Buscar informações completas de cada usuário
-      const userDetails = await Promise.all(
-        relations.map(async (relation) => {
-          console.log(`Buscando detalhes do usuário ${relation.userId}`);
-          const user = await this.getUser(relation.userId);
-          console.log(`Usuário ${relation.userId} encontrado:`, user ? "sim" : "não");
-          
-          return {
-            id: relation.id,
-            userId: relation.userId, 
-            serverId: relation.serverId,
-            createdAt: relation.createdAt,
-            user: user ? {
-              id: user.id,
-              name: user.name,
-              username: user.username,
-              email: user.email,
-              // Não incluir senha e outras informações sensíveis
-            } : null
-          };
-        })
-      );
+      // Obter IDs dos usuários
+      const userIds = relations.map(r => r.userId);
       
-      console.log(`Detalhes dos usuários do servidor ${serverId}:`, userDetails);
+      // Buscar informações completas de cada usuário em uma única consulta
+      const usersList = await db
+        .select()
+        .from(users)
+        .where(inArray(users.id, userIds));
+      
+      console.log(`Usuários encontrados: ${usersList.length}`);
+      
+      // Combinar relações com usuários
+      const userDetails = relations.map(relation => {
+        const userInfo = usersList.find(u => u.id === relation.userId);
+        
+        return {
+          id: relation.id,
+          userId: relation.userId,
+          serverId: relation.serverId,
+          createdAt: relation.createdAt,
+          user: userInfo ? {
+            id: userInfo.id,
+            name: userInfo.name,
+            username: userInfo.username,
+            email: userInfo.email
+            // Não incluir senha e outras informações sensíveis
+          } : null
+        };
+      });
+      
       return userDetails;
     } catch (error) {
       console.error(`Erro ao buscar usuários do servidor ${serverId}:`, error);
