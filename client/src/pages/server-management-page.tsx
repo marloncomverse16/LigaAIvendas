@@ -490,6 +490,53 @@ export default function ServerManagementPage() {
         )}
       </div>
 
+      {/* Barra de filtros */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label htmlFor="nameFilter" className="text-sm font-medium mb-2 block">Nome do Servidor</label>
+              <Input
+                id="nameFilter"
+                placeholder="Filtrar por nome"
+                value={nameFilter}
+                onChange={(e) => setNameFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="ipFilter" className="text-sm font-medium mb-2 block">Endereço IP</label>
+              <Input
+                id="ipFilter"
+                placeholder="Filtrar por IP"
+                value={ipFilter}
+                onChange={(e) => setIpFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="providerFilter" className="text-sm font-medium mb-2 block">Provedor</label>
+              <Input
+                id="providerFilter"
+                placeholder="Filtrar por provedor"
+                value={providerFilter}
+                onChange={(e) => setProviderFilter(e.target.value)}
+              />
+            </div>
+            <div className="flex items-end">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="showWithVacanciesOnly"
+                  checked={showWithVacanciesOnly}
+                  onCheckedChange={setShowWithVacanciesOnly}
+                />
+                <label htmlFor="showWithVacanciesOnly" className="text-sm font-medium">
+                  Apenas com vagas disponíveis
+                </label>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="all" className="w-full" onValueChange={setSelectedTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="all">Todos</TabsTrigger>
