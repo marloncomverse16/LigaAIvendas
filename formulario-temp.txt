@@ -1,0 +1,112 @@
+// Formulário para criar servidor
+<FormField
+  control={form.control}
+  name="name"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Nome do Servidor</FormLabel>
+      <FormControl>
+        <Input placeholder="Ex: Servidor Principal" {...field} />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+
+<div className="grid grid-cols-2 gap-4">
+  <FormField
+    control={form.control}
+    name="ipAddress"
+    render={({ field }) => (
+      <FormItem>
+        <FormLabel>Endereço IP</FormLabel>
+        <FormControl>
+          <Input placeholder="Ex: 192.168.1.1" {...field} />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    )}
+  />
+  
+  <FormField
+    control={form.control}
+    name="provider"
+    render={({ field }) => (
+      <FormItem>
+        <FormLabel>Provedor</FormLabel>
+        <FormControl>
+          <Input placeholder="Ex: Provedor de API" {...field} />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    )}
+  />
+</div>
+
+<FormField
+  control={form.control}
+  name="apiUrl"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>URL da API</FormLabel>
+      <FormControl>
+        <Input placeholder="Ex: https://api.example.com" {...field} />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+
+<FormField
+  control={form.control}
+  name="apiToken"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Token da API</FormLabel>
+      <FormControl>
+        <Input placeholder="Token de autenticação da API" {...field} />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+
+<FormField
+  control={form.control}
+  name="maxUsers"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel className="font-bold text-primary">Quantidade Máxima de Usuários</FormLabel>
+      <FormControl>
+        <Input type="number" min="1" placeholder="Ex: 10" {...field} />
+      </FormControl>
+      <FormMessage />
+      <FormDescription>
+        Quantos usuários podem se conectar a este servidor simultaneamente.
+      </FormDescription>
+    </FormItem>
+  )}
+/>
+
+<FormField
+  control={form.control}
+  name="active"
+  render={({ field }) => (
+    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+      <FormControl>
+        <Checkbox
+          checked={field.value}
+          onCheckedChange={field.onChange}
+        />
+      </FormControl>
+      <div className="space-y-1 leading-none">
+        <FormLabel>
+          Ativo
+        </FormLabel>
+        <FormDescription>
+          Se ativado, este servidor estará disponível para uso.
+        </FormDescription>
+      </div>
+    </FormItem>
+  )}
+/>
