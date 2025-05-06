@@ -860,10 +860,43 @@ export function setupWebSocketServer(server: HttpServer) {
                      (formattedQrCode.includes('<!doctype html>') || 
                       formattedQrCode.includes('<html>'))) {
                     console.log("QR Code contém HTML, enviando mensagem de erro");
+                    console.log("Detalhes do problema: A API Evolution está retornando HTML em vez de um QR code válido.");
+                    console.log("Isso geralmente acontece quando:");
+                    console.log("1. A instância já existe mas está em estado inválido");
+                    console.log("2. O token de autorização está incorreto ou não tem permissões suficientes");
+                    console.log("3. A URL do webhook configurada não está acessível");
+                    
+                    // Verificar se o HTML contém mensagens de erro específicas da Evolution API
+                    if (formattedQrCode.includes('Connection Error') || 
+                        formattedQrCode.includes('Error 403') ||
+                        formattedQrCode.includes('Forbidden')) {
+                      console.log("Detectada mensagem de erro 403/Forbidden na resposta");
+                      ws.send(JSON.stringify({
+                        type: 'connection_error',
+                        data: {
+                          message: 'Erro de autorização na API Evolution. Verifique o token de API.'
+                        }
+                      }));
+                      return;
+                    }
+                    
+                    if (formattedQrCode.includes('Error 404') ||
+                        formattedQrCode.includes('Not Found')) {
+                      console.log("Detectada mensagem 404/Not Found na resposta");
+                      ws.send(JSON.stringify({
+                        type: 'connection_error',
+                        data: {
+                          message: 'Instância não encontrada na API Evolution. Verifique o nome da instância ou crie uma nova.'
+                        }
+                      }));
+                      return;
+                    }
+                    
+                    // Mensagem padrão se não for um erro específico conhecido
                     ws.send(JSON.stringify({
                       type: 'connection_error',
                       data: {
-                        message: 'Erro na conexão com o servidor WhatsApp. Verifique a configuração do webhook.'
+                        message: 'Erro na conexão com o servidor WhatsApp. Verifique a configuração do webhook e o token da API.'
                       }
                     }));
                     return;
