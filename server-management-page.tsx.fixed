@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,7 +19,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, MinusCircle, PlusCircle, RefreshCw, Search, X } from "lucide-react";
+import { CrossCircledIcon, MagnifyingGlassIcon, MinusCircledIcon, PlusCircledIcon, ReloadIcon } from "@radix-ui/react-icons";
+import { Search } from "lucide-react";
 import { format } from "date-fns";
 
 // Esquema para o formulário do servidor
@@ -699,7 +700,7 @@ export default function ServerManagementPage() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={createServerMutation.isPending}>
-                  {createServerMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  {createServerMutation.isPending && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
                   Criar Servidor
                 </Button>
               </DialogFooter>
@@ -944,7 +945,7 @@ export default function ServerManagementPage() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={updateServerMutation.isPending}>
-                  {updateServerMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  {updateServerMutation.isPending && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
                   Salvar Alterações
                 </Button>
               </DialogFooter>
@@ -1006,7 +1007,7 @@ export default function ServerManagementPage() {
                 <ScrollArea className="h-[300px] rounded-md border p-2">
                   {isLoadingServerUsers ? (
                     <div className="flex items-center justify-center h-full">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <ReloadIcon className="h-6 w-6 animate-spin text-primary" />
                     </div>
                   ) : serverUsers?.length ? (
                     <div className="space-y-2">
