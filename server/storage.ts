@@ -302,6 +302,22 @@ export class MemStorage implements IStorage {
       this.aiAgentFaqs.delete(faq.id);
     }
     
+    // Message Templates
+    const messageTemplates = await this.getMessageTemplates(id);
+    for (const template of messageTemplates) {
+      this.messageTemplates.delete(template.id);
+    }
+    
+    // Message Sendings e History
+    const messageSendings = await this.getMessageSendings(id);
+    for (const sending of messageSendings) {
+      const history = await this.getMessageSendingHistory(sending.id);
+      for (const entry of history) {
+        this.messageSendingHistory.delete(entry.id);
+      }
+      this.messageSendings.delete(sending.id);
+    }
+    
     return true;
   }
   
@@ -1712,6 +1728,20 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  async updateProspectingDispatchHistory(id: number, historyData: any): Promise<any> {
+    try {
+      const [updatedRecord] = await db
+        .update(prospectingDispatchHistory)
+        .set(historyData)
+        .where(eq(prospectingDispatchHistory.id, id))
+        .returning();
+      return updatedRecord;
+    } catch (error) {
+      console.error("Erro ao atualizar histórico de envio:", error);
+      throw error;
+    }
+  }
+  
   async getAllUsers(): Promise<User[]> {
     try {
       const allUsers = await db
@@ -1765,6 +1795,14 @@ export class DatabaseStorage implements IStorage {
       // Configurações
       await db.delete(settings).where(eq(settings.userId, id));
       
+      // Message Templates, Sendings e History
+      const sendings = await db.select().from(messageSendings).where(eq(messageSendings.userId, id));
+      for (const sending of sendings) {
+        await db.delete(messageSendingHistory).where(eq(messageSendingHistory.sendingId, sending.id));
+      }
+      await db.delete(messageSendings).where(eq(messageSendings.userId, id));
+      await db.delete(messageTemplates).where(eq(messageTemplates.userId, id));
+      
       // Finalmente, deletar o usuário
       const result = await db.delete(users).where(eq(users.id, id));
       
@@ -1772,6 +1810,165 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Erro ao deletar usuário:", error);
       return false;
+    }
+  }
+  
+  // Message Template methods
+  async getMessageTemplates(userId: number): Promise<MessageTemplate[]> {
+    try {
+      return db
+        .select()
+        .from(messageTemplates)
+        .where(eq(messageTemplates.userId, userId))
+        .orderBy(messageTemplates.title);
+    } catch (error) {
+      console.error("Erro ao buscar templates de mensagens:", error);
+      return [];
+    }
+  }
+  
+  async getMessageTemplate(id: number): Promise<MessageTemplate | undefined> {
+    try {
+      const [template] = await db
+        .select()
+        .from(messageTemplates)
+        .where(eq(messageTemplates.id, id));
+      return template;
+    } catch (error) {
+      console.error("Erro ao buscar template de mensagem:", error);
+      return undefined;
+    }
+  }
+  
+  async createMessageTemplate(template: InsertMessageTemplate & { userId: number }): Promise<MessageTemplate> {
+    try {
+      const [newTemplate] = await db
+        .insert(messageTemplates)
+        .values(template)
+        .returning();
+      return newTemplate;
+    } catch (error) {
+      console.error("Erro ao criar template de mensagem:", error);
+      throw error;
+    }
+  }
+  
+  async updateMessageTemplate(id: number, templateData: Partial<InsertMessageTemplate>): Promise<MessageTemplate | undefined> {
+    try {
+      const [updatedTemplate] = await db
+        .update(messageTemplates)
+        .set({ ...templateData, updatedAt: new Date() })
+        .where(eq(messageTemplates.id, id))
+        .returning();
+      return updatedTemplate;
+    } catch (error) {
+      console.error("Erro ao atualizar template de mensagem:", error);
+      return undefined;
+    }
+  }
+  
+  async deleteMessageTemplate(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(messageTemplates)
+        .where(eq(messageTemplates.id, id));
+      return result.length > 0;
+    } catch (error) {
+      console.error("Erro ao deletar template de mensagem:", error);
+      return false;
+    }
+  }
+  
+  // Message Sending methods
+  async getMessageSendings(userId: number): Promise<MessageSending[]> {
+    try {
+      return db
+        .select()
+        .from(messageSendings)
+        .where(eq(messageSendings.userId, userId))
+        .orderBy(desc(messageSendings.createdAt));
+    } catch (error) {
+      console.error("Erro ao buscar envios de mensagens:", error);
+      return [];
+    }
+  }
+  
+  async getMessageSending(id: number): Promise<MessageSending | undefined> {
+    try {
+      const [sending] = await db
+        .select()
+        .from(messageSendings)
+        .where(eq(messageSendings.id, id));
+      return sending;
+    } catch (error) {
+      console.error("Erro ao buscar envio de mensagem:", error);
+      return undefined;
+    }
+  }
+  
+  async createMessageSending(sending: InsertMessageSending & { userId: number }): Promise<MessageSending> {
+    try {
+      const [newSending] = await db
+        .insert(messageSendings)
+        .values(sending)
+        .returning();
+      return newSending;
+    } catch (error) {
+      console.error("Erro ao criar envio de mensagem:", error);
+      throw error;
+    }
+  }
+  
+  async updateMessageSending(id: number, sendingData: Partial<InsertMessageSending>): Promise<MessageSending | undefined> {
+    try {
+      const [updatedSending] = await db
+        .update(messageSendings)
+        .set({ ...sendingData, updatedAt: new Date() })
+        .where(eq(messageSendings.id, id))
+        .returning();
+      return updatedSending;
+    } catch (error) {
+      console.error("Erro ao atualizar envio de mensagem:", error);
+      return undefined;
+    }
+  }
+  
+  async deleteMessageSending(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(messageSendings)
+        .where(eq(messageSendings.id, id));
+      return result.length > 0;
+    } catch (error) {
+      console.error("Erro ao deletar envio de mensagem:", error);
+      return false;
+    }
+  }
+  
+  // Message Sending History methods
+  async getMessageSendingHistory(sendingId: number): Promise<MessageSendingHistory[]> {
+    try {
+      return db
+        .select()
+        .from(messageSendingHistory)
+        .where(eq(messageSendingHistory.sendingId, sendingId))
+        .orderBy(desc(messageSendingHistory.sentAt));
+    } catch (error) {
+      console.error("Erro ao buscar histórico de envio de mensagens:", error);
+      return [];
+    }
+  }
+  
+  async createMessageSendingHistory(history: InsertMessageSendingHistory): Promise<MessageSendingHistory> {
+    try {
+      const [newHistory] = await db
+        .insert(messageSendingHistory)
+        .values(history)
+        .returning();
+      return newHistory;
+    } catch (error) {
+      console.error("Erro ao criar histórico de envio de mensagem:", error);
+      throw error;
     }
   }
 }
