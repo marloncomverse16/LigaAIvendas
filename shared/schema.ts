@@ -572,16 +572,24 @@ export type InsertWhatsappContact = z.infer<typeof insertWhatsappContactSchema>;
 export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
 export type InsertWhatsappMessage = z.infer<typeof insertWhatsappMessageSchema>;
 
-// Tabela para servidores (N8N, Evolution API, etc)
+// Tabela para servidores
 export const servers = pgTable("servers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   ipAddress: text("ip_address").notNull(),
-  provider: text("provider").notNull(), // ex: 'n8n', 'evolutionapi'
+  provider: text("provider").notNull(), // Nome personalizado do provedor
   apiUrl: text("api_url").notNull(),
   apiToken: text("api_token"),
-  webhookUrl: text("webhook_url"),
-  instanceId: text("instance_id"), // Para servidores Evolution API
+  
+  // URLs de Webhook específicos para cada funcionalidade
+  whatsappWebhookUrl: text("whatsapp_webhook_url"),
+  aiAgentWebhookUrl: text("ai_agent_webhook_url"),
+  prospectingWebhookUrl: text("prospecting_webhook_url"),
+  contactsWebhookUrl: text("contacts_webhook_url"),
+  schedulingWebhookUrl: text("scheduling_webhook_url"),
+  crmWebhookUrl: text("crm_webhook_url"),
+  
+  instanceId: text("instance_id"), // Para servidores Evolution API (configurado separadamente)
   active: boolean("active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -602,7 +610,12 @@ export const insertServerSchema = createInsertSchema(servers).pick({
   provider: true,
   apiUrl: true,
   apiToken: true,
-  webhookUrl: true,
+  whatsappWebhookUrl: true,
+  aiAgentWebhookUrl: true, 
+  prospectingWebhookUrl: true,
+  contactsWebhookUrl: true,
+  schedulingWebhookUrl: true,
+  crmWebhookUrl: true,
   instanceId: true,
   active: true,
 });

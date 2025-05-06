@@ -46,10 +46,15 @@ import { useAuth } from "@/hooks/use-auth";
 const serverFormSchema = z.object({
   name: z.string().min(3, { message: "O nome deve ter pelo menos 3 caracteres" }),
   ipAddress: z.string().min(1, { message: "O endereço IP é obrigatório" }),
-  provider: z.string().min(1, { message: "O provedor é obrigatório" }),
+  provider: z.string().min(1, { message: "O nome do provedor é obrigatório" }),
   apiUrl: z.string().min(1, { message: "A URL da API é obrigatória" }),
   apiToken: z.string().optional(),
-  webhookUrl: z.string().optional(),
+  whatsappWebhookUrl: z.string().optional(),
+  aiAgentWebhookUrl: z.string().optional(),
+  prospectingWebhookUrl: z.string().optional(),
+  contactsWebhookUrl: z.string().optional(),
+  schedulingWebhookUrl: z.string().optional(),
+  crmWebhookUrl: z.string().optional(),
   instanceId: z.string().optional(),
   active: z.boolean().default(true),
 });
@@ -63,7 +68,12 @@ interface Server {
   provider: string;
   apiUrl: string;
   apiToken: string | null;
-  webhookUrl: string | null;
+  whatsappWebhookUrl: string | null;
+  aiAgentWebhookUrl: string | null;
+  prospectingWebhookUrl: string | null;
+  contactsWebhookUrl: string | null;
+  schedulingWebhookUrl: string | null;
+  crmWebhookUrl: string | null;
   instanceId: string | null;
   active: boolean | null;
   createdAt: string | Date;
@@ -107,10 +117,15 @@ export default function ServerManagementPage() {
     defaultValues: {
       name: "",
       ipAddress: "",
-      provider: "evolution-api",
+      provider: "",
       apiUrl: "",
       apiToken: "",
-      webhookUrl: "",
+      whatsappWebhookUrl: "",
+      aiAgentWebhookUrl: "",
+      prospectingWebhookUrl: "",
+      contactsWebhookUrl: "",
+      schedulingWebhookUrl: "",
+      crmWebhookUrl: "",
       instanceId: "",
       active: true,
     },
@@ -243,7 +258,12 @@ export default function ServerManagementPage() {
       provider: server.provider,
       apiUrl: server.apiUrl,
       apiToken: server.apiToken || "",
-      webhookUrl: server.webhookUrl || "",
+      whatsappWebhookUrl: server.whatsappWebhookUrl || "",
+      aiAgentWebhookUrl: server.aiAgentWebhookUrl || "",
+      prospectingWebhookUrl: server.prospectingWebhookUrl || "",
+      contactsWebhookUrl: server.contactsWebhookUrl || "",
+      schedulingWebhookUrl: server.schedulingWebhookUrl || "",
+      crmWebhookUrl: server.crmWebhookUrl || "",
       instanceId: server.instanceId || "",
       active: server.active === null ? true : server.active,
     });
