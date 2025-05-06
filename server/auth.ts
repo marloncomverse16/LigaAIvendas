@@ -114,6 +114,23 @@ export function setupAuth(app: Express) {
         darkMode: false
       });
       
+      // Atribuir automaticamente a um servidor com capacidade disponível
+      try {
+        const bestServer = await storage.getServerWithLeastUsers(true);
+        if (bestServer) {
+          console.log(`Atribuindo usuário ${user.id} ao servidor ${bestServer.id} (${bestServer.name}) automaticamente`);
+          
+          // Associar usuário ao servidor
+          await storage.addUserServer(user.id, bestServer.id);
+          
+          // Definir como servidor atual do usuário
+          await storage.updateUserServerId(user.id, bestServer.id);
+        }
+      } catch (error) {
+        console.error("Erro ao atribuir servidor automaticamente:", error);
+        // Não impedir o registro se houver erro na atribuição automática
+      }
+      
       // Log in the user
       req.login(user, (err) => {
         if (err) return next(err);

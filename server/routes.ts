@@ -2098,6 +2098,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para atribuir automaticamente um servidor a um usuário
+  app.post("/api/admin/auto-assign-server", isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "userId é obrigatório" });
+      }
+      
+      // Verificar se o usuário existe
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Encontrar o servidor com menos usuários
+      const bestServer = await storage.getServerWithLeastUsers(true);
+      
+      if (!bestServer) {
+        return res.status(404).json({ message: "Nenhum servidor ativo disponível" });
+      }
+      
+      // Verificar se o usuário já está associado a este servidor
+      const userServers = await storage.getUserServers(userId);
+      const alreadyAssociated = userServers.some(server => server.id === bestServer.id);
+      
+      if (!alreadyAssociated) {
+        // Associar usuário ao servidor
+        await storage.addUserServer(userId, bestServer.id);
+      }
+      
+      // Definir como servidor atual do usuário
+      await storage.updateUserServerId(userId, bestServer.id);
+      
+      res.json({
+        message: "Servidor atribuído automaticamente com sucesso",
+        server: {
+          id: bestServer.id,
+          name: bestServer.name,
+          provider: bestServer.provider,
+          ipAddress: bestServer.ipAddress
+        }
+      });
+    } catch (error) {
+      console.error("Erro ao atribuir servidor automaticamente:", error);
+      res.status(500).json({ message: "Erro ao atribuir servidor automaticamente" });
+    }
+  });
+  
   // Configure HTTP server
   const httpServer = createServer(app);
   
