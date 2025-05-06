@@ -489,7 +489,7 @@ export default function ServerManagementPage() {
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p>Usuários Conectados</p>
+                                      <p>Associar a usuário</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
