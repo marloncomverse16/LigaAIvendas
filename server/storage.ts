@@ -2789,6 +2789,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Encontra o servidor com MAIOR ocupação que ainda tenha capacidade disponível
+  // O nome da função é um pouco enganoso - na verdade ele retorna o servidor mais "cheio"
+  // que ainda pode aceitar mais usuários, para maximizar a ocupação e evitar servidores subutilizados
   async getServerWithLeastUsers(onlyActive: boolean = true): Promise<Server | undefined> {
     try {
       // Obter contagem de usuários por servidor

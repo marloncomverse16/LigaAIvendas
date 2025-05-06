@@ -2098,7 +2098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Rota para atribuir automaticamente um servidor a um usuário
+  // Rota para atribuir automaticamente um servidor a um usuário (usa o servidor com MAIOR ocupação)
   app.post("/api/admin/auto-assign-server", isAdmin, async (req, res) => {
     try {
       const { userId } = req.body;
@@ -2113,12 +2113,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
-      // Encontrar o servidor com menos usuários
+      // Encontrar o servidor com a MAIOR ocupação que ainda tenha vagas disponíveis
+      // Nota: apesar do nome "Least", a função retorna o servidor com MAIOR taxa de utilização
       const bestServer = await storage.getServerWithLeastUsers(true);
       
       if (!bestServer) {
         return res.status(404).json({ message: "Nenhum servidor ativo disponível" });
       }
+      
+      console.log(`Auto-associando usuário ${userId} ao servidor ${bestServer.name} (ID: ${bestServer.id})`);
       
       // Verificar se o usuário já está associado a este servidor
       const userServers = await storage.getUserServers(userId);
@@ -2127,10 +2130,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!alreadyAssociated) {
         // Associar usuário ao servidor
         await storage.addUserServer(userId, bestServer.id);
+        console.log(`Adicionada associação entre usuário ${userId} e servidor ${bestServer.id}`);
+      } else {
+        console.log(`Usuário ${userId} já estava associado ao servidor ${bestServer.id}`);
       }
       
       // Definir como servidor atual do usuário
       await storage.updateUserServerId(userId, bestServer.id);
+      console.log(`Servidor ${bestServer.id} definido como atual para o usuário ${userId}`);
       
       res.json({
         message: "Servidor atribuído automaticamente com sucesso",

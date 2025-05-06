@@ -305,30 +305,53 @@ export default function AdminUsersPage() {
       // Criar o usuário primeiro
       const newUser = await createUserMutation.mutateAsync(userData as InsertUser);
       
-      // Se um servidor foi selecionado, associar o usuário a este servidor
-      if (selectedServerId && newUser && newUser.id) {
-        console.log(`Associando o novo usuário ${newUser.id} ao servidor ${selectedServerId}`);
-        
-        try {
-          // Associar ao servidor
-          await updateUserServer(newUser.id, selectedServerId);
+      if (newUser && newUser.id) {
+        // Se um servidor foi selecionado manualmente, associar o usuário a este servidor
+        if (selectedServerId) {
+          console.log(`Associando o novo usuário ${newUser.id} ao servidor ${selectedServerId}`);
           
-          toast({
-            title: "Servidor associado com sucesso",
-            description: "O usuário foi associado ao servidor selecionado.",
-          });
-          
-          // Invalidar queries para atualizar dados
-          queryClient.invalidateQueries({ queryKey: ["/api/user-servers"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/servers/users-count"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/user-servers", selectedServerId] });
-        } catch (error) {
-          console.error("Erro ao associar servidor ao novo usuário:", error);
-          toast({
-            title: "Erro ao associar servidor",
-            description: "O usuário foi criado, mas não foi possível associá-lo ao servidor.",
-            variant: "destructive",
-          });
+          try {
+            // Associar ao servidor selecionado
+            await updateUserServer(newUser.id, selectedServerId);
+            
+            toast({
+              title: "Servidor associado com sucesso",
+              description: "O usuário foi associado ao servidor selecionado.",
+            });
+            
+            // Invalidar queries para atualizar dados
+            queryClient.invalidateQueries({ queryKey: ["/api/user-servers"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/servers/users-count"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/user-servers", selectedServerId] });
+          } catch (error) {
+            console.error("Erro ao associar servidor ao novo usuário:", error);
+            toast({
+              title: "Erro ao associar servidor",
+              description: "O usuário foi criado, mas não foi possível associá-lo ao servidor.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          // Se nenhum servidor foi selecionado, atribuir automaticamente ao servidor com menos usuários
+          try {
+            // Chamar a API para atribuir automaticamente
+            const response = await autoAssignServerMutation.mutateAsync(newUser.id);
+            console.log("Servidor atribuído automaticamente:", response);
+            
+            // Invalidar queries para atualizar dados
+            queryClient.invalidateQueries({ queryKey: ["/api/user-servers"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/servers/users-count"] });
+            if (response && response.server && response.server.id) {
+              queryClient.invalidateQueries({ queryKey: ["/api/user-servers", response.server.id] });
+            }
+          } catch (error) {
+            console.error("Erro ao atribuir servidor automaticamente:", error);
+            toast({
+              title: "Erro ao atribuir servidor",
+              description: "O usuário foi criado, mas não foi possível atribuir automaticamente um servidor.",
+              variant: "destructive",
+            });
+          }
         }
       }
     } catch (error) {
