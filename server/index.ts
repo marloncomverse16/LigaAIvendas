@@ -70,6 +70,6 @@ app.use((req, res, next) => {
     
     // Iniciar servidor WebSocket
     setupWebSocketServer(server);
-    log(`WebSocket server started on /ws`);
+    log(`WebSocket server started on /api/ws`);
   });
 })();

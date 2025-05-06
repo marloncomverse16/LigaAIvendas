@@ -3,7 +3,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, XCircle, Smartphone, QrCode } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import websocketService from "@/services/websocket-service";
 
 interface ConnectionStatus {
   connected: boolean;
@@ -14,6 +15,7 @@ interface ConnectionStatus {
 
 export default function ConnectionPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
@@ -21,125 +23,158 @@ export default function ConnectionPage() {
   // Verificar status atual ao carregar a página
   useEffect(() => {
     checkConnectionStatus();
-  }, []);
-
-  const checkConnectionStatus = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/connection/status");
-      if (!response.ok) {
-        throw new Error("Falha ao verificar status da conexão");
-      }
-      const data = await response.json();
-      setStatus(data);
-    } catch (error) {
-      console.error("Erro ao verificar status:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível verificar o status da conexão",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConnect = async () => {
-    try {
-      setConnecting(true);
-      const response = await apiRequest("POST", "/api/connection/connect", {});
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 400 && errorData.message === "URL de webhook não configurada") {
-          toast({
-            title: "Configuração Necessária",
-            description: "Configure a URL do webhook do WhatsApp nas configurações de usuário antes de conectar",
-            variant: "destructive",
-          });
-          return;
-        }
-        throw new Error(errorData.message || "Falha ao iniciar conexão");
-      }
-      
-      const data = await response.json();
-      setStatus(data);
-
-      // Se recebeu um QR code, começar a verificar o status periodicamente
-      if (data.qrCode) {
-        toast({
-          title: "QR Code Gerado",
-          description: "Escaneie o QR code com seu WhatsApp para conectar",
-        });
-        startPolling();
-      }
-    } catch (error) {
-      console.error("Erro ao conectar:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível iniciar a conexão. Verifique se o webhook está configurado corretamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    try {
-      setLoading(true);
-      const response = await apiRequest("POST", "/api/connection/disconnect", {});
-      if (!response.ok) {
-        throw new Error("Falha ao desconectar");
-      }
-      
-      setStatus({ connected: false });
-      toast({
-        title: "Desconectado",
-        description: "Dispositivo desconectado com sucesso",
-      });
-    } catch (error) {
-      console.error("Erro ao desconectar:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível desconectar o dispositivo",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Função para polling de status ao tentar conectar
-  const startPolling = () => {
-    const intervalId = setInterval(async () => {
-      try {
-        const response = await fetch("/api/connection/status");
-        if (!response.ok) {
-          clearInterval(intervalId);
-          return;
-        }
-        const data = await response.json();
-        setStatus(data);
+    
+    // Configurar event listeners para o WebSocket
+    const handleConnectionStatus = (message: any) => {
+      if (message.data) {
+        setStatus(message.data);
+        setLoading(false);
         
-        // Se conectado, parar o polling
-        if (data.connected) {
-          clearInterval(intervalId);
+        if (message.data.connected) {
           toast({
             title: "Conectado",
             description: "WhatsApp conectado com sucesso!",
           });
         }
-      } catch (error) {
-        console.error("Erro no polling:", error);
-        clearInterval(intervalId);
       }
-    }, 3000); // Verificar a cada 3 segundos
+    };
+    
+    const handleQrCode = (message: any) => {
+      if (message.data?.qrCode) {
+        setStatus(prev => ({ 
+          ...prev, 
+          qrCode: message.data.qrCode,
+          connected: false
+        }));
+        setConnecting(false);
+        
+        toast({
+          title: "QR Code Gerado",
+          description: "Escaneie o QR code com seu WhatsApp para conectar",
+        });
+      }
+    };
+    
+    const handleConnectionError = (message: any) => {
+      setLoading(false);
+      setConnecting(false);
+      
+      toast({
+        title: "Erro de Conexão",
+        description: message.error || "Ocorreu um erro na conexão",
+        variant: "destructive",
+      });
+    };
+    
+    // Registrar os handlers
+    const removeStatusHandler = websocketService.on('connection_status', handleConnectionStatus);
+    const removeQrCodeHandler = websocketService.on('qr_code', handleQrCode);
+    const removeErrorHandler = websocketService.on('connection_error', handleConnectionError);
+    
+    // Limpar os handlers ao desmontar
+    return () => {
+      removeStatusHandler();
+      removeQrCodeHandler();
+      removeErrorHandler();
+    };
+  }, [toast]);
 
-    // Limpar intervalo após 2 minutos (tempo máximo de espera)
-    setTimeout(() => {
-      clearInterval(intervalId);
-    }, 120000);
+  const checkConnectionStatus = () => {
+    if (!user) return;
+    
+    setLoading(true);
+    
+    if (!websocketService.isConnected()) {
+      websocketService.connect(user.id)
+        .then(() => {
+          // WebSocket conectado, solicitar status
+          websocketService.getWhatsAppStatus((statusData) => {
+            setStatus(statusData);
+            setLoading(false);
+          });
+        })
+        .catch(error => {
+          console.error("Erro ao conectar WebSocket:", error);
+          setLoading(false);
+          toast({
+            title: "Erro de Conexão",
+            description: "Não foi possível conectar ao servidor",
+            variant: "destructive",
+          });
+        });
+    } else {
+      // Já conectado, solicitar status
+      websocketService.getWhatsAppStatus((statusData) => {
+        setStatus(statusData);
+        setLoading(false);
+      });
+    }
+  };
+
+  const handleConnect = () => {
+    if (!user) {
+      toast({
+        title: "Não autenticado",
+        description: "Faça login para conectar seu WhatsApp",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setConnecting(true);
+    
+    if (!websocketService.isConnected()) {
+      websocketService.connect(user.id)
+        .then(() => {
+          // WebSocket conectado, solicitar QR code
+          websocketService.getQRCode((qrCode) => {
+            setStatus(prev => ({ ...prev, qrCode, connected: false }));
+            setConnecting(false);
+          });
+        })
+        .catch(error => {
+          console.error("Erro ao conectar WebSocket:", error);
+          setConnecting(false);
+          toast({
+            title: "Erro de Conexão",
+            description: "Não foi possível conectar ao servidor",
+            variant: "destructive",
+          });
+        });
+    } else {
+      // Já conectado, solicitar QR code
+      websocketService.getQRCode((qrCode) => {
+        setStatus(prev => ({ ...prev, qrCode, connected: false }));
+        setConnecting(false);
+      });
+    }
+  };
+
+  const handleDisconnect = () => {
+    if (!user) return;
+    
+    setLoading(true);
+    
+    if (websocketService.isConnected()) {
+      websocketService.sendMessage({
+        type: 'disconnect_evolution',
+      });
+      
+      // Atualizar estado localmente (a resposta real virá pelo WebSocket)
+      setStatus(prev => ({ ...prev, connected: false }));
+      
+      toast({
+        title: "Desconectando",
+        description: "Desconectando o WhatsApp...",
+      });
+    } else {
+      setLoading(false);
+      toast({
+        title: "Não conectado",
+        description: "Não há conexão WebSocket ativa",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

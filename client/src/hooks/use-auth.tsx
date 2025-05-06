@@ -8,6 +8,7 @@ import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import websocketService from "../services/websocket-service";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -44,6 +45,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
+  
+  // Conectar ao WebSocket quando o usuário estiver autenticado
+  useEffect(() => {
+    if (user && user.id) {
+      websocketService.connect(user.id).catch(error => {
+        console.error("Erro ao conectar ao WebSocket:", error);
+      });
+    } else {
+      // Desconectar quando não houver usuário autenticado
+      websocketService.disconnect();
+    }
+    
+    // Limpar conexão ao desmontar
+    return () => {
+      if (websocketService.isConnected()) {
+        websocketService.disconnect();
+      }
+    };
+  }, [user?.id]);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {

@@ -235,10 +235,10 @@ export async function sendMessage(userId: number, contactId: number, content: st
 export function setupWebSocketServer(server: HttpServer) {
   const wss = new WebSocketServer({ 
     server, 
-    path: '/ws' 
+    path: '/api/ws' // Usar caminho /api/ws para não interferir com Vite
   });
   
-  console.log('Servidor WebSocket iniciado em /ws');
+  console.log('Servidor WebSocket iniciado em /api/ws');
   
   wss.on('connection', (ws, req) => {
     console.log('Nova conexão WebSocket');
@@ -428,6 +428,49 @@ export function setupWebSocketServer(server: HttpServer) {
             ws.send(JSON.stringify({ 
               type: 'connection_error', 
               error: `Erro ao conectar: ${error.message}` 
+            }));
+          }
+        }
+        
+        // Desconectar da Evolution API
+        else if (data.type === 'disconnect_evolution') {
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', error: 'Não autenticado' }));
+            return;
+          }
+          
+          const user = await storage.getUser(userId);
+          if (!user || !user.whatsappApiUrl || !user.whatsappApiToken || !user.whatsappInstanceId) {
+            ws.send(JSON.stringify({ 
+              type: 'connection_error', 
+              error: 'Configuração da Evolution API não encontrada' 
+            }));
+            return;
+          }
+          
+          try {
+            // Fazer logout da instância
+            const response = await axios.post(
+              `${user.whatsappApiUrl}/instances/${user.whatsappInstanceId}/logout`,
+              {},
+              { 
+                headers: { 
+                  Authorization: `Bearer ${user.whatsappApiToken}` 
+                }
+              }
+            );
+            
+            // Notificar cliente sobre desconexão
+            ws.send(JSON.stringify({
+              type: 'connection_status',
+              data: { connected: false }
+            }));
+            
+          } catch (error) {
+            console.error(`Erro ao desconectar da Evolution API para usuário ${userId}:`, error);
+            ws.send(JSON.stringify({ 
+              type: 'connection_error', 
+              error: `Erro ao desconectar: ${error.message}` 
             }));
           }
         }
