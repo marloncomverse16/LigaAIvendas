@@ -16,6 +16,9 @@ import type {
   WhatsappContact, InsertWhatsappContact, WhatsappMessage, InsertWhatsappMessage,
   Server, InsertServer, UserServer, InsertUserServer
 } from "@shared/schema";
+// O tipo User também pode ser definido como SelectUser para clareza em algumas operações
+import { users as usersSchema } from "@shared/schema";
+type SelectUser = typeof usersSchema.$inferSelect;
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPg from "connect-pg-simple";
@@ -1365,6 +1368,54 @@ export class MemStorage implements IStorage {
     this.users.set(userId, updatedUser);
     return updatedUser;
   }
+  
+  async getServerUsers(serverId: number): Promise<(UserServer & { user: Partial<SelectUser> })[]> {
+    // Filtrar as relações usuário-servidor para o servidor específico
+    const relations = Array.from(this.userServers.values()).filter(
+      rel => rel.serverId === serverId
+    );
+    
+    if (!relations || relations.length === 0) {
+      return [];
+    }
+    
+    // Buscar informações completas de cada usuário
+    const userDetails = await Promise.all(
+      relations.map(async (relation) => {
+        const user = await this.getUser(relation.userId);
+        
+        return {
+          ...relation,
+          user: user ? {
+            id: user.id,
+            name: user.name,
+            username: user.username,
+            email: user.email
+          } : null
+        };
+      })
+    );
+    
+    return userDetails;
+  }
+  
+  async countUsersByServer(): Promise<{ serverId: number; userCount: number }[]> {
+    // Contar usuários por servidor
+    const serverCounts = new Map<number, number>();
+    
+    // Iterar sobre todas as relações usuário-servidor
+    Array.from(this.userServers.values()).forEach(relation => {
+      const serverId = relation.serverId;
+      const currentCount = serverCounts.get(serverId) || 0;
+      serverCounts.set(serverId, currentCount + 1);
+    });
+    
+    // Converter o Map para o formato de array de objetos
+    return Array.from(serverCounts.entries()).map(([serverId, userCount]) => ({
+      serverId,
+      userCount
+    }));
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2622,6 +2673,24 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Erro ao atualizar o servidor do usuário:", error);
       return undefined;
+    }
+  }
+  
+  // Contar usuários por servidor para mostrar ocupação
+  async countUsersByServer(): Promise<{ serverId: number; userCount: number }[]> {
+    try {
+      const results = await db
+        .select({
+          serverId: userServers.serverId,
+          userCount: count(userServers.userId),
+        })
+        .from(userServers)
+        .groupBy(userServers.serverId);
+      
+      return results;
+    } catch (error) {
+      console.error("Erro ao contar usuários por servidor:", error);
+      return [];
     }
   }
 }
