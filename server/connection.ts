@@ -145,13 +145,35 @@ export async function connectWhatsApp(req: Request, res: Response) {
         
         // PASSO CRÍTICO: Primeiro tentar criar a instância
         console.log("Criando instância para o usuário antes de obter QR code...");
-        const createResult = await evolutionClient.createInstance();
         
-        if (createResult.success) {
-          console.log("Instância criada com sucesso:", createResult);
+        // Usar o token do ambiente se disponível
+        if (process.env.EVOLUTION_API_TOKEN) {
+          console.log("Usando EVOLUTION_API_TOKEN do ambiente para criar instância");
+          // Recriando o cliente com o token do ambiente
+          const evolutionClientWithEnvToken = new EvolutionApiClient(
+            userServer.server.apiUrl,
+            process.env.EVOLUTION_API_TOKEN,
+            user.username // Nome do usuário como instância
+          );
+          
+          const createResult = await evolutionClientWithEnvToken.createInstance();
+          
+          if (createResult.success) {
+            console.log("Instância criada com sucesso:", createResult);
+          } else {
+            console.log("Aviso: Não foi possível criar a instância, mas tentaremos obter o QR code mesmo assim");
+            console.log("Detalhes:", createResult.error || "Erro desconhecido");
+          }
         } else {
-          console.log("Aviso: Não foi possível criar a instância, mas tentaremos obter o QR code mesmo assim");
-          console.log("Detalhes:", createResult.error || "Erro desconhecido");
+          // Fallback para o token armazenado no servidor
+          const createResult = await evolutionClient.createInstance();
+          
+          if (createResult.success) {
+            console.log("Instância criada com sucesso:", createResult);
+          } else {
+            console.log("Aviso: Não foi possível criar a instância, mas tentaremos obter o QR code mesmo assim");
+            console.log("Detalhes:", createResult.error || "Erro desconhecido");
+          }
         }
         
         // Solicitar QR code

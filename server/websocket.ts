@@ -618,14 +618,20 @@ export function setupWebSocketServer(server: HttpServer) {
           
           try {
             console.log(`Tentando criar instância para o usuário ${user.username}`);
+            
+            // Usar o token do ambiente se disponível
+            const token = process.env.EVOLUTION_API_TOKEN || userServer.server.apiToken;
+            console.log(`Usando token ${process.env.EVOLUTION_API_TOKEN ? 'do ambiente' : 'do servidor'} para criar instância`);
+            
             const evolutionClient = new EvolutionApiClient(
               userServer.server.apiUrl,
-              userServer.server.apiToken,
+              token,
               user.username // Nome do usuário como instância
             );
             
             // Tentar criar a instância
             const createResult = await evolutionClient.createInstance();
+            console.log("Resultado da criação da instância:", createResult);
             
             ws.send(JSON.stringify({
               type: 'instance_created',

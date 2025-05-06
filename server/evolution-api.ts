@@ -610,9 +610,12 @@ export class EvolutionApiClient {
    * Retorna os cabeçalhos HTTP padrão com token de autorização
    */
   private getHeaders() {
+    // Priorizar o token de ambiente se disponível
+    const token = process.env.EVOLUTION_API_TOKEN || this.token;
+    
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.token}`
+      'Authorization': `Bearer ${token}`
     };
   }
 }
