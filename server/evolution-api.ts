@@ -723,13 +723,16 @@ export class EvolutionApiClient {
     
     console.log(`Usando token nos headers: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'NENHUM TOKEN'} (origem: ${source})`);
     
-    // Na configuração do Portainer.io, o formato é AUTHENTICATION_API_KEY
-    // Vamos tentar usar ambos os formatos para garantir compatibilidade
-    return {
+    // De acordo com a documentação da Evolution API (v2.2.3),
+    // o cabeçalho correto é 'apikey', mas vamos manter os outros para compatibilidade
+    const headers = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'apikey': token,
-      'AUTHENTICATION_API_KEY': token
+      'apikey': token, // Este é o formato correto documentado para v2.2.3
+      'Authorization': `Bearer ${token}`,  // Para versões anteriores
+      'AUTHENTICATION_API_KEY': token      // Para algumas instalações em Portainer.io
     };
+    
+    console.log('Headers de autenticação configurados:', Object.keys(headers).join(', '));
+    return headers;
   }
 }

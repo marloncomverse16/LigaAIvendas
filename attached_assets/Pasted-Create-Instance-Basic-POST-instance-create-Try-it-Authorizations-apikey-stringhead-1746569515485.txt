@@ -1,0 +1,215 @@
+Create Instance Basic
+POST
+/
+instance
+/
+create
+
+Try it
+Authorizations
+​
+apikey
+stringheaderrequired
+Your authorization key header
+
+Body
+application/json
+​
+instanceName
+stringrequired
+instance (Instance name)
+
+​
+token
+string
+apikey (Enter or leave empty to create dynamically)
+
+​
+qrcode
+boolean
+Create QR Code automatically after creation
+
+​
+number
+string
+559999999999 (Instance owner number with Country Code)
+
+​
+integration
+enum<string>
+WhatsApp engine
+
+Available options: WHATSAPP-BAILEYS, WHATSAPP-BUSINESS 
+​
+webhook
+string
+Webhook URL
+
+​
+webhook_by_events
+boolean
+Enable Webhook by events
+
+​
+events
+enum<string>[]
+Events to be sent to the Webhook
+
+Available options: APPLICATION_STARTUP, QRCODE_UPDATED, MESSAGES_SET, MESSAGES_UPSERT, MESSAGES_UPDATE, MESSAGES_DELETE, SEND_MESSAGE, CONTACTS_SET, CONTACTS_UPSERT, CONTACTS_UPDATE, PRESENCE_UPDATE, CHATS_SET, CHATS_UPSERT, CHATS_UPDATE, CHATS_DELETE, GROUPS_UPSERT, GROUP_UPDATE, GROUP_PARTICIPANTS_UPDATE, CONNECTION_UPDATE, CALL, NEW_JWT_TOKEN, TYPEBOT_START, TYPEBOT_CHANGE_STATUS 
+​
+reject_call
+boolean
+Reject WhatsApp calls automatically
+
+​
+msg_call
+string
+Message to be sent when a call is rejected automatically
+
+​
+groups_ignore
+boolean
+Ignore group messages
+
+​
+always_online
+boolean
+Keep WhatsApp always online
+
+​
+read_messages
+boolean
+Send read receipts to received messages
+
+​
+read_status
+boolean
+Show sent messages read status
+
+​
+websocket_enabled
+boolean
+Enable websocket
+
+​
+websocket_events
+enum<string>[]
+Events to be sent to the websocket
+
+Available options: APPLICATION_STARTUP, QRCODE_UPDATED, MESSAGES_SET, MESSAGES_UPSERT, MESSAGES_UPDATE, MESSAGES_DELETE, SEND_MESSAGE, CONTACTS_SET, CONTACTS_UPSERT, CONTACTS_UPDATE, PRESENCE_UPDATE, CHATS_SET, CHATS_UPSERT, CHATS_UPDATE, CHATS_DELETE, GROUPS_UPSERT, GROUP_UPDATE, GROUP_PARTICIPANTS_UPDATE, CONNECTION_UPDATE, CALL, NEW_JWT_TOKEN, TYPEBOT_START, TYPEBOT_CHANGE_STATUS 
+​
+rabbitmq_enabled
+boolean
+Enable RabbitMQ
+
+​
+rabbitmq_events
+enum<string>[]
+Events to be sent to the RabbitMQ
+
+Available options: APPLICATION_STARTUP, QRCODE_UPDATED, MESSAGES_SET, MESSAGES_UPSERT, MESSAGES_UPDATE, MESSAGES_DELETE, SEND_MESSAGE, CONTACTS_SET, CONTACTS_UPSERT, CONTACTS_UPDATE, PRESENCE_UPDATE, CHATS_SET, CHATS_UPSERT, CHATS_UPDATE, CHATS_DELETE, GROUPS_UPSERT, GROUP_UPDATE, GROUP_PARTICIPANTS_UPDATE, CONNECTION_UPDATE, CALL, NEW_JWT_TOKEN, TYPEBOT_START, TYPEBOT_CHANGE_STATUS 
+​
+sqs_enabled
+boolean
+Enable SQS
+
+​
+sqs_events
+enum<string>[]
+Events to be sent to the SQS
+
+Available options: APPLICATION_STARTUP, QRCODE_UPDATED, MESSAGES_SET, MESSAGES_UPSERT, MESSAGES_UPDATE, MESSAGES_DELETE, SEND_MESSAGE, CONTACTS_SET, CONTACTS_UPSERT, CONTACTS_UPDATE, PRESENCE_UPDATE, CHATS_SET, CHATS_UPSERT, CHATS_UPDATE, CHATS_DELETE, GROUPS_UPSERT, GROUP_UPDATE, GROUP_PARTICIPANTS_UPDATE, CONNECTION_UPDATE, CALL, NEW_JWT_TOKEN, TYPEBOT_START, TYPEBOT_CHANGE_STATUS 
+​
+typebot_url
+string
+URL for the typebot instance
+
+​
+typebot
+string
+Typebot flow name
+
+​
+typebot_expire
+integer
+Seconds to expire TODO
+
+​
+typebot_keyword_finish
+string
+Keyword to finish the typebot flow
+
+​
+typebot_delay_message
+integer
+Default delay for the typebot messages
+
+​
+typebot_unknown_message
+string
+TODO
+
+​
+typebot_listening_from_me
+boolean
+Typebot listen messages sent by the connected number
+
+​
+proxy
+object
+
+Show child attributes
+
+​
+chatwoot_account_id
+integer
+Chatwoot account ID
+
+​
+chatwoot_token
+string
+Chatwoot authentication token
+
+​
+chatwoot_url
+string
+Chatwoot server URL
+
+​
+chatwoot_sign_msg
+boolean
+Send message signature on Chatwoot
+
+​
+chatwoot_reopen_conversation
+boolean
+Reopen conversation on Chatwoot
+
+​
+chatwoot_conversation_pending
+boolean
+TODO
+
+Response
+201
+
+201
+application/json
+Created
+​
+instance
+object
+
+Show child attributes
+
+​
+hash
+object
+
+Show child attributes
+
+​
+settings
+object
+
+Show child attributes
