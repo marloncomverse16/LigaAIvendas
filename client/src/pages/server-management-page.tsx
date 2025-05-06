@@ -656,6 +656,23 @@ export default function ServerManagementPage() {
                   
                   <FormField
                     control={form.control}
+                    name="instanceId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ID da Instância</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: instance1 ou outro identificador" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormDescription>
+                          Identificador único da instância da Evolution API (necessário para conexão WhatsApp)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
                     name="maxUsers"
                     render={({ field }) => (
                       <FormItem>
@@ -764,22 +781,6 @@ export default function ServerManagementPage() {
                 </TabsContent>
                 
                 <TabsContent value="avancado" className="space-y-4 pt-4">
-                  <FormField
-                    control={form.control}
-                    name="instanceId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ID da Instância (Evolution API)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex: liguia" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                        <FormDescription>
-                          Identificador único da instância na Evolution API.
-                        </FormDescription>
-                      </FormItem>
-                    )}
-                  />
                   
                   <FormField
                     control={form.control}
