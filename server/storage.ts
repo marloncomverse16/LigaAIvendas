@@ -159,12 +159,14 @@ export interface IStorage {
   createServer(serverData: InsertServer): Promise<Server>;
   updateServer(id: number, serverData: Partial<InsertServer>): Promise<Server | undefined>;
   deleteServer(id: number): Promise<boolean>;
+  countUsersByServer(): Promise<{ serverId: number; userCount: number }[]>;
   
   // UserServer methods
   getUserServers(userId: number): Promise<(Server & { id: number })[]>;
   addUserServer(userId: number, serverId: number): Promise<UserServer | undefined>;
   removeUserServer(userId: number, serverId: number): Promise<boolean>;
   updateUserServerId(userId: number, serverId: number): Promise<User | undefined>;
+  getServerUsers(serverId: number): Promise<(UserServer & { user: Partial<SelectUser> })[]>;
   
   // Session store
   sessionStore: session.Store;

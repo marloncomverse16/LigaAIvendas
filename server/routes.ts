@@ -1838,6 +1838,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Contagem de usuários por servidor
+  app.get("/api/servers/users-count", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const counts = await storage.countUsersByServer();
+      res.json(counts);
+    } catch (error) {
+      console.error("Erro ao buscar contagem de usuários:", error);
+      res.status(500).json({ message: "Erro ao buscar contagem de usuários por servidor" });
+    }
+  });
+
   app.get("/api/servers/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     

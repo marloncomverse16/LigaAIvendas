@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, Trash2, Server, RefreshCw, Pencil, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Plus, Trash2, Server, RefreshCw, Pencil, CheckCircle2, XCircle, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
