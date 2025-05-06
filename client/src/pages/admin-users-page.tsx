@@ -62,6 +62,13 @@ interface Server {
   active: boolean | null;
 }
 
+interface UserServer {
+  id: number;
+  userId: number;
+  serverId: number;
+  createdAt: Date | null;
+}
+
 export default function AdminUsersPage() {
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -115,6 +122,22 @@ export default function AdminUsersPage() {
       return res.json();
     }
   });
+  
+  // Função para buscar as relações de servidor de um usuário específico
+  const getUserServerRelations = async (userId: number) => {
+    try {
+      const res = await apiRequest("GET", `/api/user-servers/user/${userId}`);
+      return await res.json();
+    } catch (error) {
+      console.error(`Erro ao buscar relações do usuário ${userId}:`, error);
+      toast({
+        title: "Erro ao buscar relações de servidor",
+        description: "Não foi possível obter as relações de servidor deste usuário.",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
 
   // Criar um novo usuário
   const createUserMutation = useMutation({
@@ -279,11 +302,11 @@ export default function AdminUsersPage() {
 
     // Se houve mudança no servidor, fazer uma chamada separada para associar o servidor
     if (formValues.serverId !== currentUser.serverId) {
-      // Buscar a relação atual do usuário com servidores (pode haver várias)
-      const getUserServerRelations = async () => {
+      // Buscar e atualizar relações de servidor do usuário
+      const updateUserServerRelations = async () => {
         try {
-          const res = await apiRequest("GET", `/api/user-servers/user/${currentUser.id}`);
-          const userServerRelations = await res.json();
+          // Usar a função global que definimos anteriormente
+          const userServerRelations = await getUserServerRelations(currentUser.id);
           console.log("Relações atuais do usuário:", userServerRelations);
           
           // Remover todas as associações existentes
@@ -332,7 +355,7 @@ export default function AdminUsersPage() {
         }
       };
       
-      getUserServerRelations();
+      updateUserServerRelations();
     }
 
     updateUserMutation.mutate({ id: currentUser.id, userData });
@@ -369,31 +392,71 @@ export default function AdminUsersPage() {
     });
   };
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = async (user: User) => {
     setCurrentUser(user);
-    setFormValues({
-      username: user.username,
-      email: user.email,
-      name: user.name || "",
-      company: user.company || "",
-      phone: user.phone || "",
-      bio: user.bio || "",
-      availableTokens: user.availableTokens || 0,
-      tokenExpirationDays: user.tokenExpirationDays || 30,
-      monthlyFee: user.monthlyFee || "0",
-      serverId: user.serverId || undefined,
-      isAdmin: user.isAdmin || false,
-      // Controles de acesso a módulos
-      accessDashboard: user.accessDashboard ?? true,
-      accessLeads: user.accessLeads ?? true,
-      accessProspecting: user.accessProspecting ?? true,
-      accessAiAgent: user.accessAiAgent ?? true,
-      accessWhatsapp: user.accessWhatsapp ?? true,
-      accessContacts: user.accessContacts ?? true,
-      accessScheduling: user.accessScheduling ?? true,
-      accessReports: user.accessReports ?? true,
-      accessSettings: user.accessSettings ?? true
-    });
+    
+    // Buscar as relações de servidor deste usuário
+    try {
+      const userServerRelations = await getUserServerRelations(user.id);
+      console.log(`Relações de servidor do usuário ${user.id}:`, userServerRelations);
+      
+      // Definir o serverId no formulário com base na primeira relação encontrada (se houver)
+      const serverId = userServerRelations.length > 0 
+        ? userServerRelations[0].serverId 
+        : user.serverId || undefined;
+      
+      setFormValues({
+        username: user.username,
+        email: user.email,
+        name: user.name || "",
+        company: user.company || "",
+        phone: user.phone || "",
+        bio: user.bio || "",
+        availableTokens: user.availableTokens || 0,
+        tokenExpirationDays: user.tokenExpirationDays || 30,
+        monthlyFee: user.monthlyFee || "0",
+        serverId: serverId,
+        isAdmin: user.isAdmin || false,
+        // Controles de acesso a módulos
+        accessDashboard: user.accessDashboard ?? true,
+        accessLeads: user.accessLeads ?? true,
+        accessProspecting: user.accessProspecting ?? true,
+        accessAiAgent: user.accessAiAgent ?? true,
+        accessWhatsapp: user.accessWhatsapp ?? true,
+        accessContacts: user.accessContacts ?? true,
+        accessScheduling: user.accessScheduling ?? true,
+        accessReports: user.accessReports ?? true,
+        accessSettings: user.accessSettings ?? true
+      });
+      
+    } catch (error) {
+      console.error("Erro ao buscar relações de servidor:", error);
+      // Fallback para o método antigo se ocorrer um erro
+      setFormValues({
+        username: user.username,
+        email: user.email,
+        name: user.name || "",
+        company: user.company || "",
+        phone: user.phone || "",
+        bio: user.bio || "",
+        availableTokens: user.availableTokens || 0,
+        tokenExpirationDays: user.tokenExpirationDays || 30,
+        monthlyFee: user.monthlyFee || "0",
+        serverId: user.serverId || undefined,
+        isAdmin: user.isAdmin || false,
+        // Controles de acesso a módulos
+        accessDashboard: user.accessDashboard ?? true,
+        accessLeads: user.accessLeads ?? true,
+        accessProspecting: user.accessProspecting ?? true,
+        accessAiAgent: user.accessAiAgent ?? true,
+        accessWhatsapp: user.accessWhatsapp ?? true,
+        accessContacts: user.accessContacts ?? true,
+        accessScheduling: user.accessScheduling ?? true,
+        accessReports: user.accessReports ?? true,
+        accessSettings: user.accessSettings ?? true
+      });
+    }
+    
     setIsEditOpen(true);
   };
 
