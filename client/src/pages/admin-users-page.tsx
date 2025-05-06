@@ -39,10 +39,27 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { InsertUser, User } from "@shared/schema";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserFormValues extends Omit<InsertUser, "password"> {
   password?: string;
   confirmPassword?: string;
+  serverId?: number;
+}
+
+interface Server {
+  id: number;
+  name: string;
+  ipAddress: string;
+  provider: string;
+  apiUrl: string;
+  whatsappWebhookUrl: string | null;
+  aiAgentWebhookUrl: string | null;
+  prospectingWebhookUrl: string | null;
+  contactsWebhookUrl: string | null;
+  schedulingWebhookUrl: string | null;
+  crmWebhookUrl: string | null;
+  active: boolean | null;
 }
 
 export default function AdminUsersPage() {
@@ -60,17 +77,10 @@ export default function AdminUsersPage() {
     company: "",
     phone: "",
     bio: "",
-    whatsappWebhookUrl: "",
-    aiAgentWebhookUrl: "",
-    prospectingWebhookUrl: "",
-    contactsWebhookUrl: "",
-    schedulingWebhookUrl: "",
-    crmWebhookUrl: "",
-    whatsappInstanceWebhook: "",
     availableTokens: 1000,
     tokenExpirationDays: 30,
     monthlyFee: "0",
-    serverAddress: "",
+    serverId: undefined,
     isAdmin: false,
     // Controles de acesso a módulos
     accessDashboard: true,
@@ -94,6 +104,15 @@ export default function AdminUsersPage() {
       const res = await apiRequest("GET", "/api/admin/users");
       const data = await res.json();
       return data;
+    }
+  });
+
+  // Buscar todos os servidores disponíveis
+  const { data: servers = [], isLoading: isLoadingServers } = useQuery<Server[]>({
+    queryKey: ["/api/servers"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/servers");
+      return res.json();
     }
   });
 
@@ -211,6 +230,7 @@ export default function AdminUsersPage() {
     };
 
     delete userData.confirmPassword;
+    delete userData.serverId; // Removemos serverId e tratamos a associação em outra rota
     createUserMutation.mutate(userData as InsertUser);
   };
 
@@ -232,6 +252,27 @@ export default function AdminUsersPage() {
     }
 
     delete userData.confirmPassword;
+    delete userData.serverId; // Removemos serverId e tratamos a associação em outra rota
+
+    // Se houve mudança no servidor, fazer uma chamada separada para associar o servidor
+    if (formValues.serverId && formValues.serverId !== currentUser.serverId) {
+      apiRequest("POST", "/api/user-servers", { 
+        userId: currentUser.id, 
+        serverId: formValues.serverId 
+      }).then(() => {
+        toast({
+          title: "Servidor associado com sucesso",
+          description: "O usuário foi associado ao servidor selecionado.",
+        });
+      }).catch((error) => {
+        toast({
+          title: "Erro ao associar servidor",
+          description: error.message || "Ocorreu um erro ao associar o servidor ao usuário.",
+          variant: "destructive",
+        });
+      });
+    }
+
     updateUserMutation.mutate({ id: currentUser.id, userData });
   };
 
@@ -248,16 +289,10 @@ export default function AdminUsersPage() {
       company: "",
       phone: "",
       bio: "",
-      whatsappWebhookUrl: "",
-      aiAgentWebhookUrl: "",
-      prospectingWebhookUrl: "",
-      contactsWebhookUrl: "",
-      schedulingWebhookUrl: "",
-      crmWebhookUrl: "",
       availableTokens: 1000,
       tokenExpirationDays: 30,
       monthlyFee: "0",
-      serverAddress: "",
+      serverId: undefined,
       isAdmin: false,
       // Controles de acesso a módulos
       accessDashboard: true,
@@ -281,16 +316,10 @@ export default function AdminUsersPage() {
       company: user.company || "",
       phone: user.phone || "",
       bio: user.bio || "",
-      whatsappWebhookUrl: user.whatsappWebhookUrl || "",
-      aiAgentWebhookUrl: user.aiAgentWebhookUrl || "",
-      prospectingWebhookUrl: user.prospectingWebhookUrl || "",
-      contactsWebhookUrl: user.contactsWebhookUrl || "",
-      schedulingWebhookUrl: user.schedulingWebhookUrl || "",
-      crmWebhookUrl: user.crmWebhookUrl || "",
       availableTokens: user.availableTokens || 0,
       tokenExpirationDays: user.tokenExpirationDays || 30,
       monthlyFee: user.monthlyFee || "0",
-      serverAddress: user.serverAddress || "",
+      serverId: user.serverId || undefined,
       isAdmin: user.isAdmin || false,
       // Controles de acesso a módulos
       accessDashboard: user.accessDashboard ?? true,
@@ -328,6 +357,14 @@ export default function AdminUsersPage() {
 
   const handleSwitchChange = (name: string, checked: boolean) => {
     setFormValues({ ...formValues, [name]: checked });
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    if (name === "serverId") {
+      setFormValues({ ...formValues, [name]: parseInt(value) });
+    } else {
+      setFormValues({ ...formValues, [name]: value });
+    }
   };
   
   // Função para criar instância de WhatsApp
@@ -463,20 +500,58 @@ export default function AdminUsersPage() {
           </CardContent>
         </Card>
 
-        {/* Modal para criar usuário */}
+        {/* Modal de confirmação para excluir usuário */}
+        <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Confirmar exclusão
+              </DialogTitle>
+              <DialogDescription>
+                Tem certeza de que deseja excluir o usuário <strong>{currentUser?.name || currentUser?.username}</strong>? Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsDeleteOpen(false)}
+                disabled={deleteUserMutation.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDeleteUser}
+                disabled={deleteUserMutation.isPending}
+              >
+                {deleteUserMutation.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Excluindo...
+                  </>
+                ) : (
+                  "Excluir Usuário"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal para criar novo usuário */}
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Criar Novo Usuário</DialogTitle>
               <DialogDescription>
-                Preencha os dados do novo usuário.
+                Preencha os dados para criar um novo usuário no sistema.
               </DialogDescription>
             </DialogHeader>
             
             <Tabs defaultValue="basic" className="w-full">
               <TabsList className="grid grid-cols-4 mb-4">
                 <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
-                <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+                <TabsTrigger value="server">Servidor</TabsTrigger>
                 <TabsTrigger value="permissions">Permissões</TabsTrigger>
                 <TabsTrigger value="advanced">Configurações Avançadas</TabsTrigger>
               </TabsList>
@@ -583,83 +658,60 @@ export default function AdminUsersPage() {
                 </div>
               </TabsContent>
               
-              <TabsContent value="webhooks" className="space-y-4">
+              <TabsContent value="server" className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="whatsappWebhookUrl">Webhook do WhatsApp</Label>
-                  <Input
-                    id="whatsappWebhookUrl"
-                    name="whatsappWebhookUrl"
-                    value={formValues.whatsappWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/whatsapp"
-                  />
+                  <Label htmlFor="serverId">Servidor</Label>
+                  <Select 
+                    onValueChange={(value) => handleSelectChange("serverId", value)}
+                    value={formValues.serverId?.toString() || ""}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um servidor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingServers ? (
+                        <div className="flex justify-center p-2">
+                          Carregando servidores...
+                        </div>
+                      ) : servers.length === 0 ? (
+                        <div className="p-2 text-center text-sm text-gray-500">
+                          Nenhum servidor disponível. Adicione um servidor primeiro.
+                        </div>
+                      ) : (
+                        servers.map((server) => (
+                          <SelectItem 
+                            key={server.id} 
+                            value={server.id.toString()}
+                          >
+                            {server.name} ({server.provider})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    O servidor selecionado será usado para todas as operações deste usuário.
+                  </p>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="aiAgentWebhookUrl">Webhook do Agente IA</Label>
-                  <Input
-                    id="aiAgentWebhookUrl"
-                    name="aiAgentWebhookUrl"
-                    value={formValues.aiAgentWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/ai-agent"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="prospectingWebhookUrl">Webhook de Prospecção</Label>
-                  <Input
-                    id="prospectingWebhookUrl"
-                    name="prospectingWebhookUrl"
-                    value={formValues.prospectingWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/prospecting"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="dispatchesWebhookUrl">Webhook de Disparos</Label>
-                  <Input
-                    id="dispatchesWebhookUrl"
-                    name="dispatchesWebhookUrl"
-                    value={formValues.dispatchesWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/dispatches"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="contactsWebhookUrl">Webhook de Contatos</Label>
-                  <Input
-                    id="contactsWebhookUrl"
-                    name="contactsWebhookUrl"
-                    value={formValues.contactsWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/contacts"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="schedulingWebhookUrl">Webhook de Agendamentos</Label>
-                  <Input
-                    id="schedulingWebhookUrl"
-                    name="schedulingWebhookUrl"
-                    value={formValues.schedulingWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/scheduling"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="crmWebhookUrl">Webhook do CRM</Label>
-                  <Input
-                    id="crmWebhookUrl"
-                    name="crmWebhookUrl"
-                    value={formValues.crmWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/crm"
-                  />
-                </div>
+              </TabsContent>
+              
+              <TabsContent value="permissions" className="space-y-4">
+                <ModulePermissions
+                  permissions={{
+                    accessDashboard: formValues.accessDashboard,
+                    accessLeads: formValues.accessLeads,
+                    accessProspecting: formValues.accessProspecting,
+                    accessAiAgent: formValues.accessAiAgent,
+                    accessWhatsapp: formValues.accessWhatsapp,
+                    accessContacts: formValues.accessContacts,
+                    accessScheduling: formValues.accessScheduling,
+                    accessReports: formValues.accessReports,
+                    accessSettings: formValues.accessSettings,
+                  }}
+                  onChange={(newPermissions) => {
+                    setFormValues({ ...formValues, ...newPermissions });
+                  }}
+                />
               </TabsContent>
               
               <TabsContent value="advanced" className="space-y-4">
@@ -688,34 +740,22 @@ export default function AdminUsersPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="monthlyFee">Valor da Mensalidade (R$)</Label>
-                    <Input
-                      id="monthlyFee"
-                      name="monthlyFee"
-                      type="text"
-                      value={formValues.monthlyFee}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="serverAddress">Endereço do Servidor</Label>
-                    <Input
-                      id="serverAddress"
-                      name="serverAddress"
-                      value={formValues.serverAddress}
-                      onChange={handleInputChange}
-                      placeholder="https://example.com"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyFee">Valor da Mensalidade (R$)</Label>
+                  <Input
+                    id="monthlyFee"
+                    name="monthlyFee"
+                    type="text"
+                    value={formValues.monthlyFee}
+                    onChange={handleInputChange}
+                  />
                 </div>
               </TabsContent>
             </Tabs>
             
-            <DialogFooter>
-              <Button
-                variant="outline"
+            <DialogFooter className="mt-6">
+              <Button 
+                variant="outline" 
                 onClick={() => {
                   setIsCreateOpen(false);
                   resetForm();
@@ -753,8 +793,8 @@ export default function AdminUsersPage() {
             <Tabs defaultValue="basic" className="w-full">
               <TabsList className="grid grid-cols-4 mb-4">
                 <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
+                <TabsTrigger value="server">Servidor</TabsTrigger>
                 <TabsTrigger value="permissions">Permissões</TabsTrigger>
-                <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
                 <TabsTrigger value="advanced">Configurações Avançadas</TabsTrigger>
               </TabsList>
               
@@ -785,14 +825,13 @@ export default function AdminUsersPage() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="password-edit">Nova Senha (opcional)</Label>
+                    <Label htmlFor="password-edit">Senha (deixe em branco para manter)</Label>
                     <Input
                       id="password-edit"
                       name="password"
                       type="password"
                       value={formValues.password || ""}
                       onChange={handleInputChange}
-                      placeholder="Deixe em branco para manter a senha atual"
                     />
                   </div>
                   <div className="space-y-2">
@@ -803,7 +842,6 @@ export default function AdminUsersPage() {
                       type="password"
                       value={formValues.confirmPassword || ""}
                       onChange={handleInputChange}
-                      placeholder="Confirme a nova senha"
                     />
                   </div>
                 </div>
@@ -860,72 +898,60 @@ export default function AdminUsersPage() {
                 </div>
               </TabsContent>
               
-              <TabsContent value="webhooks" className="space-y-4">
+              <TabsContent value="server" className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="whatsappWebhookUrl-edit">Webhook do WhatsApp</Label>
-                  <Input
-                    id="whatsappWebhookUrl-edit"
-                    name="whatsappWebhookUrl"
-                    value={formValues.whatsappWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/whatsapp"
-                  />
+                  <Label htmlFor="serverId-edit">Servidor</Label>
+                  <Select 
+                    onValueChange={(value) => handleSelectChange("serverId", value)}
+                    value={formValues.serverId?.toString() || ""}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um servidor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingServers ? (
+                        <div className="flex justify-center p-2">
+                          Carregando servidores...
+                        </div>
+                      ) : servers.length === 0 ? (
+                        <div className="p-2 text-center text-sm text-gray-500">
+                          Nenhum servidor disponível. Adicione um servidor primeiro.
+                        </div>
+                      ) : (
+                        servers.map((server) => (
+                          <SelectItem 
+                            key={server.id} 
+                            value={server.id.toString()}
+                          >
+                            {server.name} ({server.provider})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    O servidor selecionado será usado para todas as operações deste usuário.
+                  </p>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="aiAgentWebhookUrl-edit">Webhook do Agente IA</Label>
-                  <Input
-                    id="aiAgentWebhookUrl-edit"
-                    name="aiAgentWebhookUrl"
-                    value={formValues.aiAgentWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/ai-agent"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="prospectingWebhookUrl-edit">Webhook de Prospecção</Label>
-                  <Input
-                    id="prospectingWebhookUrl-edit"
-                    name="prospectingWebhookUrl"
-                    value={formValues.prospectingWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/prospecting"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="contactsWebhookUrl-edit">Webhook de Contatos</Label>
-                  <Input
-                    id="contactsWebhookUrl-edit"
-                    name="contactsWebhookUrl"
-                    value={formValues.contactsWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/contacts"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="schedulingWebhookUrl-edit">Webhook de Agendamentos</Label>
-                  <Input
-                    id="schedulingWebhookUrl-edit"
-                    name="schedulingWebhookUrl"
-                    value={formValues.schedulingWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/scheduling"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="crmWebhookUrl-edit">Webhook do CRM</Label>
-                  <Input
-                    id="crmWebhookUrl-edit"
-                    name="crmWebhookUrl"
-                    value={formValues.crmWebhookUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/webhook/crm"
-                  />
-                </div>
+              </TabsContent>
+              
+              <TabsContent value="permissions" className="space-y-4">
+                <ModulePermissions
+                  permissions={{
+                    accessDashboard: formValues.accessDashboard,
+                    accessLeads: formValues.accessLeads,
+                    accessProspecting: formValues.accessProspecting,
+                    accessAiAgent: formValues.accessAiAgent,
+                    accessWhatsapp: formValues.accessWhatsapp,
+                    accessContacts: formValues.accessContacts,
+                    accessScheduling: formValues.accessScheduling,
+                    accessReports: formValues.accessReports,
+                    accessSettings: formValues.accessSettings,
+                  }}
+                  onChange={(newPermissions) => {
+                    setFormValues({ ...formValues, ...newPermissions });
+                  }}
+                />
               </TabsContent>
               
               <TabsContent value="advanced" className="space-y-4">
@@ -954,38 +980,24 @@ export default function AdminUsersPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="monthlyFee-edit">Valor da Mensalidade (R$)</Label>
-                    <Input
-                      id="monthlyFee-edit"
-                      name="monthlyFee"
-                      type="text"
-                      value={formValues.monthlyFee}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="serverAddress-edit">Endereço do Servidor</Label>
-                    <Input
-                      id="serverAddress-edit"
-                      name="serverAddress"
-                      value={formValues.serverAddress}
-                      onChange={handleInputChange}
-                      placeholder="https://example.com"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyFee-edit">Valor da Mensalidade (R$)</Label>
+                  <Input
+                    id="monthlyFee-edit"
+                    name="monthlyFee"
+                    type="text"
+                    value={formValues.monthlyFee}
+                    onChange={handleInputChange}
+                  />
                 </div>
               </TabsContent>
             </Tabs>
             
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsEditOpen(false);
-                  resetForm();
-                }}
+            <DialogFooter className="mt-6">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditOpen(false)}
+                disabled={updateUserMutation.isPending}
               >
                 Cancelar
               </Button>
@@ -996,135 +1008,61 @@ export default function AdminUsersPage() {
                 {updateUserMutation.isPending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Atualizando...
+                    Salvando...
                   </>
                 ) : (
-                  "Atualizar Usuário"
+                  "Salvar Alterações"
                 )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Modal para confirmar exclusão */}
-        <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        {/* Modal para gerenciar instância WhatsApp */}
+        <Dialog open={isWhatsAppInstanceDialogOpen} onOpenChange={setIsWhatsAppInstanceDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Confirmar Exclusão</DialogTitle>
+              <DialogTitle>Gerenciar WhatsApp</DialogTitle>
               <DialogDescription>
-                Tem certeza que deseja excluir o usuário{" "}
-                <span className="font-medium">{currentUser?.name || currentUser?.username}</span>?
-                Esta ação não pode ser desfeita.
+                Configure ou atualize a instância do WhatsApp para o usuário <strong>{currentUser?.name || currentUser?.username}</strong>.
               </DialogDescription>
             </DialogHeader>
-            
-            <div className="flex items-center p-4 mt-2 border rounded-md bg-red-50 border-red-200">
-              <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-              <p className="text-red-700 text-sm">
-                Todos os dados associados a este usuário também serão excluídos.
-              </p>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="whatsappInstanceWebhook">URL do Webhook da Instância</Label>
+                <Input
+                  id="whatsappInstanceWebhook"
+                  value={instanceWebhookUrl}
+                  onChange={(e) => setInstanceWebhookUrl(e.target.value)}
+                  placeholder="https://example.com/webhook/instance"
+                />
+              </div>
             </div>
-            
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDeleteOpen(false)}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsWhatsAppInstanceDialogOpen(false)}
               >
                 Cancelar
               </Button>
               <Button 
-                variant="destructive"
-                onClick={handleDeleteUser}
-                disabled={deleteUserMutation.isPending}
+                onClick={handleCreateWhatsappInstance}
+                disabled={createWhatsappInstanceMutation.isPending}
               >
-                {deleteUserMutation.isPending ? (
+                {createWhatsappInstanceMutation.isPending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Excluindo...
+                    Processando...
                   </>
                 ) : (
-                  "Excluir Usuário"
+                  "Salvar Configuração"
                 )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Modal para gerenciar instância de WhatsApp */}
-        <Dialog open={isWhatsAppInstanceDialogOpen} onOpenChange={setIsWhatsAppInstanceDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Gerenciar Instância WhatsApp</DialogTitle>
-              <DialogDescription>
-                Configure a instância do WhatsApp para o usuário <span className="font-medium">{currentUser?.name || currentUser?.username}</span>.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-              {currentUser?.whatsappInstanceId ? (
-                <div className="bg-green-50 p-4 rounded-md border border-green-200 mb-4">
-                  <div className="flex items-center mb-2">
-                    <span className="inline-flex items-center px-2 py-1 mr-2 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Ativo
-                    </span>
-                    <p className="text-green-800 font-medium">
-                      Instância criada
-                    </p>
-                  </div>
-                  <p className="text-sm text-green-700">
-                    ID da instância: <span className="font-mono">{currentUser.whatsappInstanceId}</span>
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-amber-50 p-4 rounded-md border border-amber-200 mb-4">
-                  <p className="text-amber-800">
-                    Este usuário ainda não possui uma instância do WhatsApp ativa. 
-                    Configure o webhook abaixo para criar uma.
-                  </p>
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="instance-webhook-url">URL do Webhook da Instância</Label>
-                <Input
-                  id="instance-webhook-url"
-                  value={instanceWebhookUrl}
-                  onChange={(e) => setInstanceWebhookUrl(e.target.value)}
-                  placeholder="https://n8n.example.com/webhook/create-whatsapp-instance"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Este é o endpoint que será chamado para criar/gerenciar a instância
-                </p>
-              </div>
-              
-              <Button 
-                onClick={handleCreateWhatsappInstance}
-                disabled={createWhatsappInstanceMutation.isPending || !instanceWebhookUrl}
-                className="w-full mt-4"
-              >
-                {createWhatsappInstanceMutation.isPending ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {currentUser?.whatsappInstanceId ? "Atualizando Instância..." : "Criando Instância..."}
-                  </>
-                ) : (
-                  currentUser?.whatsappInstanceId ? "Atualizar Instância" : "Criar Instância de WhatsApp"
-                )}
-              </Button>
-            </div>
-            
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsWhatsAppInstanceDialogOpen(false)}
-              >
-                Fechar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Dialog para gerenciar permissões de acesso */}
+        {/* Dialog para gerenciar permissões */}
         <UserPermissionsDialog
           user={currentUser}
           open={isPermissionsDialogOpen}
