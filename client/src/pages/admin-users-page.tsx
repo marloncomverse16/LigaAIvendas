@@ -185,6 +185,29 @@ export default function AdminUsersPage() {
     },
   });
   
+  // Atribuir servidor automaticamente para um usuário
+  const autoAssignServerMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await apiRequest("POST", "/api/admin/auto-assign-server", { userId });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Servidor atribuído automaticamente",
+        description: `Usuário conectado ao servidor ${data.server.name}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setIsEditOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atribuir servidor",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Criar uma instância do WhatsApp para um usuário
   const createWhatsappInstanceMutation = useMutation({
     mutationFn: async ({ userId, webhookUrl }: { userId: number; webhookUrl: string }) => {
@@ -497,6 +520,29 @@ export default function AdminUsersPage() {
                                 <KeySquare className="mr-2 h-4 w-4" />
                                 Permissões de Acesso
                               </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  setCurrentUser(user);
+                                  autoAssignServerMutation.mutate(user.id);
+                                }}
+                              >
+                                <svg 
+                                  className="mr-2 h-4 w-4" 
+                                  xmlns="http://www.w3.org/2000/svg" 
+                                  viewBox="0 0 24 24" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  strokeWidth="2" 
+                                  strokeLinecap="round" 
+                                  strokeLinejoin="round"
+                                >
+                                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                  <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                  <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                                </svg>
+                                Atribuir Servidor Auto
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 onClick={() => handleDeleteDialog(user)}
@@ -678,36 +724,74 @@ export default function AdminUsersPage() {
               <TabsContent value="server" className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="serverId">Servidor</Label>
-                  <Select 
-                    onValueChange={(value) => handleSelectChange("serverId", value)}
-                    value={formValues.serverId?.toString() || ""}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um servidor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingServers ? (
-                        <div className="flex justify-center p-2">
-                          Carregando servidores...
-                        </div>
-                      ) : servers.length === 0 ? (
-                        <div className="p-2 text-center text-sm text-gray-500">
-                          Nenhum servidor disponível. Adicione um servidor primeiro.
-                        </div>
+                  <div className="flex gap-2 mb-2">
+                    <Select 
+                      onValueChange={(value) => handleSelectChange("serverId", value)}
+                      value={formValues.serverId?.toString() || ""}
+                      className="flex-1"
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um servidor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {isLoadingServers ? (
+                          <div className="flex justify-center p-2">
+                            Carregando servidores...
+                          </div>
+                        ) : servers.length === 0 ? (
+                          <div className="p-2 text-center text-sm text-gray-500">
+                            Nenhum servidor disponível. Adicione um servidor primeiro.
+                          </div>
+                        ) : (
+                          servers.map((server) => (
+                            <SelectItem 
+                              key={server.id} 
+                              value={server.id.toString()}
+                            >
+                              {server.name} ({server.provider})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      disabled={!currentUser || autoAssignServerMutation.isPending}
+                      onClick={() => {
+                        if (currentUser) {
+                          autoAssignServerMutation.mutate(currentUser.id);
+                        }
+                      }}
+                      className="flex gap-1 items-center"
+                    >
+                      {autoAssignServerMutation.isPending ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                       ) : (
-                        servers.map((server) => (
-                          <SelectItem 
-                            key={server.id} 
-                            value={server.id.toString()}
-                          >
-                            {server.name} ({server.provider})
-                          </SelectItem>
-                        ))
+                        <svg 
+                          className="h-4 w-4" 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        >
+                          <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                          <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                          <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                          <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                        </svg>
                       )}
-                    </SelectContent>
-                  </Select>
+                      Atribuir automaticamente
+                    </Button>
+                  </div>
+                  
                   <p className="text-sm text-muted-foreground mt-1">
                     O servidor selecionado será usado para todas as operações deste usuário.
+                    Use a atribuição automática para conectar ao servidor com menos usuários.
                   </p>
                 </div>
               </TabsContent>
