@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   User,
   Bot,
-  Send
+  Send,
+  MessagesSquare
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,12 @@ export function Sidebar() {
       path: "/connection", 
       label: "Conexão WhatsApp", 
       icon: <MessageSquare size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessWhatsapp"
+    },
+    { 
+      path: "/chat", 
+      label: "CHAT", 
+      icon: <MessagesSquare size={collapsed ? 24 : 20} />, 
       permissionKey: "accessWhatsapp"
     },
     { 

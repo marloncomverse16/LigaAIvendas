@@ -11,6 +11,7 @@ import SettingsPage from "@/pages/settings-page";
 import AiAgentPage from "@/pages/ai-agent-page";
 import ProspectingPage from "@/pages/prospecting-page";
 import ConnectionPage from "@/pages/connection-page";
+import ChatPage from "@/pages/chat-page";
 import MessageSendingPage from "@/pages/message-sending-page";
 import AdminUsersPage from "@/pages/admin-users-page";
 import UserPermissionsPage from "@/pages/user-permissions-page";
@@ -27,6 +28,7 @@ function Router() {
       <ProtectedRoute path="/ai-agent" component={AiAgentPage} />
       <ProtectedRoute path="/prospecting" component={ProspectingPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
+      <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/message-sending" component={MessageSendingPage} />
       <ProtectedRoute path="/admin-users" component={AdminUsersPage} />
       <ProtectedRoute path="/admin-users/permissions/:userId" component={UserPermissionsPage} />
