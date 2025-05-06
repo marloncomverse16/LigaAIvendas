@@ -390,9 +390,9 @@ const CreateSendingForm = () => {
   
   // Buscando as pesquisas de prospecção existentes
   const { data: searches, isLoading: isLoadingSearches } = useQuery({
-    queryKey: ["/api/prospecting-searches"],
+    queryKey: ["/api/prospecting/searches"],
     queryFn: async () => {
-      const res = await fetch("/api/prospecting-searches");
+      const res = await fetch("/api/prospecting/searches");
       if (!res.ok) throw new Error("Falha ao carregar pesquisas");
       return res.json();
     },
@@ -758,9 +758,9 @@ const SendingList = () => {
   
   // Buscar as pesquisas para exibir os nomes
   const { data: searches } = useQuery({
-    queryKey: ["/api/prospecting-searches"],
+    queryKey: ["/api/prospecting/searches"],
     queryFn: async () => {
-      const res = await fetch("/api/prospecting-searches");
+      const res = await fetch("/api/prospecting/searches");
       if (!res.ok) throw new Error("Falha ao carregar pesquisas");
       return res.json();
     },
