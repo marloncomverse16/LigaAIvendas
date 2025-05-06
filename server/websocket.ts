@@ -596,32 +596,73 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
-            // Iniciar conexão WebSocket diretamente com a API da Evolution
-            console.log(`Iniciando conexão WebSocket com a Evolution API para usuário ${userId}`);
+            // Voltar para abordagem HTTP já que WebSocket não está funcionando
+            console.log(`Iniciando conexão HTTP com a Evolution API para usuário ${userId}`);
             
-            // Conectar utilizando o método de conexão direta por WebSocket
-            const socket = await connectToEvolutionSocket(userId, user.whatsappApiUrl, user.whatsappApiToken);
-            
-            if (socket) {
+            try {
+              // Remover barras extras e garantir que temos o caminho correto incluindo 'manager'
+              const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+              
+              // Verificar se a URL já contém 'manager', senão adicionar
+              const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
+              const path = `${managerPath}/instances/${user.whatsappInstanceId || 'admin'}/status`.replace(/^\/+/, "");
+              const fullUrl = `${baseUrl}/${path}`;
+              
+              console.log(`Verificando status da instância via HTTP: ${fullUrl}`);
+              
+              // Verificar status atual da instância
+              const statusResponse = await axios.get(
+                fullUrl,
+                { 
+                  headers: { 
+                    Authorization: `Bearer ${user.whatsappApiToken}` 
+                  }
+                }
+              );
+              
+              const status = statusResponse.data;
+              console.log(`Status da instância:`, status);
+              
+              // Enviar status para o cliente
               ws.send(JSON.stringify({
                 type: 'connection_status',
-                data: { 
-                  status: 'connecting', 
-                  message: 'Conexão WebSocket com Evolution API estabelecida. Aguardando status.' 
-                }
+                data: status
               }));
               
-              // Solicitar QR Code
-              socket.send(JSON.stringify({
-                event: 'create-instance',
-                data: {
-                  instanceName: user.whatsappInstanceId || 'admin'
+              // Se não estiver conectado, iniciar processo de conexão
+              if (!status.connected) {
+                // Iniciar conexão com QR code
+                const connectPath = `${managerPath}/instances/${user.whatsappInstanceId || 'admin'}/connect`.replace(/^\/+/, "");
+                const connectUrl = `${baseUrl}/${connectPath}`;
+                
+                console.log(`Iniciando conexão HTTP: ${connectUrl}`);
+                
+                const connectResponse = await axios.post(
+                  connectUrl,
+                  {},
+                  { 
+                    headers: { 
+                      Authorization: `Bearer ${user.whatsappApiToken}` 
+                    }
+                  }
+                );
+                
+                console.log(`Resposta de conexão:`, connectResponse.data);
+                
+                if (connectResponse.data && connectResponse.data.qrcode) {
+                  ws.send(JSON.stringify({
+                    type: 'qr_code',
+                    data: {
+                      qrCode: connectResponse.data.qrcode
+                    }
+                  }));
                 }
-              }));
-            } else {
+              }
+            } catch (httpError) {
+              console.error('Erro ao fazer solicitação HTTP para a Evolution API:', httpError);
               ws.send(JSON.stringify({
                 type: 'connection_error',
-                error: 'Não foi possível estabelecer conexão com o WebSocket da Evolution API'
+                error: `Erro na conexão HTTP: ${httpError.message}`
               }));
             }
           } catch (error) {
@@ -641,40 +682,60 @@ export function setupWebSocketServer(server: HttpServer) {
           }
           
           try {
-            // Verificar se temos uma conexão WebSocket ativa
-            const socket = evolutionClients.get(userId);
+            // Como mudamos para HTTP, usar o método HTTP para desconectar
+            const user = await storage.getUser(userId);
             
-            if (socket && socket.readyState === WebSocket.OPEN) {
-              // Obter o nome da instância
-              const user = await storage.getUser(userId);
-              const instanceName = user?.whatsappInstanceId || 'admin';
-              
-              console.log(`Desconectando da Evolution API via WebSocket para usuário ${userId}`);
-              
-              // Enviar comando de logout
-              socket.send(JSON.stringify({
-                event: 'logout-instance',
-                data: {
-                  instanceName
-                }
+            if (!user || !user.whatsappApiUrl || !user.whatsappApiToken || !user.whatsappInstanceId) {
+              ws.send(JSON.stringify({ 
+                type: 'connection_error', 
+                error: 'Configuração da Evolution API não encontrada' 
               }));
+              return;
+            }
+            
+            console.log(`Desconectando da Evolution API via HTTP para usuário ${userId}`);
+            
+            // Remover barras extras e garantir que temos o caminho correto incluindo 'manager'
+            const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
+            
+            // Verificar se a URL já contém 'manager', senão adicionar
+            const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
+            const path = `${managerPath}/instances/${user.whatsappInstanceId}/logout`.replace(/^\/+/, "");
+            const fullUrl = `${baseUrl}/${path}`;
+            
+            console.log(`Desconectando da Evolution API: ${fullUrl}`);
+            
+            try {
+              // Fazer logout da instância
+              const response = await axios.post(
+                fullUrl,
+                {},
+                { 
+                  headers: { 
+                    Authorization: `Bearer ${user.whatsappApiToken}` 
+                  }
+                }
+              );
               
-              // Fechar a conexão WebSocket
-              socket.close();
+              console.log('Resposta de desconexão:', response.data);
               
-              // Remover da lista de conexões
-              evolutionClients.set(userId, null);
+              // Fechar qualquer conexão WebSocket ativa
+              const socket = evolutionClients.get(userId);
+              if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+                evolutionClients.set(userId, null);
+              }
               
               // Notificar cliente sobre desconexão
               ws.send(JSON.stringify({
                 type: 'connection_status',
                 data: { connected: false, state: 'DISCONNECTED' }
               }));
-            } else {
-              console.log(`Não há conexão WebSocket ativa para o usuário ${userId}`);
+            } catch (httpError) {
+              console.error('Erro ao fazer solicitação HTTP para desconexão:', httpError);
               ws.send(JSON.stringify({
-                type: 'connection_status',
-                data: { connected: false, state: 'DISCONNECTED' }
+                type: 'connection_error',
+                error: `Erro na desconexão: ${httpError.message}`
               }));
             }
           } catch (error) {
