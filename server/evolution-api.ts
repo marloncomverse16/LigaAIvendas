@@ -295,6 +295,7 @@ export class EvolutionApiClient {
               const qrCode = postLegacyResponse.data?.qrcode || 
                             postLegacyResponse.data?.qrCode || 
                             postLegacyResponse.data?.base64 || 
+                            postLegacyResponse.data?.code || // Novo formato presente na versão 2.2.3
                             (typeof postLegacyResponse.data === 'string' ? postLegacyResponse.data : null);
               
               if (qrCode) {
@@ -332,6 +333,7 @@ export class EvolutionApiClient {
               const qrCode = getResponse.data?.qrcode || 
                             getResponse.data?.qrCode || 
                             getResponse.data?.base64 || 
+                            getResponse.data?.code || // Novo formato presente na versão 2.2.3
                             (typeof getResponse.data === 'string' ? getResponse.data : null);
               
               if (qrCode) {
