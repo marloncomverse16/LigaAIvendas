@@ -1417,6 +1417,35 @@ export class MemStorage implements IStorage {
       userCount
     }));
   }
+  
+  async getServerWithLeastUsers(onlyActive: boolean = true): Promise<Server | undefined> {
+    // Obter todos os servidores (ativos, se especificado)
+    const serversList = onlyActive 
+      ? Array.from(this.servers.values()).filter(server => server.active)
+      : Array.from(this.servers.values());
+    
+    if (serversList.length === 0) return undefined;
+    
+    // Obter contagem de usuários por servidor
+    const userCountMap = await this.countUsersByServer();
+    
+    // Encontrar o servidor com menos usuários que não exceda o limite máximo
+    let bestServer: Server | undefined = undefined;
+    let lowestUserCount = Number.MAX_SAFE_INTEGER;
+    
+    for (const server of serversList) {
+      const userCount = userCountMap.find(uc => uc.serverId === server.id)?.userCount || 0;
+      const maxUsers = server.maxUsers || 10; // Default de 10 se não especificado
+      
+      // Verificar se o servidor tem vagas disponíveis
+      if (userCount < maxUsers && userCount < lowestUserCount) {
+        lowestUserCount = userCount;
+        bestServer = server;
+      }
+    }
+    
+    return bestServer;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2692,6 +2721,46 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Erro ao contar usuários por servidor:", error);
       return [];
+    }
+  }
+
+  async getServerWithLeastUsers(onlyActive: boolean = true): Promise<Server | undefined> {
+    try {
+      // Obter contagem de usuários por servidor
+      const userCountMap = await this.countUsersByServer();
+      
+      // Criar uma consulta para buscar servidores
+      let query = db.select().from(servers);
+      
+      // Adicionar filtro de servidores ativos se solicitado
+      if (onlyActive) {
+        query = query.where(eq(servers.active, true));
+      }
+      
+      // Buscar todos os servidores (ativos, se especificado)
+      const serversList = await query;
+      
+      if (serversList.length === 0) return undefined;
+      
+      // Encontrar o servidor com menos usuários que não exceda o limite máximo
+      let bestServer: Server | undefined = undefined;
+      let lowestUserCount = Number.MAX_SAFE_INTEGER;
+      
+      for (const server of serversList) {
+        const userCount = userCountMap.find(uc => uc.serverId === server.id)?.userCount || 0;
+        const maxUsers = server.maxUsers || 10; // Default de 10 se não especificado
+        
+        // Verificar se o servidor tem vagas disponíveis
+        if (userCount < maxUsers && userCount < lowestUserCount) {
+          lowestUserCount = userCount;
+          bestServer = server;
+        }
+      }
+      
+      return bestServer;
+    } catch (error) {
+      console.error("Erro ao buscar servidor com menos usuários:", error);
+      return undefined;
     }
   }
 }
