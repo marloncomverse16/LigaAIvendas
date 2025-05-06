@@ -29,6 +29,9 @@ export const users = pgTable("users", {
   // Instância do WhatsApp
   whatsappInstanceWebhook: text("whatsapp_instance_webhook"),
   whatsappInstanceId: text("whatsapp_instance_id"),
+  // Evolution API
+  whatsappApiUrl: text("whatsapp_api_url"),
+  whatsappApiToken: text("whatsapp_api_token"),
   isAdmin: boolean("is_admin").default(false),
   // Controle de acesso a módulos 
   accessDashboard: boolean("access_dashboard").default(true),
@@ -188,6 +191,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   crmWebhookUrl: true,
   whatsappInstanceWebhook: true,
   whatsappInstanceId: true,
+  whatsappApiUrl: true,
+  whatsappApiToken: true,
   availableTokens: true,
   tokenExpirationDays: true,
   monthlyFee: true,
@@ -505,3 +510,64 @@ export interface ConnectionStatus {
   qrCode?: string;
   lastUpdated?: Date;
 }
+
+// Contatos do WhatsApp
+export const whatsappContacts = pgTable("whatsapp_contacts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  contactId: text("contact_id").notNull(), // ID na Evolution API
+  name: text("name"),
+  number: text("number").notNull(),
+  profilePicture: text("profile_picture"),
+  isGroup: boolean("is_group").default(false),
+  lastActivity: timestamp("last_activity"),
+  lastMessageContent: text("last_message_content"),
+  unreadCount: integer("unread_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Mensagens do WhatsApp
+export const whatsappMessages = pgTable("whatsapp_messages", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  contactId: integer("contact_id").references(() => whatsappContacts.id).notNull(),
+  messageId: text("message_id").notNull(), // ID na Evolution API
+  content: text("content"),
+  fromMe: boolean("from_me").default(false),
+  timestamp: timestamp("timestamp").defaultNow(),
+  mediaType: text("media_type"), // image, video, audio, document
+  mediaUrl: text("media_url"),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Schema para inserção de contatos
+export const insertWhatsappContactSchema = createInsertSchema(whatsappContacts).pick({
+  contactId: true,
+  name: true,
+  number: true,
+  profilePicture: true,
+  isGroup: true,
+  lastActivity: true,
+  lastMessageContent: true,
+  unreadCount: true,
+});
+
+// Schema para inserção de mensagens
+export const insertWhatsappMessageSchema = createInsertSchema(whatsappMessages).pick({
+  contactId: true,
+  messageId: true,
+  content: true,
+  fromMe: true,
+  timestamp: true,
+  mediaType: true,
+  mediaUrl: true,
+  isRead: true,
+});
+
+export type WhatsappContact = typeof whatsappContacts.$inferSelect;
+export type InsertWhatsappContact = z.infer<typeof insertWhatsappContactSchema>;
+
+export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
+export type InsertWhatsappMessage = z.infer<typeof insertWhatsappMessageSchema>;
