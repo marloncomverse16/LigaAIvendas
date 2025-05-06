@@ -1,24 +1,45 @@
-// Adicionar o campo maxUsers antes do active no formulário de criação
+// Adição para o formulário de criação - após apiToken
               <FormField
                 control={form.control}
                 name="maxUsers"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Limite de Usuários</FormLabel>
+                    <FormLabel className="font-bold text-primary">Quantidade Máxima de Usuários</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
-                        min="1"
-                        placeholder="Número máximo de usuários" 
+                        min="1" 
+                        placeholder="Ex: 10" 
                         {...field} 
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 10)}
-                        value={field.value}
                       />
                     </FormControl>
-                    <FormDescription>
-                      Defina o número máximo de usuários que podem se conectar a este servidor.
-                    </FormDescription>
                     <FormMessage />
+                    <FormDescription>
+                      Quantidade máxima de usuários que podem se conectar a este servidor simultaneamente.
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+
+// Adição para o formulário de edição - após apiToken
+              <FormField
+                control={form.control}
+                name="maxUsers"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold text-primary">Quantidade Máxima de Usuários</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="1" 
+                        placeholder="Ex: 10" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <FormDescription>
+                      Quantidade máxima de usuários que podem se conectar a este servidor simultaneamente.
+                    </FormDescription>
                   </FormItem>
                 )}
               />
