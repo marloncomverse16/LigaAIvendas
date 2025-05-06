@@ -340,6 +340,18 @@ export class MemStorage implements IStorage {
       this.messageSendings.delete(sending.id);
     }
     
+    // WhatsApp Contacts e Messages
+    const whatsappContacts = await this.getWhatsappContacts(id);
+    for (const contact of whatsappContacts) {
+      // Remover mensagens do contato
+      const messages = await this.getWhatsappMessages(id, contact.id);
+      for (const message of messages) {
+        this.whatsappMessages.delete(message.id);
+      }
+      // Remover o contato
+      this.whatsappContacts.delete(contact.id);
+    }
+    
     return true;
   }
   
@@ -1102,6 +1114,121 @@ export class MemStorage implements IStorage {
     };
     this.messageSendingHistory.set(id, newHistory);
     return newHistory;
+  }
+  
+  // WhatsApp Contacts methods
+  async getWhatsappContact(id: number): Promise<WhatsappContact | undefined> {
+    return this.whatsappContacts.get(id);
+  }
+
+  async getWhatsappContactByContactId(userId: number, contactId: string): Promise<WhatsappContact | undefined> {
+    return Array.from(this.whatsappContacts.values()).find(
+      contact => contact.userId === userId && contact.contactId === contactId
+    );
+  }
+
+  async getWhatsappContacts(userId: number): Promise<WhatsappContact[]> {
+    return Array.from(this.whatsappContacts.values()).filter(
+      contact => contact.userId === userId
+    );
+  }
+
+  async createWhatsappContact(contact: InsertWhatsappContact & { userId: number }): Promise<WhatsappContact> {
+    const id = this.currentId.whatsappContacts++;
+    const now = new Date();
+    const newContact: WhatsappContact = {
+      id,
+      userId: contact.userId,
+      contactId: contact.contactId,
+      name: contact.name || null,
+      number: contact.number,
+      profilePicture: contact.profilePicture || null,
+      isGroup: contact.isGroup || false,
+      lastActivity: contact.lastActivity || null,
+      lastMessageContent: contact.lastMessageContent || null,
+      unreadCount: contact.unreadCount || 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.whatsappContacts.set(id, newContact);
+    return newContact;
+  }
+
+  async updateWhatsappContact(id: number, contactData: Partial<InsertWhatsappContact>): Promise<WhatsappContact | undefined> {
+    const contact = await this.getWhatsappContact(id);
+    if (!contact) return undefined;
+    
+    const now = new Date();
+    const updatedContact = { 
+      ...contact, 
+      ...contactData,
+      updatedAt: now
+    };
+    this.whatsappContacts.set(id, updatedContact);
+    return updatedContact;
+  }
+
+  // WhatsApp Messages methods
+  async getWhatsappMessage(id: number): Promise<WhatsappMessage | undefined> {
+    return this.whatsappMessages.get(id);
+  }
+
+  async getWhatsappMessageByMessageId(userId: number, messageId: string): Promise<WhatsappMessage | undefined> {
+    return Array.from(this.whatsappMessages.values()).find(
+      message => message.userId === userId && message.messageId === messageId
+    );
+  }
+
+  async getWhatsappMessages(userId: number, contactId: number, limit?: number): Promise<WhatsappMessage[]> {
+    const messages = Array.from(this.whatsappMessages.values())
+      .filter(message => message.userId === userId && message.contactId === contactId)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    return limit ? messages.slice(0, limit) : messages;
+  }
+
+  async createWhatsappMessage(message: InsertWhatsappMessage & { userId: number; contactId: number }): Promise<WhatsappMessage> {
+    const id = this.currentId.whatsappMessages++;
+    const now = new Date();
+    
+    const newMessage: WhatsappMessage = {
+      id,
+      userId: message.userId,
+      contactId: message.contactId,
+      messageId: message.messageId,
+      content: message.content || null,
+      fromMe: message.fromMe || false,
+      timestamp: message.timestamp || now,
+      mediaType: message.mediaType || null,
+      mediaUrl: message.mediaUrl || null,
+      isRead: message.isRead || false,
+      createdAt: now,
+    };
+    
+    this.whatsappMessages.set(id, newMessage);
+    
+    // Atualizar o contato com a última mensagem
+    if (message.content) {
+      const contact = await this.getWhatsappContact(message.contactId);
+      if (contact) {
+        await this.updateWhatsappContact(contact.id, {
+          lastMessageContent: message.content,
+          lastActivity: now,
+          unreadCount: message.fromMe ? contact.unreadCount : (contact.unreadCount || 0) + 1
+        });
+      }
+    }
+    
+    return newMessage;
+  }
+
+  async updateWhatsappMessage(id: number, messageData: Partial<InsertWhatsappMessage>): Promise<WhatsappMessage | undefined> {
+    const message = await this.getWhatsappMessage(id);
+    if (!message) return undefined;
+    
+    const updatedMessage = { ...message, ...messageData };
+    this.whatsappMessages.set(id, updatedMessage);
+    return updatedMessage;
   }
 }
 
