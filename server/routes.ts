@@ -512,6 +512,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = parseInt(req.params.id);
       const userData = req.body;
+      const serverId = userData.serverId; // Capturar serverId se existir
+      
+      // Remover serverId pois vamos tratar separadamente
+      if ('serverId' in userData) {
+        delete userData.serverId;
+      }
+      
+      console.log(`Atualizando usuário ${userId} com dados:`, userData);
       
       // Verificar se usuário existe
       const existingUser = await storage.getUser(userId);
@@ -526,6 +534,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Atualizar usuário
       const updatedUser = await storage.updateUser(userId, userData);
+      
+      // Se foi enviado um serverId, atualizá-lo separadamente
+      if (serverId !== undefined) {
+        console.log(`Atualizando serverId do usuário ${userId} para: ${serverId}`);
+        await storage.updateUserServerId(userId, serverId);
+        
+        // Recarregar usuário para obter dados atualizados
+        const refreshedUser = await storage.getUser(userId);
+        if (refreshedUser) {
+          updatedUser.serverId = refreshedUser.serverId;
+        }
+      }
       
       // Remover senha da resposta
       const { password, ...userResponse } = updatedUser;
