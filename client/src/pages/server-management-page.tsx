@@ -1071,7 +1071,7 @@ export default function ServerManagementPage() {
               ) : serverUsers && serverUsers.length > 0 ? (
                 <div className="space-y-2">
                   {serverUsers.map((serverUser: any) => (
-                    <div key={serverUser.userId} className="flex items-center justify-between rounded-md border p-2">
+                    <div key={serverUser.id} className="flex items-center justify-between rounded-md border p-2">
                       <div className="flex items-center space-x-2">
                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                           {serverUser.user?.name?.[0] || serverUser.user?.username?.[0] || "U"}

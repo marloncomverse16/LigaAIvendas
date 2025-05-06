@@ -102,7 +102,7 @@ export default function ServerManagementPage() {
     },
   });
 
-  // Busca usuários (apenas para admin associar servidores a usuários)
+  // Busca todos os usuários (para admin)
   const { data: users, isLoading: isLoadingUsers } = useQuery({
     queryKey: ["/api/admin/users"],
     queryFn: async () => {
@@ -113,6 +113,25 @@ export default function ServerManagementPage() {
       return userData;
     },
     enabled: !!user?.isAdmin,
+  });
+  
+  // Busca usuários associados ao servidor selecionado
+  const { data: serverUsers, isLoading: isLoadingServerUsers, refetch: refetchServerUsers } = useQuery({
+    queryKey: ["/api/user-servers", selectedServer?.id],
+    queryFn: async () => {
+      if (!selectedServer) return [];
+      console.log("Buscando usuários para o servidor:", selectedServer.id);
+      try {
+        const res = await apiRequest("GET", `/api/user-servers/${selectedServer.id}`);
+        const data = await res.json();
+        console.log("Usuários do servidor retornados:", data);
+        return data;
+      } catch (error) {
+        console.error("Erro ao buscar usuários do servidor:", error);
+        return [];
+      }
+    },
+    enabled: !!selectedServer && userServerDialogOpen,
   });
 
   // Formulário para criar/editar servidor
@@ -330,7 +349,31 @@ export default function ServerManagementPage() {
     addUserServerMutation.mutate({
       userId: selectedUserId,
       serverId: selectedServer.id
+    }, {
+      onSuccess: () => {
+        refetchServerUsers();
+      }
     });
+  };
+  
+  // Função para remover associação entre usuário e servidor
+  const handleRemoveUserServer = (userId: number) => {
+    if (!selectedServer) return;
+    
+    removeUserServerMutation.mutate({
+      userId,
+      serverId: selectedServer.id
+    }, {
+      onSuccess: () => {
+        refetchServerUsers();
+      }
+    });
+  };
+  
+  // Verifica se o servidor atingiu o limite máximo de usuários
+  const isServerUserLimitReached = () => {
+    if (!selectedServer || !serverUsers) return false;
+    return serverUsers.length >= selectedServer.maxUsers;
   };
 
   const filterServersByTab = (servers: Server[] = []) => {
@@ -489,7 +532,7 @@ export default function ServerManagementPage() {
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p>Associar a usuário</p>
+                                      <p>Usuários Conectados</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
@@ -1008,35 +1051,100 @@ export default function ServerManagementPage() {
 
       {/* Modal para associar usuário a servidor */}
       <Dialog open={userServerDialogOpen} onOpenChange={setUserServerDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Associar Usuário ao Servidor</DialogTitle>
+            <DialogTitle>Usuários Conectados ao Servidor</DialogTitle>
             <DialogDescription>
-              Selecione um usuário para associar ao servidor {selectedServer?.name}.
+              Gerencie os usuários que têm acesso ao servidor {selectedServer?.name}. 
+              (Limite: {selectedServer?.maxUsers} usuários)
             </DialogDescription>
           </DialogHeader>
+          
           <div className="space-y-4">
-            {isLoadingUsers ? (
-              <div className="flex justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
-            ) : users && users.length > 0 ? (
-              <Select onValueChange={(value) => setSelectedUserId(Number(value))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um usuário" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user: any) => (
-                    <SelectItem key={user.id} value={user.id.toString()}>
-                      {user.name || user.username} ({user.email})
-                    </SelectItem>
+            {/* Lista de usuários já associados */}
+            <div className="border rounded-lg p-3">
+              <h3 className="text-sm font-medium mb-2">Usuários Conectados</h3>
+              {isLoadingServerUsers ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : serverUsers && serverUsers.length > 0 ? (
+                <div className="space-y-2">
+                  {serverUsers.map((serverUser: any) => (
+                    <div key={serverUser.id} className="flex items-center justify-between rounded-md border p-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          {serverUser.user?.name?.[0] || serverUser.user?.username?.[0] || "U"}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{serverUser.user?.name || serverUser.user?.username}</p>
+                          <p className="text-xs text-muted-foreground">{serverUser.user?.email}</p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleRemoveUserServer(serverUser.userId)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <p>Nenhum usuário disponível para associar.</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-2">Nenhum usuário associado a este servidor.</p>
+              )}
+            </div>
+            
+            {/* Adicionar novo usuário */}
+            {!isServerUserLimitReached() && (
+              <div className="border rounded-lg p-3">
+                <h3 className="text-sm font-medium mb-2">Adicionar Usuário</h3>
+                {isLoadingUsers ? (
+                  <div className="flex justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : users && users.length > 0 ? (
+                  <div className="space-y-3">
+                    <Select onValueChange={(value) => setSelectedUserId(Number(value))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um usuário" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users
+                          .filter((u: any) => !serverUsers?.some((su: any) => su.userId === u.id))
+                          .map((user: any) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.name || user.username} ({user.email})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      onClick={handleAddUserServer}
+                      disabled={!selectedUserId}
+                    >
+                      Adicionar Usuário
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhum usuário disponível para associar.</p>
+                )}
+              </div>
+            )}
+            
+            {isServerUserLimitReached() && (
+              <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3">
+                <p className="text-sm text-yellow-800">
+                  <strong>Limite atingido:</strong> Este servidor já tem o número máximo de usuários ({selectedServer?.maxUsers}).
+                  Para adicionar mais usuários, aumente o limite nas configurações do servidor.
+                </p>
+              </div>
             )}
           </div>
+          
           <DialogFooter>
             <Button
               variant="outline"
@@ -1045,13 +1153,7 @@ export default function ServerManagementPage() {
                 setSelectedUserId(null);
               }}
             >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleAddUserServer}
-              disabled={!selectedUserId}
-            >
-              Associar
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
