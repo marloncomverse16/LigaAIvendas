@@ -14,6 +14,79 @@ async function testHTTPConnection() {
     });
     console.log('Resposta HTTP:', response.status, response.statusText);
     console.log('Dados:', JSON.stringify(response.data, null, 2));
+    
+    // Testar o endpoint real da documentação
+    console.log("\nVerificando documentação da API...");
+    if (response.data && response.data.documentation) {
+      try {
+        const docUrl = response.data.documentation;
+        console.log(`URL documentação: ${docUrl}`);
+        const docResponse = await axios.get(docUrl);
+        console.log(`Documentação status: ${docResponse.status}`);
+      } catch (docError) {
+        console.error(`Erro ao acessar documentação: ${docError.message}`);
+      }
+    }
+    
+    // Testar endpoints do manager
+    console.log("\nVerificando endpoint do manager...");
+    if (response.data && response.data.manager) {
+      try {
+        const managerUrl = response.data.manager;
+        console.log(`URL manager: ${managerUrl}`);
+        const managerResponse = await axios.get(managerUrl, {
+          headers: {
+            Authorization: 'Bearer 4db623449606bcf2814521b73657dbc0'
+          }
+        });
+        console.log(`Manager status: ${managerResponse.status}`);
+      } catch (managerError) {
+        console.error(`Erro ao acessar manager: ${managerError.message}`);
+      }
+    }
+    
+    // Testar endpoint de instância
+    console.log("\nTentando endpoints de instances/admin/qrcode...");
+    try {
+      const baseUrl = response.data.manager || 'https://api.primerastreadores.com';
+      
+      // Remover http:// ou https:// e garantir formato correto
+      const cleanBaseUrl = baseUrl.replace(/^https?:\/\//, '');
+      const apiUrl = `https://${cleanBaseUrl}`;
+      
+      // Tentando variações de endpoints para encontrar o correto
+      const endpoints = [
+        '/instances/admin/qrcode',
+        '/instance/admin/qrcode',
+        '/api/instances/admin/qrcode',
+        '/manager/instances/admin/qrcode',
+        '/manager/api/instances/admin/qrcode',
+        '/v1/instances/admin/qrcode',
+        '/v3/instances/admin/qrcode'
+      ];
+      
+      for (const endpoint of endpoints) {
+        try {
+          const url = `${apiUrl}${endpoint}`;
+          console.log(`Testando: ${url}`);
+          
+          const response = await axios.get(url, {
+            headers: {
+              Authorization: 'Bearer 4db623449606bcf2814521b73657dbc0'
+            }
+          });
+          
+          console.log(`✅ Sucesso! Status: ${response.status}`);
+          console.log(`Dados: ${JSON.stringify(response.data, null, 2)}`);
+        } catch (endpointError) {
+          const status = endpointError.response ? endpointError.response.status : 'sem resposta';
+          console.log(`❌ Falha. Status: ${status}`);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao testar endpoints:', error.message);
+    }
+    
     return true;
   } catch (error) {
     console.error('Erro na conexão HTTP:', error.message);
