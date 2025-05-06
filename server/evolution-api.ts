@@ -66,93 +66,195 @@ export class EvolutionApiClient {
         };
       }
 
-      // Como a API retorna o manager URL, vamos usá-lo
-      const managerUrl = apiStatus.data.manager || null;
+      console.log("API Evolution online. Tentando obter QR code...");
+      console.log("Informações da API:", apiStatus);
+
+      // Verificação adicional da versão
+      // A conexão é diferente dependendo da versão
+      const isVersion2 = apiStatus.data && apiStatus.data.version && apiStatus.data.version.startsWith('2');
+      console.log(`Versão da API: ${apiStatus.data?.version || 'desconhecida'}`);
       
-      if (managerUrl) {
-        // Corrigir protocolo - garantir https
-        const secureManagerUrl = managerUrl.replace(/^http:/, 'https:');
-        
-        // Diferentes tentativas de endpoints baseados na documentação da API
-        const endpoints = [
-          // Baseado no manager URL retornado pela API
-          `${secureManagerUrl}/qrcode/${this.instance}`,
-          `${secureManagerUrl}/instance/qrcode/${this.instance}`,
-          // Endpoints alternativos
-          `${this.baseUrl}/manager/qrcode/${this.instance}`,
-          `${this.baseUrl}/instance/qrcode/${this.instance}`
-        ];
-        
-        // Tentar cada endpoint
-        for (const endpoint of endpoints) {
+      // Como a API retorna o manager URL, vamos tentar isso primeiro
+      // mas também tentaremos outros endpoints conhecidos
+      const managerUrl = apiStatus.data?.manager || null;
+      
+      // Corrigir protocolo - garantir https
+      const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
+      
+      // Endpoints a tentar - adaptados para versão 2.x da Evolution API
+      const endpoints = [];
+      
+      // Se temos a URL do Manager, adicioná-la primeiro
+      if (secureManagerUrl) {
+        // Endpoints via manager (interface web)
+        endpoints.push(`${secureManagerUrl}api/qrcode/${this.instance}`);
+        endpoints.push(`${secureManagerUrl}instance/qrcode/${this.instance}`);
+      }
+      
+      // Endpoints diretos na API
+      if (isVersion2) {
+        // Endpoints da versão 2.x
+        endpoints.push(`${this.baseUrl}/instance/qrcode`); // POST com instanceName
+        endpoints.push(`${this.baseUrl}/qrcode/${this.instance}`);
+        endpoints.push(`${this.baseUrl}/client/qrcode/${this.instance}`);
+      } else {
+        // Endpoints de versões anteriores ou alternativas
+        endpoints.push(`${this.baseUrl}/start`); // POST com session
+        endpoints.push(`${this.baseUrl}/api/session/start/${this.instance}`);
+        endpoints.push(`${this.baseUrl}/api/session/qrcode/${this.instance}`);
+      }
+      
+      // Adicionar endpoints comuns ou de teste
+      endpoints.push(`${this.baseUrl}/instance/qrcode/${this.instance}`);
+      endpoints.push(`${this.baseUrl}/manager/qrcode/${this.instance}`);
+      
+      // Metadados para a requisição
+      const postBodyV2 = { instanceName: this.instance };
+      const postBodyLegacy = { session: this.instance };
+      
+      console.log(`Tentando ${endpoints.length} endpoints possíveis...`);
+      
+      // Tentar cada endpoint
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Tentando obter QR code em: ${endpoint}`);
+          
+          // Tentar com POST primeiro (v2)
           try {
-            console.log(`Tentando obter QR code em: ${endpoint}`);
+            console.log(`POST com payload V2: ${JSON.stringify(postBodyV2)}`);
+            const postResponse = await axios.post(
+              endpoint, 
+              postBodyV2,
+              { headers: this.getHeaders() }
+            );
             
-            // Tentar com POST primeiro
-            try {
-              const postResponse = await axios.post(
-                endpoint, 
-                { instanceName: this.instance },
-                { headers: this.getHeaders() }
-              );
+            console.log(`Resposta POST (V2): Status ${postResponse.status}`);
+            
+            if (postResponse.status === 200 || postResponse.status === 201) {
+              console.log("QR Code obtido com sucesso via POST (V2)");
+              // Logar a resposta para diagnóstico
+              console.log("Dados da resposta:", JSON.stringify(postResponse.data).substring(0, 200) + "...");
               
-              if (postResponse.status === 200 && postResponse.data) {
-                console.log("QR Code obtido com sucesso via POST");
+              // Checar se existe QR code na resposta
+              const qrCode = postResponse.data?.qrcode || 
+                            postResponse.data?.qrCode || 
+                            postResponse.data?.base64 || 
+                            (typeof postResponse.data === 'string' ? postResponse.data : null);
+              
+              if (qrCode) {
                 return {
                   success: true,
-                  qrCode: postResponse.data.qrcode || postResponse.data.qrCode || postResponse.data.base64 || null,
-                  base64: postResponse.data.base64 || null,
+                  qrCode: qrCode,
+                  base64: postResponse.data?.base64 || null,
                   data: postResponse.data,
                   endpoint: endpoint,
-                  method: 'POST'
+                  method: 'POST (V2)'
                 };
+              } else {
+                console.log("Resposta sem QR code");
               }
-            } catch (postError) {
-              console.log(`POST falhou em ${endpoint}: ${postError.message}`);
             }
+          } catch (postError) {
+            console.log(`POST (V2) falhou em ${endpoint}: ${postError.message}`);
+          }
+          
+          // Tentar com POST (legacy)
+          try {
+            console.log(`POST com payload Legacy: ${JSON.stringify(postBodyLegacy)}`);
+            const postLegacyResponse = await axios.post(
+              endpoint, 
+              postBodyLegacy,
+              { headers: this.getHeaders() }
+            );
             
-            // Se POST falhar, tentar com GET
-            try {
-              const getResponse = await axios.get(endpoint, {
-                headers: this.getHeaders()
-              });
+            console.log(`Resposta POST (Legacy): Status ${postLegacyResponse.status}`);
+            
+            if (postLegacyResponse.status === 200 || postLegacyResponse.status === 201) {
+              console.log("QR Code obtido com sucesso via POST (Legacy)");
+              // Logar a resposta para diagnóstico
+              console.log("Dados da resposta:", JSON.stringify(postLegacyResponse.data).substring(0, 200) + "...");
               
-              if (getResponse.status === 200 && getResponse.data) {
-                console.log("QR Code obtido com sucesso via GET");
+              // Checar se existe QR code na resposta
+              const qrCode = postLegacyResponse.data?.qrcode || 
+                            postLegacyResponse.data?.qrCode || 
+                            postLegacyResponse.data?.base64 || 
+                            (typeof postLegacyResponse.data === 'string' ? postLegacyResponse.data : null);
+              
+              if (qrCode) {
                 return {
                   success: true,
-                  qrCode: getResponse.data.qrcode || getResponse.data.qrCode || getResponse.data.base64 || null,
-                  base64: getResponse.data.base64 || null,
+                  qrCode: qrCode,
+                  base64: postLegacyResponse.data?.base64 || null,
+                  data: postLegacyResponse.data,
+                  endpoint: endpoint,
+                  method: 'POST (Legacy)'
+                };
+              } else {
+                console.log("Resposta sem QR code");
+              }
+            }
+          } catch (postLegacyError) {
+            console.log(`POST (Legacy) falhou em ${endpoint}: ${postLegacyError.message}`);
+          }
+          
+          // Se POST falhar, tentar com GET
+          try {
+            console.log(`GET para ${endpoint}`);
+            const getResponse = await axios.get(endpoint, {
+              headers: this.getHeaders()
+            });
+            
+            console.log(`Resposta GET: Status ${getResponse.status}`);
+            
+            if (getResponse.status === 200 || getResponse.status === 201) {
+              console.log("QR Code obtido com sucesso via GET");
+              // Logar a resposta para diagnóstico
+              console.log("Dados da resposta:", JSON.stringify(getResponse.data).substring(0, 200) + "...");
+              
+              // Checar se existe QR code na resposta
+              const qrCode = getResponse.data?.qrcode || 
+                            getResponse.data?.qrCode || 
+                            getResponse.data?.base64 || 
+                            (typeof getResponse.data === 'string' ? getResponse.data : null);
+              
+              if (qrCode) {
+                return {
+                  success: true,
+                  qrCode: qrCode,
+                  base64: getResponse.data?.base64 || null,
                   data: getResponse.data,
                   endpoint: endpoint,
                   method: 'GET'
                 };
+              } else {
+                console.log("Resposta sem QR code");
               }
-            } catch (getError) {
-              console.log(`GET falhou em ${endpoint}: ${getError.message}`);
             }
-          } catch (endpointError) {
-            console.log(`Falha no endpoint ${endpoint}: ${endpointError.message}`);
+          } catch (getError) {
+            console.log(`GET falhou em ${endpoint}: ${getError.message}`);
           }
+        } catch (endpointError) {
+          console.log(`Falha no endpoint ${endpoint}: ${endpointError.message}`);
         }
       }
       
       // Se chegamos aqui, todos os endpoints falharam
-      console.log("Todos os endpoints falharam. Retornando QR code de teste");
+      console.log("Todos os endpoints falharam. Retornando QR code alternativo");
       
-      // Fornecer um QR code de teste para desenvolvimento da interface
+      // Fornecer um QR code alternativo
       const testQrCode = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WhatsAppConnectionTest-Evolution';
       
       return {
         success: false,
-        error: 'Não foi possível obter QR Code da API Evolution após múltiplas tentativas',
+        error: 'Não foi possível obter QR Code da API Evolution após testar múltiplos endpoints',
         testQrCode: testQrCode,
-        apiStatus: apiStatus
+        apiStatus: apiStatus,
+        tried_endpoints: endpoints
       };
     } catch (error) {
       console.error('Erro ao obter QR Code:', error);
       
-      // Fornecer um QR code de teste para desenvolvimento da interface
+      // Fornecer um QR code alternativo
       const testQrCode = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WhatsAppConnectionTest-Evolution';
       
       return {

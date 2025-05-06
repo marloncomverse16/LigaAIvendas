@@ -287,12 +287,35 @@ export async function connectWhatsApp(req: Request, res: Response) {
         else {
           const deepCheckQrCode = (obj, maxDepth = 3, depth = 0) => {
             if (depth > maxDepth || !obj || typeof obj !== 'object') return null;
+            
+            console.log(`Procurando QR code em profundidade ${depth}, chaves:`, Object.keys(obj).join(', '));
+            
             for (const key in obj) {
-              if (typeof obj[key] === 'string' && obj[key].startsWith('data:image')) {
-                return obj[key];
-              } else if (typeof obj[key] === 'object') {
-                const found = deepCheckQrCode(obj[key], maxDepth, depth + 1);
-                if (found) return found;
+              // Pular campos que podem causar loops ou são irrelevantes
+              if (key === 'parent' || key === 'socket' || key === 'config') continue;
+              
+              // Verificar strings que podem conter QR code
+              if (typeof obj[key] === 'string') {
+                const val = obj[key];
+                // Exibir parte do valor para debug
+                if (val.length > 20) {
+                  console.log(`String em ${key}:`, val.substring(0, 50) + '...');
+                }
+                
+                if (val.startsWith('data:image') || 
+                    val.includes('base64') || 
+                    val.startsWith('https') && val.includes('qrcode')) {
+                  console.log(`QR code encontrado na chave ${key}`);
+                  return val;
+                }
+              } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                // Verificar objetos aninhados
+                try {
+                  const found = deepCheckQrCode(obj[key], maxDepth, depth + 1);
+                  if (found) return found;
+                } catch (err) {
+                  console.log(`Erro ao verificar objeto em ${key}:`, err.message);
+                }
               }
             }
             return null;
