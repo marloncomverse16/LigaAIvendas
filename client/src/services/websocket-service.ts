@@ -132,9 +132,12 @@ export class WebSocketService {
       return;
     }
     
+    // Usar userId como token para simplificar
+    // No futuro, devemos implementar um sistema de token JWT
     this.sendMessage({
       type: 'authenticate',
       userId,
+      token: userId.toString(), // Usar o ID do usuário como token temporário
     });
   }
   

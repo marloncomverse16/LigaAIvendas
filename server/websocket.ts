@@ -234,8 +234,18 @@ export async function sendMessage(userId: number, contactId: number, content: st
 // Configurar WebSocket no servidor HTTP
 export function setupWebSocketServer(server: HttpServer) {
   const wss = new WebSocketServer({ 
-    server, 
-    path: '/api/ws' // Usar caminho /api/ws para não interferir com Vite
+    noServer: true, // Usar noServer para manipular o upgrade manualmente
+  });
+  
+  // Configurar upgrade manualmente para ter mais controle sobre headers e cors
+  server.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
+    
+    if (pathname === '/api/ws') {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    }
   });
   
   console.log('Servidor WebSocket iniciado em /api/ws');
@@ -252,14 +262,19 @@ export function setupWebSocketServer(server: HttpServer) {
         
         // Mensagem de autenticação
         if (data.type === 'authenticate') {
-          if (!data.token) {
-            ws.send(JSON.stringify({ type: 'error', error: 'Token não fornecido' }));
+          // Por enquanto, aceitamos um token simples baseado no userId
+          // No futuro, implementaremos um sistema de token JWT
+          if (!data.token || !data.userId) {
+            ws.send(JSON.stringify({ type: 'error', error: 'Token não fornecido ou inválido' }));
             return;
           }
           
-          // Verificar token e obter usuário
-          // Nota: Precisamos implementar um sistema de tokens para autenticação do WebSocket
-          // Por enquanto, podemos usar o userId diretamente para teste
+          // Verificação simples: o token deve ser igual ao userId como string
+          if (data.token !== data.userId.toString()) {
+            ws.send(JSON.stringify({ type: 'error', error: 'Token inválido' }));
+            return;
+          }
+          
           userId = data.userId;
           
           if (!userId) {
