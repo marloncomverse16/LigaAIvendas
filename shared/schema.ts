@@ -423,6 +423,81 @@ export type ProspectingResult = typeof prospectingResults.$inferSelect;
 export type InsertProspectingResult = z.infer<typeof insertProspectingResultSchema>;
 
 // Connection Types
+// Tabela para mensagens padrão
+export const messageTemplates = pgTable("message_templates", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  tags: text("tags"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tabela para envios de mensagens agendados
+export const messageSendings = pgTable("message_sendings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  searchId: integer("search_id").references(() => prospectingSearches.id),
+  templateId: integer("template_id").references(() => messageTemplates.id),
+  customMessage: text("custom_message"),
+  quantity: integer("quantity").default(10),
+  scheduledAt: timestamp("scheduled_at"),
+  executedAt: timestamp("executed_at"),
+  status: text("status").default("agendado"), // agendado, enviado, erro, cancelado
+  aiLearningEnabled: boolean("ai_learning_enabled").default(false),
+  aiNotes: text("ai_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tabela para histórico de envios de mensagens
+export const messageSendingHistory = pgTable("message_sending_history", {
+  id: serial("id").primaryKey(),
+  sendingId: integer("sending_id").references(() => messageSendings.id).notNull(),
+  resultId: integer("result_id").references(() => prospectingResults.id),
+  status: text("status").default("sucesso"), // sucesso, erro, pendente
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at").defaultNow(),
+});
+
+// Schema para inserção de mensagens padrão
+export const insertMessageTemplateSchema = createInsertSchema(messageTemplates).pick({
+  title: true,
+  content: true,
+  tags: true,
+});
+
+// Schema para inserção de envios de mensagens
+export const insertMessageSendingSchema = createInsertSchema(messageSendings).pick({
+  searchId: true,
+  templateId: true,
+  customMessage: true,
+  quantity: true,
+  scheduledAt: true,
+  status: true,
+  aiLearningEnabled: true,
+  aiNotes: true,
+});
+
+// Schema para histórico de envios
+export const insertMessageSendingHistorySchema = createInsertSchema(messageSendingHistory).pick({
+  sendingId: true,
+  resultId: true,
+  status: true,
+  errorMessage: true,
+});
+
+// Types
+export type MessageTemplate = typeof messageTemplates.$inferSelect;
+export type InsertMessageTemplate = z.infer<typeof insertMessageTemplateSchema>;
+
+export type MessageSending = typeof messageSendings.$inferSelect;
+export type InsertMessageSending = z.infer<typeof insertMessageSendingSchema>;
+
+export type MessageSendingHistory = typeof messageSendingHistory.$inferSelect;
+export type InsertMessageSendingHistory = z.infer<typeof insertMessageSendingHistorySchema>;
+
 export interface ConnectionStatus {
   connected: boolean;
   name?: string;

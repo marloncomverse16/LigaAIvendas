@@ -1378,6 +1378,279 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // ============ Rotas para Envio de Mensagens ============
+  
+  // Rotas para modelos de mensagens
+  app.get("/api/message-templates", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const templates = await storage.getMessageTemplates(userId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Erro ao buscar modelos de mensagens:", error);
+      res.status(500).json({ message: "Erro ao buscar modelos de mensagens" });
+    }
+  });
+  
+  app.post("/api/message-templates", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const templateData = {
+        ...req.body,
+        userId
+      };
+      
+      const newTemplate = await storage.createMessageTemplate(templateData);
+      res.status(201).json(newTemplate);
+    } catch (error) {
+      console.error("Erro ao criar modelo de mensagem:", error);
+      res.status(500).json({ message: "Erro ao criar modelo de mensagem" });
+    }
+  });
+  
+  app.put("/api/message-templates/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const templateId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar modelo para verificar propriedade
+      const template = await storage.getMessageTemplate(templateId);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Modelo de mensagem não encontrado" });
+      }
+      
+      // Verificar se o modelo pertence ao usuário
+      if (template.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      const updatedTemplate = await storage.updateMessageTemplate(templateId, req.body);
+      res.json(updatedTemplate);
+    } catch (error) {
+      console.error("Erro ao atualizar modelo de mensagem:", error);
+      res.status(500).json({ message: "Erro ao atualizar modelo de mensagem" });
+    }
+  });
+  
+  app.delete("/api/message-templates/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const templateId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar modelo para verificar propriedade
+      const template = await storage.getMessageTemplate(templateId);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Modelo de mensagem não encontrado" });
+      }
+      
+      // Verificar se o modelo pertence ao usuário
+      if (template.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      await storage.deleteMessageTemplate(templateId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao excluir modelo de mensagem:", error);
+      res.status(500).json({ message: "Erro ao excluir modelo de mensagem" });
+    }
+  });
+  
+  // Rotas para envio de mensagens
+  app.get("/api/message-sendings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const sendings = await storage.getMessageSendings(userId);
+      res.json(sendings);
+    } catch (error) {
+      console.error("Erro ao buscar envios de mensagens:", error);
+      res.status(500).json({ message: "Erro ao buscar envios de mensagens" });
+    }
+  });
+  
+  app.post("/api/message-sendings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const sendingData = {
+        ...req.body,
+        userId
+      };
+      
+      const newSending = await storage.createMessageSending(sendingData);
+      
+      // Se não tiver agendamento, executar imediatamente
+      if (!sendingData.scheduledAt) {
+        await processMessageSending(newSending.id, userId);
+      }
+      
+      res.status(201).json(newSending);
+    } catch (error) {
+      console.error("Erro ao criar envio de mensagens:", error);
+      res.status(500).json({ message: "Erro ao criar envio de mensagens" });
+    }
+  });
+  
+  // Função para processar envio de mensagens
+  async function processMessageSending(sendingId: number, userId: number) {
+    try {
+      // Buscar dados do envio
+      const sending = await storage.getMessageSending(sendingId);
+      if (!sending) {
+        throw new Error("Envio não encontrado");
+      }
+      
+      // Buscar usuário para obter webhook
+      const user = await storage.getUser(userId);
+      if (!user || !user.dispatchesWebhookUrl) {
+        throw new Error("Usuário ou webhook não configurado");
+      }
+      
+      // Buscar resultados da pesquisa
+      const results = await storage.getProspectingResults(sending.searchId);
+      if (results.length === 0) {
+        throw new Error("Não há resultados para enviar");
+      }
+      
+      // Limitar à quantidade configurada
+      const resultsToSend = results.slice(0, sending.quantity);
+      
+      // Buscar o modelo de mensagem se especificado
+      let messageContent = sending.customMessage || "";
+      if (sending.templateId) {
+        const template = await storage.getMessageTemplate(sending.templateId);
+        if (template) {
+          messageContent = template.content;
+        }
+      }
+      
+      // Chamar webhook com os parâmetros necessários
+      await axios.post(user.dispatchesWebhookUrl, {
+        sendingId: sending.id,
+        searchId: sending.searchId,
+        message: messageContent,
+        results: resultsToSend,
+        aiLearningEnabled: sending.aiLearningEnabled,
+        userId,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        company: user.company,
+        phone: user.phone
+      });
+      
+      // Atualizar status do envio
+      await storage.updateMessageSending(sendingId, {
+        status: "enviado",
+        executedAt: new Date()
+      });
+      
+      // Registrar histórico de envio para cada resultado
+      for (const result of resultsToSend) {
+        await storage.createMessageSendingHistory({
+          sendingId,
+          resultId: result.id,
+          status: "sucesso"
+        });
+      }
+      
+      return { success: true, count: resultsToSend.length };
+    } catch (error) {
+      console.error("Erro ao processar envio:", error);
+      
+      // Atualizar status do envio para erro
+      if (sendingId) {
+        await storage.updateMessageSending(sendingId, {
+          status: "erro",
+          executedAt: new Date()
+        });
+      }
+      
+      return { 
+        success: false, 
+        error: error.message || "Erro desconhecido" 
+      };
+    }
+  }
+  
+  app.post("/api/message-sendings/:id/send-now", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const sendingId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar envio para verificar propriedade
+      const sending = await storage.getMessageSending(sendingId);
+      
+      if (!sending) {
+        return res.status(404).json({ message: "Envio não encontrado" });
+      }
+      
+      // Verificar se o envio pertence ao usuário
+      if (sending.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      const result = await processMessageSending(sendingId, userId);
+      
+      if (result.success) {
+        res.json({
+          message: "Envio processado com sucesso",
+          count: result.count
+        });
+      } else {
+        res.status(500).json({
+          message: "Erro ao processar envio",
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao processar envio:", error);
+      res.status(500).json({ message: "Erro ao processar envio" });
+    }
+  });
+  
+  app.get("/api/message-sendings/:id/history", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const sendingId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar envio para verificar propriedade
+      const sending = await storage.getMessageSending(sendingId);
+      
+      if (!sending) {
+        return res.status(404).json({ message: "Envio não encontrado" });
+      }
+      
+      // Verificar se o envio pertence ao usuário
+      if (sending.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      const history = await storage.getMessageSendingHistory(sendingId);
+      res.json(history);
+    } catch (error) {
+      console.error("Erro ao buscar histórico de envio:", error);
+      res.status(500).json({ message: "Erro ao buscar histórico de envio" });
+    }
+  });
+  
   // Configure HTTP server
   const httpServer = createServer(app);
   
