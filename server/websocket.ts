@@ -651,23 +651,166 @@ export function setupWebSocketServer(server: HttpServer) {
                 }
               }));
               
-              // Simulando resposta de conexão com QR code fixo para teste
-              // Em produção, isso deve vir da API real
-              const qrCodeExample = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WhatsAppConnectionTest';
-              
-              ws.send(JSON.stringify({
-                type: 'qr_code',
-                data: {
-                  qrCode: qrCodeExample,
-                  message: 'Por favor escaneie o QR code com seu WhatsApp'
+              // TENTATIVA DE CORREÇÃO: Criar a instância com o nome de usuário
+              try {
+                console.log(`Tentando criar instância para o usuário ${user.username}`);
+                
+                // Preparar dados para criação da instância
+                const createInstanceBody = {
+                  instanceName: user.username,
+                  token: user.whatsappApiToken,
+                  webhook: null,
+                  webhookByEvents: false,
+                  reject_call: false,
+                  events_message: false,
+                  ignore_group: false,
+                  ignore_broadcast: false,
+                  save_message: true,
+                  webhook_base64: true
+                };
+                
+                // Primeiro endpoint para tentar criar a instância
+                try {
+                  console.log(`Criando instância em ${baseUrl}/instance/create`);
+                  const createResponse = await axios.post(
+                    `${baseUrl}/instance/create`,
+                    createInstanceBody,
+                    { headers: { Authorization: `Bearer ${user.whatsappApiToken}` } }
+                  );
+                  
+                  console.log(`Resposta da criação de instância:`, createResponse.data);
+                  
+                } catch (createErr) {
+                  console.log(`Erro na primeira tentativa de criar instância: ${createErr.message}`);
+                  
+                  // Tentar segundo endpoint
+                  try {
+                    console.log(`Tentando endpoint alternativo ${baseUrl}/instance/create/${user.username}`);
+                    const createAltResponse = await axios.post(
+                      `${baseUrl}/instance/create/${user.username}`,
+                      createInstanceBody,
+                      { headers: { Authorization: `Bearer ${user.whatsappApiToken}` } }
+                    );
+                    
+                    console.log(`Resposta da criação alternativa:`, createAltResponse.data);
+                  } catch (altErr) {
+                    console.log(`Erro na segunda tentativa: ${altErr.message}`);
+                  }
                 }
-              }));
-              
-              // Notificar o usuário sobre o estado atual da integração
-              ws.send(JSON.stringify({
-                type: 'connection_error', 
-                error: 'A API Evolution ainda não está completamente configurada. Estamos trabalhando para resolver isso. Por favor, entre em contato com o suporte para mais informações sobre a integração do WhatsApp.'
-              }));
+                
+                // Com a instância criada, tentar obter o QR code
+                // Tentativas com vários endpoints
+                const qrEndpoints = [
+                  `${baseUrl}/instance/qrcode/${user.username}`, 
+                  `${resolvedManagerUrl}/instance/qrcode/${user.username}`,
+                  `${baseUrl}/qrcode/${user.username}`
+                ];
+                
+                let qrCodeObtained = false;
+                let qrCodeData = null;
+                
+                for (const endpoint of qrEndpoints) {
+                  if (qrCodeObtained) break;
+                  
+                  try {
+                    console.log(`Tentando obter QR code em: ${endpoint}`);
+                    
+                    // Tentar POST com instanceName
+                    try {
+                      const qrResponse = await axios.post(
+                        endpoint,
+                        { instanceName: user.username },
+                        { headers: { Authorization: `Bearer ${user.whatsappApiToken}` } }
+                      );
+                      
+                      if (qrResponse.status === 200 || qrResponse.status === 201) {
+                        console.log(`QR Code obtido com sucesso via POST em ${endpoint}`);
+                        
+                        // Tentar extrair o QR code da resposta
+                        const qrCode = qrResponse.data?.qrcode || 
+                                      qrResponse.data?.qrCode || 
+                                      qrResponse.data?.base64 || 
+                                      (typeof qrResponse.data === 'string' ? qrResponse.data : null);
+                        
+                        if (qrCode) {
+                          qrCodeObtained = true;
+                          qrCodeData = qrCode;
+                          break;
+                        }
+                      }
+                    } catch (postErr) {
+                      console.log(`POST para QR code falhou: ${postErr.message}`);
+                    }
+                    
+                    // Se POST falhar, tentar GET
+                    try {
+                      const qrGetResponse = await axios.get(
+                        endpoint,
+                        { headers: { Authorization: `Bearer ${user.whatsappApiToken}` } }
+                      );
+                      
+                      if (qrGetResponse.status === 200 || qrGetResponse.status === 201) {
+                        console.log(`QR Code obtido com sucesso via GET em ${endpoint}`);
+                        
+                        // Tentar extrair o QR code da resposta
+                        const qrCode = qrGetResponse.data?.qrcode || 
+                                      qrGetResponse.data?.qrCode || 
+                                      qrGetResponse.data?.base64 || 
+                                      (typeof qrGetResponse.data === 'string' ? qrGetResponse.data : null);
+                        
+                        if (qrCode) {
+                          qrCodeObtained = true;
+                          qrCodeData = qrCode;
+                          break;
+                        }
+                      }
+                    } catch (getErr) {
+                      console.log(`GET para QR code falhou: ${getErr.message}`);
+                    }
+                  } catch (endpointErr) {
+                    console.log(`Erro ao acessar endpoint ${endpoint}: ${endpointErr.message}`);
+                  }
+                }
+                
+                if (qrCodeObtained && qrCodeData) {
+                  console.log("QR Code obtido com sucesso!");
+                  
+                  ws.send(JSON.stringify({
+                    type: 'qr_code',
+                    data: {
+                      qrCode: qrCodeData,
+                      message: 'Por favor escaneie o QR code com seu WhatsApp'
+                    }
+                  }));
+                } else {
+                  console.log("Não foi possível obter QR code após tentar múltiplos endpoints");
+                  
+                  // Fornecer um QR code de teste para debug
+                  const qrCodeExample = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WhatsAppConnectionTest';
+                  
+                  ws.send(JSON.stringify({
+                    type: 'qr_code',
+                    data: {
+                      qrCode: qrCodeExample,
+                      message: 'Por favor escaneie o QR code com seu WhatsApp (TESTE)'
+                    }
+                  }));
+                  
+                  ws.send(JSON.stringify({
+                    type: 'connection_error', 
+                    error: 'Não foi possível obter QR code da Evolution API. Por favor tente novamente mais tarde ou entre em contato com o suporte.'
+                  }));
+                }
+                
+              } catch (instanceErr) {
+                console.error(`Erro ao gerenciar instância: ${instanceErr.message}`);
+                
+                // Mensagem de erro para o usuário
+                ws.send(JSON.stringify({
+                  type: 'connection_error', 
+                  error: 'Ocorreu um erro ao configurar a instância na API Evolution. Por favor, entre em contato com o suporte.'
+                }));
+              }
             } catch (httpError) {
               console.error('Erro ao fazer solicitação HTTP para a Evolution API:', httpError);
               ws.send(JSON.stringify({

@@ -143,6 +143,17 @@ export async function connectWhatsApp(req: Request, res: Response) {
           });
         }
         
+        // PASSO CRÍTICO: Primeiro tentar criar a instância
+        console.log("Criando instância para o usuário antes de obter QR code...");
+        const createResult = await evolutionClient.createInstance();
+        
+        if (createResult.success) {
+          console.log("Instância criada com sucesso:", createResult);
+        } else {
+          console.log("Aviso: Não foi possível criar a instância, mas tentaremos obter o QR code mesmo assim");
+          console.log("Detalhes:", createResult.error || "Erro desconhecido");
+        }
+        
         // Solicitar QR code
         const qrResult = await evolutionClient.getQrCode();
         

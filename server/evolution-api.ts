@@ -60,6 +60,98 @@ export class EvolutionApiClient {
    * Obtém o QR Code para conexão da instância
    * @returns URL do QR Code ou objeto de erro
    */
+  /**
+   * Cria a instância para o usuário
+   * CRÍTICO: Esta etapa é necessária antes de qualquer operação com a instância
+   * @returns Resultado da criação da instância
+   */
+  async createInstance(): Promise<any> {
+    try {
+      // Primeiro, verificamos se a API está online
+      const apiStatus = await this.checkApiStatus();
+      if (!apiStatus.online) {
+        return {
+          success: false,
+          error: 'API Evolution indisponível',
+          details: apiStatus
+        };
+      }
+
+      console.log("API Evolution online. Tentando criar a instância...");
+      
+      // Formatar o corpo da requisição
+      const createInstanceBody = {
+        instanceName: this.instance,
+        token: this.token,
+        webhook: null, // Podemos deixar webhook nulo por enquanto
+        webhookByEvents: false, // Podemos adicionar eventos específicos mais tarde
+        reject_call: false,
+        events_message: false,
+        ignore_group: false,
+        ignore_broadcast: false,
+        save_message: true,
+        webhook_base64: true
+      };
+      
+      // Na versão 2.x, o endpoint para criar instância é /instance/create
+      // ou /instance/create/instance_name
+      try {
+        console.log(`Tentando criar instância no endpoint: ${this.baseUrl}/instance/create`);
+        console.log(`Dados enviados:`, JSON.stringify(createInstanceBody));
+        
+        const response = await axios.post(
+          `${this.baseUrl}/instance/create`,
+          createInstanceBody,
+          { headers: this.getHeaders() }
+        );
+        
+        console.log(`Resposta da criação de instância:`, response.data);
+        
+        if (response.status === 201 || response.status === 200) {
+          return {
+            success: true,
+            data: response.data
+          };
+        }
+      } catch (error) {
+        console.error(`Erro ao criar instância:`, error.message);
+        
+        // Tentar endpoint alternativo
+        try {
+          console.log(`Tentando endpoint alternativo: ${this.baseUrl}/instance/create/${this.instance}`);
+          
+          const response = await axios.post(
+            `${this.baseUrl}/instance/create/${this.instance}`,
+            createInstanceBody,
+            { headers: this.getHeaders() }
+          );
+          
+          console.log(`Resposta da criação de instância (alternativo):`, response.data);
+          
+          if (response.status === 201 || response.status === 200) {
+            return {
+              success: true,
+              data: response.data
+            };
+          }
+        } catch (altError) {
+          console.error(`Erro no endpoint alternativo:`, altError.message);
+        }
+      }
+      
+      return {
+        success: false,
+        error: "Não foi possível criar a instância após múltiplas tentativas"
+      };
+    } catch (error) {
+      console.error(`Erro geral ao criar instância:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   async getQrCode(): Promise<any> {
     try {
       // Primeiro, verificamos se a API está online
@@ -74,6 +166,15 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando obter QR code...");
       console.log("Informações da API:", apiStatus);
+
+      // PASSO CRÍTICO: Primeiro criar a instância se não existir
+      console.log("Verificando se precisamos criar a instância primeiro...");
+      const createResult = await this.createInstance();
+      if (createResult.success) {
+        console.log("Instância criada ou já existente");
+      } else {
+        console.log("Aviso: Não foi possível criar a instância, mas continuaremos tentando obter o QR code");
+      }
 
       // Verificação adicional da versão
       // A conexão é diferente dependendo da versão
@@ -93,8 +194,8 @@ export class EvolutionApiClient {
       // Se temos a URL do Manager, adicioná-la primeiro
       if (secureManagerUrl) {
         // Endpoints via manager (interface web)
-        endpoints.push(`${secureManagerUrl}api/qrcode/${this.instance}`);
-        endpoints.push(`${secureManagerUrl}instance/qrcode/${this.instance}`);
+        endpoints.push(`${secureManagerUrl}/api/qrcode/${this.instance}`);
+        endpoints.push(`${secureManagerUrl}/instance/qrcode/${this.instance}`);
       }
       
       // Endpoints diretos na API
