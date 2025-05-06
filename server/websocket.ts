@@ -208,9 +208,12 @@ export async function sendMessage(userId: number, contactId: number, content: st
     }
     
     // Enviar mensagem via Evolution API
-    // Corrigir formato da URL para evitar barras duplicadas
+    // Corrigir formato da URL e garantir que temos o caminho manager
     const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
-    const path = `/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`.replace(/^\/+/, "");
+    
+    // Verificar se a URL já contém 'manager', senão adicionar
+    const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
+    const path = `${managerPath}/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`.replace(/^\/+/, "");
     const fullUrl = `${baseUrl}/${path}`;
     
     console.log(`Enviando mensagem via Evolution API: ${fullUrl}`);
