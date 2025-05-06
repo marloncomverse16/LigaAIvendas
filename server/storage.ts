@@ -2120,6 +2120,168 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // WhatsApp Contacts methods
+  async getWhatsappContact(id: number): Promise<WhatsappContact | undefined> {
+    try {
+      const [contact] = await db
+        .select()
+        .from(whatsappContacts)
+        .where(eq(whatsappContacts.id, id));
+      return contact;
+    } catch (error) {
+      console.error("Erro ao buscar contato WhatsApp:", error);
+      return undefined;
+    }
+  }
+
+  async getWhatsappContactByContactId(userId: number, contactId: string): Promise<WhatsappContact | undefined> {
+    try {
+      const [contact] = await db
+        .select()
+        .from(whatsappContacts)
+        .where(and(
+          eq(whatsappContacts.userId, userId),
+          eq(whatsappContacts.contactId, contactId)
+        ));
+      return contact;
+    } catch (error) {
+      console.error("Erro ao buscar contato WhatsApp por contactId:", error);
+      return undefined;
+    }
+  }
+
+  async getWhatsappContacts(userId: number): Promise<WhatsappContact[]> {
+    try {
+      return await db
+        .select()
+        .from(whatsappContacts)
+        .where(eq(whatsappContacts.userId, userId));
+    } catch (error) {
+      console.error("Erro ao buscar contatos WhatsApp:", error);
+      return [];
+    }
+  }
+
+  async createWhatsappContact(contact: InsertWhatsappContact & { userId: number }): Promise<WhatsappContact> {
+    try {
+      const [newContact] = await db
+        .insert(whatsappContacts)
+        .values(contact)
+        .returning();
+      return newContact;
+    } catch (error) {
+      console.error("Erro ao criar contato WhatsApp:", error);
+      throw error;
+    }
+  }
+
+  async updateWhatsappContact(id: number, contactData: Partial<InsertWhatsappContact>): Promise<WhatsappContact | undefined> {
+    try {
+      const [updatedContact] = await db
+        .update(whatsappContacts)
+        .set(contactData)
+        .where(eq(whatsappContacts.id, id))
+        .returning();
+      return updatedContact;
+    } catch (error) {
+      console.error("Erro ao atualizar contato WhatsApp:", error);
+      return undefined;
+    }
+  }
+
+  // WhatsApp Messages methods
+  async getWhatsappMessage(id: number): Promise<WhatsappMessage | undefined> {
+    try {
+      const [message] = await db
+        .select()
+        .from(whatsappMessages)
+        .where(eq(whatsappMessages.id, id));
+      return message;
+    } catch (error) {
+      console.error("Erro ao buscar mensagem WhatsApp:", error);
+      return undefined;
+    }
+  }
+
+  async getWhatsappMessageByMessageId(userId: number, messageId: string): Promise<WhatsappMessage | undefined> {
+    try {
+      const [message] = await db
+        .select()
+        .from(whatsappMessages)
+        .where(and(
+          eq(whatsappMessages.userId, userId),
+          eq(whatsappMessages.messageId, messageId)
+        ));
+      return message;
+    } catch (error) {
+      console.error("Erro ao buscar mensagem WhatsApp por messageId:", error);
+      return undefined;
+    }
+  }
+
+  async getWhatsappMessages(userId: number, contactId: number, limit?: number): Promise<WhatsappMessage[]> {
+    try {
+      let query = db
+        .select()
+        .from(whatsappMessages)
+        .where(and(
+          eq(whatsappMessages.userId, userId),
+          eq(whatsappMessages.contactId, contactId)
+        ))
+        .orderBy(desc(whatsappMessages.timestamp));
+      
+      if (limit) {
+        query = query.limit(limit);
+      }
+      
+      return await query;
+    } catch (error) {
+      console.error("Erro ao buscar mensagens WhatsApp:", error);
+      return [];
+    }
+  }
+
+  async createWhatsappMessage(message: InsertWhatsappMessage & { userId: number; contactId: number }): Promise<WhatsappMessage> {
+    try {
+      const [newMessage] = await db
+        .insert(whatsappMessages)
+        .values(message)
+        .returning();
+      
+      // Atualizar o contato com a última mensagem
+      if (message.content) {
+        const contact = await this.getWhatsappContact(message.contactId);
+        if (contact) {
+          const now = new Date();
+          await this.updateWhatsappContact(contact.id, {
+            lastMessageContent: message.content,
+            lastActivity: now,
+            unreadCount: message.fromMe ? contact.unreadCount : (contact.unreadCount || 0) + 1
+          });
+        }
+      }
+      
+      return newMessage;
+    } catch (error) {
+      console.error("Erro ao criar mensagem WhatsApp:", error);
+      throw error;
+    }
+  }
+
+  async updateWhatsappMessage(id: number, messageData: Partial<InsertWhatsappMessage>): Promise<WhatsappMessage | undefined> {
+    try {
+      const [updatedMessage] = await db
+        .update(whatsappMessages)
+        .set(messageData)
+        .where(eq(whatsappMessages.id, id))
+        .returning();
+      return updatedMessage;
+    } catch (error) {
+      console.error("Erro ao atualizar mensagem WhatsApp:", error);
+      return undefined;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
