@@ -3,7 +3,7 @@ import {
   aiAgent, aiAgentSteps, aiAgentFaqs, leadInteractions, leadRecommendations,
   prospectingSearches, prospectingResults, prospectingSchedules, prospectingDispatchHistory,
   messageTemplates, messageSendings, messageSendingHistory,
-  whatsappContacts, whatsappMessages
+  whatsappContacts, whatsappMessages, servers, userServers
 } from "@shared/schema";
 import type {
   User, InsertUser, Lead, InsertLead, Prospect, InsertProspect, 
@@ -13,7 +13,8 @@ import type {
   LeadRecommendation, InsertLeadRecommendation, ProspectingSearch, InsertProspectingSearch,
   ProspectingResult, InsertProspectingResult, MessageTemplate, InsertMessageTemplate,
   MessageSending, InsertMessageSending, MessageSendingHistory, InsertMessageSendingHistory,
-  WhatsappContact, InsertWhatsappContact, WhatsappMessage, InsertWhatsappMessage
+  WhatsappContact, InsertWhatsappContact, WhatsappMessage, InsertWhatsappMessage,
+  Server, InsertServer, UserServer, InsertUserServer
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -150,6 +151,20 @@ export interface IStorage {
   createWhatsappMessage(message: InsertWhatsappMessage & { userId: number; contactId: number }): Promise<WhatsappMessage>;
   updateWhatsappMessage(id: number, messageData: Partial<InsertWhatsappMessage>): Promise<WhatsappMessage | undefined>;
   
+  // Server methods
+  getServerById(id: number): Promise<Server | undefined>;
+  getServersByProvider(provider: string): Promise<Server[]>;
+  getAllServers(): Promise<Server[]>;
+  getActiveServers(): Promise<Server[]>;
+  createServer(serverData: InsertServer): Promise<Server>;
+  updateServer(id: number, serverData: Partial<InsertServer>): Promise<Server | undefined>;
+  deleteServer(id: number): Promise<boolean>;
+  
+  // UserServer methods
+  getUserServers(userId: number): Promise<(Server & { id: number })[]>;
+  addUserServer(userId: number, serverId: number): Promise<UserServer | undefined>;
+  removeUserServer(userId: number, serverId: number): Promise<boolean>;
+  
   // Session store
   sessionStore: session.Store;
 }
@@ -175,6 +190,8 @@ export class MemStorage implements IStorage {
   private messageSendingHistory: Map<number, MessageSendingHistory>;
   private whatsappContacts: Map<number, WhatsappContact>;
   private whatsappMessages: Map<number, WhatsappMessage>;
+  private servers: Map<number, Server>;
+  private userServers: Map<number, UserServer>;
   
   sessionStore: session.Store;
   currentId: { [key: string]: number };
@@ -200,6 +217,8 @@ export class MemStorage implements IStorage {
     this.messageSendingHistory = new Map();
     this.whatsappContacts = new Map();
     this.whatsappMessages = new Map();
+    this.servers = new Map();
+    this.userServers = new Map();
     
     this.currentId = {
       users: 1,
@@ -221,7 +240,9 @@ export class MemStorage implements IStorage {
       messageSendings: 1,
       messageSendingHistory: 1,
       whatsappContacts: 1,
-      whatsappMessages: 1
+      whatsappMessages: 1,
+      servers: 1,
+      userServers: 1
     };
     
     this.sessionStore = new MemoryStore({
@@ -2280,6 +2301,142 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Erro ao atualizar mensagem WhatsApp:", error);
       return undefined;
+    }
+  }
+
+  // Servidor Methods
+  async getServerById(id: number): Promise<Server | undefined> {
+    try {
+      const [server] = await db.select().from(servers).where(eq(servers.id, id));
+      return server;
+    } catch (error) {
+      console.error("Erro ao buscar servidor:", error);
+      return undefined;
+    }
+  }
+
+  async getServersByProvider(provider: string): Promise<Server[]> {
+    try {
+      const serverList = await db.select().from(servers).where(eq(servers.provider, provider));
+      return serverList;
+    } catch (error) {
+      console.error(`Erro ao buscar servidores do provedor ${provider}:`, error);
+      return [];
+    }
+  }
+
+  async getAllServers(): Promise<Server[]> {
+    try {
+      const serverList = await db.select().from(servers).orderBy(servers.name);
+      return serverList;
+    } catch (error) {
+      console.error("Erro ao buscar todos os servidores:", error);
+      return [];
+    }
+  }
+
+  async getActiveServers(): Promise<Server[]> {
+    try {
+      const serverList = await db.select().from(servers)
+        .where(eq(servers.active, true))
+        .orderBy(servers.name);
+      return serverList;
+    } catch (error) {
+      console.error("Erro ao buscar servidores ativos:", error);
+      return [];
+    }
+  }
+
+  async createServer(serverData: InsertServer): Promise<Server> {
+    try {
+      const [server] = await db.insert(servers).values(serverData).returning();
+      return server;
+    } catch (error) {
+      console.error("Erro ao criar servidor:", error);
+      throw error;
+    }
+  }
+
+  async updateServer(id: number, serverData: Partial<InsertServer>): Promise<Server | undefined> {
+    try {
+      const [server] = await db.update(servers)
+        .set({
+          ...serverData,
+          updatedAt: new Date()
+        })
+        .where(eq(servers.id, id))
+        .returning();
+      return server;
+    } catch (error) {
+      console.error("Erro ao atualizar servidor:", error);
+      return undefined;
+    }
+  }
+
+  async deleteServer(id: number): Promise<boolean> {
+    try {
+      // Primeiro remover as associações com usuários
+      await db.delete(userServers).where(eq(userServers.serverId, id));
+      
+      // Depois remover o servidor
+      const result = await db.delete(servers).where(eq(servers.id, id));
+      return result.count > 0;
+    } catch (error) {
+      console.error("Erro ao deletar servidor:", error);
+      return false;
+    }
+  }
+
+  // UserServer Methods
+  async getUserServers(userId: number): Promise<(Server & { id: number })[]> {
+    try {
+      const result = await db.select({
+        id: servers.id,
+        name: servers.name,
+        ipAddress: servers.ipAddress,
+        provider: servers.provider,
+        apiUrl: servers.apiUrl,
+        apiToken: servers.apiToken,
+        webhookUrl: servers.webhookUrl,
+        instanceId: servers.instanceId,
+        active: servers.active,
+        createdAt: servers.createdAt,
+        updatedAt: servers.updatedAt
+      })
+      .from(userServers)
+      .innerJoin(servers, eq(userServers.serverId, servers.id))
+      .where(eq(userServers.userId, userId));
+      
+      return result;
+    } catch (error) {
+      console.error("Erro ao buscar servidores do usuário:", error);
+      return [];
+    }
+  }
+
+  async addUserServer(userId: number, serverId: number): Promise<UserServer | undefined> {
+    try {
+      const [userServer] = await db.insert(userServers)
+        .values({ userId, serverId })
+        .returning();
+      return userServer;
+    } catch (error) {
+      console.error("Erro ao adicionar servidor ao usuário:", error);
+      return undefined;
+    }
+  }
+
+  async removeUserServer(userId: number, serverId: number): Promise<boolean> {
+    try {
+      const result = await db.delete(userServers)
+        .where(and(
+          eq(userServers.userId, userId),
+          eq(userServers.serverId, serverId)
+        ));
+      return result.count > 0;
+    } catch (error) {
+      console.error("Erro ao remover servidor do usuário:", error);
+      return false;
     }
   }
 }
