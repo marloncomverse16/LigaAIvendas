@@ -1,7 +1,8 @@
 import { 
   users, leads, prospects, dispatches, settings, metrics, 
   aiAgent, aiAgentSteps, aiAgentFaqs, leadInteractions, leadRecommendations,
-  prospectingSearches, prospectingResults
+  prospectingSearches, prospectingResults, prospectingSchedules, prospectingDispatchHistory,
+  messageTemplates, messageSendings, messageSendingHistory
 } from "@shared/schema";
 import type {
   User, InsertUser, Lead, InsertLead, Prospect, InsertProspect, 
@@ -9,7 +10,8 @@ import type {
   AiAgent, InsertAiAgent, AiAgentSteps, InsertAiAgentSteps,
   AiAgentFaqs, InsertAiAgentFaqs, LeadInteraction, InsertLeadInteraction,
   LeadRecommendation, InsertLeadRecommendation, ProspectingSearch, InsertProspectingSearch,
-  ProspectingResult, InsertProspectingResult
+  ProspectingResult, InsertProspectingResult, MessageTemplate, InsertMessageTemplate,
+  MessageSending, InsertMessageSending, MessageSendingHistory, InsertMessageSendingHistory
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -105,6 +107,33 @@ export interface IStorage {
   updateProspectingResult(id: number, resultData: Partial<InsertProspectingResult>): Promise<ProspectingResult | undefined>;
   deleteProspectingResult(id: number): Promise<boolean>;
   
+  // Prospecting Schedules methods
+  getProspectingSchedules(searchId: number): Promise<any[]>;
+  createProspectingSchedule(scheduleData: any): Promise<any>;
+  
+  // Prospecting Dispatch History methods
+  getProspectingDispatchHistory(searchId: number): Promise<any[]>;
+  createProspectingDispatchHistory(historyData: any): Promise<any>;
+  updateProspectingDispatchHistory(id: number, historyData: any): Promise<any>;
+  
+  // Message Template methods
+  getMessageTemplates(userId: number): Promise<MessageTemplate[]>;
+  getMessageTemplate(id: number): Promise<MessageTemplate | undefined>;
+  createMessageTemplate(template: InsertMessageTemplate & { userId: number }): Promise<MessageTemplate>;
+  updateMessageTemplate(id: number, templateData: Partial<InsertMessageTemplate>): Promise<MessageTemplate | undefined>;
+  deleteMessageTemplate(id: number): Promise<boolean>;
+  
+  // Message Sending methods
+  getMessageSendings(userId: number): Promise<MessageSending[]>;
+  getMessageSending(id: number): Promise<MessageSending | undefined>;
+  createMessageSending(sending: InsertMessageSending & { userId: number }): Promise<MessageSending>;
+  updateMessageSending(id: number, sendingData: Partial<InsertMessageSending>): Promise<MessageSending | undefined>;
+  deleteMessageSending(id: number): Promise<boolean>;
+  
+  // Message Sending History methods
+  getMessageSendingHistory(sendingId: number): Promise<MessageSendingHistory[]>;
+  createMessageSendingHistory(history: InsertMessageSendingHistory): Promise<MessageSendingHistory>;
+  
   // Session store
   sessionStore: session.Store;
 }
@@ -123,6 +152,11 @@ export class MemStorage implements IStorage {
   private leadRecommendations: Map<number, LeadRecommendation>;
   private prospectingSearches: Map<number, ProspectingSearch>;
   private prospectingResults: Map<number, ProspectingResult>;
+  private prospectingSchedules: Map<number, any>;
+  private prospectingDispatchHistory: Map<number, any>;
+  private messageTemplates: Map<number, MessageTemplate>;
+  private messageSendings: Map<number, MessageSending>;
+  private messageSendingHistory: Map<number, MessageSendingHistory>;
   
   sessionStore: session.Store;
   currentId: { [key: string]: number };
@@ -141,6 +175,11 @@ export class MemStorage implements IStorage {
     this.leadRecommendations = new Map();
     this.prospectingSearches = new Map();
     this.prospectingResults = new Map();
+    this.prospectingSchedules = new Map();
+    this.prospectingDispatchHistory = new Map();
+    this.messageTemplates = new Map();
+    this.messageSendings = new Map();
+    this.messageSendingHistory = new Map();
     
     this.currentId = {
       users: 1,
@@ -155,7 +194,12 @@ export class MemStorage implements IStorage {
       leadInteractions: 1,
       leadRecommendations: 1,
       prospectingSearches: 1,
-      prospectingResults: 1
+      prospectingResults: 1,
+      prospectingSchedules: 1,
+      prospectingDispatchHistory: 1,
+      messageTemplates: 1,
+      messageSendings: 1,
+      messageSendingHistory: 1
     };
     
     this.sessionStore = new MemoryStore({
@@ -863,6 +907,163 @@ export class MemStorage implements IStorage {
   async deleteProspectingResult(id: number): Promise<boolean> {
     if (!this.prospectingResults.has(id)) return false;
     return this.prospectingResults.delete(id);
+  }
+  
+  // Prospecting Schedules methods
+  async getProspectingSchedules(searchId: number): Promise<any[]> {
+    return Array.from(this.prospectingSchedules.values()).filter(schedule => schedule.searchId === searchId);
+  }
+  
+  async createProspectingSchedule(scheduleData: any): Promise<any> {
+    const id = this.currentId.prospectingSchedules++;
+    const now = new Date();
+    const schedule = {
+      ...scheduleData,
+      id,
+      createdAt: now
+    };
+    this.prospectingSchedules.set(id, schedule);
+    return schedule;
+  }
+  
+  // Prospecting Dispatch History methods
+  async getProspectingDispatchHistory(searchId: number): Promise<any[]> {
+    return Array.from(this.prospectingDispatchHistory.values()).filter(history => history.searchId === searchId);
+  }
+  
+  async createProspectingDispatchHistory(historyData: any): Promise<any> {
+    const id = this.currentId.prospectingDispatchHistory++;
+    const now = new Date();
+    const history = {
+      ...historyData,
+      id,
+      executedAt: historyData.executedAt || now
+    };
+    this.prospectingDispatchHistory.set(id, history);
+    return history;
+  }
+  
+  async updateProspectingDispatchHistory(id: number, historyData: any): Promise<any> {
+    const history = this.prospectingDispatchHistory.get(id);
+    if (!history) return undefined;
+    
+    const updatedHistory = { ...history, ...historyData };
+    this.prospectingDispatchHistory.set(id, updatedHistory);
+    return updatedHistory;
+  }
+  
+  // Message Template methods
+  async getMessageTemplates(userId: number): Promise<MessageTemplate[]> {
+    return Array.from(this.messageTemplates.values()).filter(template => template.userId === userId);
+  }
+  
+  async getMessageTemplate(id: number): Promise<MessageTemplate | undefined> {
+    return this.messageTemplates.get(id);
+  }
+  
+  async createMessageTemplate(template: InsertMessageTemplate & { userId: number }): Promise<MessageTemplate> {
+    const id = this.currentId.messageTemplates++;
+    const now = new Date();
+    const newTemplate: MessageTemplate = {
+      ...template,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      tags: template.tags || null
+    };
+    this.messageTemplates.set(id, newTemplate);
+    return newTemplate;
+  }
+  
+  async updateMessageTemplate(id: number, templateData: Partial<InsertMessageTemplate>): Promise<MessageTemplate | undefined> {
+    const template = await this.getMessageTemplate(id);
+    if (!template) return undefined;
+    
+    const now = new Date();
+    const updatedTemplate = {
+      ...template,
+      ...templateData,
+      updatedAt: now
+    };
+    this.messageTemplates.set(id, updatedTemplate);
+    return updatedTemplate;
+  }
+  
+  async deleteMessageTemplate(id: number): Promise<boolean> {
+    if (!this.messageTemplates.has(id)) return false;
+    this.messageTemplates.delete(id);
+    return true;
+  }
+  
+  // Message Sending methods
+  async getMessageSendings(userId: number): Promise<MessageSending[]> {
+    return Array.from(this.messageSendings.values()).filter(sending => sending.userId === userId);
+  }
+  
+  async getMessageSending(id: number): Promise<MessageSending | undefined> {
+    return this.messageSendings.get(id);
+  }
+  
+  async createMessageSending(sending: InsertMessageSending & { userId: number }): Promise<MessageSending> {
+    const id = this.currentId.messageSendings++;
+    const now = new Date();
+    const newSending: MessageSending = {
+      ...sending,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      searchId: sending.searchId || null,
+      templateId: sending.templateId || null,
+      customMessage: sending.customMessage || null,
+      quantity: sending.quantity || 10,
+      scheduledAt: sending.scheduledAt || null,
+      executedAt: null,
+      status: sending.status || "agendado",
+      aiLearningEnabled: sending.aiLearningEnabled || false,
+      aiNotes: sending.aiNotes || null
+    };
+    this.messageSendings.set(id, newSending);
+    return newSending;
+  }
+  
+  async updateMessageSending(id: number, sendingData: Partial<InsertMessageSending>): Promise<MessageSending | undefined> {
+    const sending = await this.getMessageSending(id);
+    if (!sending) return undefined;
+    
+    const now = new Date();
+    const updatedSending = {
+      ...sending,
+      ...sendingData,
+      updatedAt: now
+    };
+    this.messageSendings.set(id, updatedSending);
+    return updatedSending;
+  }
+  
+  async deleteMessageSending(id: number): Promise<boolean> {
+    if (!this.messageSendings.has(id)) return false;
+    this.messageSendings.delete(id);
+    return true;
+  }
+  
+  // Message Sending History methods
+  async getMessageSendingHistory(sendingId: number): Promise<MessageSendingHistory[]> {
+    return Array.from(this.messageSendingHistory.values()).filter(history => history.sendingId === sendingId);
+  }
+  
+  async createMessageSendingHistory(history: InsertMessageSendingHistory): Promise<MessageSendingHistory> {
+    const id = this.currentId.messageSendingHistory++;
+    const now = new Date();
+    const newHistory: MessageSendingHistory = {
+      ...history,
+      id,
+      sentAt: now,
+      resultId: history.resultId || null,
+      status: history.status || "sucesso",
+      errorMessage: history.errorMessage || null
+    };
+    this.messageSendingHistory.set(id, newHistory);
+    return newHistory;
   }
 }
 
