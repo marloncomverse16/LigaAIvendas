@@ -1940,13 +1940,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "userId e serverId são obrigatórios" });
       }
       
+      // Adicionar à tabela de associação user_servers
       const userServer = await storage.addUserServer(userId, serverId);
       
       if (!userServer) {
         return res.status(400).json({ message: "Não foi possível adicionar o servidor ao usuário" });
       }
       
-      res.status(201).json(userServer);
+      // Atualizar o campo serverId do usuário
+      const updatedUser = await storage.updateUserServerId(userId, serverId);
+      
+      if (!updatedUser) {
+        console.error("Servidor associado à tabela user_servers, mas não foi possível atualizar o serverId do usuário");
+      }
+      
+      res.status(201).json({
+        userServer,
+        userUpdated: !!updatedUser
+      });
     } catch (error) {
       console.error("Erro ao adicionar servidor ao usuário:", error);
       res.status(500).json({ message: "Erro ao adicionar servidor ao usuário" });
@@ -1967,16 +1978,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId = parseInt(req.query.userId as string);
       }
       
+      // Remover da tabela de associação user_servers
       const success = await storage.removeUserServer(userId, serverId);
       
       if (!success) {
         return res.status(404).json({ message: "Associação não encontrada" });
       }
       
+      // Verificar se o usuário tem o serverId configurado como servidor atual
+      const user = await storage.getUser(userId);
+      
+      if (user && user.serverId === serverId) {
+        // Se estiver removendo o servidor atual do usuário, limpar o serverId
+        await storage.updateUser(userId, { serverId: null });
+      }
+      
       res.status(204).end();
     } catch (error) {
       console.error(`Erro ao remover servidor ${req.params.serverId} do usuário:`, error);
       res.status(500).json({ message: "Erro ao remover servidor do usuário" });
+    }
+  });
+  
+  // Rota para definir o servidor padrão do usuário
+  app.post("/api/user/select-server", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { serverId } = req.body;
+      
+      if (!serverId) {
+        return res.status(400).json({ message: "serverId é obrigatório" });
+      }
+      
+      // Verificar se o usuário tem acesso ao servidor
+      const userServers = await storage.getUserServers(req.user.id);
+      const hasAccess = userServers.some(server => server.id === serverId);
+      
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Usuário não tem acesso a este servidor" });
+      }
+      
+      // Atualizar o serverId do usuário
+      const updatedUser = await storage.updateUserServerId(req.user.id, serverId);
+      
+      if (!updatedUser) {
+        return res.status(400).json({ message: "Não foi possível atualizar o servidor do usuário" });
+      }
+      
+      res.status(200).json({ message: "Servidor selecionado com sucesso", user: updatedUser });
+    } catch (error) {
+      console.error("Erro ao selecionar servidor:", error);
+      res.status(500).json({ message: "Erro ao selecionar servidor" });
     }
   });
   
