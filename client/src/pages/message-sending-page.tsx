@@ -61,7 +61,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Switch } from "@/components/ui/switch";
 import { apiRequest, queryClient } from "../lib/queryClient";
-import DashboardLayout from "@/components/layout/dashboard-layout";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Definição do esquema de validação para criação de templates
