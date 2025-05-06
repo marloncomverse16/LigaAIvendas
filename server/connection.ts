@@ -341,12 +341,53 @@ export async function connectWhatsApp(req: Request, res: Response) {
       setTimeout(async () => {
         if (connectionStatus[userId]) {
           try {
-            // Verificar status real da conexão via webhook - tentar POST primeiro, depois GET
-            if (!user.whatsappWebhookUrl) throw new Error("Webhook URL não configurada");
+            // Primeiro, verificamos se temos um servidor Evolution API
+            const userServer = await fetchUserServer(userId);
+            
+            // Se temos servidor Evolution API configurado, usar isso primeiro
+            if (userServer && userServer.server && userServer.server.apiUrl && userServer.server.apiToken) {
+              try {
+                const evolutionClient = new EvolutionApiClient(
+                  userServer.server.apiUrl,
+                  userServer.server.apiToken,
+                  userServer.server.instanceId || 'admin'
+                );
+                
+                // Verificar status da conexão
+                const connectionResult = await evolutionClient.checkConnectionStatus();
+                
+                if (connectionResult.success) {
+                  console.log("Status de conexão via Evolution API:", connectionResult);
+                  
+                  if (connectionResult.connected) {
+                    connectionStatus[userId] = {
+                      connected: true,
+                      source: 'evolution',
+                      name: "WhatsApp Conectado via Evolution API",
+                      phone: "N/A", // Em uma implementação futura, buscar número do telefone
+                      lastUpdated: new Date()
+                    };
+                    console.log("Status atualizado: Conectado via Evolution API");
+                    return; // Não continuar com o webhook
+                  } else {
+                    console.log("Evolution API indica que não está conectado ainda. Mantendo QR code visível.");
+                  }
+                }
+              } catch (evolutionError) {
+                console.error("Erro ao verificar status via Evolution API:", evolutionError);
+                // Continuar com webhook como fallback
+              }
+            }
+            
+            // Fallback para webhook existente
+            if (!user.whatsappWebhookUrl) {
+              console.log("Nem Evolution API nem webhook disponíveis para verificar status.");
+              return;
+            }
             
             try {
               // Primeiro tentar com POST
-              console.log("Verificando status via POST...");
+              console.log("Verificando status via webhook POST...");
               const postStatusResponse = await axios.post(user.whatsappWebhookUrl, {
                 action: "status",
                 userId: userId,
@@ -384,17 +425,19 @@ export async function connectWhatsApp(req: Request, res: Response) {
             if (statusResponse.data && statusResponse.data.connected) {
               connectionStatus[userId] = {
                 connected: true,
+                source: 'webhook',
                 name: statusResponse.data.name || "WhatsApp Conectado",
                 phone: statusResponse.data.phone || "N/A",
                 lastUpdated: new Date()
               };
+              console.log("Status atualizado: Conectado via webhook");
             } else {
               // Se o webhook retornou resposta mas não indica que está conectado
               // Manter o status atual com o QR code até que o usuário escaneie
               console.log("Webhook não confirmou conexão, mantendo QR code visível");
             }
           } catch (webhookError: any) {
-            console.error("Erro ao verificar status via webhook:", webhookError.message);
+            console.error("Erro ao verificar status:", webhookError.message);
             // Não alteramos o status automaticamente em caso de erro
             // para manter o QR code visível
           }
@@ -446,13 +489,42 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
     
-    // Verificar se o webhook foi configurado
-    if (user.whatsappWebhookUrl) {
+    // Primeiro, verificamos se temos um servidor Evolution API
+    const userServer = await fetchUserServer(userId);
+    let disconnectionSuccessful = false;
+    
+    // Se temos servidor Evolution API configurado, usar isso primeiro
+    if (userServer && userServer.server && userServer.server.apiUrl && userServer.server.apiToken) {
+      try {
+        console.log("Tentando desconectar via Evolution API...");
+        const evolutionClient = new EvolutionApiClient(
+          userServer.server.apiUrl,
+          userServer.server.apiToken,
+          userServer.server.instanceId || 'admin'
+        );
+        
+        // Tentar desconectar
+        const disconnectResult = await evolutionClient.disconnect();
+        
+        if (disconnectResult.success) {
+          console.log("Desconexão via Evolution API bem-sucedida:", disconnectResult);
+          disconnectionSuccessful = true;
+        } else {
+          console.log("Falha na desconexão via Evolution API:", disconnectResult.error || "Erro desconhecido");
+        }
+      } catch (evolutionError) {
+        console.error("Erro ao desconectar via Evolution API:", evolutionError);
+        // Continuar com webhook como fallback
+      }
+    }
+    
+    // Se a desconexão com Evolution API não foi bem-sucedida, tentar webhook
+    if (!disconnectionSuccessful && user.whatsappWebhookUrl) {
       try {
         // Tentar chamar o webhook para desconectar - tentar POST primeiro, depois GET
         try {
           // Primeiro tentar com POST
-          console.log("Tentando desconectar via POST...");
+          console.log("Tentando desconectar via webhook POST...");
           await axios.post(user.whatsappWebhookUrl, {
             action: "disconnect",
             userId: userId,
@@ -462,7 +534,8 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
             company: user.company,
             phone: user.phone
           });
-          console.log("Desconexão via POST bem-sucedida");
+          console.log("Desconexão via webhook POST bem-sucedida");
+          disconnectionSuccessful = true;
         } catch (postError: any) {
           // Se POST falhar, tentar com GET
           console.log("POST para desconexão falhou, tentando GET...", postError.message);
@@ -477,7 +550,8 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
               phone: user.phone
             }
           });
-          console.log("Desconexão via GET bem-sucedida");
+          console.log("Desconexão via webhook GET bem-sucedida");
+          disconnectionSuccessful = true;
         }
       } catch (webhookError: any) {
         console.error("Erro ao chamar webhook para desconexão:", webhookError.message);
@@ -487,8 +561,13 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
     // Atualizar status de desconexão
     connectionStatus[userId] = {
       connected: false,
+      disconnectedAt: new Date(),
       lastUpdated: new Date()
     };
+    
+    if (disconnectionSuccessful) {
+      connectionStatus[userId].disconnectionSuccessful = true;
+    }
     
     res.json(connectionStatus[userId]);
   } catch (error) {

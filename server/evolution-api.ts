@@ -66,30 +66,88 @@ export class EvolutionApiClient {
         };
       }
 
-      // A partir da versão 2.0, o endpoint para QR code é:
-      const endpoint = `${this.baseUrl}/instance/qrcode`;
+      // Como a API retorna o manager URL, vamos usá-lo
+      const managerUrl = apiStatus.data.manager || null;
       
-      console.log(`Solicitando QR code em: ${endpoint}`);
-      
-      const response = await axios.post(endpoint, {
-        instanceName: this.instance
-      }, {
-        headers: this.getHeaders()
-      });
-      
-      if (response.status === 200 && response.data) {
-        return {
-          success: true,
-          qrCode: response.data.qrcode || response.data.qrCode || null,
-          base64: response.data.base64 || null,
-          data: response.data
-        };
+      if (managerUrl) {
+        // Corrigir protocolo - garantir https
+        const secureManagerUrl = managerUrl.replace(/^http:/, 'https:');
+        
+        // Diferentes tentativas de endpoints baseados na documentação da API
+        const endpoints = [
+          // Baseado no manager URL retornado pela API
+          `${secureManagerUrl}/qrcode/${this.instance}`,
+          `${secureManagerUrl}/instance/qrcode/${this.instance}`,
+          // Endpoints alternativos
+          `${this.baseUrl}/manager/qrcode/${this.instance}`,
+          `${this.baseUrl}/instance/qrcode/${this.instance}`
+        ];
+        
+        // Tentar cada endpoint
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Tentando obter QR code em: ${endpoint}`);
+            
+            // Tentar com POST primeiro
+            try {
+              const postResponse = await axios.post(
+                endpoint, 
+                { instanceName: this.instance },
+                { headers: this.getHeaders() }
+              );
+              
+              if (postResponse.status === 200 && postResponse.data) {
+                console.log("QR Code obtido com sucesso via POST");
+                return {
+                  success: true,
+                  qrCode: postResponse.data.qrcode || postResponse.data.qrCode || postResponse.data.base64 || null,
+                  base64: postResponse.data.base64 || null,
+                  data: postResponse.data,
+                  endpoint: endpoint,
+                  method: 'POST'
+                };
+              }
+            } catch (postError) {
+              console.log(`POST falhou em ${endpoint}: ${postError.message}`);
+            }
+            
+            // Se POST falhar, tentar com GET
+            try {
+              const getResponse = await axios.get(endpoint, {
+                headers: this.getHeaders()
+              });
+              
+              if (getResponse.status === 200 && getResponse.data) {
+                console.log("QR Code obtido com sucesso via GET");
+                return {
+                  success: true,
+                  qrCode: getResponse.data.qrcode || getResponse.data.qrCode || getResponse.data.base64 || null,
+                  base64: getResponse.data.base64 || null,
+                  data: getResponse.data,
+                  endpoint: endpoint,
+                  method: 'GET'
+                };
+              }
+            } catch (getError) {
+              console.log(`GET falhou em ${endpoint}: ${getError.message}`);
+            }
+          } catch (endpointError) {
+            console.log(`Falha no endpoint ${endpoint}: ${endpointError.message}`);
+          }
+        }
       }
+      
+      // Se chegamos aqui, todos os endpoints falharam
+      console.log("Todos os endpoints falharam. Retornando QR code de teste");
+      
+      // Fornecer um QR code de teste para desenvolvimento da interface
+      const testQrCode = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WhatsAppConnectionTest-Evolution';
       
       return {
         success: false,
-        error: 'QR Code não encontrado na resposta',
-        data: response.data
+        error: 'Não foi possível obter QR Code da API Evolution após múltiplas tentativas',
+        testQrCode: testQrCode,
+        apiStatus: apiStatus
       };
     } catch (error) {
       console.error('Erro ao obter QR Code:', error);
@@ -111,27 +169,64 @@ export class EvolutionApiClient {
    */
   async checkConnectionStatus(): Promise<any> {
     try {
-      const endpoint = `${this.baseUrl}/instance/connectionState/${this.instance}`;
-      
-      console.log(`Verificando status de conexão em: ${endpoint}`);
-      
-      const response = await axios.get(endpoint, {
-        headers: this.getHeaders()
-      });
-      
-      if (response.status === 200) {
+      // Primeiro, verificamos se a API está online
+      const apiStatus = await this.checkApiStatus();
+      if (!apiStatus.online) {
         return {
-          success: true,
-          connected: response.data?.state === 'open' || response.data?.connected === true,
-          state: response.data?.state || 'unknown',
-          data: response.data
+          success: false,
+          error: 'API Evolution indisponível',
+          details: apiStatus
         };
       }
       
+      // Como a API retorna o manager URL, vamos usá-lo
+      const managerUrl = apiStatus.data.manager || null;
+      
+      if (managerUrl) {
+        // Corrigir protocolo - garantir https
+        const secureManagerUrl = managerUrl.replace(/^http:/, 'https:');
+        
+        // Diferentes tentativas de endpoints baseados na documentação da API
+        const endpoints = [
+          // Baseado no manager URL retornado pela API
+          `${secureManagerUrl}/instance/connectionState/${this.instance}`,
+          `${secureManagerUrl}/connection/status/${this.instance}`,
+          `${secureManagerUrl}/status/${this.instance}`,
+          // Endpoints alternativos
+          `${this.baseUrl}/instance/connectionState/${this.instance}`,
+          `${this.baseUrl}/manager/instance/connectionState/${this.instance}`
+        ];
+        
+        // Tentar cada endpoint
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Tentando verificar status de conexão em: ${endpoint}`);
+            
+            const response = await axios.get(endpoint, {
+              headers: this.getHeaders()
+            });
+            
+            if (response.status === 200) {
+              console.log(`Status de conexão obtido com sucesso em ${endpoint}`);
+              return {
+                success: true,
+                connected: response.data?.state === 'open' || response.data?.connected === true,
+                state: response.data?.state || 'unknown',
+                data: response.data,
+                endpoint: endpoint
+              };
+            }
+          } catch (endpointError) {
+            console.log(`Falha ao verificar status em ${endpoint}: ${endpointError.message}`);
+          }
+        }
+      }
+      
+      // Se chegamos aqui, todos os endpoints falharam
       return {
         success: false,
-        error: 'Resposta inválida da API',
-        data: response.data
+        error: 'Não foi possível obter status de conexão após múltiplas tentativas',
+        apiStatus: apiStatus
       };
     } catch (error) {
       console.error('Erro ao verificar status de conexão:', error);
@@ -148,17 +243,61 @@ export class EvolutionApiClient {
    */
   async disconnect(): Promise<any> {
     try {
-      const endpoint = `${this.baseUrl}/instance/logout/${this.instance}`;
+      // Primeiro, verificamos se a API está online
+      const apiStatus = await this.checkApiStatus();
+      if (!apiStatus.online) {
+        return {
+          success: false,
+          error: 'API Evolution indisponível',
+          details: apiStatus
+        };
+      }
       
-      console.log(`Desconectando instância em: ${endpoint}`);
+      // Como a API retorna o manager URL, vamos usá-lo
+      const managerUrl = apiStatus.data.manager || null;
       
-      const response = await axios.post(endpoint, {}, {
-        headers: this.getHeaders()
-      });
+      if (managerUrl) {
+        // Corrigir protocolo - garantir https
+        const secureManagerUrl = managerUrl.replace(/^http:/, 'https:');
+        
+        // Diferentes tentativas de endpoints baseados na documentação da API
+        const endpoints = [
+          // Baseado no manager URL
+          `${secureManagerUrl}/instance/logout/${this.instance}`,
+          `${secureManagerUrl}/disconnect/${this.instance}`,
+          // Endpoints alternativos
+          `${this.baseUrl}/instance/logout/${this.instance}`,
+          `${this.baseUrl}/manager/instance/logout/${this.instance}`
+        ];
+        
+        // Tentar cada endpoint
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Tentando desconectar instância em: ${endpoint}`);
+            
+            const response = await axios.post(endpoint, {}, {
+              headers: this.getHeaders()
+            });
+            
+            if (response.status === 200 || response.status === 201) {
+              console.log(`Instância desconectada com sucesso em ${endpoint}`);
+              return {
+                success: true,
+                data: response.data,
+                endpoint: endpoint
+              };
+            }
+          } catch (endpointError) {
+            console.log(`Falha ao desconectar em ${endpoint}: ${endpointError.message}`);
+          }
+        }
+      }
       
+      // Se chegamos aqui, todos os endpoints falharam
       return {
-        success: response.status === 200,
-        data: response.data
+        success: false,
+        error: 'Não foi possível desconectar a instância após múltiplas tentativas',
+        apiStatus: apiStatus
       };
     } catch (error) {
       console.error('Erro ao desconectar instância:', error);
@@ -177,25 +316,77 @@ export class EvolutionApiClient {
    */
   async sendTextMessage(phone: string, message: string): Promise<any> {
     try {
-      const endpoint = `${this.baseUrl}/message/text/${this.instance}`;
+      // Primeiro, verificamos se a API está online
+      const apiStatus = await this.checkApiStatus();
+      if (!apiStatus.online) {
+        return {
+          success: false,
+          error: 'API Evolution indisponível',
+          details: apiStatus
+        };
+      }
       
-      console.log(`Enviando mensagem de texto para ${phone} em: ${endpoint}`);
+      // Como a API retorna o manager URL, vamos usá-lo
+      const managerUrl = apiStatus.data.manager || null;
       
-      const response = await axios.post(endpoint, {
-        number: phone,
-        options: {
-          delay: 1200
-        },
-        textMessage: {
-          text: message
+      if (managerUrl) {
+        // Corrigir protocolo - garantir https
+        const secureManagerUrl = managerUrl.replace(/^http:/, 'https:');
+        
+        // Diferentes tentativas de endpoints baseados na documentação da API
+        const endpoints = [
+          // Baseado no manager URL
+          `${secureManagerUrl}/message/text/${this.instance}`,
+          `${secureManagerUrl}/send/text/${this.instance}`,
+          // Endpoints alternativos
+          `${this.baseUrl}/message/text/${this.instance}`,
+          `${this.baseUrl}/manager/message/text/${this.instance}`
+        ];
+        
+        // Formatar o telefone para garantir que está no formato correto
+        const cleanPhone = phone.replace(/\D/g, '');
+        
+        // Tentar cada endpoint
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Tentando enviar mensagem para ${cleanPhone} em: ${endpoint}`);
+            
+            const payload = {
+              number: cleanPhone,
+              options: {
+                delay: 1200,
+                presence: "composing"
+              },
+              textMessage: {
+                text: message
+              }
+            };
+            
+            console.log("Payload da mensagem:", JSON.stringify(payload));
+            
+            const response = await axios.post(endpoint, payload, {
+              headers: this.getHeaders()
+            });
+            
+            if (response.status === 201 || response.status === 200) {
+              console.log(`Mensagem enviada com sucesso em ${endpoint}`);
+              return {
+                success: true,
+                data: response.data,
+                endpoint: endpoint
+              };
+            }
+          } catch (endpointError) {
+            console.log(`Falha ao enviar mensagem em ${endpoint}: ${endpointError.message}`);
+          }
         }
-      }, {
-        headers: this.getHeaders()
-      });
+      }
       
+      // Se chegamos aqui, todos os endpoints falharam
       return {
-        success: response.status === 201 || response.status === 200,
-        data: response.data
+        success: false,
+        error: 'Não foi possível enviar a mensagem após múltiplas tentativas',
+        apiStatus: apiStatus
       };
     } catch (error) {
       console.error(`Erro ao enviar mensagem para ${phone}:`, error);
