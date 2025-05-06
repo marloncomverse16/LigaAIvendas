@@ -2,6 +2,7 @@ import { Server as HttpServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import axios from "axios";
+import { EvolutionApiClient } from "./evolution-api";
 
 // Armazenar as conexões WebSocket ativas por usuário
 const userConnections: Map<number, WebSocket[]> = new Map();
