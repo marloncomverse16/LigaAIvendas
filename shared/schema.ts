@@ -54,6 +54,10 @@ export const settings = pgTable("settings", {
   primaryColor: text("primary_color").default("#047857"),
   secondaryColor: text("secondary_color").default("#4f46e5"),
   darkMode: boolean("dark_mode").default(false),
+  // Metas
+  whatsappSendingGoal: integer("whatsapp_sending_goal").default(0),
+  revenueGoal: text("revenue_goal").default("0"),
+  leadsGoal: integer("leads_goal").default(0),
 });
 
 export const leads = pgTable("leads", {
@@ -258,6 +262,9 @@ export const insertSettingsSchema = createInsertSchema(settings).pick({
   primaryColor: true,
   secondaryColor: true,
   darkMode: true,
+  whatsappSendingGoal: true,
+  revenueGoal: true,
+  leadsGoal: true,
 });
 
 // AI Agent Insert Schemas
