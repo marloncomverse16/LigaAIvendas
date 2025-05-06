@@ -126,11 +126,11 @@ export async function connectWhatsApp(req: Request, res: Response) {
       try {
         console.log(`Usando Evolution API do servidor configurado: ${userServer.server.apiUrl}`);
         
-        // Criar cliente Evolution API
+        // Criar cliente Evolution API com o nome do usuário como instância
         const evolutionClient = new EvolutionApiClient(
           userServer.server.apiUrl,
           userServer.server.apiToken,
-          userServer.server.instanceId || 'liguia'
+          user.username // Nome do usuário como instância
         );
         
         // Verificar status da API
@@ -373,7 +373,7 @@ export async function connectWhatsApp(req: Request, res: Response) {
                 const evolutionClient = new EvolutionApiClient(
                   userServer.server.apiUrl,
                   userServer.server.apiToken,
-                  userServer.server.instanceId || 'liguia'
+                  user.username // Nome do usuário como instância
                 );
                 
                 // Verificar status da conexão
@@ -523,7 +523,7 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
         const evolutionClient = new EvolutionApiClient(
           userServer.server.apiUrl,
           userServer.server.apiToken,
-          userServer.server.instanceId || 'liguia'
+          user.username // Nome do usuário como instância
         );
         
         // Tentar desconectar

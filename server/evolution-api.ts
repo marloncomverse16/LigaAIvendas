@@ -17,9 +17,9 @@ export class EvolutionApiClient {
    * Cria um novo cliente para a Evolution API
    * @param baseUrl URL base da API (ex: https://api.primerastreadores.com)
    * @param token Token de autorização
-   * @param instance Nome da instância (padrão: 'liguia')
+   * @param instance Nome da instância (deve ser igual ao nome do usuário)
    */
-  constructor(baseUrl: string, token: string, instance: string = 'liguia') {
+  constructor(baseUrl: string, token: string, instance: string) {
     // Remove barras finais da URL
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.token = token;
