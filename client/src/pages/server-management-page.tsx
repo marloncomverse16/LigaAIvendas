@@ -121,7 +121,9 @@ export default function ServerManagementPage() {
     queryFn: async () => {
       if (!selectedServer) return [];
       const res = await apiRequest("GET", `/api/user-servers/${selectedServer.id}`);
-      return res.json();
+      const data = await res.json();
+      console.log("Usuários do servidor:", data);
+      return data;
     },
     enabled: !!selectedServer && userServerDialogOpen,
   });
