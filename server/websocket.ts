@@ -302,52 +302,70 @@ export function setupWebSocketServer(server: HttpServer) {
           if (!user || (!user.whatsappApiUrl || !user.whatsappApiToken || !user.whatsappInstanceId)) {
             console.log(`Usuário ${userId} não tem configuração da Evolution API, tentando buscar do servidor`);
             
-            // Buscar servidor ativo do usuário
-            const userServers = await storage.getUserServers(userId);
-            if (userServers && userServers.length > 0) {
-              // Pegar o primeiro servidor ativo
-              const activeServers = userServers.filter((us: any) => {
-                return us.server && us.server.active;
-              });
+            try {
+              // Buscar servidor ativo do usuário
+              const userServers = await storage.getUserServers(userId);
+              console.log(`Servidores encontrados para usuário ${userId}:`, userServers ? userServers.length : 0);
               
-              if (activeServers.length > 0) {
-                const firstServer = activeServers[0].server;
+              if (userServers && userServers.length > 0) {
+                // Pegar o primeiro servidor ativo
+                const activeServers = userServers.filter((us: any) => {
+                  // Verificar se us.server existe e está ativo
+                  return us && us.server && us.server.active === true;
+                });
                 
-                // Atualizar informações do usuário com os dados do servidor
-                if (firstServer) {
-                  console.log(`Atualizando configurações da Evolution API para usuário ${userId} com dados do servidor ${firstServer.id}`);
+                console.log(`Servidores ativos encontrados: ${activeServers.length}`);
+                
+                if (activeServers.length > 0) {
+                  const firstServer = activeServers[0].server;
                   
-                  await storage.updateUser(userId, {
-                    whatsappApiUrl: firstServer.apiUrl,
-                    whatsappApiToken: firstServer.apiToken,
-                    whatsappInstanceId: firstServer.instanceId || `instance${userId}`
-                  });
-                  
-                  // Notificar cliente que as configurações foram atualizadas
-                  ws.send(JSON.stringify({
-                    type: 'api_config_updated',
-                    data: {
+                  // Verificar se temos todas as informações necessárias
+                  if (firstServer && firstServer.apiUrl && (firstServer.apiToken || firstServer.apiToken === null)) {
+                    console.log(`Atualizando configurações da Evolution API para usuário ${userId} com dados do servidor ${firstServer.id}`);
+                    
+                    // Gerar ID de instância se não existir
+                    const instanceId = firstServer.instanceId || `instance${userId}`;
+                    
+                    // Atualizar informações do usuário com os dados do servidor
+                    await storage.updateUser(userId, {
                       whatsappApiUrl: firstServer.apiUrl,
                       whatsappApiToken: firstServer.apiToken,
-                      whatsappInstanceId: firstServer.instanceId || `instance${userId}`
-                    }
-                  }));
+                      whatsappInstanceId: instanceId
+                    });
+                    
+                    // Notificar cliente que as configurações foram atualizadas
+                    ws.send(JSON.stringify({
+                      type: 'api_config_updated',
+                      data: {
+                        whatsappApiUrl: firstServer.apiUrl,
+                        whatsappApiToken: firstServer.apiToken,
+                        whatsappInstanceId: instanceId
+                      }
+                    }));
+                  } else {
+                    console.log('Servidor encontrado com configurações incompletas:', firstServer);
+                    ws.send(JSON.stringify({
+                      type: 'connection_error',
+                      error: 'Servidor ativo encontrado, mas sem configurações completas da API'
+                    }));
+                  }
                 } else {
                   ws.send(JSON.stringify({
                     type: 'connection_error',
-                    error: 'Servidor ativo encontrado, mas sem configurações completas'
+                    error: 'Nenhum servidor ativo encontrado para o usuário'
                   }));
                 }
               } else {
                 ws.send(JSON.stringify({
                   type: 'connection_error',
-                  error: 'Nenhum servidor ativo encontrado para o usuário'
+                  error: 'Usuário não tem servidores associados'
                 }));
               }
-            } else {
+            } catch (error) {
+              console.error(`Erro ao buscar configurações de servidor para usuário ${userId}:`, error);
               ws.send(JSON.stringify({
                 type: 'connection_error',
-                error: 'Usuário não tem servidores associados'
+                error: 'Erro ao buscar configurações de servidor'
               }));
             }
           }
