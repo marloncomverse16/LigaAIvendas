@@ -1,6 +1,7 @@
 import axios from "axios";
 import { Request, Response } from "express";
 import { storage } from "./storage";
+import { EvolutionApiClient } from "./evolution-api";
 
 // Status de conexão do WhatsApp por usuário
 export const connectionStatus: Record<number, any> = {};
@@ -117,10 +118,71 @@ export async function connectWhatsApp(req: Request, res: Response) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
     
-    // Verificar se o webhook foi configurado
+    // Verificar se temos informações do servidor ou webhook
+    const userServer = await fetchUserServer(userId);
+    
+    // Se temos um servidor configurado com Evolution API, tentar usar isso primeiro
+    if (userServer && userServer.server && userServer.server.apiUrl && userServer.server.apiToken) {
+      try {
+        console.log(`Usando Evolution API do servidor configurado: ${userServer.server.apiUrl}`);
+        
+        // Criar cliente Evolution API
+        const evolutionClient = new EvolutionApiClient(
+          userServer.server.apiUrl,
+          userServer.server.apiToken,
+          userServer.server.instanceId || 'admin'
+        );
+        
+        // Verificar status da API
+        const apiStatus = await evolutionClient.checkApiStatus();
+        if (!apiStatus.online) {
+          return res.status(503).json({
+            message: "API Evolution indisponível",
+            error: apiStatus.error || "Erro ao conectar à API",
+            status: "error"
+          });
+        }
+        
+        // Solicitar QR code
+        const qrResult = await evolutionClient.getQrCode();
+        
+        if (qrResult.success && qrResult.qrCode) {
+          // Armazenar o QR code e outras informações
+          connectionStatus[userId] = {
+            connected: false,
+            connecting: true,
+            qrCode: qrResult.qrCode,
+            source: 'evolution',
+            apiVersion: apiStatus.data?.version || 'desconhecida',
+            lastUpdated: new Date()
+          };
+          
+          return res.json(connectionStatus[userId]);
+        } else if (qrResult.testQrCode) {
+          // Se estamos em teste, usar QR code de teste
+          connectionStatus[userId] = {
+            connected: false,
+            connecting: true,
+            qrCode: qrResult.testQrCode,
+            source: 'evolution-test',
+            error: qrResult.error,
+            lastUpdated: new Date()
+          };
+          
+          return res.json(connectionStatus[userId]);
+        } else {
+          console.error("Erro ao obter QR code da Evolution API:", qrResult.error);
+        }
+      } catch (evolutionError) {
+        console.error("Erro ao usar Evolution API:", evolutionError);
+        // Continuar e tentar usar webhook como fallback
+      }
+    }
+    
+    // Fallback para webhook existente
     if (!user.whatsappWebhookUrl) {
       return res.status(400).json({ 
-        message: "URL de webhook não configurada", 
+        message: "Nenhuma conexão configurada. Configure um servidor com API Evolution ou uma URL de webhook.", 
         status: "error",
       });
     }
