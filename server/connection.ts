@@ -130,7 +130,7 @@ export async function connectWhatsApp(req: Request, res: Response) {
         const evolutionClient = new EvolutionApiClient(
           userServer.server.apiUrl,
           userServer.server.apiToken,
-          userServer.server.instanceId || 'admin'
+          userServer.server.instanceId || 'liguia'
         );
         
         // Verificar status da API
@@ -373,7 +373,7 @@ export async function connectWhatsApp(req: Request, res: Response) {
                 const evolutionClient = new EvolutionApiClient(
                   userServer.server.apiUrl,
                   userServer.server.apiToken,
-                  userServer.server.instanceId || 'admin'
+                  userServer.server.instanceId || 'liguia'
                 );
                 
                 // Verificar status da conexão
@@ -523,7 +523,7 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
         const evolutionClient = new EvolutionApiClient(
           userServer.server.apiUrl,
           userServer.server.apiToken,
-          userServer.server.instanceId || 'admin'
+          userServer.server.instanceId || 'liguia'
         );
         
         // Tentar desconectar
