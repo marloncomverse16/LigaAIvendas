@@ -224,7 +224,7 @@ export default function ServerManagementPage() {
   // Mutação para atualizar servidor
   const updateServerMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: ServerFormValues }) => {
-      const res = await apiRequest("PATCH", `/api/servers/${id}`, data);
+      const res = await apiRequest("PUT", `/api/servers/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
