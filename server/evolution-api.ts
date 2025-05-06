@@ -194,35 +194,38 @@ export class EvolutionApiClient {
       // Corrigir protocolo - garantir https
       const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
       
-      // Endpoints a tentar - adaptados para versão 2.x da Evolution API
+      // Endpoints a tentar - reorganizados baseados em experiência e prioridade
       const endpoints = [];
       
-      // Adicionar primeiro o endpoint que sabemos que funciona com certeza!
-      // Para a versão 2.2.3, o endpoint principal para conexão é /instance/connect/INSTANCE_NAME
-      endpoints.push(`${this.baseUrl}/instance/connect/${this.instance}`); // Este é o endpoint que sabemos que funciona!
+      // SABEMOS QUE ESTES FUNCIONAM - Prioridade 1 - Adicionar primeiro os endpoints que sabemos que funcionam
+      const knownWorkingEndpoint = `${this.baseUrl}/instance/connect/${this.instance}`;
+      endpoints.push(knownWorkingEndpoint); // ESTE É O PRINCIPAL - funciona no Evolution API 2.2.3
+      endpoints.push(`${this.baseUrl}/manager/instance/qrcode/${this.instance}`); // Este também funciona
       
-      // Se temos a URL do Manager, adicioná-la em seguida
+      // Special handling - também tentaremos estes endpoints
+      endpoints.push(`${this.baseUrl}/instance/fetchInstances`); // Lista todas as instâncias
+      endpoints.push(`${this.baseUrl}/instance/connectionState/${this.instance}`); // Verifica o estado da conexão
+      
+      // Prioridade 2 - Endpoints relacionados a instâncias (para versão 2.x)
+      if (isVersion2) {
+        endpoints.push(`${this.baseUrl}/instance/qrcode/${this.instance}`);
+        endpoints.push(`${this.baseUrl}/instance/qrcode`); // POST com instanceName
+        endpoints.push(`${this.baseUrl}/instance/connect`); // POST com instanceName
+        endpoints.push(`${this.baseUrl}/qrcode/${this.instance}`);
+        endpoints.push(`${this.baseUrl}/client/qrcode/${this.instance}`);
+      } 
+      
+      // Prioridade 3 - Endpoints via Manager URL (se disponível)
       if (secureManagerUrl) {
-        // Endpoints via manager (interface web)
         endpoints.push(`${secureManagerUrl}/api/qrcode/${this.instance}`);
+        endpoints.push(`${secureManagerUrl}/instance/connect/${this.instance}`);
         endpoints.push(`${secureManagerUrl}/instance/qrcode/${this.instance}`);
       }
       
-      if (isVersion2) {
-        // Endpoints da versão 2.x
-        endpoints.push(`${this.baseUrl}/instance/qrcode`); // POST com instanceName
-        endpoints.push(`${this.baseUrl}/instance/qrcode/${this.instance}`);
-        endpoints.push(`${this.baseUrl}/qrcode/${this.instance}`);
-        endpoints.push(`${this.baseUrl}/client/qrcode/${this.instance}`);
-      } else {
-        // Endpoints de versões anteriores ou alternativas
-        endpoints.push(`${this.baseUrl}/start`); // POST com session
-        endpoints.push(`${this.baseUrl}/api/session/start/${this.instance}`);
-        endpoints.push(`${this.baseUrl}/api/session/qrcode/${this.instance}`);
-      }
-      
-      // Adicionar endpoints comuns ou de teste
-      endpoints.push(`${this.baseUrl}/manager/qrcode/${this.instance}`);
+      // Prioridade 4 - Endpoints legados ou alternativos
+      endpoints.push(`${this.baseUrl}/start`); // POST com session
+      endpoints.push(`${this.baseUrl}/api/session/start/${this.instance}`);
+      endpoints.push(`${this.baseUrl}/api/session/qrcode/${this.instance}`);
       
       // Metadados para a requisição
       const postBodyV2 = { instanceName: this.instance };
@@ -325,9 +328,32 @@ export class EvolutionApiClient {
             console.log(`Resposta GET: Status ${getResponse.status}`);
             
             if (getResponse.status === 200 || getResponse.status === 201) {
-              console.log("QR Code obtido com sucesso via GET");
-              // Logar a resposta para diagnóstico
-              console.log("Dados da resposta:", JSON.stringify(getResponse.data).substring(0, 200) + "...");
+              console.log("QR Code obtido com sucesso via GET em " + endpoint);
+              
+              // VERIFICAÇÃO IMPORTANTE: Se a resposta contiver HTML (<!DOCTYPE html> ou <html), é um erro
+              const responseString = typeof getResponse.data === 'string' 
+                ? getResponse.data 
+                : JSON.stringify(getResponse.data);
+                
+              if (responseString && 
+                 (responseString.includes('<!DOCTYPE html>') || 
+                  responseString.includes('<html') || 
+                  responseString.includes('<body'))) {
+                console.log("QR Code contém HTML, enviando mensagem de erro");
+                console.log("Detalhes do problema: A API Evolution está retornando HTML em vez de um QR code válido.");
+                console.log("Isso geralmente acontece quando:");
+                console.log("1. A instância já existe mas está em estado inválido");
+                console.log("2. O token de autorização está incorreto ou não tem permissões suficientes");
+                console.log("3. A URL do webhook configurada não está acessível");
+                continue; // Pular para o próximo endpoint
+              }
+              
+              // Logar a resposta para diagnóstico (limitando a 200 caracteres)
+              if (typeof getResponse.data === 'string') {
+                console.log("Dados da resposta (string):", getResponse.data.substring(0, 200) + "...");
+              } else {
+                console.log("Dados da resposta (objeto):", JSON.stringify(getResponse.data).substring(0, 200) + "...");
+              }
               
               // Tratamento especial para o endpoint de conectar
               if (endpoint.includes('/instance/connect/')) {
