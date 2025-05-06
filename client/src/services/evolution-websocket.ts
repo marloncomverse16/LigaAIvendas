@@ -79,15 +79,25 @@ export const useEvolutionStore = create<EvolutionState>((set, get) => ({
     }
     
     try {
-      // Garantir que a URL está no formato correto para WebSocket
-      const wsUrl = serverUrl.replace(/^http/, 'ws');
-      const socket = new WebSocket(`${wsUrl}/instances/${instanceId}/connection`);
+      // Conectar ao nosso backend WebSocket
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const socket = new WebSocket(wsUrl);
       
       socket.onopen = () => {
-        console.log(`Conexão WebSocket estabelecida com Evolution API: ${instanceId}`);
-        // Autenticar
+        console.log(`Conexão WebSocket estabelecida com o servidor`);
+        // Autenticar com o usuário atual
         socket.send(JSON.stringify({
-          action: 'authenticate',
+          type: 'authenticate',
+          userId: localStorage.getItem('userId') || sessionStorage.getItem('userId'),
+          token: localStorage.getItem('token') || sessionStorage.getItem('token')
+        }));
+        
+        // Conectar à Evolution API
+        socket.send(JSON.stringify({
+          type: 'connect_evolution',
+          apiUrl: serverUrl,
+          instanceId: instanceId,
           token: token
         }));
       };
@@ -98,30 +108,54 @@ export const useEvolutionStore = create<EvolutionState>((set, get) => ({
           console.log('Mensagem recebida:', data);
           
           // Processar eventos
-          if (data.type === 'connection') {
+          if (data.type === 'connection_status' || data.type === 'qr_code') {
             set({ 
               connectionStatus: {
                 ...get().connectionStatus,
-                connected: data.state === 'CONNECTED',
-                state: data.state,
-                qrCode: data.qrCode,
-                phone: data.phone
+                connected: data.data?.connected || false,
+                state: data.data?.state,
+                qrCode: data.data?.qrCode,
+                phone: data.data?.phone,
+                batteryLevel: data.data?.batteryLevel,
+                instance: data.data?.instance
               }
             });
           } 
-          else if (data.type === 'contacts') {
-            set({ contacts: data.contacts });
+          else if (data.type === 'contacts' || data.type === 'contacts_updated') {
+            if (data.data && data.data.contacts) {
+              set({ contacts: data.data.contacts });
+            }
           }
-          else if (data.type === 'message') {
-            const chatId = data.message.chatId;
-            const currentChats = get().chats;
-            
-            set({
-              chats: {
-                ...currentChats,
-                [chatId]: [...(currentChats[chatId] || []), data.message]
-              }
-            });
+          else if (data.type === 'messages' || data.type === 'messages_updated') {
+            if (data.data && data.data.contactId && data.data.messages) {
+              const contactId = data.data.contactId;
+              const messages = data.data.messages;
+              const currentChats = get().chats;
+              
+              set({
+                chats: {
+                  ...currentChats,
+                  [contactId]: messages
+                }
+              });
+            }
+          }
+          else if (data.type === 'message_sent' || data.type === 'message_received') {
+            if (data.data && data.data.contactId && data.data.message) {
+              const contactId = data.data.contactId;
+              const message = data.data.message;
+              const currentChats = get().chats;
+              
+              set({
+                chats: {
+                  ...currentChats,
+                  [contactId]: [...(currentChats[contactId] || []), message]
+                }
+              });
+            }
+          }
+          else if (data.type === 'error' || data.type === 'connection_error') {
+            console.error('Erro reportado pelo WebSocket:', data.error || data.data?.error);
           }
         } catch (error) {
           console.error('Erro ao processar mensagem WebSocket:', error);
@@ -158,28 +192,28 @@ export const useEvolutionStore = create<EvolutionState>((set, get) => ({
     }
   },
   
-  sendMessage: (chatId, message) => {
+  sendMessage: (contactId, message) => {
     const { socket } = get();
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
-        action: 'sendMessage',
-        chatId,
-        message
+        type: 'send_message',
+        contactId: parseInt(contactId),
+        content: message
       }));
     } else {
       console.error('WebSocket não está conectado para enviar mensagem');
     }
   },
   
-  setCurrentChat: (chatId) => {
-    set({ currentChatId: chatId });
+  setCurrentChat: (contactId) => {
+    set({ currentChatId: contactId });
     
     // Carregar histórico de mensagens se ainda não existir
     const { chats, socket } = get();
-    if (!chats[chatId] && socket && socket.readyState === WebSocket.OPEN) {
+    if (!chats[contactId] && socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
-        action: 'getMessages',
-        chatId
+        type: 'get_messages',
+        contactId: parseInt(contactId)
       }));
     }
   },
@@ -188,7 +222,7 @@ export const useEvolutionStore = create<EvolutionState>((set, get) => ({
     const { socket } = get();
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
-        action: 'getContacts'
+        type: 'get_contacts'
       }));
     }
   }
