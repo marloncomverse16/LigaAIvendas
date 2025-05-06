@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2 } from "lucide-react";
+import { Loader2, Target, DollarSign, Users } from "lucide-react";
 
 const profileSchema = z.object({
   name: z.string().optional(),
@@ -29,6 +29,162 @@ const profileSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
+
+const goalsSchema = z.object({
+  whatsappSendingGoal: z.number().min(0, "Deve ser um número positivo"),
+  revenueGoal: z.string().refine(
+    (val) => !isNaN(parseFloat(val.replace(/[^0-9,.-]/g, "").replace(",", "."))),
+    { message: "Valor inválido. Digite um número válido." }
+  ),
+  leadsGoal: z.number().min(0, "Deve ser um número positivo"),
+});
+
+type GoalsFormValues = z.infer<typeof goalsSchema>;
+
+function GoalsSettings() {
+  // Fetch settings data
+  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["/api/settings"],
+  });
+  
+  // Update settings mutation
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (data: GoalsFormValues) => {
+      const res = await apiRequest("PUT", "/api/settings", data);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/settings"], data);
+    },
+  });
+  
+  const goalsForm = useForm<GoalsFormValues>({
+    resolver: zodResolver(goalsSchema),
+    defaultValues: {
+      whatsappSendingGoal: settings?.whatsappSendingGoal || 0,
+      revenueGoal: settings?.revenueGoal || "0",
+      leadsGoal: settings?.leadsGoal || 0,
+    },
+    values: {
+      whatsappSendingGoal: settings?.whatsappSendingGoal || 0,
+      revenueGoal: settings?.revenueGoal || "0",
+      leadsGoal: settings?.leadsGoal || 0,
+    },
+  });
+  
+  const onGoalsSubmit = (data: GoalsFormValues) => {
+    // Preservar outros campos das configurações existentes
+    const updatedSettings = {
+      ...settings,
+      ...data,
+    };
+    updateSettingsMutation.mutate(updatedSettings);
+  };
+  
+  return (
+    <div>
+      {isLoadingSettings ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <Form {...goalsForm}>
+          <form onSubmit={goalsForm.handleSubmit(onGoalsSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Target className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-medium">Meta de Envios WhatsApp</h3>
+                </div>
+                <FormField
+                  control={goalsForm.control}
+                  name="whatsappSendingGoal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantidade mensal de envios</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          {...field} 
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          value={field.value}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <DollarSign className="h-5 w-5 text-emerald-600" />
+                  <h3 className="text-lg font-medium">Meta de Faturamento</h3>
+                </div>
+                <FormField
+                  control={goalsForm.control}
+                  name="revenueGoal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Faturamento mensal desejado (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="R$ 0,00" 
+                          {...field} 
+                          value={field.value}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Users className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-lg font-medium">Meta de Leads</h3>
+                </div>
+                <FormField
+                  control={goalsForm.control}
+                  name="leadsGoal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantidade mensal de novos leads</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          {...field} 
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          value={field.value}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end">
+              <Button 
+                type="submit" 
+                disabled={updateSettingsMutation.isPending}
+              >
+                {updateSettingsMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Salvar metas
+              </Button>
+            </div>
+          </form>
+        </Form>
+      )}
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -146,6 +302,13 @@ export default function SettingsPage() {
                         onClick={() => setActiveTab("billing")}
                       >
                         Faturamento
+                      </Button>
+                      <Button 
+                        variant={activeTab === "goals" ? "default" : "ghost"} 
+                        className="w-full justify-start"
+                        onClick={() => setActiveTab("goals")}
+                      >
+                        Metas
                       </Button>
                     </div>
                   </nav>
@@ -355,6 +518,20 @@ export default function SettingsPage() {
                     <p className="text-muted-foreground">
                       Configurações de faturamento estarão disponíveis em breve.
                     </p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {activeTab === "goals" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Metas</CardTitle>
+                    <CardDescription>
+                      Configure suas metas de desempenho para acompanhamento no dashboard
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <GoalsSettings />
                   </CardContent>
                 </Card>
               )}
