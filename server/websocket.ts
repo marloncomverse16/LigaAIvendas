@@ -130,8 +130,10 @@ export async function syncContacts(userId: number, force = false) {
     // Buscar contatos da Evolution API
     // Corrigir formato da URL para evitar barras duplicadas
     const baseUrl = user.whatsappApiUrl.replace(/\/+$/, "");
-    const path = `/instances/${user.whatsappInstanceId}/contacts`.replace(/^\/+/, "");
+    // Usar o nome do usuário como instância
+    const path = `/instances/${user.username}/contacts`.replace(/^\/+/, "");
     const fullUrl = `${baseUrl}/${path}`;
+    console.log(`Usando nome do usuário (${user.username}) como instância para sincronizar contatos`);
     
     console.log(`Sincronizando contatos da Evolution API: ${fullUrl}`);
     
@@ -215,8 +217,10 @@ export async function syncMessages(userId: number, contactId: number) {
     
     // Verificar se a URL já contém 'manager', senão adicionar
     const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
-    const path = `${managerPath}/instances/${user.whatsappInstanceId}/chats/${contact.contactId}/messages`.replace(/^\/+/, "");
+    // Usar nome do usuário como instância
+    const path = `${managerPath}/instances/${user.username}/chats/${contact.contactId}/messages`.replace(/^\/+/, "");
     const fullUrl = `${baseUrl}/${path}`;
+    console.log(`Usando nome do usuário (${user.username}) como instância para sincronizar mensagens`);
     
     console.log(`Sincronizando mensagens da Evolution API: ${fullUrl}`);
     
@@ -320,7 +324,7 @@ export async function sendMessage(userId: number, contactId: number, content: st
     activeSocket.send(JSON.stringify({
       event: 'send-message',
       data: {
-        instanceName: user.whatsappInstanceId || 'admin',
+        instanceName: user.username, // Usando nome do usuário como instância
         phone: contact.number || contact.contactId,
         message: content,
         options: {
@@ -446,8 +450,15 @@ export function setupWebSocketServer(server: HttpServer) {
                   if (firstServer && firstServer.apiUrl && (firstServer.apiToken || firstServer.apiToken === null)) {
                     console.log(`Atualizando configurações da Evolution API para usuário ${userId} com dados do servidor ${firstServer.id}`);
                     
-                    // Gerar ID de instância se não existir
-                    const instanceId = firstServer.instanceId || `instance${userId}`;
+                    // Buscar informações do usuário para usar o nome como instância
+                    const userInfo = await storage.getUser(userId);
+                    if (!userInfo || !userInfo.username) {
+                      throw new Error('Não foi possível obter informações do usuário');
+                    }
+                    
+                    // Usar o nome do usuário como instância
+                    const instanceId = userInfo.username;
+                    console.log(`Usando nome do usuário como instância: ${instanceId}`);
                     
                     // Atualizar informações do usuário com os dados do servidor
                     await storage.updateUser(userId, {
@@ -699,8 +710,10 @@ export function setupWebSocketServer(server: HttpServer) {
             
             // Verificar se a URL já contém 'manager', senão adicionar
             const managerPath = baseUrl.includes('/manager') ? '' : '/manager';
-            const path = `${managerPath}/instances/${user.whatsappInstanceId}/logout`.replace(/^\/+/, "");
+            // Usar nome do usuário como instância
+            const path = `${managerPath}/instances/${user.username}/logout`.replace(/^\/+/, "");
             const fullUrl = `${baseUrl}/${path}`;
+            console.log(`Usando nome do usuário (${user.username}) como instância para desconectar`);
             
             console.log(`Desconectando da Evolution API: ${fullUrl}`);
             
