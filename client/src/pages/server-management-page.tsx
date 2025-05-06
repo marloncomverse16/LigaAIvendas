@@ -290,10 +290,11 @@ export default function ServerManagementPage() {
     },
   });
   
-  // Mutação para remover servidor de um usuário
+  // Mutação para remover servidor de um usuário (usando relationId)
   const removeUserServerMutation = useMutation({
-    mutationFn: async ({ userId, serverId }: { userId: number; serverId: number }) => {
-      await apiRequest("DELETE", `/api/user-servers/${serverId}/${userId}`);
+    mutationFn: async ({ relationId, serverId }: { relationId: number; serverId: number }) => {
+      // Usando o ID da relação (user_server.id) em vez do ID do usuário
+      await apiRequest("DELETE", `/api/user-servers/relation/${relationId}`);
     },
     onSuccess: () => {
       toast({
@@ -379,9 +380,9 @@ export default function ServerManagementPage() {
   };
   
   // Handler para remover um usuário do servidor
-  const handleRemoveUserFromServer = (userId: number) => {
+  const handleRemoveUserFromServer = (relationId: number) => {
     if (selectedServer) {
-      removeUserServerMutation.mutate({ userId, serverId: selectedServer.id });
+      removeUserServerMutation.mutate({ relationId, serverId: selectedServer.id });
     }
   };
   
@@ -1128,7 +1129,7 @@ export default function ServerManagementPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleRemoveUserFromServer(userData.id || userConnection.userId)}
+                              onClick={() => handleRemoveUserFromServer(userConnection.id)}
                             >
                               <MinusCircle className="h-5 w-5 text-destructive" />
                             </Button>
@@ -1167,7 +1168,15 @@ export default function ServerManagementPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleRemoveUserFromServer(user.id)}
+                              onClick={() => {
+                                // Encontrar o ID da relação para este usuário
+                                const userConnection = serverUsers.find((su: any) => 
+                                  (su.userId === user.id) || (su.user && su.user.id === user.id)
+                                );
+                                if (userConnection) {
+                                  handleRemoveUserFromServer(userConnection.id);
+                                }
+                              }}
                             >
                               <MinusCircle className="h-5 w-5 text-destructive" />
                             </Button>
