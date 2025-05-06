@@ -1,0 +1,24 @@
+// Adicionar o campo maxUsers antes do active no formulário de criação
+              <FormField
+                control={form.control}
+                name="maxUsers"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Limite de Usuários</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="1"
+                        placeholder="Número máximo de usuários" 
+                        {...field} 
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 10)}
+                        value={field.value}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Defina o número máximo de usuários que podem se conectar a este servidor.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
