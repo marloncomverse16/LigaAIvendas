@@ -165,7 +165,7 @@ export class EvolutionApiClient {
 
   async getQrCode(): Promise<any> {
     try {
-      // Primeiro, verificamos se a API está online
+      // Verificamos primeiro se a API está online
       const apiStatus = await this.checkApiStatus();
       if (!apiStatus.online) {
         return {
@@ -176,7 +176,11 @@ export class EvolutionApiClient {
       }
 
       console.log("API Evolution online. Tentando obter QR code...");
-      console.log("Informações da API:", apiStatus);
+      
+      // MODO SIMPLIFICADO: Apenas GET conforme solicitado pelo usuário
+      // Testes mostraram que o seguinte endpoint funciona para obter QR code:
+      // GET /instance/connect/{nome_da_instancia}
+      console.log("Usando exclusivamente o método GET com endpoint /instance/connect/");
 
       // PASSO CRÍTICO: Primeiro criar a instância se não existir
       console.log("Verificando se precisamos criar a instância primeiro...");
