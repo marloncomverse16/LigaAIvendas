@@ -17,7 +17,8 @@ import {
   User,
   Bot,
   Send,
-  MessagesSquare
+  MessagesSquare,
+  Server
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,12 @@ export function Sidebar() {
       path: "/admin-users", 
       label: "Gerenciar Usuários", 
       icon: <UsersRound size={collapsed ? 24 : 20} />, 
+      permissionKey: "isAdmin"  // Somente administradores
+    },
+    { 
+      path: "/servers", 
+      label: "Gerenciar Servidores", 
+      icon: <Server size={collapsed ? 24 : 20} />, 
       permissionKey: "isAdmin"  // Somente administradores
     },
     { 
