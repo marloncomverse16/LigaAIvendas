@@ -846,10 +846,39 @@ export function setupWebSocketServer(server: HttpServer) {
                 if (qrCodeObtained && qrCodeData) {
                   console.log("QR Code obtido com sucesso!");
                   
+                  // Verifica o formato do QR code e ajusta conforme necessário
+                  let formattedQrCode = qrCodeData;
+                  
+                  // Se a resposta for um objeto com propriedade 'code', usar esse valor (Evolution API v2)
+                  if (typeof qrCodeData === 'object' && qrCodeData.code) {
+                    formattedQrCode = qrCodeData.code;
+                    console.log("Usando campo 'code' do objeto QR");
+                  }
+                  
+                  // Verificar se não é HTML (evita enviar HTML como QR code)
+                  if (typeof formattedQrCode === 'string' && 
+                     (formattedQrCode.includes('<!doctype html>') || 
+                      formattedQrCode.includes('<html>'))) {
+                    console.log("QR Code contém HTML, enviando mensagem de erro");
+                    ws.send(JSON.stringify({
+                      type: 'connection_error',
+                      data: {
+                        message: 'Erro na conexão com o servidor WhatsApp. Verifique a configuração do webhook.'
+                      }
+                    }));
+                    return;
+                  }
+                  
+                  // Log para debug
+                  console.log(`Tipo do QR code: ${typeof formattedQrCode}`);
+                  if (typeof formattedQrCode === 'string') {
+                    console.log(`QR code começa com: ${formattedQrCode.substring(0, 30)}...`);
+                  }
+                  
                   ws.send(JSON.stringify({
                     type: 'qr_code',
                     data: {
-                      qrCode: qrCodeData,
+                      qrCode: formattedQrCode,
                       message: 'Por favor escaneie o QR code com seu WhatsApp'
                     }
                   }));

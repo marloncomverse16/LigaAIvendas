@@ -226,16 +226,42 @@ export class WebSocketService {
       
       const removeHandler = this.on('qr_code', (message) => {
         if (message.data?.qrCode) {
+          // Verificar se o QR é válido (não é HTML)
+          const qrCode = message.data.qrCode;
+          if (typeof qrCode === 'string' && 
+             (qrCode.includes('<!doctype html>') || qrCode.includes('<html>'))) {
+            console.error("Recebido HTML em vez de QR code");
+            toast({
+              title: "Erro ao carregar QR code",
+              description: "Formato de QR code inválido. Verifique a configuração do webhook.",
+              variant: "destructive",
+            });
+            return;
+          }
+          
           callback(message.data.qrCode);
         }
+      });
+      
+      // Verificar erros de conexão
+      const errorHandler = this.on('connection_error', (message) => {
+        console.error("Erro de conexão:", message.error || message.data?.message);
+        toast({
+          title: "Erro de conexão",
+          description: message.error || message.data?.message || "Erro ao conectar ao WhatsApp",
+          variant: "destructive",
+        });
       });
       
       this.sendMessage({
         type: 'connect_evolution',
       });
       
-      // Remover handler após 60 segundos (tempo para escanear QR)
-      setTimeout(removeHandler, 60000);
+      // Remover handlers após 60 segundos (tempo para escanear QR)
+      setTimeout(() => {
+        removeHandler();
+        errorHandler();
+      }, 60000);
     });
   }
   
