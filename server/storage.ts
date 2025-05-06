@@ -1251,6 +1251,105 @@ export class MemStorage implements IStorage {
     this.whatsappMessages.set(id, updatedMessage);
     return updatedMessage;
   }
+  
+  // Server methods
+  async getServerById(id: number): Promise<Server | undefined> {
+    return this.servers.get(id);
+  }
+
+  async getServersByProvider(provider: string): Promise<Server[]> {
+    return Array.from(this.servers.values()).filter(server => server.provider === provider);
+  }
+
+  async getAllServers(): Promise<Server[]> {
+    return Array.from(this.servers.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async getActiveServers(): Promise<Server[]> {
+    return Array.from(this.servers.values())
+      .filter(server => server.active)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async createServer(serverData: InsertServer): Promise<Server> {
+    const id = this.currentId.servers++;
+    const now = new Date();
+    const server: Server = {
+      ...serverData,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      active: serverData.active !== undefined ? serverData.active : true
+    };
+    this.servers.set(id, server);
+    return server;
+  }
+
+  async updateServer(id: number, serverData: Partial<InsertServer>): Promise<Server | undefined> {
+    const existingServer = this.servers.get(id);
+    if (!existingServer) return undefined;
+    
+    const updatedServer = { 
+      ...existingServer, 
+      ...serverData,
+      updatedAt: new Date()
+    };
+    this.servers.set(id, updatedServer);
+    return updatedServer;
+  }
+
+  async deleteServer(id: number): Promise<boolean> {
+    if (!this.servers.has(id)) return false;
+    
+    // Primeiro remover as associações com usuários
+    const userServers = Array.from(this.userServers.values()).filter(us => us.serverId === id);
+    for (const userServer of userServers) {
+      this.userServers.delete(userServer.id);
+    }
+    
+    // Depois remover o servidor
+    this.servers.delete(id);
+    return true;
+  }
+
+  // UserServer methods
+  async getUserServers(userId: number): Promise<(Server & { id: number })[]> {
+    const userServerIds = Array.from(this.userServers.values())
+      .filter(us => us.userId === userId)
+      .map(us => us.serverId);
+      
+    return Array.from(this.servers.values())
+      .filter(server => userServerIds.includes(server.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async addUserServer(userId: number, serverId: number): Promise<UserServer | undefined> {
+    if (!this.users.has(userId) || !this.servers.has(serverId)) {
+      return undefined;
+    }
+    
+    const id = this.currentId.userServers++;
+    const now = new Date();
+    const userServer: UserServer = {
+      id,
+      userId,
+      serverId,
+      createdAt: now
+    };
+    this.userServers.set(id, userServer);
+    return userServer;
+  }
+
+  async removeUserServer(userId: number, serverId: number): Promise<boolean> {
+    const userServer = Array.from(this.userServers.values()).find(
+      us => us.userId === userId && us.serverId === serverId
+    );
+    
+    if (!userServer) return false;
+    
+    this.userServers.delete(userServer.id);
+    return true;
+  }
 }
 
 export class DatabaseStorage implements IStorage {

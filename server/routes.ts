@@ -8,7 +8,7 @@ import {
   insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema,
   insertLeadInteractionSchema, insertLeadRecommendationSchema,
   insertProspectingSearchSchema, insertProspectingResultSchema,
-  insertUserSchema, ConnectionStatus
+  insertUserSchema, ConnectionStatus, insertServerSchema
 } from "@shared/schema";
 import { z } from "zod";
 import axios from "axios";
