@@ -2,7 +2,8 @@ import {
   users, leads, prospects, dispatches, settings, metrics, 
   aiAgent, aiAgentSteps, aiAgentFaqs, leadInteractions, leadRecommendations,
   prospectingSearches, prospectingResults, prospectingSchedules, prospectingDispatchHistory,
-  messageTemplates, messageSendings, messageSendingHistory
+  messageTemplates, messageSendings, messageSendingHistory,
+  whatsappContacts, whatsappMessages
 } from "@shared/schema";
 import type {
   User, InsertUser, Lead, InsertLead, Prospect, InsertProspect, 
@@ -11,7 +12,8 @@ import type {
   AiAgentFaqs, InsertAiAgentFaqs, LeadInteraction, InsertLeadInteraction,
   LeadRecommendation, InsertLeadRecommendation, ProspectingSearch, InsertProspectingSearch,
   ProspectingResult, InsertProspectingResult, MessageTemplate, InsertMessageTemplate,
-  MessageSending, InsertMessageSending, MessageSendingHistory, InsertMessageSendingHistory
+  MessageSending, InsertMessageSending, MessageSendingHistory, InsertMessageSendingHistory,
+  WhatsappContact, InsertWhatsappContact, WhatsappMessage, InsertWhatsappMessage
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -134,6 +136,20 @@ export interface IStorage {
   getMessageSendingHistory(sendingId: number): Promise<MessageSendingHistory[]>;
   createMessageSendingHistory(history: InsertMessageSendingHistory): Promise<MessageSendingHistory>;
   
+  // WhatsApp Contacts methods
+  getWhatsappContact(id: number): Promise<WhatsappContact | undefined>;
+  getWhatsappContactByContactId(userId: number, contactId: string): Promise<WhatsappContact | undefined>;
+  getWhatsappContacts(userId: number): Promise<WhatsappContact[]>;
+  createWhatsappContact(contact: InsertWhatsappContact & { userId: number }): Promise<WhatsappContact>;
+  updateWhatsappContact(id: number, contactData: Partial<InsertWhatsappContact>): Promise<WhatsappContact | undefined>;
+  
+  // WhatsApp Messages methods
+  getWhatsappMessage(id: number): Promise<WhatsappMessage | undefined>;
+  getWhatsappMessageByMessageId(userId: number, messageId: string): Promise<WhatsappMessage | undefined>;
+  getWhatsappMessages(userId: number, contactId: number, limit?: number): Promise<WhatsappMessage[]>;
+  createWhatsappMessage(message: InsertWhatsappMessage & { userId: number; contactId: number }): Promise<WhatsappMessage>;
+  updateWhatsappMessage(id: number, messageData: Partial<InsertWhatsappMessage>): Promise<WhatsappMessage | undefined>;
+  
   // Session store
   sessionStore: session.Store;
 }
@@ -157,6 +173,8 @@ export class MemStorage implements IStorage {
   private messageTemplates: Map<number, MessageTemplate>;
   private messageSendings: Map<number, MessageSending>;
   private messageSendingHistory: Map<number, MessageSendingHistory>;
+  private whatsappContacts: Map<number, WhatsappContact>;
+  private whatsappMessages: Map<number, WhatsappMessage>;
   
   sessionStore: session.Store;
   currentId: { [key: string]: number };
@@ -180,6 +198,8 @@ export class MemStorage implements IStorage {
     this.messageTemplates = new Map();
     this.messageSendings = new Map();
     this.messageSendingHistory = new Map();
+    this.whatsappContacts = new Map();
+    this.whatsappMessages = new Map();
     
     this.currentId = {
       users: 1,
@@ -199,7 +219,9 @@ export class MemStorage implements IStorage {
       prospectingDispatchHistory: 1,
       messageTemplates: 1,
       messageSendings: 1,
-      messageSendingHistory: 1
+      messageSendingHistory: 1,
+      whatsappContacts: 1,
+      whatsappMessages: 1
     };
     
     this.sessionStore = new MemoryStore({
