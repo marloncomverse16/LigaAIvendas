@@ -2147,6 +2147,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // API para remover uma relação específica de usuário-servidor pelo ID da relação
+  app.delete("/api/user-servers/relation/:relationId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    const relationId = parseInt(req.params.relationId);
+    const isAdmin = req.user.isAdmin;
+    
+    try {
+      console.log(`Tentando remover relação com ID ${relationId} (admin: ${isAdmin})`);
+      
+      // Verificar se a relação existe
+      const relation = await storage.getUserServerRelationById(relationId);
+      
+      if (!relation) {
+        console.log(`Relação ${relationId} não encontrada`);
+        return res.status(404).json({ message: "Relação não encontrada" });
+      }
+      
+      // Apenas admins ou o próprio usuário podem remover a relação
+      if (!isAdmin && relation.userId !== req.user.id) {
+        return res.status(403).json({ message: "Você não tem permissão para remover esta relação" });
+      }
+      
+      // Remover a relação
+      const success = await storage.removeUserServerRelation(relationId);
+      
+      if (success) {
+        console.log(`Relação ${relationId} removida com sucesso`);
+        res.sendStatus(200);
+      } else {
+        console.log(`Falha ao remover relação ${relationId}`);
+        res.status(500).json({ message: "Erro ao remover relação" });
+      }
+    } catch (error) {
+      console.error("Erro ao remover relação de usuário-servidor:", error);
+      res.status(500).json({ message: "Erro ao remover relação de usuário-servidor" });
+    }
+  });
+  
   // Configure HTTP server
   const httpServer = createServer(app);
   
