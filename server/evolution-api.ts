@@ -80,21 +80,23 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando criar a instância...");
       
-      // Formatar o corpo da requisição
+      // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
       const createInstanceBody = {
         instanceName: this.instance,
         token: this.token,
         webhook: null, // Podemos deixar webhook nulo por enquanto
         webhookByEvents: false, // Podemos adicionar eventos específicos mais tarde
+        integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
+        language: "pt-BR",
+        qrcode: true,
+        qrcodeImage: true,
+        // Parâmetros adicionais
         reject_call: false,
         events_message: false,
         ignore_group: false,
         ignore_broadcast: false,
         save_message: true,
-        webhook_base64: true,
-        language: "pt-BR",
-        qrcode: true,
-        qrcodeImage: true
+        webhook_base64: true
       };
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
@@ -203,9 +205,13 @@ export class EvolutionApiClient {
       }
       
       // Endpoints diretos na API
+      // Para a versão 2.2.3, o endpoint principal para conexão é /instance/connect/INSTANCE_NAME
+      endpoints.push(`${this.baseUrl}/instance/connect/${this.instance}`); // Este é o endpoint que sabemos que funciona!
+      
       if (isVersion2) {
         // Endpoints da versão 2.x
         endpoints.push(`${this.baseUrl}/instance/qrcode`); // POST com instanceName
+        endpoints.push(`${this.baseUrl}/instance/qrcode/${this.instance}`);
         endpoints.push(`${this.baseUrl}/qrcode/${this.instance}`);
         endpoints.push(`${this.baseUrl}/client/qrcode/${this.instance}`);
       } else {
@@ -216,7 +222,6 @@ export class EvolutionApiClient {
       }
       
       // Adicionar endpoints comuns ou de teste
-      endpoints.push(`${this.baseUrl}/instance/qrcode/${this.instance}`);
       endpoints.push(`${this.baseUrl}/manager/qrcode/${this.instance}`);
       
       // Metadados para a requisição
