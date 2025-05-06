@@ -164,6 +164,7 @@ export interface IStorage {
   getUserServers(userId: number): Promise<(Server & { id: number })[]>;
   addUserServer(userId: number, serverId: number): Promise<UserServer | undefined>;
   removeUserServer(userId: number, serverId: number): Promise<boolean>;
+  updateUserServerId(userId: number, serverId: number): Promise<User | undefined>;
   
   // Session store
   sessionStore: session.Store;
@@ -1349,6 +1350,18 @@ export class MemStorage implements IStorage {
     
     this.userServers.delete(userServer.id);
     return true;
+  }
+  
+  async updateUserServerId(userId: number, serverId: number): Promise<User | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
+    const server = await this.getServerById(serverId);
+    if (!server) return undefined;
+    
+    const updatedUser = { ...user, serverId };
+    this.users.set(userId, updatedUser);
+    return updatedUser;
   }
 }
 
@@ -2536,6 +2549,30 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Erro ao remover servidor do usuário:", error);
       return false;
+    }
+  }
+  
+  async updateUserServerId(userId: number, serverId: number): Promise<User | undefined> {
+    try {
+      // Verificar se o usuário e o servidor existem
+      const userExists = await this.getUser(userId);
+      const serverExists = await this.getServerById(serverId);
+      
+      if (!userExists || !serverExists) {
+        console.error("Usuário ou servidor não encontrado");
+        return undefined;
+      }
+      
+      // Atualizar o serverId do usuário
+      const [updatedUser] = await db.update(users)
+        .set({ serverId })
+        .where(eq(users.id, userId))
+        .returning();
+        
+      return updatedUser;
+    } catch (error) {
+      console.error("Erro ao atualizar o servidor do usuário:", error);
+      return undefined;
     }
   }
 }
