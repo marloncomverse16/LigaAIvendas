@@ -49,6 +49,16 @@ const serverFormSchema = z.object({
 
 type ServerFormValues = z.infer<typeof serverFormSchema>;
 
+// Esquema para o formulário de agentes IA
+const aiAgentFormSchema = z.object({
+  name: z.string().min(1, { message: "Nome é obrigatório" }),
+  description: z.string().optional(),
+  webhookUrl: z.string().min(1, { message: "URL do webhook é obrigatório" }),
+  active: z.boolean().default(true),
+});
+
+type AiAgentFormValues = z.infer<typeof aiAgentFormSchema>;
+
 interface Server {
   id: number;
   name: string;
@@ -82,16 +92,6 @@ interface ServerAiAgent {
   createdAt: string | Date;
   updatedAt: string | Date | null;
 }
-
-// Formulário para adicionar/editar agente IA
-const aiAgentFormSchema = z.object({
-  name: z.string().min(1, { message: "Nome é obrigatório" }),
-  description: z.string().optional(),
-  webhookUrl: z.string().min(1, { message: "URL do webhook é obrigatório" }),
-  active: z.boolean().default(true),
-});
-
-type AiAgentFormValues = z.infer<typeof aiAgentFormSchema>;
 
 export default function ServerManagementPage() {
   const { user } = useAuth();
@@ -460,21 +460,92 @@ export default function ServerManagementPage() {
     },
   });
   
-  // Handler para criar servidor
-  const onCreateSubmit = (data: ServerFormValues) => {
-    createServerMutation.mutate(data);
+  // Verificar se um usuário está associado ao servidor selecionado
+  function isUserAssociatedWithServer(userId: number) {
+    return serverUsers.some((su: any) => {
+      // Check both direct or nested structure
+      return (su.userId === userId) || (su.user && su.user.id === userId);
+    });
+  }
+  
+  function handleAddUserToServer(userId: number) {
+    if (!selectedServer) return;
+    
+    const serverUserCount = getServerUserCount(selectedServer.id);
+    if (serverUserCount >= selectedServer.maxUsers) {
+      toast({
+        title: "Limite de usuários atingido",
+        description: `Este servidor está configurado para um máximo de ${selectedServer.maxUsers} usuários.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    addUserServerMutation.mutate({ userId, serverId: selectedServer.id });
+  }
+  
+  function handleRemoveUserFromServer(relationId: number) {
+    if (!selectedServer) return;
+    
+    removeUserServerMutation.mutate({ relationId, serverId: selectedServer.id });
+  }
+  
+  function getServerUserCount(serverId: number) {
+    const result = allServerUsers.find((item: any) => item.serverId === serverId);
+    return result ? result.count : 0;
+  }
+
+  // Handlers para Agentes IA
+  const handleCreateAiAgent = () => {
+    if (!selectedServer) {
+      toast({
+        title: "Erro",
+        description: "Selecione um servidor primeiro",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    aiAgentForm.reset({
+      name: "",
+      description: "",
+      webhookUrl: "",
+      active: true,
+    });
+    
+    setIsAgentCreateDialogOpen(true);
   };
   
-  // Handler para atualizar servidor
-  const onEditSubmit = (data: ServerFormValues) => {
-    if (selectedServer) {
-      updateServerMutation.mutate({ id: selectedServer.id, data });
+  const handleEditAiAgent = (agent: ServerAiAgent) => {
+    aiAgentForm.reset({
+      name: agent.name,
+      description: agent.description || "",
+      webhookUrl: agent.webhookUrl || "",
+      active: agent.active,
+    });
+    
+    setSelectedAgentId(agent.id);
+    setIsAgentEditDialogOpen(true);
+  };
+  
+  const handleDeleteAiAgent = (id: number) => {
+    setSelectedAgentId(id);
+    setIsAgentDeleteDialogOpen(true);
+  };
+  
+  const onCreateAiAgentSubmit = (data: AiAgentFormValues) => {
+    createAiAgentMutation.mutate(data);
+  };
+  
+  const onEditAiAgentSubmit = (data: AiAgentFormValues) => {
+    if (selectedAgentId) {
+      updateAiAgentMutation.mutate({ id: selectedAgentId, data });
     }
   };
   
-  // Abre o modal de edição e preenche o formulário com os dados do servidor
   const handleEditServer = (server: Server) => {
     setSelectedServer(server);
+    
     editForm.reset({
       name: server.name,
       ipAddress: server.ipAddress,
@@ -491,280 +562,229 @@ export default function ServerManagementPage() {
       schedulingWebhookUrl: server.schedulingWebhookUrl || "",
       crmWebhookUrl: server.crmWebhookUrl || "",
       instanceId: server.instanceId || "",
-      active: server.active || true,
+      active: server.active || false,
     });
+    
     setIsEditDialogOpen(true);
   };
   
-  // Abre o modal de exclusão
   const handleDeleteServer = (server: Server) => {
     setSelectedServer(server);
     setIsDeleteDialogOpen(true);
   };
   
-  // Abre o modal para associar usuários a um servidor
   const handleManageServerUsers = (server: Server) => {
     setSelectedServer(server);
     setUserServerDialogOpen(true);
   };
   
-  // Handler para adicionar um usuário ao servidor
-  const handleAddUserToServer = (userId: number) => {
+  const onCreateSubmit = (data: ServerFormValues) => {
+    createServerMutation.mutate(data);
+  };
+  
+  const onEditSubmit = (data: ServerFormValues) => {
     if (selectedServer) {
-      // Verifica se o servidor já atingiu o limite de usuários
-      const serverUserCount = allServerUsers.find((s: any) => s.serverId === selectedServer.id)?.userCount || 0;
-      if (serverUserCount >= selectedServer.maxUsers) {
-        toast({
-          title: "Limite de usuários atingido",
-          description: `Este servidor já atingiu o limite de ${selectedServer.maxUsers} usuários. Aumente o limite para adicionar mais usuários.`,
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      addUserServerMutation.mutate({ userId, serverId: selectedServer.id });
+      updateServerMutation.mutate({ id: selectedServer.id, data });
     }
   };
   
-  // Handler para remover um usuário do servidor
-  const handleRemoveUserFromServer = (relationId: number) => {
-    if (selectedServer) {
-      removeUserServerMutation.mutate({ relationId, serverId: selectedServer.id });
-    }
-  };
-  
-  // Handler para criar agente IA
-  const onCreateAiAgentSubmit = (data: AiAgentFormValues) => {
-    createAiAgentMutation.mutate(data);
-  };
-  
-  // Handler para atualizar agente IA
-  const onEditAiAgentSubmit = (data: AiAgentFormValues) => {
-    if (selectedAgentId) {
-      updateAiAgentMutation.mutate({ id: selectedAgentId, data });
-    }
-  };
-  
-  // Abre o modal de criação de agente IA
-  const handleCreateAiAgent = () => {
-    aiAgentForm.reset({
-      name: "",
-      description: "",
-      webhookUrl: "",
-      active: true,
-    });
-    setIsAgentCreateDialogOpen(true);
-  };
-  
-  // Abre o modal de edição de agente IA e preenche o formulário
-  const handleEditAiAgent = (agent: ServerAiAgent) => {
-    setSelectedAgentId(agent.id);
-    aiAgentForm.reset({
-      name: agent.name,
-      description: agent.description || "",
-      webhookUrl: agent.webhookUrl || "",
-      active: agent.active,
-    });
-    setIsAgentEditDialogOpen(true);
-  };
-  
-  // Abre o modal de exclusão de agente IA
-  const handleDeleteAiAgent = (agentId: number) => {
-    setSelectedAgentId(agentId);
-    setIsAgentDeleteDialogOpen(true);
-  };
-  
-  // Pega a contagem de usuários para um servidor específico
-  const getServerUserCount = (serverId: number) => {
-    const serverUserCount = allServerUsers.find((s: any) => s.serverId === serverId);
-    return serverUserCount?.userCount || 0;
-  };
-  
-  // Determina se um usuário já está associado ao servidor
-  const isUserAssociatedWithServer = (userId: number) => {
-    // Verifica primeiro se o usuário está no array serverUsers
-    const directMatch = serverUsers.some((su: any) => su.userId === userId);
-    if (directMatch) return true;
-    
-    // Verifica se o usuário está no objeto user dentro de serverUsers
-    const nestedMatch = serverUsers.some((su: any) => su.user && su.user.id === userId);
-    return nestedMatch;
-  };
-  
-  // Filtra servidores baseado na aba selecionada e termo de busca
   const filteredServers = servers.filter((server: Server) => {
-    const matchesTab = filter === "all" || 
-                      (filter === "active" && server.active) || 
-                      (filter === "inactive" && !server.active);
+    // Primeiro filtramos pelo estado (ativo/inativo)
+    if (filter === "active" && !server.active) return false;
+    if (filter === "inactive" && server.active) return false;
     
-    const matchesSearch = searchQuery === "" ||
-                         server.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         server.ipAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         server.provider.toLowerCase().includes(searchQuery.toLowerCase());
+    // Depois filtramos pela busca
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        server.name.toLowerCase().includes(query) ||
+        server.ipAddress.toLowerCase().includes(query) ||
+        server.provider.toLowerCase().includes(query)
+      );
+    }
     
-    return matchesTab && matchesSearch;
+    return true;
   });
   
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex flex-col space-y-4">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Gerenciamento de Servidores</h1>
-          {user?.isAdmin && (
-            <Button onClick={() => {
-              form.reset();
-              setIsCreateDialogOpen(true);
-            }}>
-              Novo Servidor
-            </Button>
-          )}
+    <div className="px-4 md:px-6 w-full max-w-7xl mx-auto space-y-4 py-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Gerenciamento de Servidores</h1>
+          <p className="text-muted-foreground">
+            Adicione, edite e gerencie servidores para a plataforma.
+          </p>
+        </div>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Adicionar Servidor
+        </Button>
+      </div>
+      
+      <div className="flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant={filter === "all" ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setFilter("all")}
+          >
+            Todos
+          </Button>
+          <Button 
+            variant={filter === "active" ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setFilter("active")}
+            className={filter === "active" ? "bg-green-600 hover:bg-green-700" : ""}
+          >
+            Ativos
+          </Button>
+          <Button 
+            variant={filter === "inactive" ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setFilter("inactive")}
+            className={filter === "inactive" ? "bg-gray-500 hover:bg-gray-600" : ""}
+          >
+            Inativos
+          </Button>
         </div>
         
-        <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 md:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar por nome, IP ou provedor..." 
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filtrar:</span>
-            <Tabs value={filter} onValueChange={setFilter} className="w-auto">
-              <TabsList>
-                <TabsTrigger value="all">Todos</TabsTrigger>
-                <TabsTrigger value="active">Ativos</TabsTrigger>
-                <TabsTrigger value="inactive">Inativos</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
-        
-        <div className="mt-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : filteredServers.length > 0 ? (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>IP</TableHead>
-                    <TableHead>Provedor</TableHead>
-                    <TableHead>API URL</TableHead>
-                    <TableHead>Usuários</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredServers.map((server: Server) => {
-                    const userCount = getServerUserCount(server.id);
-                    const percentageUsed = server.maxUsers > 0 ? (userCount / server.maxUsers) * 100 : 0;
-                    const badgeColor = percentageUsed >= 90 ? "destructive" : percentageUsed >= 70 ? "warning" : "success";
-                    
-                    return (
-                      <TableRow key={server.id} className={!server.active ? 'opacity-70' : ''}>
-                        <TableCell className="font-medium">{server.name}</TableCell>
-                        <TableCell>{server.ipAddress}</TableCell>
-                        <TableCell>{server.provider}</TableCell>
-                        <TableCell className="truncate max-w-[150px]" title={server.apiUrl}>
-                          {server.apiUrl}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={badgeColor as any} className="whitespace-nowrap">
-                            {userCount}/{server.maxUsers} usuários
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {server.active ? (
-                            <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Ativo</Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">Inativo</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleManageServerUsers(server)}
-                              title="Usuários Conectados"
-                            >
-                              <Users className="h-4 w-4" />
-                            </Button>
-                            
-                            {user?.isAdmin && (
-                              <>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleEditServer(server)}
-                                  title="Editar servidor"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => handleDeleteServer(server)}
-                                  title="Excluir servidor"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Nenhum servidor encontrado</CardTitle>
-                <CardDescription>
-                  {searchQuery 
-                    ? `Nenhum servidor corresponde à busca "${searchQuery}"`
-                    : filter !== "all" 
-                      ? `Não há servidores ${filter === "active" ? "ativos" : "inativos"}`
-                      : "Não há servidores cadastrados"}
-                  {user?.isAdmin && ". Clique em 'Novo Servidor' para adicionar."}
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          )}
+        <div className="w-full sm:w-auto relative">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Buscar servidores..." 
+            className="pl-8 w-full sm:w-auto min-w-[200px]"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
       
-      {/* Modal para criar novo servidor */}
+      <div className="border rounded-md shadow-sm">
+        <Table className="w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[250px]">Nome / Endereço</TableHead>
+              <TableHead className="hidden md:table-cell">Provider</TableHead>
+              <TableHead className="hidden md:table-cell">Usuários</TableHead>
+              <TableHead className="hidden md:table-cell">Status</TableHead>
+              <TableHead className="hidden md:table-cell">Criado em</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">
+                  <div className="flex justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredServers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  {searchQuery ? (
+                    <p>Nenhum servidor encontrado para "{searchQuery}"</p>
+                  ) : (
+                    <p>Nenhum servidor disponível</p>
+                  )}
+                </TableCell>
+              </TableRow>
+            ) : (
+              <>
+                {filteredServers.map((server: Server) => {
+                  const userCount = getServerUserCount(server.id);
+                  const isOverLimit = userCount > server.maxUsers;
+                  
+                  return (
+                    <TableRow key={server.id}>
+                      <TableCell>
+                        <div className="font-medium">{server.name}</div>
+                        <div className="text-xs text-muted-foreground">{server.ipAddress}</div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">{server.provider}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            isOverLimit ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" : ""
+                          }
+                        >
+                          {userCount}/{server.maxUsers}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {server.active ? (
+                          <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                            Ativo
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                            Inativo
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {server.createdAt ? (
+                          typeof server.createdAt === 'string'
+                            ? format(new Date(server.createdAt), 'dd/MM/yyyy')
+                            : format(server.createdAt, 'dd/MM/yyyy')
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right space-x-1">
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => handleEditServer(server)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={() => handleManageServerUsers(server)}
+                        >
+                          <Users className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteServer(server)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {/* Modal para criar servidor */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
-            <DialogTitle>Criar Novo Servidor</DialogTitle>
+            <DialogTitle>Adicionar Novo Servidor</DialogTitle>
             <DialogDescription>
-              Preencha os detalhes para adicionar um novo servidor ao sistema.
+              Configure os detalhes do novo servidor para a plataforma.
             </DialogDescription>
           </DialogHeader>
+          
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onCreateSubmit)} className="space-y-4">
-              <Tabs defaultValue="geral">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="geral">Informações Gerais</TabsTrigger>
+              <Tabs defaultValue="general" className="w-full">
+                <TabsList className="w-full justify-start">
+                  <TabsTrigger value="general">Geral</TabsTrigger>
+                  <TabsTrigger value="api">API e Conexão</TabsTrigger>
                   <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
-                  <TabsTrigger value="avancado">Configurações Avançadas</TabsTrigger>
+                  <TabsTrigger value="avancado">Avançado</TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="geral" className="space-y-4 pt-4">
+                <TabsContent value="general" className="space-y-4 pt-4">
                   <FormField
                     control={form.control}
                     name="name"
@@ -772,43 +792,75 @@ export default function ServerManagementPage() {
                       <FormItem>
                         <FormLabel>Nome do Servidor</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: Servidor Principal" {...field} />
+                          <Input placeholder="Nome do servidor" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="ipAddress"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Endereço IP</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: 192.168.1.1" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="provider"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Provedor</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: AWS, GCP, Azure" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="ipAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Endereço IP</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Endereço IP do servidor" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
+                  <FormField
+                    control={form.control}
+                    name="provider"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Provedor</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o provedor" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="aws">AWS</SelectItem>
+                            <SelectItem value="azure">Azure</SelectItem>
+                            <SelectItem value="gcp">Google Cloud</SelectItem>
+                            <SelectItem value="digital_ocean">Digital Ocean</SelectItem>
+                            <SelectItem value="vps">VPS</SelectItem>
+                            <SelectItem value="dedicated">Servidor Dedicado</SelectItem>
+                            <SelectItem value="other">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="maxUsers"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Máximo de Usuários</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Quantidade máxima de usuários que podem se conectar a este servidor simultaneamente.
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="api" className="space-y-4 pt-4">
                   <FormField
                     control={form.control}
                     name="apiUrl"
@@ -816,8 +868,11 @@ export default function ServerManagementPage() {
                       <FormItem>
                         <FormLabel>URL da API</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: https://api.example.com" {...field} />
+                          <Input placeholder="URL da API do servidor" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          URL da API para integração com o servidor.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -830,8 +885,11 @@ export default function ServerManagementPage() {
                       <FormItem>
                         <FormLabel>Token da API</FormLabel>
                         <FormControl>
-                          <Input placeholder="Token de autenticação da API" {...field} />
+                          <Input placeholder="Token de autenticação da API" {...field} value={field.value || ""} />
                         </FormControl>
+                        <FormDescription>
+                          Token de autenticação para acessar a API do servidor.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -842,53 +900,14 @@ export default function ServerManagementPage() {
                     name="n8nApiUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>API do N8N</FormLabel>
+                        <FormLabel>URL da API do n8n</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: https://n8n.exemplo.com/api/v1" {...field} value={field.value || ""} />
+                          <Input placeholder="URL da API do n8n (para Cloud API)" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormDescription>
-                          URL da API do N8N para integração com WhatsApp Cloud API
+                          URL da API do n8n para integrações com WhatsApp Cloud API.
                         </FormDescription>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="instanceId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ID da Instância</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex: instance1 ou outro identificador" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormDescription>
-                          Identificador único da instância da Evolution API (necessário para conexão WhatsApp)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="maxUsers"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-bold text-primary">Quantidade Máxima de Usuários</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            min="1" 
-                            placeholder="Ex: 10" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                        <FormDescription>
-                          Quantidade máxima de usuários que podem se conectar a este servidor simultaneamente.
-                        </FormDescription>
                       </FormItem>
                     )}
                   />
@@ -896,37 +915,61 @@ export default function ServerManagementPage() {
                 
                 <TabsContent value="webhooks" className="space-y-4 pt-4">
                   <div className="border p-4 rounded-md mb-4 bg-secondary/20">
-                    <h3 className="text-md font-semibold mb-2">Configuração do Agente IA</h3>
-                    <FormField
-                      control={form.control}
-                      name="aiAgentName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome do Agente IA</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Nome do agente de IA (ex: Assistente de Vendas)" {...field} value={field.value || ""} />
-                          </FormControl>
-                          <FormDescription>
-                            Nome personalizado para o assistente de IA
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-md font-semibold">Agentes de IA</h3>
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        onClick={() => handleCreateAiAgent()}
+                      >
+                        <PlusCircle className="h-4 w-4 mr-2" /> Novo Agente
+                      </Button>
+                    </div>
                     
-                    <FormField
-                      control={form.control}
-                      name="aiAgentWebhookUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Webhook de AI Agent</FormLabel>
-                          <FormControl>
-                            <Input placeholder="URL do webhook para integrações de IA" {...field} value={field.value || ""} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {isLoadingAiAgents ? (
+                      <div className="flex justify-center p-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      </div>
+                    ) : serverAiAgents.length > 0 ? (
+                      <div className="space-y-3">
+                        {serverAiAgents.map((agent: ServerAiAgent) => (
+                          <div key={agent.id} className="p-3 border rounded-md flex justify-between items-center">
+                            <div>
+                              <div className="font-medium">{agent.name}</div>
+                              <div className="text-xs text-muted-foreground truncate max-w-[250px]" title={agent.webhookUrl || ''}>
+                                {agent.webhookUrl}
+                              </div>
+                              {agent.active ? (
+                                <Badge variant="outline" className="mt-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Ativo</Badge>
+                              ) : (
+                                <Badge variant="outline" className="mt-1 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">Inativo</Badge>
+                              )}
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditAiAgent(agent)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleDeleteAiAgent(agent.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <p>Nenhum agente IA configurado</p>
+                        <p className="text-sm">Clique em "Novo Agente" para adicionar</p>
+                      </div>
+                    )}
                   </div>
                   
                   <h3 className="text-md font-semibold">Outros Webhooks</h3>
@@ -1002,6 +1045,22 @@ export default function ServerManagementPage() {
                 </TabsContent>
                 
                 <TabsContent value="avancado" className="space-y-4 pt-4">
+                  <FormField
+                    control={form.control}
+                    name="instanceId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ID da Instância (Evolution API)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: liguia" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormMessage />
+                        <FormDescription>
+                          Identificador único da instância na Evolution API.
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
                   
                   <FormField
                     control={form.control}
@@ -1046,23 +1105,25 @@ export default function ServerManagementPage() {
       
       {/* Modal para editar servidor */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
-            <DialogTitle>Editar Servidor</DialogTitle>
+            <DialogTitle>Editar Servidor: {selectedServer?.name}</DialogTitle>
             <DialogDescription>
-              Atualize os detalhes do servidor.
+              Atualize as configurações do servidor selecionado.
             </DialogDescription>
           </DialogHeader>
+          
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              <Tabs defaultValue="geral">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="geral">Informações Gerais</TabsTrigger>
+              <Tabs defaultValue="general" className="w-full">
+                <TabsList className="w-full justify-start">
+                  <TabsTrigger value="general">Geral</TabsTrigger>
+                  <TabsTrigger value="api">API e Conexão</TabsTrigger>
                   <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
-                  <TabsTrigger value="avancado">Configurações Avançadas</TabsTrigger>
+                  <TabsTrigger value="avancado">Avançado</TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="geral" className="space-y-4 pt-4">
+                <TabsContent value="general" className="space-y-4 pt-4">
                   <FormField
                     control={editForm.control}
                     name="name"
@@ -1070,43 +1131,75 @@ export default function ServerManagementPage() {
                       <FormItem>
                         <FormLabel>Nome do Servidor</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: Servidor Principal" {...field} />
+                          <Input placeholder="Nome do servidor" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={editForm.control}
-                      name="ipAddress"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Endereço IP</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: 192.168.1.1" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={editForm.control}
-                      name="provider"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Provedor</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: AWS, GCP, Azure" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={editForm.control}
+                    name="ipAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Endereço IP</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Endereço IP do servidor" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
+                  <FormField
+                    control={editForm.control}
+                    name="provider"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Provedor</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o provedor" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="aws">AWS</SelectItem>
+                            <SelectItem value="azure">Azure</SelectItem>
+                            <SelectItem value="gcp">Google Cloud</SelectItem>
+                            <SelectItem value="digital_ocean">Digital Ocean</SelectItem>
+                            <SelectItem value="vps">VPS</SelectItem>
+                            <SelectItem value="dedicated">Servidor Dedicado</SelectItem>
+                            <SelectItem value="other">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="maxUsers"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Máximo de Usuários</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Quantidade máxima de usuários que podem se conectar a este servidor simultaneamente.
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="api" className="space-y-4 pt-4">
                   <FormField
                     control={editForm.control}
                     name="apiUrl"
@@ -1114,8 +1207,11 @@ export default function ServerManagementPage() {
                       <FormItem>
                         <FormLabel>URL da API</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: https://api.example.com" {...field} />
+                          <Input placeholder="URL da API do servidor" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          URL da API para integração com o servidor.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1128,8 +1224,11 @@ export default function ServerManagementPage() {
                       <FormItem>
                         <FormLabel>Token da API</FormLabel>
                         <FormControl>
-                          <Input placeholder="Token de autenticação da API" {...field} />
+                          <Input placeholder="Token de autenticação da API" {...field} value={field.value || ""} />
                         </FormControl>
+                        <FormDescription>
+                          Token de autenticação para acessar a API do servidor.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1140,36 +1239,14 @@ export default function ServerManagementPage() {
                     name="n8nApiUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>API do N8N</FormLabel>
+                        <FormLabel>URL da API do n8n</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: https://n8n.exemplo.com/api/v1" {...field} value={field.value || ""} />
+                          <Input placeholder="URL da API do n8n (para Cloud API)" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormDescription>
-                          URL da API do N8N para integração com WhatsApp Cloud API
+                          URL da API do n8n para integrações com WhatsApp Cloud API.
                         </FormDescription>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="maxUsers"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-bold text-primary">Quantidade Máxima de Usuários</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            min="1" 
-                            placeholder="Ex: 10" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                        <FormDescription>
-                          Quantidade máxima de usuários que podem se conectar a este servidor simultaneamente.
-                        </FormDescription>
                       </FormItem>
                     )}
                   />
@@ -1177,37 +1254,61 @@ export default function ServerManagementPage() {
                 
                 <TabsContent value="webhooks" className="space-y-4 pt-4">
                   <div className="border p-4 rounded-md mb-4 bg-secondary/20">
-                    <h3 className="text-md font-semibold mb-2">Configuração do Agente IA</h3>
-                    <FormField
-                      control={editForm.control}
-                      name="aiAgentName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome do Agente IA</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Nome do agente de IA (ex: Assistente de Vendas)" {...field} value={field.value || ""} />
-                          </FormControl>
-                          <FormDescription>
-                            Nome personalizado para o assistente de IA
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-md font-semibold">Agentes de IA</h3>
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        onClick={() => handleCreateAiAgent()}
+                      >
+                        <PlusCircle className="h-4 w-4 mr-2" /> Novo Agente
+                      </Button>
+                    </div>
                     
-                    <FormField
-                      control={editForm.control}
-                      name="aiAgentWebhookUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Webhook de AI Agent</FormLabel>
-                          <FormControl>
-                            <Input placeholder="URL do webhook para integrações de IA" {...field} value={field.value || ""} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {isLoadingAiAgents ? (
+                      <div className="flex justify-center p-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      </div>
+                    ) : serverAiAgents.length > 0 ? (
+                      <div className="space-y-3">
+                        {serverAiAgents.map((agent: ServerAiAgent) => (
+                          <div key={agent.id} className="p-3 border rounded-md flex justify-between items-center">
+                            <div>
+                              <div className="font-medium">{agent.name}</div>
+                              <div className="text-xs text-muted-foreground truncate max-w-[250px]" title={agent.webhookUrl || ''}>
+                                {agent.webhookUrl}
+                              </div>
+                              {agent.active ? (
+                                <Badge variant="outline" className="mt-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Ativo</Badge>
+                              ) : (
+                                <Badge variant="outline" className="mt-1 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">Inativo</Badge>
+                              )}
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditAiAgent(agent)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleDeleteAiAgent(agent.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <p>Nenhum agente IA configurado</p>
+                        <p className="text-sm">Clique em "Novo Agente" para adicionar</p>
+                      </div>
+                    )}
                   </div>
                   
                   <h3 className="text-md font-semibold">Outros Webhooks</h3>
@@ -1355,6 +1456,215 @@ export default function ServerManagementPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => selectedServer && deleteServerMutation.mutate(selectedServer.id)}>
               {deleteServerMutation.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Modal para criar agente IA */}
+      <Dialog open={isAgentCreateDialogOpen} onOpenChange={setIsAgentCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Agente IA</DialogTitle>
+            <DialogDescription>
+              Configure um novo agente de IA para o servidor {selectedServer?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...aiAgentForm}>
+            <form onSubmit={aiAgentForm.handleSubmit(onCreateAiAgentSubmit)} className="space-y-4">
+              <FormField
+                control={aiAgentForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Agente</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Assistente de Vendas" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={aiAgentForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Descrição do agente IA e suas funcionalidades" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={aiAgentForm.control}
+                name="webhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL para integração do agente IA" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      URL para onde serão enviadas as notificações do agente IA
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={aiAgentForm.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Agente Ativo</FormLabel>
+                      <FormDescription>
+                        Agentes inativos não processarão mensagens.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsAgentCreateDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={createAiAgentMutation.isPending}>
+                  {createAiAgentMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  Adicionar Agente
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Modal para editar agente IA */}
+      <Dialog open={isAgentEditDialogOpen} onOpenChange={setIsAgentEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Agente IA</DialogTitle>
+            <DialogDescription>
+              Modifique as configurações do agente IA selecionado.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...aiAgentForm}>
+            <form onSubmit={aiAgentForm.handleSubmit(onEditAiAgentSubmit)} className="space-y-4">
+              <FormField
+                control={aiAgentForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Agente</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Assistente de Vendas" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={aiAgentForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Descrição do agente IA e suas funcionalidades" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={aiAgentForm.control}
+                name="webhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL para integração do agente IA" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      URL para onde serão enviadas as notificações do agente IA
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={aiAgentForm.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Agente Ativo</FormLabel>
+                      <FormDescription>
+                        Agentes inativos não processarão mensagens.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsAgentEditDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={updateAiAgentMutation.isPending}>
+                  {updateAiAgentMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  Salvar Alterações
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Modal para excluir agente IA */}
+      <AlertDialog open={isAgentDeleteDialogOpen} onOpenChange={setIsAgentDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Agente IA</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este agente IA? 
+              Esta ação não pode ser desfeita e pode afetar integrações existentes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => selectedAgentId && deleteAiAgentMutation.mutate(selectedAgentId)}>
+              {deleteAiAgentMutation.isPending ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
