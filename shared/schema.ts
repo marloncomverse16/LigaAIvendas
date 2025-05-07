@@ -594,8 +594,10 @@ export const servers = pgTable("servers", {
   
   // URLs de Webhook específicos para cada funcionalidade
   whatsappWebhookUrl: text("whatsapp_webhook_url"),
+  // Mantido para compatibilidade - migrando para a nova tabela server_ai_agents
   aiAgentName: text("ai_agent_name"), // Nome do agente de IA
   aiAgentWebhookUrl: text("ai_agent_webhook_url"),
+  
   prospectingWebhookUrl: text("prospecting_webhook_url"),
   contactsWebhookUrl: text("contacts_webhook_url"),
   schedulingWebhookUrl: text("scheduling_webhook_url"),
@@ -606,6 +608,18 @@ export const servers = pgTable("servers", {
   active: boolean("active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tabela para múltiplos agentes de IA associados a um servidor
+export const serverAiAgents = pgTable("server_ai_agents", {
+  id: serial("id").primaryKey(),
+  serverId: integer("server_id").notNull().references(() => servers.id),
+  name: text("name").notNull(), // Nome do agente de IA
+  description: text("description"),
+  webhookUrl: text("webhook_url"), // URL do webhook para integrações deste agente
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
 });
 
 // Relação entre usuários e servidores
@@ -625,6 +639,19 @@ export const userServersRelations = relations(userServers, ({ one }) => ({
   }),
   server: one(servers, {
     fields: [userServers.serverId],
+    references: [servers.id],
+  }),
+}));
+
+// Relações para servidores
+export const serversRelations = relations(servers, ({ many }) => ({
+  aiAgents: many(serverAiAgents)
+}));
+
+// Relações para agentes de IA
+export const serverAiAgentsRelations = relations(serverAiAgents, ({ one }) => ({
+  server: one(servers, {
+    fields: [serverAiAgents.serverId],
     references: [servers.id],
   }),
 }));
@@ -655,9 +682,20 @@ export const insertUserServerSchema = createInsertSchema(userServers).pick({
   isDefault: true,
 });
 
+export const insertServerAiAgentSchema = createInsertSchema(serverAiAgents).pick({
+  serverId: true,
+  name: true,
+  description: true,
+  webhookUrl: true,
+  active: true,
+});
+
 // Types
 export type Server = typeof servers.$inferSelect;
 export type InsertServer = z.infer<typeof insertServerSchema>;
 
 export type UserServer = typeof userServers.$inferSelect;
 export type InsertUserServer = z.infer<typeof insertUserServerSchema>;
+
+export type ServerAiAgent = typeof serverAiAgents.$inferSelect;
+export type InsertServerAiAgent = z.infer<typeof insertServerAiAgentSchema>;
