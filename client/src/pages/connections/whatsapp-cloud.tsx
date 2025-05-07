@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, Cloud, Loader2, AlertCircle, CheckCircle2, XCircle, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Cloud, Loader2, AlertCircle, CheckCircle2, XCircle, RefreshCcw, Info as InfoIcon } from "lucide-react";
 import PageTitle from "@/components/ui/page-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -183,14 +183,23 @@ const WhatsAppCloudPage = () => {
                     <span className="font-semibold">Número:</span>
                     <span>{form.getValues().phoneNumber}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between mb-4">
                     <span className="font-semibold">Business ID:</span>
                     <span>{form.getValues().businessId}</span>
                   </div>
+                  <Alert className="mb-2 text-center">
+                    <InfoIcon className="h-4 w-4" />
+                    <AlertTitle>Gerenciado pelo n8n</AlertTitle>
+                    <AlertDescription className="text-xs">
+                      Esta conexão é gerenciada pelo sistema de automação n8n
+                    </AlertDescription>
+                  </Alert>
                 </div>
-                <Button variant="destructive" onClick={handleDisconnect}>
-                  <XCircle className="mr-2 h-4 w-4" />
-                  Desconectar WhatsApp
+                <Button variant="default" asChild>
+                  <Link to="/conexoes">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Voltar para Conexões
+                  </Link>
                 </Button>
               </div>
             ) : (

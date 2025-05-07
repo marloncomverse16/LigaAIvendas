@@ -10,7 +10,7 @@ import axios from "axios";
 import { EvolutionApiClient } from "../evolution-api";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
-import { userServers, servers } from "../../shared/schema";
+import { userServers, servers, users } from "../../shared/schema";
 
 // Mantém o status da conexão por usuário
 interface ConnectionStatus {
@@ -173,7 +173,7 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
 }
 
 /**
- * Endpoint para conectar via WhatsApp Cloud API
+ * Endpoint para conectar via WhatsApp Cloud API através do n8n
  * Método: POST
  */
 export async function connectWhatsAppCloud(req: Request, res: Response) {
@@ -185,102 +185,101 @@ export async function connectWhatsAppCloud(req: Request, res: Response) {
     
     if (!phoneNumber || !businessId) {
       return res.status(400).json({ 
-        message: "Número de telefone e Business ID são obrigatórios" 
+        message: "Identificação do número e Business ID são obrigatórios" 
       });
     }
     
-    // Obtém dados do servidor associado ao usuário
-    const server = await fetchUserServer(userId);
+    // Obtém dados do usuário diretamente (a forma mais simples)
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId)
+    });
     
-    if (!server) {
+    if (!user) {
       return res.status(404).json({ 
-        message: "Servidor não encontrado. Por favor, entre em contato com o administrador."
+        message: "Usuário não encontrado" 
       });
     }
     
-    // Para conexão cloud, apenas registramos as informações
-    // Não precisamos realmente se conectar a uma API neste momento
-
-    // Primeiro tenta excluir qualquer instância existente na Evolution API
-    if (server.apiUrl && server.apiToken) {
-      // Usa o nome de usuário como nome da instância
-      const instanceId = req.user!.username;
+    // Remove qualquer instância existente na Evolution API
+    try {
+      // Obter servidor associado ao usuário
+      const server = await fetchUserServer(userId);
       
-      console.log(`Tentando deletar instância existente (se houver): ${instanceId}`);
-      
-      try {
-        const evolutionClient = new EvolutionApiClient(
-          server.apiUrl,
-          server.apiToken,
-          instanceId
-        );
+      if (server && server.apiUrl && server.apiToken) {
+        const instanceId = user.username;
+        console.log(`Removendo instância WhatsApp existente para usuário: ${instanceId}`);
         
-        await evolutionClient.deleteInstance();
-        console.log(`Instância existente excluída: ${instanceId}`);
-      } catch (deleteError) {
-        // Ignora erros - a instância pode não existir
-        console.log(`Nenhuma instância encontrada ou erro ao excluir: ${instanceId}`);
+        try {
+          const evolutionClient = new EvolutionApiClient(
+            server.apiUrl,
+            server.apiToken,
+            instanceId
+          );
+          
+          // Tentar desconectar e excluir instância existente
+          await evolutionClient.disconnect().catch(e => console.log("Erro ao desconectar:", e));
+          await evolutionClient.deleteInstance().catch(e => console.log("Erro ao excluir instância:", e));
+          
+          console.log(`Instância Evolution API excluída com sucesso: ${instanceId}`);
+        } catch (evolutionError) {
+          console.log("Erro ao limpar instância Evolution API:", evolutionError);
+          // Continuamos mesmo com erro
+        }
       }
+    } catch (serverError) {
+      console.log("Erro ao buscar servidor:", serverError);
+      // Continuamos mesmo com erro
     }
     
-    console.log(`Registrando conexão WhatsApp Cloud API para usuário: ${userId}`);
+    console.log(`Configurando conexão WhatsApp Cloud API via n8n para usuário: ${userId}`);
     
-    // Agora também vamos criar uma instância na Evolution API
-    if (server.apiUrl && server.apiToken) {
-      // Usa o nome de usuário como nome da instância
-      const instanceId = req.user!.username;
+    // Verificar se temos um webhook URL do n8n configurado para o usuário
+    if (!user.whatsappWebhookUrl) {
+      console.warn("Usuário não possui webhook URL do n8n configurado");
+      return res.status(400).json({
+        success: false,
+        message: "Não há um webhook de WhatsApp configurado para este usuário. Contate o administrador."
+      });
+    }
+    
+    try {
+      console.log(`Tentando registrar credencial no n8n via webhook: ${user.whatsappWebhookUrl}`);
       
-      try {
-        console.log(`Criando instância do WhatsApp Cloud API em: ${server.apiUrl}`);
-        const evolutionClient = new EvolutionApiClient(
-          server.apiUrl,
-          server.apiToken,
-          instanceId
-        );
-        
-        // Primeiro, cria a instância
-        const createResult = await evolutionClient.createInstance();
-        console.log("Instância cloud criada com sucesso:", createResult);
-        
-        // Registra as informações da conexão cloud
-        connectionStatus[userId] = {
-          connected: true,
-          lastUpdated: new Date(),
-          method: 'cloud',
-          phoneNumber: phoneNumber,
-          businessId: businessId,
-          cloudConnection: true
-        };
-        
-        return res.status(200).json({
-          success: true,
-          phoneNumber: phoneNumber,
-          businessId: businessId,
-          message: "WhatsApp Business API conectado com sucesso"
-        });
-      } catch (error) {
-        console.error("Erro ao criar instância na Evolution API:", error);
-        return res.status(500).json({
-          success: false,
-          message: "Erro ao criar instância do WhatsApp na Evolution API. Contate o administrador."
-        });
-      }
-    } else {
-      // Sem dados do servidor, apenas registra localmente
+      // Envia os dados para o webhook do n8n
+      const webhookResponse = await axios.post(user.whatsappWebhookUrl, {
+        action: "register_whatsapp_cloud",
+        userId: userId,
+        username: user.username,
+        phoneNumber: phoneNumber,
+        businessId: businessId,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log("Resposta do webhook n8n:", webhookResponse.status);
+      
+      // Registra a conexão localmente
       connectionStatus[userId] = {
         connected: true,
         lastUpdated: new Date(),
         method: 'cloud',
         phoneNumber: phoneNumber,
         businessId: businessId,
-        cloudConnection: true
+        cloudConnection: true,
+        n8nConnected: true
       };
       
+      // Retorna sucesso
       return res.status(200).json({
         success: true,
         phoneNumber: phoneNumber,
         businessId: businessId,
-        message: "WhatsApp Business API conectado com sucesso (modo offline)"
+        message: "WhatsApp Business API conectado com sucesso via n8n"
+      });
+    } catch (webhookError) {
+      console.error("Erro ao registrar no n8n:", webhookError);
+      return res.status(500).json({
+        success: false,
+        message: "Erro ao registrar credenciais no n8n. Verifique se o webhook está configurado corretamente."
       });
     }
   } catch (error) {
