@@ -37,6 +37,15 @@ import {
   deleteServerAiAgent
 } from "./api/server-ai-agents";
 
+// Importações para os agentes IA de usuários
+import {
+  getUserAiAgents,
+  getAvailableServerAiAgents,
+  assignAiAgentToUser,
+  removeAiAgentFromUser,
+  setDefaultAiAgent
+} from "./api/user-ai-agents";
+
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password: string) {
@@ -1999,6 +2008,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // A função deleteServerAiAgent trata os parâmetros e remove o agente
     return deleteServerAiAgent(req, res);
+  });
+  
+  // Rotas para gerenciar associações de agentes IA com usuários
+  app.get("/api/users/:userId/ai-agents", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Verificar permissão: apenas o próprio usuário ou admin pode ver
+    if (parseInt(req.params.userId) !== req.user.id && !req.user.isAdmin) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    
+    return getUserAiAgents(req, res);
+  });
+  
+  app.get("/api/servers/:serverId/available-ai-agents/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Verificar permissão: apenas o próprio usuário ou admin pode ver
+    if (parseInt(req.params.userId) !== req.user.id && !req.user.isAdmin) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    
+    return getAvailableServerAiAgents(req, res);
+  });
+  
+  app.post("/api/user-ai-agents", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Verificar permissão: apenas o próprio usuário ou admin pode criar
+    if (req.body.userId !== req.user.id && !req.user.isAdmin) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    
+    return assignAiAgentToUser(req, res);
+  });
+  
+  app.delete("/api/user-ai-agents/:userAgentId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Para verificar permissão, primeiro precisamos obter os dados da associação
+    try {
+      const userAgentId = parseInt(req.params.userAgentId);
+      const [userAgent] = await db
+        .select()
+        .from(userAiAgents)
+        .where(eq(userAiAgents.id, userAgentId));
+      
+      if (!userAgent) {
+        return res.status(404).json({ message: "Associação não encontrada" });
+      }
+      
+      // Verificar permissão: apenas o próprio usuário ou admin pode remover
+      if (userAgent.userId !== req.user.id && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      return removeAiAgentFromUser(req, res);
+    } catch (error) {
+      console.error("Erro ao verificar permissão:", error);
+      return res.status(500).json({ message: "Erro ao processar a solicitação" });
+    }
+  });
+  
+  app.post("/api/user-ai-agents/:userAgentId/set-default", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Para verificar permissão, primeiro precisamos obter os dados da associação
+    try {
+      const userAgentId = parseInt(req.params.userAgentId);
+      const [userAgent] = await db
+        .select()
+        .from(userAiAgents)
+        .where(eq(userAiAgents.id, userAgentId));
+      
+      if (!userAgent) {
+        return res.status(404).json({ message: "Associação não encontrada" });
+      }
+      
+      // Verificar permissão: apenas o próprio usuário ou admin pode definir o padrão
+      if (userAgent.userId !== req.user.id && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      return setDefaultAiAgent(req, res);
+    } catch (error) {
+      console.error("Erro ao verificar permissão:", error);
+      return res.status(500).json({ message: "Erro ao processar a solicitação" });
+    }
   });
   
   // Rotas de associação de usuário com servidor
