@@ -103,6 +103,10 @@ export default function AdminUsersPage() {
   
   // Estado para o formulário de criação de instância WhatsApp
   const [instanceWebhookUrl, setInstanceWebhookUrl] = useState("");
+  
+  // Estados para gerenciar os agentes IA do usuário
+  const [userAiAgents, setUserAiAgents] = useState<any[]>([]);
+  const [availableAiAgents, setAvailableAiAgents] = useState<any[]>([]);
 
   // Buscar todos os usuários
   const { data: users = [], isLoading } = useQuery({
@@ -133,6 +137,47 @@ export default function AdminUsersPage() {
       toast({
         title: "Erro ao buscar relações de servidor",
         description: "Não foi possível obter as relações de servidor deste usuário.",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+  
+  // Função para buscar os agentes IA associados ao usuário
+  const getUserAiAgents = async (userId: number) => {
+    try {
+      const res = await apiRequest("GET", `/api/users/${userId}/ai-agents`);
+      const data = await res.json();
+      setUserAiAgents(data);
+      return data;
+    } catch (error) {
+      console.error(`Erro ao buscar agentes IA do usuário ${userId}:`, error);
+      toast({
+        title: "Erro ao buscar agentes IA",
+        description: "Não foi possível obter os agentes IA deste usuário.",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+  
+  // Função para buscar os agentes IA disponíveis para o servidor que ainda não estão associados ao usuário
+  const getAvailableServerAiAgents = async (serverId: number, userId: number) => {
+    try {
+      if (!serverId || !userId) {
+        setAvailableAiAgents([]);
+        return [];
+      }
+      
+      const res = await apiRequest("GET", `/api/servers/${serverId}/available-ai-agents/${userId}`);
+      const data = await res.json();
+      setAvailableAiAgents(data);
+      return data;
+    } catch (error) {
+      console.error(`Erro ao buscar agentes IA disponíveis para o servidor ${serverId}:`, error);
+      toast({
+        title: "Erro ao buscar agentes IA disponíveis",
+        description: "Não foi possível obter os agentes IA disponíveis para este servidor.",
         variant: "destructive",
       });
       return [];

@@ -8,12 +8,15 @@ import {
   insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema,
   insertLeadInteractionSchema, insertLeadRecommendationSchema,
   insertProspectingSearchSchema, insertProspectingResultSchema,
-  insertUserSchema, ConnectionStatus, insertServerSchema
+  insertUserSchema, ConnectionStatus, insertServerSchema,
+  userAiAgents, serverAiAgents
 } from "@shared/schema";
 import { z } from "zod";
 import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { eq, and } from "drizzle-orm";
+import { db } from "./db";
 import { checkConnectionStatus, disconnectWhatsApp } from "./connection";
 import { getWhatsAppQrCode } from "./direct-connection";
 import { setupWebSocketServer, sendMessage } from "./websocket";
