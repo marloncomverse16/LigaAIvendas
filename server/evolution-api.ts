@@ -188,6 +188,17 @@ export class EvolutionApiClient {
         });
         
         console.log(`Resposta do endpoint: Status ${response.status}`);
+        console.log(`Resposta completa: ${typeof response.data === 'string' ? response.data.substring(0, 100) + '...' : JSON.stringify(response.data).substring(0, 100) + '...'}`);
+        
+        // Imprimir todas as chaves da resposta para depuração
+        if (typeof response.data === 'object' && response.data !== null) {
+          console.log('Chaves disponíveis na resposta:', Object.keys(response.data));
+          
+          // Se tivermos a chave 'qrcode' dentro de outra chave
+          if (response.data.result) {
+            console.log('Chaves em result:', Object.keys(response.data.result));
+          }
+        }
         
         if (response.status === 200 || response.status === 201) {
           // Verificar se a resposta contém HTML (erro comum)
@@ -206,10 +217,16 @@ export class EvolutionApiClient {
           }
           
           // Extrair o QR code da resposta (como string ou em um campo específico)
+          // Verificamos em diversos lugares possíveis com base nas diferentes versões da API
           const qrCode = response.data?.qrcode || 
                       response.data?.qrCode || 
                       response.data?.base64 || 
                       response.data?.code ||
+                      response.data?.result?.qrcode ||
+                      response.data?.result?.qrCode ||
+                      response.data?.result?.base64 ||
+                      response.data?.data?.qrcode ||
+                      response.data?.response?.qrcode ||
                       (typeof response.data === 'string' ? response.data : null);
           
           if (qrCode) {

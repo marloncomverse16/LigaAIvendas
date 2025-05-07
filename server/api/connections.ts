@@ -125,29 +125,43 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
     try {
       const qrResult = await evolutionClient.getQrCode();
       
-      console.log("QR Code obtido:", qrResult);
+      console.log("QR Code obtido:", JSON.stringify(qrResult).substring(0, 200) + "...");
       
-      if (qrResult && qrResult.code) {
+      // Verifique se a resposta foi bem-sucedida e se tem o QR code
+      if (qrResult && qrResult.success && qrResult.qrCode) {
         // Atualiza o status da conexão
         connectionStatus[userId] = {
           connected: false,
-          qrCode: qrResult.code,
+          qrCode: qrResult.qrCode,
           lastUpdated: new Date(),
           method: 'qrcode'
         };
         
         // Retorna QR code para o cliente
         return res.status(200).json({ 
-          qrcode: qrResult.code,
+          qrcode: qrResult.qrCode,
           message: "Escaneie o código QR com seu WhatsApp"
         });
+      } else if (qrResult && qrResult.connected) {
+        // Já está conectado
+        connectionStatus[userId] = {
+          connected: true,
+          lastUpdated: new Date(),
+          method: 'qrcode'
+        };
+        
+        return res.status(200).json({ 
+          connected: true,
+          message: "WhatsApp já está conectado!"
+        });
       } else {
-        throw new Error("QR Code não encontrado na resposta");
+        console.error("Resposta sem QR code:", qrResult);
+        throw new Error("QR Code não encontrado na resposta: " + (qrResult.error || "Erro desconhecido"));
       }
     } catch (error) {
       console.error("Erro ao obter QR code:", error);
       return res.status(500).json({ 
-        message: "Erro ao obter QR code. Tente novamente mais tarde."
+        message: "Erro ao obter QR code: " + error.message
       });
     }
   } catch (error) {
@@ -294,7 +308,10 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       console.log("Status da conexão:", statusResult);
       
       // Atualiza o status da conexão
-      if (statusResult && statusResult.status === 'connected') {
+      if (statusResult && (statusResult.success && statusResult.connected || 
+                          statusResult.data?.state === 'open' || 
+                          statusResult.data?.state === 'connected' ||
+                          statusResult.data?.connected === true)) {
         connectionStatus[userId] = {
           connected: true,
           qrCode: connectionStatus[userId]?.qrCode,
