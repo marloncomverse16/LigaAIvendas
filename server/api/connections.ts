@@ -253,23 +253,74 @@ export async function connectWhatsAppCloud(req: Request, res: Response) {
         });
       }
       
-      console.log(`Tentando registrar credencial no n8n via webhook: ${user.whatsappWebhookUrl}`);
       console.log(`URL da API N8N configurada: ${server.n8nApiUrl}`);
       
-      // Usar método GET em vez de POST para o webhook
-      const webhookResponse = await axios.get(user.whatsappWebhookUrl, {
-        params: {
-          action: "register_whatsapp_cloud",
-          userId: userId,
-          username: user.username,
-          phoneNumber: phoneNumber,
-          businessId: businessId,
-          timestamp: new Date().toISOString(),
-          n8nApiUrl: server.n8nApiUrl
-        }
-      });
+      // 1. Criar credenciais diretamente na API do n8n
+      console.log("Tentando criar credenciais diretamente na API do n8n");
       
-      console.log("Resposta do webhook n8n:", webhookResponse.status);
+      try {
+        // Formata a URL correta para a API do n8n
+        const n8nApiUrl = server.n8nApiUrl.endsWith('/') 
+          ? server.n8nApiUrl + 'credentials' 
+          : server.n8nApiUrl + '/credentials';
+        
+        console.log(`Enviando POST para API do n8n: ${n8nApiUrl}`);
+        
+        // Criar a credencial do WhatsApp Cloud API no n8n
+        const credentialResponse = await axios.post(n8nApiUrl, {
+          name: `WhatsApp Cloud ${user.username} - ${phoneNumber}`,
+          type: "whatsAppTwilio", // Tipo de credencial do WhatsApp no n8n
+          data: {
+            phoneNumberId: phoneNumber,
+            businessAccountId: businessId,
+            token: server.apiToken || process.env.EVOLUTION_API_TOKEN || ''
+          }
+        }, {
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          }
+        });
+        
+        console.log("Resposta da criação de credencial:", credentialResponse.status);
+        console.log("Dados da credencial:", JSON.stringify(credentialResponse.data));
+        
+        // 2. Agora notificamos o webhook sobre a criação bem-sucedida
+        console.log(`Notificando webhook sobre a credencial: ${user.whatsappWebhookUrl}`);
+        
+        const webhookResponse = await axios.get(user.whatsappWebhookUrl, {
+          params: {
+            action: "register_whatsapp_cloud",
+            userId: userId,
+            username: user.username,
+            phoneNumber: phoneNumber,
+            businessId: businessId,
+            credentialId: credentialResponse.data.id,
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+        console.log("Resposta do webhook n8n:", webhookResponse.status);
+      } catch (apiError) {
+        console.error("Erro ao criar credencial na API do n8n:", apiError);
+        
+        // Tentar webhook como fallback se a API direta falhar
+        console.log("Tentando usar webhook como fallback");
+        
+        const webhookResponse = await axios.get(user.whatsappWebhookUrl, {
+          params: {
+            action: "register_whatsapp_cloud",
+            userId: userId,
+            username: user.username,
+            phoneNumber: phoneNumber,
+            businessId: businessId,
+            timestamp: new Date().toISOString(),
+            n8nApiUrl: server.n8nApiUrl
+          }
+        });
+        
+        console.log("Resposta do webhook n8n (fallback):", webhookResponse.status);
+      }
       
       // Registra a conexão localmente
       connectionStatus[userId] = {
