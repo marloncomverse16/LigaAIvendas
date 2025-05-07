@@ -58,6 +58,7 @@ interface Server {
   apiToken: string | null;
   n8nApiUrl: string | null;
   whatsappWebhookUrl: string | null;
+  aiAgentName: string | null;
   aiAgentWebhookUrl: string | null;
   prospectingWebhookUrl: string | null;
   contactsWebhookUrl: string | null;
@@ -96,6 +97,7 @@ export default function ServerManagementPage() {
       n8nApiUrl: "",
       maxUsers: 10,
       whatsappWebhookUrl: "",
+      aiAgentName: "",
       aiAgentWebhookUrl: "",
       prospectingWebhookUrl: "",
       contactsWebhookUrl: "",
@@ -118,6 +120,7 @@ export default function ServerManagementPage() {
       n8nApiUrl: "",
       maxUsers: 10,
       whatsappWebhookUrl: "",
+      aiAgentName: "",
       aiAgentWebhookUrl: "",
       prospectingWebhookUrl: "",
       contactsWebhookUrl: "",
@@ -349,6 +352,7 @@ export default function ServerManagementPage() {
       n8nApiUrl: server.n8nApiUrl || "",
       maxUsers: server.maxUsers,
       whatsappWebhookUrl: server.whatsappWebhookUrl || "",
+      aiAgentName: server.aiAgentName || "",
       aiAgentWebhookUrl: server.aiAgentWebhookUrl || "",
       prospectingWebhookUrl: server.prospectingWebhookUrl || "",
       contactsWebhookUrl: server.contactsWebhookUrl || "",
@@ -734,6 +738,20 @@ export default function ServerManagementPage() {
                   
                   <FormField
                     control={form.control}
+                    name="aiAgentName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Agente IA</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do agente de IA (ex: Assistente de Vendas)" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
                     name="aiAgentWebhookUrl"
                     render={({ field }) => (
                       <FormItem>
@@ -986,6 +1004,20 @@ export default function ServerManagementPage() {
                         <FormLabel>Webhook de WhatsApp</FormLabel>
                         <FormControl>
                           <Input placeholder="URL do webhook para notificações do WhatsApp" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="aiAgentName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Agente IA</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do agente de IA (ex: Assistente de Vendas)" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
