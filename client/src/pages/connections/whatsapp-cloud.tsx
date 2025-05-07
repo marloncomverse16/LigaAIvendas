@@ -1,51 +1,43 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
-import { ArrowLeft, CloudCog, Loader2, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { Link } from "wouter";
+import { ArrowLeft, Cloud, Loader2, AlertCircle, CheckCircle2, XCircle, RefreshCcw } from "lucide-react";
 import PageTitle from "@/components/ui/page-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import useWebSocket from "@/services/websocket-service";
-import { apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
+import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-// Schema para validação do formulário
-const cloudConnectionSchema = z.object({
-  phoneNumber: z.string().min(1, "Número de telefone é obrigatório"),
-  businessId: z.string().min(1, "Business ID é obrigatório"),
+// Schema para formulário
+const cloudFormSchema = z.object({
+  phoneNumber: z.string()
+    .min(10, "Número de telefone inválido")
+    .regex(/^\d+$/, "Use apenas números"),
+  businessId: z.string()
+    .min(5, "ID de negócio inválido")
 });
 
-type CloudConnectionFormValues = z.infer<typeof cloudConnectionSchema>;
+type CloudFormValues = z.infer<typeof cloudFormSchema>;
 
 const WhatsAppCloudPage = () => {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [connectedData, setConnectedData] = useState<any>(null);
 
-  // Formulário
-  const form = useForm<CloudConnectionFormValues>({
-    resolver: zodResolver(cloudConnectionSchema),
+  const form = useForm<CloudFormValues>({
+    resolver: zodResolver(cloudFormSchema),
     defaultValues: {
       phoneNumber: "",
-      businessId: "",
-    },
+      businessId: ""
+    }
   });
 
   // Verifica o status da conexão
@@ -62,21 +54,21 @@ const WhatsAppCloudPage = () => {
   useEffect(() => {
     if (statusData) {
       setConnected(statusData.connected && statusData.cloudConnection);
+      
+      // Preenche o formulário se já estiver conectado
       if (statusData.connected && statusData.cloudConnection) {
-        setConnectedData({
-          phoneNumber: statusData.phoneNumber,
-          businessId: statusData.businessId,
-        });
+        form.setValue("phoneNumber", statusData.phoneNumber || "");
+        form.setValue("businessId", statusData.businessId || "");
       }
     }
-  }, [statusData]);
+  }, [statusData, form]);
 
-  // Connect mutation
+  // Conectar mutation
   const connectMutation = useMutation({
-    mutationFn: async (values: CloudConnectionFormValues) => {
+    mutationFn: async (data: CloudFormValues) => {
       setLoading(true);
       try {
-        const response = await apiRequest("POST", "/api/connections/cloud", values);
+        const response = await apiRequest("POST", "/api/connections/cloud", data);
         return await response.json();
       } catch (error) {
         throw error;
@@ -84,23 +76,19 @@ const WhatsAppCloudPage = () => {
         setLoading(false);
       }
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       setConnected(true);
-      setConnectedData({
-        phoneNumber: data.phoneNumber,
-        businessId: data.businessId,
-      });
       toast({
-        title: "WhatsApp conectado com sucesso",
-        description: "Sua conta WhatsApp Business API foi conectada.",
+        title: "WhatsApp conectado",
+        description: "Conexão com WhatsApp Cloud API estabelecida com sucesso",
         variant: "default"
       });
       refetchStatus();
     },
     onError: (error: Error) => {
       toast({
-        title: "Erro ao conectar WhatsApp",
-        description: error.message || "Não foi possível conectar o WhatsApp Cloud API.",
+        title: "Erro ao conectar",
+        description: error.message || "Verifique os dados e tente novamente",
         variant: "destructive",
       });
     },
@@ -121,10 +109,10 @@ const WhatsAppCloudPage = () => {
     },
     onSuccess: () => {
       setConnected(false);
-      setConnectedData(null);
+      form.reset();
       toast({
         title: "WhatsApp desconectado",
-        description: "A conta do WhatsApp Business API foi desconectada com sucesso.",
+        description: "A conexão com o WhatsApp foi encerrada com sucesso",
         variant: "default"
       });
       refetchStatus();
@@ -132,15 +120,15 @@ const WhatsAppCloudPage = () => {
     onError: (error: Error) => {
       toast({
         title: "Erro ao desconectar",
-        description: error.message || "Não foi possível desconectar o WhatsApp.",
+        description: error.message || "Não foi possível desconectar o WhatsApp",
         variant: "destructive",
       });
     },
   });
 
-  // Função de envio do formulário
-  const onSubmit = (values: CloudConnectionFormValues) => {
-    connectMutation.mutate(values);
+  // Função para conectar
+  const onSubmit = (data: CloudFormValues) => {
+    connectMutation.mutate(data);
   };
 
   // Função para desconectar
@@ -151,8 +139,8 @@ const WhatsAppCloudPage = () => {
   return (
     <div className="container mx-auto py-6">
       <PageTitle 
-        icon={<CloudCog />}
-        subtitle="Conecte com a API oficial do WhatsApp Business"
+        icon={<Cloud />}
+        subtitle="Conecte sua conta WhatsApp Business verificada via API Cloud"
       >
         WhatsApp Cloud API
       </PageTitle>
@@ -166,12 +154,12 @@ const WhatsAppCloudPage = () => {
         </Button>
       </div>
 
-      <Alert className="mb-6">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Conta Business API</AlertTitle>
-        <AlertDescription>
-          Para usar este método, você precisa ter uma conta verificada do WhatsApp Business API.
-          Este método permite <strong>envios ilimitados</strong> de mensagens sem risco de bloqueio.
+      <Alert className="mb-6 border-blue-500 bg-blue-50 dark:bg-blue-950">
+        <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+        <AlertTitle className="text-blue-800 dark:text-blue-400">API Oficial</AlertTitle>
+        <AlertDescription className="text-blue-700 dark:text-blue-300">
+          A API Cloud do WhatsApp permite enviar mensagens em massa sem risco de bloqueio, mas 
+          requer uma conta WhatsApp Business verificada com permissões aprovadas pela Meta.
         </AlertDescription>
       </Alert>
 
@@ -186,15 +174,19 @@ const WhatsAppCloudPage = () => {
             ) : connected ? (
               <div className="flex flex-col items-center justify-center text-center min-h-[300px]">
                 <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-                <h3 className="text-xl font-bold mb-2">WhatsApp Business Conectado!</h3>
-                <div className="mb-6 text-muted-foreground">
-                  <p className="mb-1">Sua conta WhatsApp Business API está conectada.</p>
-                  {connectedData && (
-                    <div className="mt-4 p-3 bg-muted rounded-md text-left">
-                      <p><strong>Número:</strong> {connectedData.phoneNumber}</p>
-                      <p><strong>Business ID:</strong> {connectedData.businessId}</p>
-                    </div>
-                  )}
+                <h3 className="text-xl font-bold mb-2">WhatsApp Conectado!</h3>
+                <p className="mb-2 text-muted-foreground">
+                  Seu WhatsApp Business está conectado via Cloud API e pronto para uso.
+                </p>
+                <div className="mb-6 text-sm text-left w-full max-w-xs">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-semibold">Número:</span>
+                    <span>{form.getValues().phoneNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Business ID:</span>
+                    <span>{form.getValues().businessId}</span>
+                  </div>
                 </div>
                 <Button variant="destructive" onClick={handleDisconnect}>
                   <XCircle className="mr-2 h-4 w-4" />
@@ -202,80 +194,79 @@ const WhatsAppCloudPage = () => {
                 </Button>
               </div>
             ) : (
-              <div className="my-4">
-                <h3 className="text-lg font-semibold mb-4">Conectar WhatsApp Business API</h3>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="phoneNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Número de Telefone</FormLabel>
-                          <FormControl>
-                            <Input placeholder="55119XXXXXXXX" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Insira o número no formato internacional, sem símbolos ou espaços
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="businessId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Business ID</FormLabel>
-                          <FormControl>
-                            <Input placeholder="123456789012345" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            ID do seu negócio no WhatsApp Business
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button type="submit" className="w-full">
-                      Conectar WhatsApp Business
-                    </Button>
-                  </form>
-                </Form>
-              </div>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="phoneNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número do WhatsApp</FormLabel>
+                        <FormControl>
+                          <Input placeholder="5511999998888" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Digite o número no formato internacional, sem espaços ou caracteres especiais
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="businessId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Business ID</FormLabel>
+                        <FormControl>
+                          <Input placeholder="1234567890" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          ID da sua conta business no Facebook Developer Portal
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full">
+                    <Cloud className="mr-2 h-4 w-4" />
+                    Conectar via Cloud API
+                  </Button>
+                </form>
+              </Form>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="pt-6">
-            <h3 className="text-lg font-semibold mb-4">Sobre a WhatsApp Business API</h3>
-            <p className="mb-4 text-sm text-muted-foreground">
-              A WhatsApp Business API é a solução oficial da Meta para empresas que desejam 
-              enviar mensagens em grande volume, automatizar atendimentos e interagir com 
-              seus clientes através do WhatsApp.
-            </p>
+            <h3 className="text-lg font-semibold mb-4">Como conectar</h3>
+            <ol className="list-decimal ml-5 space-y-2 mb-6 text-sm text-muted-foreground">
+              <li>Certifique-se de ter uma conta WhatsApp Business verificada</li>
+              <li>Acesse o Facebook Developer Portal e crie um aplicativo</li>
+              <li>Configure as permissões da API do WhatsApp Business</li>
+              <li>Adicione um número de telefone verificado ao seu aplicativo</li>
+              <li>Obtenha o Business ID do seu aplicativo</li>
+              <li>Insira o número e o Business ID neste formulário</li>
+            </ol>
 
             <Separator className="my-4" />
 
-            <h3 className="text-lg font-semibold mb-2">Vantagens</h3>
-            <ul className="list-disc ml-5 space-y-2 mb-6">
-              <li><strong>Envios ilimitados</strong>: Sem limite diário de mensagens</li>
-              <li><strong>Múltiplos operadores</strong>: Vários atendentes na mesma conta</li>
-              <li><strong>Automação avançada</strong>: Integrações com sistemas externos</li>
-              <li><strong>Sem risco de banimento</strong>: API oficial aprovada pelo WhatsApp</li>
-              <li><strong>Recursos exclusivos</strong>: Templates de mensagem, etiquetas e categorização</li>
+            <h3 className="text-lg font-semibold mb-2">Benefícios da API Cloud</h3>
+            <ul className="list-disc ml-5 space-y-2 mb-6 text-sm text-muted-foreground">
+              <li>Envio de mensagens em massa sem risco de bloqueio</li>
+              <li>Conexão estável que não depende de smartphone</li>
+              <li>Mensagens de template pré-aprovadas</li>
+              <li>Suporte a mensagens multimídia</li>
+              <li>Integração oficial e confiável</li>
             </ul>
 
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Como obter acesso</AlertTitle>
+              <AlertTitle>Precisa de ajuda?</AlertTitle>
               <AlertDescription className="text-sm">
-                Para obter uma conta na WhatsApp Business API, entre em contato com um provedor 
-                oficial autorizado pela Meta ou solicite acesso direto pelo Meta Business Manager.
+                Se você precisar de ajuda para configurar sua conta WhatsApp Business,
+                consulte a <a href="https://developers.facebook.com/docs/whatsapp/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">documentação oficial</a>.
               </AlertDescription>
             </Alert>
           </CardContent>

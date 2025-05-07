@@ -1,148 +1,141 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
-export type WebSocketMessage = {
-  type: string;
-  data: any;
-};
-
-export type ConnectionType = "none" | "connecting" | "connected" | "disconnected" | "error";
-
-// Função para obter a URL do WebSocket
-function getWebSocketUrl() {
-  // Determina o protocolo com base no protocolo atual (seguro ou não)
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  // Constrói a URL completa
-  return `${protocol}//${window.location.host}/api/ws`;
+export interface ConnectionStatus {
+  connected: boolean;
+  qrCode?: string;
+  lastUpdated: Date;
+  method?: 'qrcode' | 'cloud';
+  phoneNumber?: string;
+  businessId?: string;
+  cloudConnection?: boolean;
 }
 
-const useWebSocket = () => {
+interface WebSocketMessage {
+  type: string;
+  data: any;
+}
+
+export interface WebSocketService {
+  connectionStatus: ConnectionStatus | null;
+  lastMessage: WebSocketMessage | null;
+  sendMessage: (message: any) => void;
+  isConnected: boolean;
+}
+
+const useWebSocket = (): WebSocketService => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionType>("none");
+  const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
-  const socket = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<number | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  // Função para conectar ao WebSocket
-  const connect = useCallback(() => {
-    if (!user) return;
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      // Fecha conexão existente se houver
-      if (socket.current && socket.current.readyState === WebSocket.OPEN) {
-        socket.current.close();
-      }
-
-      setConnectionStatus("connecting");
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/api/ws`;
       
-      // Inicia nova conexão
-      const wsUrl = getWebSocketUrl();
-      const ws = new WebSocket(wsUrl);
-      socket.current = ws;
-
-      ws.onopen = () => {
-        console.log("WebSocket conectado");
-        setConnectionStatus("connected");
-        
-        // Envia mensagem de autenticação
-        ws.send(JSON.stringify({ 
-          type: "auth", 
-          data: { userId: user.id }
-        }));
+      wsRef.current = new WebSocket(wsUrl);
+      
+      wsRef.current.onopen = () => {
+        setIsConnected(true);
+        console.log('WebSocket conectado');
       };
-
-      ws.onmessage = (event) => {
+      
+      wsRef.current.onmessage = (event) => {
         try {
-          const message = JSON.parse(event.data) as WebSocketMessage;
+          const message = JSON.parse(event.data);
           setLastMessage(message);
           
-          // Processa mensagens específicas
-          if (message.type === "qr_code") {
-            // Atualização de QR Code recebida
-          } else if (message.type === "connection_status") {
-            // Atualização de status de conexão recebida
+          if (message.type === 'connection_status') {
+            setConnectionStatus(message.data);
+          } else if (message.type === 'qr_code') {
+            if (message.data.qrcode) {
+              setConnectionStatus(prev => {
+                const current = prev || { 
+                  connected: false, 
+                  lastUpdated: new Date()
+                };
+                return {
+                  ...current,
+                  qrCode: message.data.qrcode,
+                  lastUpdated: new Date()
+                };
+              });
+            }
           }
         } catch (error) {
-          console.error("Erro ao processar mensagem WebSocket:", error);
+          console.error('Erro ao processar mensagem WebSocket:', error);
         }
-      };
-
-      ws.onclose = (event) => {
-        console.log("WebSocket desconectado:", event.code, event.reason);
-        setConnectionStatus("disconnected");
-        
-        // Agenda reconexão automática após 3 segundos
-        if (reconnectTimeoutRef.current) {
-          window.clearTimeout(reconnectTimeoutRef.current);
-        }
-        
-        reconnectTimeoutRef.current = window.setTimeout(() => {
-          connect();
-        }, 3000);
-      };
-
-      ws.onerror = (error) => {
-        console.error("Erro na conexão WebSocket:", error);
-        setConnectionStatus("error");
       };
       
+      wsRef.current.onclose = (event) => {
+        setIsConnected(false);
+        console.log(`WebSocket desconectado: ${event.code} ${event.reason}`);
+        
+        // Reconectar após 5 segundos se não foi fechado intencionalmente
+        if (event.code !== 1000) {
+          setTimeout(() => connectWebSocket(), 5000);
+        }
+      };
+      
+      wsRef.current.onerror = (error) => {
+        console.error('Erro no WebSocket:', error);
+        toast({
+          title: "Erro de conexão",
+          description: "A conexão em tempo real foi interrompida. Tentando reconectar...",
+          variant: "destructive"
+        });
+      };
     } catch (error) {
-      console.error("Erro ao iniciar WebSocket:", error);
-      setConnectionStatus("error");
-      
-      // Tenta reconectar após falha
-      if (reconnectTimeoutRef.current) {
-        window.clearTimeout(reconnectTimeoutRef.current);
-      }
-      
-      reconnectTimeoutRef.current = window.setTimeout(() => {
-        connect();
-      }, 5000);
+      console.error('Erro ao criar WebSocket:', error);
     }
-  }, [user]);
+  }, [toast]);
 
-  // Conecta quando o componente é montado e quando o usuário muda
+  // Conectar ao WebSocket quando o componente montar
   useEffect(() => {
     if (user) {
-      connect();
+      connectWebSocket();
     }
     
-    // Limpeza na desmontagem
+    // Limpar conexão quando o componente desmontar
     return () => {
-      if (reconnectTimeoutRef.current) {
-        window.clearTimeout(reconnectTimeoutRef.current);
-      }
-      
-      if (socket.current) {
-        socket.current.close();
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
       }
     };
-  }, [user, connect]);
+  }, [user, connectWebSocket]);
 
-  // Função para enviar mensagens
-  const sendMessage = useCallback((type: string, data: any) => {
-    if (socket.current && socket.current.readyState === WebSocket.OPEN) {
-      socket.current.send(JSON.stringify({ type, data }));
-      return true;
+  // Reconectar se o WebSocket se desconectar
+  useEffect(() => {
+    if (!isConnected && user) {
+      const timer = setTimeout(() => connectWebSocket(), 5000);
+      return () => clearTimeout(timer);
     }
-    
-    // Não foi possível enviar
-    toast({
-      title: "Erro de conexão",
-      description: "Não foi possível enviar a mensagem. Verifique sua conexão.",
-      variant: "destructive"
-    });
-    
-    return false;
+  }, [isConnected, user, connectWebSocket]);
+
+  const sendMessage = useCallback((message: any) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(message));
+    } else {
+      console.error('WebSocket não está conectado');
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível enviar mensagem. WebSocket não está conectado.",
+        variant: "destructive"
+      });
+    }
   }, [toast]);
 
   return {
     connectionStatus,
     lastMessage,
     sendMessage,
-    connect
+    isConnected
   };
 };
 

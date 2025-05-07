@@ -1,134 +1,162 @@
 import React from "react";
 import { Link } from "wouter";
-import { QrCode, CloudCog, Info, ArrowRight } from "lucide-react";
+import { 
+  QrCode, 
+  Cloud, 
+  ArrowRight, 
+  MessageSquareWarning, 
+  CheckCircle2, 
+  AlertTriangle
+} from "lucide-react";
 import PageTitle from "@/components/ui/page-title";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 const ConnectionsPage = () => {
+  // Verificar o status da conexão
+  const { data: connectionStatus, isLoading } = useQuery({
+    queryKey: ["connections", "status"],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("GET", "/api/connections/status");
+        return await response.json();
+      } catch (error) {
+        console.error("Erro ao verificar status da conexão:", error);
+        return { connected: false };
+      }
+    },
+    refetchInterval: 30000 // Refaz a verificação a cada 30 segundos
+  });
+
+  const isConnected = connectionStatus?.connected || false;
+  const isCloudConnection = connectionStatus?.cloudConnection || false;
+
   return (
     <div className="container mx-auto py-6">
       <PageTitle 
-        icon={<QrCode />}
-        subtitle="Escolha a melhor opção para conectar seu WhatsApp"
+        icon={<Cloud />}
+        subtitle="Gerencie suas conexões com WhatsApp e outros serviços"
       >
         Conexões
       </PageTitle>
 
-      <Alert className="mb-6">
-        <Info className="h-4 w-4" />
-        <AlertTitle>Importante</AlertTitle>
-        <AlertDescription>
-          Escolha apenas uma das opções de conexão abaixo. Não é possível usar duas conexões simultaneamente.
-        </AlertDescription>
-      </Alert>
+      {isConnected && (
+        <div className="mb-6">
+          <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-500" />
+                <div>
+                  <h3 className="text-lg font-semibold text-green-800 dark:text-green-400">
+                    WhatsApp Conectado
+                  </h3>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    {isCloudConnection 
+                      ? "Você está conectado através da API Cloud do WhatsApp." 
+                      : "Você está conectado através de WhatsApp Web (QR Code)."}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-6">
-        <Card className="border-l-4 border-l-orange-500">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <QrCode className="mr-2 h-5 w-5" />
-              WhatsApp QR Code
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <QrCode className="h-5 w-5 text-primary" />
+                <span>WhatsApp QR Code</span>
+              </CardTitle>
+              {isConnected && !isCloudConnection && (
+                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700">
+                  Conectado
+                </Badge>
+              )}
+            </div>
             <CardDescription>
-              Conecte seu WhatsApp pessoal através do código QR
+              Conecte seu WhatsApp pessoal escaneando um código QR, similar ao WhatsApp Web
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Características:</h3>
-              <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
-                <li>Fácil e rápido de configurar</li>
-                <li>Usa seu número de WhatsApp pessoal</li>
-                <li>Ideal para pequenas empresas</li>
-                <li><span className="text-orange-500 font-semibold">Limite de 80 mensagens por dia</span></li>
-              </ul>
-            </div>
-            
-            <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-900 rounded-md">
-              <p className="text-sm text-orange-700 dark:text-orange-400">
-                <strong>Atenção:</strong> O WhatsApp limita contas pessoais a 80 mensagens por dia.
-                Ultrapassar esse limite pode resultar em banimento temporário ou permanente da sua conta.
-              </p>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="flex items-start gap-2">
+                <MessageSquareWarning className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <p>
+                  <strong>Limite:</strong> 80 mensagens/dia para números não salvos
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <p>
+                  WhatsApp pode bloquear contas que enviam muitas mensagens em sequência
+                </p>
+              </div>
             </div>
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full">
               <Link to="/conexoes/qrcode">
-                Conectar com QR Code
+                {isConnected && !isCloudConnection ? "Gerenciar Conexão" : "Conectar com QR Code"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </CardFooter>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <CloudCog className="mr-2 h-5 w-5" />
-              WhatsApp Cloud API
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Cloud className="h-5 w-5 text-primary" />
+                <span>WhatsApp Cloud API</span>
+              </CardTitle>
+              {isConnected && isCloudConnection && (
+                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700">
+                  Conectado
+                </Badge>
+              )}
+            </div>
             <CardDescription>
-              Use a API oficial do WhatsApp Business
+              Conecte uma conta WhatsApp Business verificada através da API oficial do WhatsApp
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Características:</h3>
-              <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
-                <li>API oficial da Meta/Facebook</li>
-                <li>Requer conta Business verificada</li>
-                <li>Ideal para médias e grandes empresas</li>
-                <li><span className="text-green-500 font-semibold">Envios ilimitados de mensagens</span></li>
-              </ul>
-            </div>
-            
-            <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 rounded-md">
-              <p className="text-sm text-green-700 dark:text-green-400">
-                <strong>Recomendado:</strong> A WhatsApp Business API oficial permite envios ilimitados
-                de mensagens sem risco de bloqueio, mas requer uma conta verificada da Meta.
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span><strong>Sem limites</strong> de mensagens diárias</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span>Envio em massa permitido</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span>Conexão estável sem necessidade de smartphone</span>
+              </p>
+              <Separator className="my-2" />
+              <p className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <span>Requer conta WhatsApp Business verificada com autorização da Meta</span>
               </p>
             </div>
           </CardContent>
           <CardFooter>
-            <Button asChild variant="outline" className="w-full">
+            <Button asChild className="w-full" variant="outline">
               <Link to="/conexoes/cloud">
-                Conectar com Cloud API
+                {isConnected && isCloudConnection ? "Gerenciar Conexão" : "Conectar via Cloud API"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </CardFooter>
         </Card>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-lg font-semibold mb-4">Perguntas Frequentes</h2>
-        <div className="space-y-4">
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold mb-2">Qual opção devo escolher?</h3>
-            <p className="text-sm text-muted-foreground">
-              Se você já tem uma conta verificada do WhatsApp Business API, escolha a opção Cloud API. 
-              Para testes ou pequenas operações, a opção QR Code é mais simples, mas tem limitações diárias.
-            </p>
-          </div>
-          
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold mb-2">É possível alternar entre as opções?</h3>
-            <p className="text-sm text-muted-foreground">
-              Sim, você pode alternar entre as opções a qualquer momento. No entanto, será necessário desconectar
-              a opção atual antes de usar a outra.
-            </p>
-          </div>
-          
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold mb-2">Como obter acesso à Business API?</h3>
-            <p className="text-sm text-muted-foreground">
-              Para obter acesso à WhatsApp Business API, você precisa se cadastrar no Meta Business Manager e 
-              solicitar acesso ou trabalhar com um provedor oficial parceiro da Meta.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );

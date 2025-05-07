@@ -1,42 +1,31 @@
-import React, { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import React, { ReactNode } from 'react';
 
 interface PageTitleProps {
   children: ReactNode;
-  icon?: ReactNode;
   subtitle?: string;
-  className?: string;
+  icon?: ReactNode;
   actions?: ReactNode;
 }
 
-const PageTitle = ({ 
+const PageTitle: React.FC<PageTitleProps> = ({ 
   children, 
-  icon, 
   subtitle, 
-  className, 
+  icon, 
   actions 
-}: PageTitleProps) => {
+}) => {
   return (
-    <div className={cn(
-      "flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4",
-      className
-    )}>
-      <div className="flex items-center">
-        {icon && (
-          <div className="mr-3 p-2 rounded-md bg-primary/10 text-primary">
-            {icon}
-          </div>
-        )}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{children}</h1>
-          {subtitle && (
-            <p className="text-muted-foreground">{subtitle}</p>
-          )}
+    <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2 mb-1">
+          {icon && <span className="text-primary">{icon}</span>}
+          <h1 className="text-2xl md:text-3xl font-bold">{children}</h1>
         </div>
+        {subtitle && (
+          <p className="text-muted-foreground text-sm md:text-base">{subtitle}</p>
+        )}
       </div>
-      
       {actions && (
-        <div className="flex items-center space-x-2">
+        <div className="mt-4 md:mt-0 flex flex-wrap gap-2 md:justify-end">
           {actions}
         </div>
       )}

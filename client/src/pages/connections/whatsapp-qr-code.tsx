@@ -17,8 +17,8 @@ const WhatsAppQrCodePage = () => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
-  const ws = useWebSocket();
-  const { connectionStatus, lastMessage } = ws;
+  const hookResult = useWebSocket();
+  const { connectionStatus, lastMessage } = hookResult;
 
   // Verifica o status da conexão
   const { data: statusData, isLoading: statusLoading, refetch: refetchStatus } = useQuery({
@@ -148,10 +148,10 @@ const WhatsAppQrCodePage = () => {
         </Button>
       </div>
 
-      <Alert variant="warning" className="mb-6">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Limite de Mensagens</AlertTitle>
-        <AlertDescription>
+      <Alert className="mb-6 border-amber-500 bg-amber-50 dark:bg-amber-950">
+        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+        <AlertTitle className="text-amber-800 dark:text-amber-400">Limite de Mensagens</AlertTitle>
+        <AlertDescription className="text-amber-700 dark:text-amber-300">
           O WhatsApp limita contas pessoais a <strong>80 mensagens por dia</strong> para números não 
           salvos em sua agenda. Exceder esse limite pode resultar em bloqueio temporário ou permanente da sua conta.
         </AlertDescription>
