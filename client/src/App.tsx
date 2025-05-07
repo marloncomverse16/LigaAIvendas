@@ -36,6 +36,7 @@ function Router() {
       <ProtectedRoute path="/conexoes/whatsapp-qr-code" component={WhatsAppQrCodePage} />
       <ProtectedRoute path="/conexoes/whatsapp-cloud" component={WhatsAppCloudPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
+      <ProtectedRoute path="/contatos" component={ContactsPage} />
       <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/message-sending" component={MessageSendingPage} />
       <ProtectedRoute path="/admin-users" component={AdminUsersPage} />

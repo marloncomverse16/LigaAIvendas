@@ -69,7 +69,7 @@ export function Sidebar() {
       permissionKey: "accessProspecting"
     },
     { 
-      path: "/contacts", 
+      path: "/contatos", 
       label: "Contatos", 
       icon: <PhoneCall size={collapsed ? 24 : 20} />, 
       permissionKey: "accessContacts"
