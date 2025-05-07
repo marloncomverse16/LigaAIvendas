@@ -34,6 +34,7 @@ const serverFormSchema = z.object({
   provider: z.string().min(1, { message: "Provedor é obrigatório" }),
   apiUrl: z.string().min(1, { message: "A URL da API é obrigatória" }),
   apiToken: z.string().optional(),
+  n8nApiUrl: z.string().nullable().optional(),
   maxUsers: z.coerce.number().min(1, { message: "Defina pelo menos 1 usuário" }).default(10),
   whatsappWebhookUrl: z.string().nullable().optional(),
   aiAgentWebhookUrl: z.string().nullable().optional(),
@@ -54,6 +55,7 @@ interface Server {
   provider: string;
   apiUrl: string;
   apiToken: string | null;
+  n8nApiUrl: string | null;
   whatsappWebhookUrl: string | null;
   aiAgentWebhookUrl: string | null;
   prospectingWebhookUrl: string | null;
@@ -90,6 +92,7 @@ export default function ServerManagementPage() {
       provider: "",
       apiUrl: "",
       apiToken: "",
+      n8nApiUrl: "",
       maxUsers: 10,
       whatsappWebhookUrl: "",
       aiAgentWebhookUrl: "",
@@ -111,6 +114,7 @@ export default function ServerManagementPage() {
       provider: "",
       apiUrl: "",
       apiToken: "",
+      n8nApiUrl: "",
       maxUsers: 10,
       whatsappWebhookUrl: "",
       aiAgentWebhookUrl: "",
@@ -341,6 +345,7 @@ export default function ServerManagementPage() {
       provider: server.provider,
       apiUrl: server.apiUrl,
       apiToken: server.apiToken || "",
+      n8nApiUrl: server.n8nApiUrl || "",
       maxUsers: server.maxUsers,
       whatsappWebhookUrl: server.whatsappWebhookUrl || "",
       aiAgentWebhookUrl: server.aiAgentWebhookUrl || "",
@@ -656,6 +661,23 @@ export default function ServerManagementPage() {
                   
                   <FormField
                     control={form.control}
+                    name="n8nApiUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API do N8N</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: https://n8n.exemplo.com/api/v1" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormDescription>
+                          URL da API do N8N para integração com WhatsApp Cloud API
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
                     name="instanceId"
                     render={({ field }) => (
                       <FormItem>
@@ -909,6 +931,23 @@ export default function ServerManagementPage() {
                         <FormControl>
                           <Input placeholder="Token de autenticação da API" {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="n8nApiUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API do N8N</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: https://n8n.exemplo.com/api/v1" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormDescription>
+                          URL da API do N8N para integração com WhatsApp Cloud API
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
