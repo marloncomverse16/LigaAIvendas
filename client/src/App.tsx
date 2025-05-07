@@ -11,6 +11,7 @@ import SettingsPage from "@/pages/settings-page";
 import AiAgentPage from "@/pages/ai-agent-page";
 import ProspectingPage from "@/pages/prospecting-page";
 import ConnectionPage from "@/pages/connection-page";
+// As novas páginas de conexão serão adicionadas depois que o servidor estiver funcionando
 import ChatPage from "@/pages/chat-page";
 import MessageSendingPage from "@/pages/message-sending-page";
 import AdminUsersPage from "@/pages/admin-users-page";
