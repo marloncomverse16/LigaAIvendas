@@ -622,6 +622,16 @@ export const serverAiAgents = pgTable("server_ai_agents", {
   updatedAt: timestamp("updated_at"),
 });
 
+// Tabela para associar agentes IA dos servidores aos usuários
+export const userAiAgents = pgTable("user_ai_agents", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  agentId: integer("agent_id").notNull().references(() => serverAiAgents.id),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
 // Relação entre usuários e servidores
 export const userServers = pgTable("user_servers", {
   id: serial("id").primaryKey(),
@@ -649,10 +659,23 @@ export const serversRelations = relations(servers, ({ many }) => ({
 }));
 
 // Relações para agentes de IA
-export const serverAiAgentsRelations = relations(serverAiAgents, ({ one }) => ({
+export const serverAiAgentsRelations = relations(serverAiAgents, ({ one, many }) => ({
   server: one(servers, {
     fields: [serverAiAgents.serverId],
     references: [servers.id],
+  }),
+  userAgents: many(userAiAgents)
+}));
+
+// Relações para agentes de IA associados a usuários
+export const userAiAgentsRelations = relations(userAiAgents, ({ one }) => ({
+  user: one(users, {
+    fields: [userAiAgents.userId],
+    references: [users.id],
+  }),
+  agent: one(serverAiAgents, {
+    fields: [userAiAgents.agentId],
+    references: [serverAiAgents.id],
   }),
 }));
 
@@ -690,6 +713,12 @@ export const insertServerAiAgentSchema = createInsertSchema(serverAiAgents).pick
   active: true,
 });
 
+export const insertUserAiAgentSchema = createInsertSchema(userAiAgents).pick({
+  userId: true,
+  agentId: true,
+  isDefault: true,
+});
+
 // Types
 export type Server = typeof servers.$inferSelect;
 export type InsertServer = z.infer<typeof insertServerSchema>;
@@ -699,3 +728,6 @@ export type InsertUserServer = z.infer<typeof insertUserServerSchema>;
 
 export type ServerAiAgent = typeof serverAiAgents.$inferSelect;
 export type InsertServerAiAgent = z.infer<typeof insertServerAiAgentSchema>;
+
+export type UserAiAgent = typeof userAiAgents.$inferSelect;
+export type InsertUserAiAgent = z.infer<typeof insertUserAiAgentSchema>;
