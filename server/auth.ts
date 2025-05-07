@@ -52,11 +52,18 @@ export function setupAuth(app: Express) {
     }, async (email, password, done) => {
       try {
         const user = await storage.getUserByEmail(email);
+        
+        // Verificar se o usuário existe e a senha está correta
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false, { message: "Email ou senha inválidos" });
-        } else {
-          return done(null, user);
         }
+        
+        // Verificar se o usuário está ativo
+        if (user.active === false) {
+          return done(null, false, { message: "Usuário desativado. Entre em contato com o administrador." });
+        }
+        
+        return done(null, user);
       } catch (error) {
         return done(error);
       }
@@ -67,6 +74,12 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (id: number, done) => {
     try {
       const user = await storage.getUser(id);
+      
+      // Se o usuário não existe mais ou está desativado, não permitir o login
+      if (!user || user.active === false) {
+        return done(null, false);
+      }
+      
       done(null, user);
     } catch (error) {
       done(error);

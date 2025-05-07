@@ -45,6 +45,7 @@ export const users = pgTable("users", {
   accessScheduling: boolean("access_scheduling").default(true),
   accessReports: boolean("access_reports").default(true),
   accessSettings: boolean("access_settings").default(true),
+  active: boolean("active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -214,7 +215,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   accessContacts: true,
   accessScheduling: true,
   accessReports: true,
-  accessSettings: true
+  accessSettings: true,
+  active: true
 });
 
 // Lead Interactions Insert Schema
