@@ -225,25 +225,64 @@ export async function connectWhatsAppCloud(req: Request, res: Response) {
     
     console.log(`Registrando conexão WhatsApp Cloud API para usuário: ${userId}`);
     
-    // Registra as informações da conexão cloud
-    connectionStatus[userId] = {
-      connected: true,
-      lastUpdated: new Date(),
-      method: 'cloud',
-      phoneNumber: phoneNumber,
-      businessId: businessId,
-      cloudConnection: true
-    };
-    
-    // Opcionalmente, atualize o banco de dados para persistir essa configuração
-    // (código para persistência omitido)
-    
-    return res.status(200).json({
-      success: true,
-      phoneNumber: phoneNumber,
-      businessId: businessId,
-      message: "WhatsApp Business API conectado com sucesso"
-    });
+    // Agora também vamos criar uma instância na Evolution API
+    if (server.apiUrl && server.apiToken) {
+      // Usa o nome de usuário como nome da instância
+      const instanceId = req.user!.username;
+      
+      try {
+        console.log(`Criando instância do WhatsApp Cloud API em: ${server.apiUrl}`);
+        const evolutionClient = new EvolutionApiClient(
+          server.apiUrl,
+          server.apiToken,
+          instanceId
+        );
+        
+        // Primeiro, cria a instância
+        const createResult = await evolutionClient.createInstance();
+        console.log("Instância cloud criada com sucesso:", createResult);
+        
+        // Registra as informações da conexão cloud
+        connectionStatus[userId] = {
+          connected: true,
+          lastUpdated: new Date(),
+          method: 'cloud',
+          phoneNumber: phoneNumber,
+          businessId: businessId,
+          cloudConnection: true
+        };
+        
+        return res.status(200).json({
+          success: true,
+          phoneNumber: phoneNumber,
+          businessId: businessId,
+          message: "WhatsApp Business API conectado com sucesso"
+        });
+      } catch (error) {
+        console.error("Erro ao criar instância na Evolution API:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Erro ao criar instância do WhatsApp na Evolution API. Contate o administrador."
+        });
+      }
+    } else {
+      // Sem dados do servidor, apenas registra localmente
+      connectionStatus[userId] = {
+        connected: true,
+        lastUpdated: new Date(),
+        method: 'cloud',
+        phoneNumber: phoneNumber,
+        businessId: businessId,
+        cloudConnection: true
+      };
+      
+      return res.status(200).json({
+        success: true,
+        phoneNumber: phoneNumber,
+        businessId: businessId,
+        message: "WhatsApp Business API conectado com sucesso (modo offline)"
+      });
+    }
   } catch (error) {
     console.error("Erro ao conectar WhatsApp Cloud API:", error);
     return res.status(500).json({ 
@@ -270,8 +309,47 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       });
     }
     
-    // Se for conexão cloud, apenas retorna o status armazenado
+    // Se for conexão cloud, vamos também verificar se a instância existe na Evolution API
     if (connectionStatus[userId].method === 'cloud') {
+      const server = await fetchUserServer(userId);
+      
+      if (server && server.apiUrl && server.apiToken) {
+        // Usa o nome de usuário como nome da instância
+        const instanceId = req.user!.username;
+        
+        try {
+          // Verificar se a instância existe e está conectada
+          const evolutionClient = new EvolutionApiClient(
+            server.apiUrl,
+            server.apiToken,
+            instanceId
+          );
+          
+          const statusResult = await evolutionClient.checkConnectionStatus();
+          console.log("Status da conexão Cloud API:", statusResult);
+          
+          // Se a instância existe, atualiza o status com o status real
+          if (statusResult && (statusResult.success || 
+                              statusResult.data?.state === 'open' || 
+                              statusResult.data?.connected)) {
+            console.log("Instância Cloud API está conectada");
+            
+            // Retorna status com informações da conexão cloud
+            return res.status(200).json({
+              connected: true,
+              cloudConnection: true,
+              phoneNumber: connectionStatus[userId].phoneNumber,
+              businessId: connectionStatus[userId].businessId,
+              lastUpdated: new Date()
+            });
+          }
+        } catch (cloudStatusError) {
+          console.warn("Erro ao verificar status da conexão cloud:", cloudStatusError);
+          // Em caso de erro, prosseguimos com o status armazenado
+        }
+      }
+      
+      // Retorna o status armazenado se não conseguiu verificar
       return res.status(200).json({
         connected: connectionStatus[userId].connected,
         cloudConnection: true,

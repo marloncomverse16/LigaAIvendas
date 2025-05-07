@@ -201,12 +201,12 @@ const WhatsAppCloudPage = () => {
                     name="phoneNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Número do WhatsApp</FormLabel>
+                        <FormLabel>Identificação do número de telefone:</FormLabel>
                         <FormControl>
-                          <Input placeholder="5511999998888" {...field} />
+                          <Input placeholder="01234567890123" {...field} />
                         </FormControl>
                         <FormDescription>
-                          Digite o número no formato internacional, sem espaços ou caracteres especiais
+                          Exemplo: 01234567890123 - Insira o ID de número do WhatsApp Business sem espaços ou caracteres especiais
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
