@@ -102,7 +102,7 @@ const ConnectionsPage = () => {
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full">
-              <Link to="/conexoes/qrcode">
+              <Link to="/conexoes/whatsapp-qr-code">
                 {isConnected && !isCloudConnection ? "Gerenciar Conexão" : "Conectar com QR Code"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -150,7 +150,7 @@ const ConnectionsPage = () => {
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full" variant="outline">
-              <Link to="/conexoes/cloud">
+              <Link to="/conexoes/whatsapp-cloud">
                 {isConnected && isCloudConnection ? "Gerenciar Conexão" : "Conectar via Cloud API"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
