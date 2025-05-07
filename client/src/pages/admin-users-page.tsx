@@ -414,6 +414,29 @@ export default function AdminUsersPage() {
       });
     },
   });
+  
+  // Ativar/Desativar usuário
+  const toggleUserActiveMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await apiRequest("PATCH", `/api/admin/users/${userId}/toggle-active`);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      const statusText = data.active ? "ativado" : "desativado";
+      toast({
+        title: `Usuário ${statusText} com sucesso`,
+        description: data.message || `O usuário foi ${statusText} com sucesso.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao alterar status do usuário",
+        description: error.message || "Ocorreu um erro ao alterar o status do usuário.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleCreateUser = async () => {
     // Validar senhas
