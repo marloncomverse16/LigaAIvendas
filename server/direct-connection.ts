@@ -56,12 +56,15 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
         language: "pt-BR"
       };
       
-      await axios.post(createEndpoint, createData, { 
+      // Tentar criar a instância com o mesmo formato de cabeçalho usado para conectar
+      const createResponse = await axios.post(createEndpoint, createData, { 
         headers: {
           'Content-Type': 'application/json',
           'apikey': token
         }
       });
+      
+      console.log('Resposta da criação de instância:', JSON.stringify(createResponse.data));
       
       console.log('Instância criada com sucesso ou já existente');
     } catch (createError) {
@@ -70,10 +73,10 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
     }
 
     // Headers de autenticação (importante: 'apikey' é o formato correto para v2.2.3)
+    // Remover Authorization Bearer que pode estar causando conflito
     const headers = {
       'Content-Type': 'application/json',
-      'apikey': token,
-      'Authorization': `Bearer ${token}`
+      'apikey': token
     };
 
     // Endpoint específico para iniciar conexão baseado na documentação da API v2.2.3

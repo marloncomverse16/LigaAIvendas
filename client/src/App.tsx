@@ -32,8 +32,8 @@ function Router() {
       <ProtectedRoute path="/ai-agent" component={AiAgentPage} />
       <ProtectedRoute path="/prospecting" component={ProspectingPage} />
       <ProtectedRoute path="/conexoes" component={ConnectionsPage} />
-      <ProtectedRoute path="/conexoes/qrcode" component={WhatsAppQrCodePage} />
-      <ProtectedRoute path="/conexoes/cloud" component={WhatsAppCloudPage} />
+      <ProtectedRoute path="/conexoes/whatsapp-qr-code" component={WhatsAppQrCodePage} />
+      <ProtectedRoute path="/conexoes/whatsapp-cloud" component={WhatsAppCloudPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
       <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/message-sending" component={MessageSendingPage} />

@@ -58,8 +58,19 @@ const WhatsAppQrCodePage = () => {
       setLoading(true);
       try {
         const response = await apiRequest("POST", "/api/connections/qrcode");
-        return await response.json();
+        const data = await response.json();
+        
+        // Se a resposta contém um erro, lançá-lo para ser capturado pelo onError
+        if (!response.ok) {
+          throw { 
+            message: "Falha ao gerar QR Code", 
+            data: data 
+          };
+        }
+        
+        return data;
       } catch (error) {
+        console.error("Erro ao solicitar QR Code:", error);
         throw error;
       } finally {
         setLoading(false);
@@ -81,10 +92,23 @@ const WhatsAppQrCodePage = () => {
         });
       }
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      let errorMessage = "Tente novamente mais tarde";
+      
+      // Extrair mensagem de erro da resposta da API se disponível
+      if (error.data && error.data.error) {
+        errorMessage = error.data.error;
+      } else if (error.data && error.data.message) {
+        errorMessage = error.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      console.error("Erro detalhado:", error);
+      
       toast({
         title: "Erro ao gerar QR Code",
-        description: error.message || "Tente novamente mais tarde",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -96,8 +120,19 @@ const WhatsAppQrCodePage = () => {
       setLoading(true);
       try {
         const response = await apiRequest("POST", "/api/connections/disconnect");
-        return await response.json();
+        const data = await response.json();
+        
+        // Se a resposta contém um erro, lançá-lo para ser capturado pelo onError
+        if (!response.ok) {
+          throw { 
+            message: "Falha ao desconectar WhatsApp", 
+            data: data 
+          };
+        }
+        
+        return data;
       } catch (error) {
+        console.error("Erro ao desconectar WhatsApp:", error);
         throw error;
       } finally {
         setLoading(false);
@@ -113,10 +148,23 @@ const WhatsAppQrCodePage = () => {
       });
       refetchStatus();
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      let errorMessage = "Não foi possível desconectar o WhatsApp";
+      
+      // Extrair mensagem de erro da resposta da API se disponível
+      if (error.data && error.data.error) {
+        errorMessage = error.data.error;
+      } else if (error.data && error.data.message) {
+        errorMessage = error.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      console.error("Erro detalhado na desconexão:", error);
+      
       toast({
         title: "Erro ao desconectar",
-        description: error.message || "Não foi possível desconectar o WhatsApp",
+        description: errorMessage,
         variant: "destructive",
       });
     },
