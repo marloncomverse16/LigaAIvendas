@@ -1350,7 +1350,15 @@ export default function AdminUsersPage() {
                 <div className="space-y-2">
                   <Label htmlFor="serverId-edit">Servidor</Label>
                   <Select 
-                    onValueChange={(value) => handleSelectChange("serverId", value)}
+                    onValueChange={(value) => {
+                      const serverId = parseInt(value);
+                      handleSelectChange("serverId", value);
+                      
+                      // Ao mudar o servidor, buscar os agentes IA disponíveis
+                      if (currentUser && serverId) {
+                        getAvailableServerAiAgents(serverId, currentUser.id);
+                      }
+                    }}
                     value={formValues.serverId?.toString() || ""}
                   >
                     <SelectTrigger>
@@ -1381,6 +1389,105 @@ export default function AdminUsersPage() {
                     O servidor selecionado será usado para todas as operações deste usuário.
                   </p>
                 </div>
+                
+                {/* Lista de agentes de IA do usuário */}
+                {currentUser && (
+                  <div className="mt-6 border rounded-md p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-medium">Agentes de IA deste Usuário</h3>
+                    </div>
+                    
+                    {userAiAgents.length === 0 ? (
+                      <div className="text-sm text-muted-foreground py-4 text-center border rounded-md">
+                        Este usuário não tem agentes de IA associados.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {userAiAgents.map((userAgent) => (
+                          <div
+                            key={userAgent.id}
+                            className={`flex items-center justify-between p-3 border rounded-md ${
+                              userAgent.isDefault ? "bg-primary/5 border-primary/20" : ""
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex-shrink-0">
+                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <span role="img" aria-label="AI">🤖</span>
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="font-medium">{userAgent.name || userAgent.agentName}</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  {userAgent.isDefault && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/20 text-primary mr-2">
+                                      Padrão
+                                    </span>
+                                  )}
+                                  ID: {userAgent.agentId}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              {!userAgent.isDefault && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSetDefaultAiAgent(userAgent.id)}
+                                >
+                                  Definir como Padrão
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleRemoveAiAgent(userAgent.id)}
+                              >
+                                Remover
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Lista de agentes disponíveis para adicionar */}
+                    {formValues.serverId && availableAiAgents.length > 0 && (
+                      <div className="mt-6">
+                        <h3 className="text-md font-medium mb-3">Agentes de IA Disponíveis</h3>
+                        <div className="space-y-2">
+                          {availableAiAgents.map((agent) => (
+                            <div
+                              key={agent.id}
+                              className="flex items-center justify-between p-3 border rounded-md"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="flex-shrink-0">
+                                  <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <span role="img" aria-label="AI">🤖</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <h4 className="font-medium">{agent.name}</h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    {agent.description || "Sem descrição"}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleAddAiAgent(agent.id)}
+                              >
+                                Adicionar
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="permissions" className="space-y-4">
