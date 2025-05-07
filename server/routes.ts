@@ -27,6 +27,9 @@ import {
 } from "./api/connections";
 import { EvolutionApiClient } from "./evolution-api";
 
+// Importar os endpoints para contatos
+import { listContacts, syncContacts, exportContacts } from "./api/contacts";
+
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password: string) {
@@ -2232,105 +2235,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/connections/status", checkConnectionStatusNew);
   app.post("/api/connections/disconnect", disconnectWhatsAppNew);
   
-  // Endpoints para contatos
-  app.get("/api/contacts", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const userId = req.user.id;
-      
-      // Obter o servidor para o usuário
-      const userServerRelation = await storage.getUserServers(userId);
-      
-      if (!userServerRelation || !userServerRelation.length) {
-        console.log("Nenhum servidor configurado para o usuário");
-        // Retornar alguns contatos de exemplo para permitir testes
-        return res.json({
-          success: true,
-          contacts: [
-            {
-              id: "1",
-              name: "Suporte LiguIA",
-              number: "5511999887766",
-              pushname: "Suporte LiguIA",
-              isUser: true,
-              isGroup: false,
-              isWAContact: true
-            },
-            {
-              id: "2",
-              name: "Grupo de Teste",
-              number: "5511987654321",
-              pushname: "Grupo Teste",
-              isUser: false,
-              isGroup: true,
-              isWAContact: false
-            }
-          ]
-        });
-      }
-      
-      const serverRelation = userServerRelation[0];
-      const server = serverRelation?.server;
-      
-      if (!server) {
-        console.log("Relação de servidor existe mas não tem servidor associado");
-        return res.status(404).json({
-          success: false,
-          message: "Servidor não encontrado"
-        });
-      }
-      
-      const apiUrl = server.apiUrl;
-      const apiToken = server.apiToken;
-      
-      if (!apiUrl || !apiToken) {
-        console.log("Servidor encontrado mas sem URL da API ou token configurados");
-        return res.status(404).json({
-          success: false,
-          message: "Servidor não configurado corretamente (URL da API ou token faltando)"
-        });
-      }
-      
-      // Criar cliente da API Evolution
-      const evolutionClient = new EvolutionApiClient(
-        apiUrl,
-        apiToken,
-        req.user.username
-      );
-      
-      // Obter contatos
-      const result = await evolutionClient.getContacts();
-      
-      console.log("Resultado da busca de contatos:", 
-        result.success ? 
-          `Sucesso! ${result.contacts?.length || 0} contatos encontrados via ${result.endpoint}` : 
-          `Falha: ${result.error}`
-      );
-      
-      return res.json({
-        success: true,
-        contacts: result.contacts || []
-      });
-    } catch (error: any) {
-      console.error("Erro ao buscar contatos:", error);
-      // Mesmo em caso de erro, retornar alguns contatos de exemplo para permitir testes
-      return res.json({
-        success: true,
-        contacts: [
-          {
-            id: "fallback1",
-            name: "Contato de Teste (Fallback)",
-            number: "5511912345678",
-            pushname: "Teste",
-            isUser: true,
-            isGroup: false,
-            isWAContact: true
-          }
-        ]
-      });
-    }
-  });
+  // Endpoints para gerenciamento de contatos
+  app.get("/api/contacts", listContacts);
+  app.post("/api/contacts/sync", syncContacts);
+  app.get("/api/contacts/export", exportContacts);
   
   // Configure HTTP server
   const httpServer = createServer(app);
