@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, timestamp, json, pgEnum } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { type InferSelectModel, type InferInsertModel } from "drizzle-orm";
@@ -613,6 +614,18 @@ export const userServers = pgTable("user_servers", {
   isDefault: boolean("is_default").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Definições de relações
+export const userServersRelations = relations(userServers, ({ one }) => ({
+  user: one(users, {
+    fields: [userServers.userId],
+    references: [users.id],
+  }),
+  server: one(servers, {
+    fields: [userServers.serverId],
+    references: [servers.id],
+  }),
+}));
 
 // Schemas para inserção
 export const insertServerSchema = createInsertSchema(servers).pick({

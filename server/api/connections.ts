@@ -8,6 +8,9 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import { EvolutionApiClient } from "../evolution-api";
+import { db } from "../db";
+import { eq } from "drizzle-orm";
+import { userServers, servers } from "../../shared/schema";
 
 // Mantém o status da conexão por usuário
 interface ConnectionStatus {
@@ -28,19 +31,28 @@ const connectionStatus: Record<number, ConnectionStatus> = {};
  */
 async function fetchUserServer(userId: number) {
   try {
-    // Consulta o banco de dados para obter o servidor associado ao usuário
-    const userServer = await db.execute(`
-      SELECT s.* FROM server_users su
-      JOIN servers s ON su.server_id = s.id
-      WHERE su.user_id = $1 AND s.active = true
-      LIMIT 1
-    `, [userId]);
-
-    if (userServer.length === 0) {
+    console.log(`Buscando servidor para o usuário ${userId}...`);
+    
+    // Usar Drizzle em vez de SQL bruto
+    const userServersData = await db.query.userServers.findMany({
+      where: eq(userServers.userId, userId),
+      with: {
+        server: true
+      }
+    });
+    
+    console.log(`Encontradas ${userServersData.length} relações para o usuário ${userId}`);
+    
+    // Filtrar apenas servidores ativos
+    const activeServerRelation = userServersData.find(relation => relation.server.active);
+    
+    if (!activeServerRelation) {
+      console.log(`Nenhum servidor ativo encontrado para o usuário ${userId}`);
       return null;
     }
-
-    return userServer[0];
+    
+    console.log(`Usando servidor ${activeServerRelation.server.name} para o usuário ${userId}`);
+    return activeServerRelation.server;
   } catch (error) {
     console.error("Erro ao buscar servidor do usuário:", error);
     return null;
@@ -401,6 +413,3 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
     });
   }
 }
-
-// Importação do banco de dados para busca de servidores
-import { db } from "../db";

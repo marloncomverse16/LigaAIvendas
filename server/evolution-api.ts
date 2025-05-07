@@ -355,6 +355,72 @@ export class EvolutionApiClient {
   }
 
   /**
+   * Exclui a instância
+   * @returns Resultado da operação
+   */
+  async deleteInstance(): Promise<any> {
+    try {
+      // Primeiro, verificamos se a API está online
+      const apiStatus = await this.checkApiStatus();
+      if (!apiStatus.online) {
+        return {
+          success: false,
+          error: 'API Evolution indisponível',
+          details: apiStatus
+        };
+      }
+      
+      // Verificação adicional da versão e manager URL
+      const managerUrl = apiStatus.data?.manager || null;
+      const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
+      
+      // Listar endpoints possíveis em ordem de prioridade
+      const endpoints = [
+        // Baseado no manager URL
+        `${secureManagerUrl}/instance/delete/${this.instance}`,
+        // Endpoints alternativos
+        `${this.baseUrl}/instance/delete/${this.instance}`,
+        `${this.baseUrl}/manager/instance/delete/${this.instance}`
+      ];
+      
+      // Tentar cada endpoint
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Tentando excluir instância em: ${endpoint}`);
+          
+          const response = await axios.delete(endpoint, {
+            headers: this.getHeaders()
+          });
+          
+          if (response.status === 200) {
+            console.log(`Instância excluída com sucesso: ${JSON.stringify(response.data)}`);
+            
+            return {
+              success: true,
+              data: response.data,
+              endpoint: endpoint
+            };
+          }
+        } catch (error) {
+          console.log(`Erro ao excluir instância em ${endpoint}: ${error.message}`);
+        }
+      }
+      
+      // Se chegamos aqui, não conseguimos excluir a instância
+      return {
+        success: false,
+        error: "Não foi possível excluir a instância"
+      };
+    } catch (error) {
+      console.error(`Erro geral ao excluir instância:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Desconecta a instância
    * @returns Resultado da operação
    */
