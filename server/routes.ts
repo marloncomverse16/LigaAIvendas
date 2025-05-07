@@ -25,6 +25,7 @@ import {
   checkConnectionStatus as checkConnectionStatusNew,
   disconnectWhatsApp as disconnectWhatsAppNew
 } from "./api/connections";
+import { EvolutionApiClient } from "./evolution-api";
 
 const scryptAsync = promisify(scrypt);
 
@@ -2239,7 +2240,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.id;
       
       // Obter o servidor para o usuário
-      const server = await storage.getUserServer(userId);
+      const userServerRelation = await storage.getUserServers(userId);
+      const server = userServerRelation && userServerRelation.length > 0 && userServerRelation[0].server ? userServerRelation[0].server : null;
+      
       if (!server || !server.apiUrl || !server.apiToken) {
         return res.status(404).json({
           success: false,
@@ -2268,11 +2271,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         contacts: result.contacts
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao buscar contatos:", error);
       return res.status(500).json({
         success: false,
-        message: "Erro ao buscar contatos"
+        message: error?.message || "Erro ao buscar contatos"
       });
     }
   });
