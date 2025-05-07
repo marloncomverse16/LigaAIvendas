@@ -27,17 +27,27 @@ const WhatsAppQrCodePage = () => {
     queryKey: ["connections", "status"],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/connections/status");
-      return await response.json();
+      const data = await response.json();
+      console.log("Status recebido:", data);
+      return data;
     },
-    refetchInterval: 10000, // Refaz a verificação a cada 10 segundos
+    refetchInterval: 5000, // Verificação a cada 5 segundos para atualização mais rápida
   });
 
   // Quando o status é carregado, atualiza o estado de conexão
   useEffect(() => {
     if (statusData) {
-      setConnected(statusData.connected && !statusData.cloudConnection);
-      if (statusData.qrcode) {
-        setQrCode(statusData.qrcode);
+      // Verificar se está conectado e não é conexão cloud
+      const isConnected = statusData.connected === true && !statusData.cloudConnection;
+      console.log("Status de conexão:", isConnected ? "Conectado" : "Desconectado");
+      
+      setConnected(isConnected);
+      
+      // Se tiver um QR code e não estiver conectado, exibir
+      if (statusData.qrcode || statusData.qrCode) {
+        const code = statusData.qrcode || statusData.qrCode;
+        console.log("QR Code encontrado, atualizando visualização");
+        setQrCode(code);
       }
     }
   }, [statusData]);

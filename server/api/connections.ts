@@ -307,31 +307,75 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       const statusResult = await evolutionClient.checkConnectionStatus();
       console.log("Status da conexão:", statusResult);
       
-      // Atualiza o status da conexão
-      if (statusResult && (statusResult.success && statusResult.connected || 
+      // Se recebemos HTML, isso geralmente significa um erro de autenticação ou sessão
+      if (typeof statusResult.data === 'string' && 
+          (statusResult.data.includes('<!DOCTYPE html>') || 
+          statusResult.data.includes('<html'))) {
+        
+        console.log("Recebemos HTML em vez de JSON, tentando endpoint alternativo");
+        
+        // Tentar outro endpoint para status - o endpoint direto /instance/connect que usamos para o QR code
+        try {
+          const connectEndpoint = `${server.apiUrl}/instance/connect/${instanceId}`;
+          console.log(`Verificando status direto em: ${connectEndpoint}`);
+          
+          const response = await fetch(connectEndpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': server.apiToken || process.env.EVOLUTION_API_TOKEN || '',
+              'Authorization': `Bearer ${server.apiToken || process.env.EVOLUTION_API_TOKEN || ''}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log("Resposta do endpoint direto:", data);
+            
+            // Verificar se já está conectado
+            const isConnected = data.connected === true || 
+                              data.status === 'connected' || 
+                              data.state === 'open' || 
+                              data.state === 'connected';
+            
+            connectionStatus[userId] = {
+              connected: isConnected,
+              qrCode: connectionStatus[userId]?.qrCode,
+              lastUpdated: new Date(),
+              method: 'qrcode'
+            };
+          }
+        } catch (directError) {
+          console.error("Erro ao verificar status direto:", directError);
+          // Manter o status atual
+        }
+      } else {
+        // Processamento normal do status
+        const isConnected = statusResult.success && statusResult.connected || 
                           statusResult.data?.state === 'open' || 
                           statusResult.data?.state === 'connected' ||
-                          statusResult.data?.connected === true)) {
+                          statusResult.data?.connected === true;
+        
         connectionStatus[userId] = {
-          connected: true,
+          connected: isConnected,
           qrCode: connectionStatus[userId]?.qrCode,
           lastUpdated: new Date(),
           method: 'qrcode'
         };
-      } else {
-        if (connectionStatus[userId]?.connected) {
-          // Se estava conectado e agora não está, atualiza
-          connectionStatus[userId].connected = false;
-          connectionStatus[userId].lastUpdated = new Date();
-        }
+        
+        console.log(`Status da conexão atualizado: ${isConnected ? 'Conectado' : 'Desconectado'}`);
       }
     } catch (statusError) {
       console.warn("Erro ao verificar status da conexão:", statusError);
       
-      // Em caso de erro, assume que não está conectado
-      if (connectionStatus[userId]?.connected) {
-        connectionStatus[userId].connected = false;
-        connectionStatus[userId].lastUpdated = new Date();
+      // Em caso de erro, não alteramos o status para evitar falsos negativos
+      // Apenas garantimos que o objeto de status exista
+      if (!connectionStatus[userId]) {
+        connectionStatus[userId] = {
+          connected: false,
+          lastUpdated: new Date(),
+          method: 'qrcode'
+        };
       }
     }
     

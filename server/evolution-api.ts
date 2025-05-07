@@ -377,57 +377,66 @@ export class EvolutionApiClient {
    */
   async deleteInstance(): Promise<any> {
     try {
-      // Primeiro, verificamos se a API está online
-      const apiStatus = await this.checkApiStatus();
-      if (!apiStatus.online) {
+      console.log(`Tentando excluir a instância: ${this.instance}`);
+      
+      // Método simplificado: tentar diretamente o endpoint que sabemos que funciona
+      try {
+        // Endpoint direto para exclusão
+        const deleteEndpoint = `${this.baseUrl}/instance/delete/${this.instance}`;
+        console.log(`Tentando excluir em: ${deleteEndpoint}`);
+        
+        const response = await fetch(deleteEndpoint, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': this.token,
+            'Authorization': `Bearer ${this.token}`
+          }
+        });
+        
+        console.log(`Resposta da exclusão: Status ${response.status}`);
+        // Consideramos bem-sucedido se o status for 2xx
+        const success = response.ok;
+        
         return {
-          success: false,
-          error: 'API Evolution indisponível',
-          details: apiStatus
+          success: success,
+          message: success ? "Instância excluída com sucesso" : "Falha ao excluir instância",
+          status: response.status
+        };
+      } catch (directError) {
+        console.error(`Erro na exclusão direta: ${directError.message}`);
+        
+        // Abordagem alternativa com endpoints padrão
+        const endpoints = [
+          `${this.baseUrl}/instance/delete/${this.instance}`,
+          `${this.baseUrl}/manager/instance/delete/${this.instance}`
+        ];
+        
+        let anySuccess = false;
+        
+        // Tentar cada endpoint
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Tentando endpoint alternativo: ${endpoint}`);
+            
+            const response = await axios.delete(endpoint, {
+              headers: this.getHeaders()
+            });
+            
+            if (response.status >= 200 && response.status < 300) {
+              console.log(`Endpoint ${endpoint} executado com sucesso`);
+              anySuccess = true;
+            }
+          } catch (endpointError) {
+            console.log(`Erro em ${endpoint}: ${endpointError.message}`);
+          }
+        }
+        
+        return {
+          success: anySuccess,
+          message: anySuccess ? "Pelo menos um endpoint de exclusão foi bem-sucedido" : "Não foi possível excluir a instância"
         };
       }
-      
-      // Verificação adicional da versão e manager URL
-      const managerUrl = apiStatus.data?.manager || null;
-      const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
-      
-      // Listar endpoints possíveis em ordem de prioridade
-      const endpoints = [
-        // Baseado no manager URL
-        `${secureManagerUrl}/instance/delete/${this.instance}`,
-        // Endpoints alternativos
-        `${this.baseUrl}/instance/delete/${this.instance}`,
-        `${this.baseUrl}/manager/instance/delete/${this.instance}`
-      ];
-      
-      // Tentar cada endpoint
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`Tentando excluir instância em: ${endpoint}`);
-          
-          const response = await axios.delete(endpoint, {
-            headers: this.getHeaders()
-          });
-          
-          if (response.status === 200) {
-            console.log(`Instância excluída com sucesso: ${JSON.stringify(response.data)}`);
-            
-            return {
-              success: true,
-              data: response.data,
-              endpoint: endpoint
-            };
-          }
-        } catch (error) {
-          console.log(`Erro ao excluir instância em ${endpoint}: ${error.message}`);
-        }
-      }
-      
-      // Se chegamos aqui, não conseguimos excluir a instância
-      return {
-        success: false,
-        error: "Não foi possível excluir a instância"
-      };
     } catch (error) {
       console.error(`Erro geral ao excluir instância:`, error.message);
       return {
@@ -443,63 +452,86 @@ export class EvolutionApiClient {
    */
   async disconnect(): Promise<any> {
     try {
-      // Primeiro, verificamos se a API está online
-      const apiStatus = await this.checkApiStatus();
-      if (!apiStatus.online) {
-        return {
-          success: false,
-          error: 'API Evolution indisponível',
-          details: apiStatus
-        };
-      }
+      console.log(`Tentando desconectar instância: ${this.instance}`);
       
-      // Verificação adicional da versão e manager URL
-      const managerUrl = apiStatus.data?.manager || null;
-      const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
-      
-      // Listar endpoints possíveis em ordem de prioridade
-      const endpoints = [
-        // Baseado no manager URL
-        `${secureManagerUrl}/instance/logout/${this.instance}`,
-        `${secureManagerUrl}/disconnect/${this.instance}`,
-        // Endpoints alternativos
-        `${this.baseUrl}/instance/logout/${this.instance}`,
-        `${this.baseUrl}/manager/instance/logout/${this.instance}`
-      ];
-      
-      // Tentar cada endpoint
-      for (const endpoint of endpoints) {
+      // Método simplificado: tentar diretamente o endpoint que sabemos que funciona
+      try {
+        // Endpoint direto para desconexão
+        const disconnectEndpoint = `${this.baseUrl}/instance/logout/${this.instance}`;
+        console.log(`Tentando desconectar em: ${disconnectEndpoint}`);
+        
+        const response = await fetch(disconnectEndpoint, {
+          method: 'DELETE', // Alguns endpoints usam DELETE em vez de POST
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': this.token,
+            'Authorization': `Bearer ${this.token}`
+          }
+        });
+        
+        console.log(`Resposta da desconexão: Status ${response.status}`);
+        // Consideramos bem-sucedido mesmo sem analisar a resposta
+        const success = response.ok;
+        
+        // Tentar excluir a instância também
         try {
-          console.log(`Tentando desconectar em: ${endpoint}`);
+          const deleteEndpoint = `${this.baseUrl}/instance/delete/${this.instance}`;
+          console.log(`Tentando excluir instância em: ${deleteEndpoint}`);
           
-          const response = await axios.post(endpoint, {}, {
-            headers: this.getHeaders()
+          const deleteResponse = await fetch(deleteEndpoint, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': this.token,
+              'Authorization': `Bearer ${this.token}`
+            }
           });
           
-          if (response.status === 200) {
-            console.log(`Desconexão realizada com sucesso: ${JSON.stringify(response.data)}`);
-            
-            // Determinar se a desconexão foi bem-sucedida
-            const success = response.data.success === true || 
-                           response.data.disconnected === true ||
-                           response.data.state === 'close';
-            
-            return {
-              success: success,
-              data: response.data,
-              endpoint: endpoint
-            };
-          }
-        } catch (error) {
-          console.log(`Erro ao desconectar em ${endpoint}: ${error.message}`);
+          console.log(`Resposta da exclusão: Status ${deleteResponse.status}`);
+        } catch (deleteError) {
+          console.log(`Erro ao excluir instância: ${deleteError.message}`);
         }
+        
+        return {
+          success: success,
+          message: "Instância desconectada e/ou excluída",
+        };
+      } catch (directError) {
+        console.error(`Erro na desconexão direta: ${directError.message}`);
+        
+        // Abordagem alternativa com endpoints padrão
+        const endpoints = [
+          `${this.baseUrl}/instance/logout/${this.instance}`,
+          `${this.baseUrl}/instance/delete/${this.instance}`,
+          `${this.baseUrl}/manager/instance/logout/${this.instance}`,
+          `${this.baseUrl}/disconnect/${this.instance}`
+        ];
+        
+        let anySuccess = false;
+        
+        // Tentar cada endpoint
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Tentando endpoint alternativo: ${endpoint}`);
+            
+            const response = await axios.post(endpoint, {}, {
+              headers: this.getHeaders()
+            });
+            
+            if (response.status >= 200 && response.status < 300) {
+              console.log(`Endpoint ${endpoint} executado com sucesso`);
+              anySuccess = true;
+            }
+          } catch (endpointError) {
+            console.log(`Erro em ${endpoint}: ${endpointError.message}`);
+          }
+        }
+        
+        return {
+          success: anySuccess,
+          message: anySuccess ? "Pelo menos um endpoint de desconexão foi bem-sucedido" : "Não foi possível desconectar a instância"
+        };
       }
-      
-      // Se chegamos aqui, não conseguimos desconectar
-      return {
-        success: false,
-        error: "Não foi possível desconectar a instância"
-      };
     } catch (error) {
       console.error(`Erro geral ao desconectar:`, error.message);
       return {
