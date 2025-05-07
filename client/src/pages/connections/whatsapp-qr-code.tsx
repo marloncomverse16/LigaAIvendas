@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, QrCode, RefreshCw, Loader2, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, QrCode, Loader2, AlertCircle, CheckCircle2, XCircle, RefreshCcw } from "lucide-react";
 import PageTitle from "@/components/ui/page-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +17,8 @@ const WhatsAppQrCodePage = () => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const ws = useWebSocket();
+  const { connectionStatus, lastMessage } = ws;
 
   // Verifica o status da conexão
   const { data: statusData, isLoading: statusLoading, refetch: refetchStatus } = useQuery({
@@ -32,15 +33,27 @@ const WhatsAppQrCodePage = () => {
   // Quando o status é carregado, atualiza o estado de conexão
   useEffect(() => {
     if (statusData) {
-      setConnected(statusData.connected);
+      setConnected(statusData.connected && !statusData.cloudConnection);
+      if (statusData.qrcode) {
+        setQrCode(statusData.qrcode);
+      }
     }
   }, [statusData]);
 
-  // Solicitação de QR Code
-  const getQrCodeMutation = useMutation({
+  // Processa mensagens do WebSocket
+  useEffect(() => {
+    if (lastMessage && lastMessage.type === 'qr_code') {
+      setQrCode(lastMessage.data.qrcode);
+    } else if (lastMessage && lastMessage.type === 'connection_status') {
+      setConnected(lastMessage.data.connected);
+      refetchStatus();
+    }
+  }, [lastMessage, refetchStatus]);
+
+  // QR Code mutation
+  const qrCodeMutation = useMutation({
     mutationFn: async () => {
       setLoading(true);
-      setError(null);
       try {
         const response = await apiRequest("POST", "/api/connections/qrcode");
         return await response.json();
@@ -51,29 +64,25 @@ const WhatsAppQrCodePage = () => {
       }
     },
     onSuccess: (data) => {
-      if (data.qrCode) {
-        setQrCode(data.qrCode);
+      if (data.qrcode) {
+        setQrCode(data.qrcode);
         toast({
-          title: "QR Code gerado com sucesso",
-          description: "Escaneie o QR Code com seu WhatsApp para conectar.",
+          title: "QR Code gerado",
+          description: "Escaneie o código QR com seu aplicativo WhatsApp",
           variant: "default"
         });
-      } else if (data.connected) {
-        setConnected(true);
-        setQrCode(null);
+      } else {
         toast({
-          title: "WhatsApp já está conectado",
-          description: "Sua sessão WhatsApp já está ativa.",
-          variant: "default"
+          title: "Erro",
+          description: "Não foi possível gerar o QR Code",
+          variant: "destructive"
         });
-        refetchStatus();
       }
     },
     onError: (error: Error) => {
-      setError(error.message || "Erro ao gerar QR Code");
       toast({
         title: "Erro ao gerar QR Code",
-        description: error.message || "Tente novamente em alguns instantes.",
+        description: error.message || "Tente novamente mais tarde",
         variant: "destructive",
       });
     },
@@ -97,7 +106,7 @@ const WhatsAppQrCodePage = () => {
       setQrCode(null);
       toast({
         title: "WhatsApp desconectado",
-        description: "A sessão do WhatsApp foi encerrada com sucesso.",
+        description: "A conexão com o WhatsApp foi encerrada com sucesso",
         variant: "default"
       });
       refetchStatus();
@@ -105,22 +114,15 @@ const WhatsAppQrCodePage = () => {
     onError: (error: Error) => {
       toast({
         title: "Erro ao desconectar",
-        description: error.message || "Não foi possível desconectar o WhatsApp.",
+        description: error.message || "Não foi possível desconectar o WhatsApp",
         variant: "destructive",
       });
     },
   });
 
-  // Solicitar QR Code quando a página carregar
-  useEffect(() => {
-    if (!statusLoading && !connected && !qrCode && !loading) {
-      getQrCodeMutation.mutate();
-    }
-  }, [statusLoading, connected]);
-
-  // Função para solicitar um novo QR Code
-  const handleRefreshQrCode = () => {
-    getQrCodeMutation.mutate();
+  // Função para gerar QR Code
+  const handleGenerateQrCode = () => {
+    qrCodeMutation.mutate();
   };
 
   // Função para desconectar
@@ -132,7 +134,7 @@ const WhatsAppQrCodePage = () => {
     <div className="container mx-auto py-6">
       <PageTitle 
         icon={<QrCode />}
-        subtitle="Conecte seu WhatsApp através de QR Code"
+        subtitle="Conecte seu WhatsApp pessoal através do código QR"
       >
         WhatsApp QR Code
       </PageTitle>
@@ -146,95 +148,101 @@ const WhatsAppQrCodePage = () => {
         </Button>
       </div>
 
-      <Alert className="mb-6">
+      <Alert variant="warning" className="mb-6">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Atenção aos limites!</AlertTitle>
+        <AlertTitle>Limite de Mensagens</AlertTitle>
         <AlertDescription>
-          O método de conexão via QR Code tem um limite de aproximadamente <strong>80 mensagens por dia</strong>. 
-          Para envios em massa, considere usar a WhatsApp Cloud API.
+          O WhatsApp limita contas pessoais a <strong>80 mensagens por dia</strong> para números não 
+          salvos em sua agenda. Exceder esse limite pode resultar em bloqueio temporário ou permanente da sua conta.
         </AlertDescription>
       </Alert>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center min-h-[300px]">
-              {statusLoading || loading ? (
-                <div className="flex flex-col items-center justify-center">
-                  <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                  <p>Carregando...</p>
+            {statusLoading || loading ? (
+              <div className="flex flex-col items-center justify-center min-h-[300px]">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                <p>Carregando...</p>
+              </div>
+            ) : connected ? (
+              <div className="flex flex-col items-center justify-center text-center min-h-[300px]">
+                <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
+                <h3 className="text-xl font-bold mb-2">WhatsApp Conectado!</h3>
+                <p className="mb-6 text-muted-foreground">
+                  Seu WhatsApp está conectado e pronto para enviar e receber mensagens.
+                </p>
+                <Button variant="destructive" onClick={handleDisconnect}>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Desconectar WhatsApp
+                </Button>
+              </div>
+            ) : qrCode ? (
+              <div className="flex flex-col items-center justify-center min-h-[300px]">
+                <div className="bg-white p-4 rounded-md mb-4">
+                  <img 
+                    src={`data:image/png;base64,${qrCode}`} 
+                    alt="WhatsApp QR Code" 
+                    className="w-64 h-64"
+                  />
                 </div>
-              ) : connected ? (
-                <div className="flex flex-col items-center justify-center text-center">
-                  <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-                  <h3 className="text-xl font-bold mb-2">WhatsApp Conectado!</h3>
-                  <p className="mb-6 text-muted-foreground">
-                    Sua conta WhatsApp está conectada e pronta para uso.
-                  </p>
-                  <Button variant="destructive" onClick={handleDisconnect}>
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Desconectar WhatsApp
+                <p className="text-center mb-4 text-muted-foreground">
+                  Escaneie o código QR usando o aplicativo WhatsApp no seu celular
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleGenerateQrCode}>
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Gerar Novo QR Code
                   </Button>
                 </div>
-              ) : qrCode ? (
-                <div className="flex flex-col items-center">
-                  <div className="mb-4 bg-white p-4 rounded-lg">
-                    <img 
-                      src={`data:image/png;base64,${qrCode}`} 
-                      alt="QR Code para conexão com WhatsApp" 
-                      className="w-[200px] h-[200px]"
-                    />
-                  </div>
-                  <p className="mb-4 text-center text-sm text-muted-foreground">
-                    Abra o WhatsApp no seu celular, vá em Configurações &gt; Aparelhos vinculados &gt; Vincular um aparelho
-                  </p>
-                  <Button variant="outline" onClick={handleRefreshQrCode}>
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Gerar novo QR Code
-                  </Button>
-                </div>
-              ) : error ? (
-                <div className="flex flex-col items-center text-center">
-                  <AlertCircle className="h-16 w-16 text-red-500 mb-4" />
-                  <h3 className="text-xl font-bold mb-2">Erro na conexão</h3>
-                  <p className="mb-6 text-muted-foreground">{error}</p>
-                  <Button onClick={handleRefreshQrCode}>Tentar novamente</Button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center text-center">
-                  <Button onClick={handleRefreshQrCode}>
-                    <QrCode className="mr-2 h-4 w-4" />
-                    Gerar QR Code
-                  </Button>
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-[300px]">
+                <QrCode className="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-bold mb-2">Conectar WhatsApp</h3>
+                <p className="mb-6 text-center text-muted-foreground">
+                  Clique no botão abaixo para gerar um código QR e conectar seu WhatsApp
+                </p>
+                <Button onClick={handleGenerateQrCode}>
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Gerar QR Code
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="pt-6">
-            <h3 className="text-lg font-semibold mb-4">Instruções de conexão</h3>
-            <ol className="list-decimal ml-5 space-y-2 mb-6">
-              <li>Clique em "Gerar QR Code" para exibir o código de conexão</li>
+            <h3 className="text-lg font-semibold mb-4">Como conectar</h3>
+            <ol className="list-decimal ml-5 space-y-2 mb-6 text-sm text-muted-foreground">
+              <li>Clique em "Gerar QR Code"</li>
               <li>Abra o WhatsApp no seu celular</li>
-              <li>Toque em Configurações (os três pontos no canto superior direito)</li>
-              <li>Selecione "Aparelhos vinculados"</li>
-              <li>Toque em "Vincular um aparelho"</li>
-              <li>Escaneie o QR Code exibido na tela</li>
-              <li>Aguarde a confirmação da conexão</li>
+              <li>Toque em Menu (⋮) ou Configurações</li>
+              <li>Selecione "Aparelhos conectados" ou "WhatsApp Web"</li>
+              <li>Aponte a câmera para o código QR exibido nesta tela</li>
+              <li>Aguarde a conexão ser estabelecida</li>
             </ol>
 
             <Separator className="my-4" />
 
-            <h3 className="text-lg font-semibold mb-2">Observações importantes</h3>
-            <ul className="list-disc ml-5 space-y-2">
-              <li>O QR Code expira após 45 segundos</li>
-              <li>Mantenha o celular próximo ao computador durante o uso</li>
-              <li>A conexão pode ser interrompida se o celular ficar sem internet por muito tempo</li>
-              <li>Limite de aproximadamente 80 mensagens por dia para evitar bloqueios</li>
-              <li>Não é recomendado usar o mesmo número em múltiplas conexões</li>
+            <h3 className="text-lg font-semibold mb-2">Dicas importantes</h3>
+            <ul className="list-disc ml-5 space-y-2 mb-6 text-sm text-muted-foreground">
+              <li>Mantenha seu celular carregado e conectado à internet</li>
+              <li>Não feche o aplicativo WhatsApp no seu celular</li>
+              <li>Evite enviar mais de 80 mensagens por dia para contatos não salvos</li>
+              <li>Evite enviar a mesma mensagem para muitos contatos em sequência</li>
+              <li>Se possível, adicione os números à sua agenda antes de enviar mensagens</li>
             </ul>
+
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Evite o bloqueio</AlertTitle>
+              <AlertDescription className="text-sm">
+                Para evitar bloqueios do WhatsApp, adicione variações nas mensagens e evite
+                enviar muitas mensagens em curtos períodos.
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
       </div>
