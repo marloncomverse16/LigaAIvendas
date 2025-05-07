@@ -635,6 +635,7 @@ export const insertServerSchema = createInsertSchema(servers).pick({
 export const insertUserServerSchema = createInsertSchema(userServers).pick({
   userId: true,
   serverId: true,
+  isDefault: true,
 });
 
 // Types

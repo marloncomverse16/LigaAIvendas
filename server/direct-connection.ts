@@ -81,12 +81,14 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
           // Aguardar um momento para garantir que a deleção seja processada
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (deleteError) {
-          console.warn('Não foi possível deletar a instância:', deleteError?.message);
+          const deleteErrorMsg = deleteError instanceof Error ? deleteError.message : 'Erro desconhecido';
+          console.warn('Não foi possível deletar a instância:', deleteErrorMsg);
           // Continuar mesmo com erro na deleção
         }
       }
     } catch (checkError) {
-      console.log('Erro ao verificar instância (continuando com criação):', checkError?.message);
+      const errorMessage = checkError instanceof Error ? checkError.message : 'Erro desconhecido';
+      console.log('Erro ao verificar instância (continuando com criação):', errorMessage);
       // Continuar mesmo com erro na verificação - vamos tentar criar
     }
     
@@ -110,7 +112,8 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
       // Aguardar um momento para garantir que a criação seja processada
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (createError) {
-      console.warn('Erro ao criar instância (pode ser normal se já existir):', createError?.message);
+      const createErrorMsg = createError instanceof Error ? createError.message : 'Erro desconhecido';
+      console.warn('Erro ao criar instância (pode ser normal se já existir):', createErrorMsg);
       // Continuar mesmo com erro na criação - vamos tentar conectar
     }
 
@@ -174,10 +177,11 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
     });
     
   } catch (error) {
-    console.error('Erro ao obter QR code:', error.message);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error('Erro ao obter QR code:', errorMessage);
     return res.status(500).json({ 
       error: 'Erro ao tentar conectar com a API WhatsApp',
-      message: error.message
+      message: errorMessage
     });
   }
 }
@@ -245,7 +249,8 @@ async function fetchUserServer(userId: number) {
       instanceId: null
     };
   } catch (error) {
-    console.error(`Erro ao buscar servidor do usuário ${userId}:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error(`Erro ao buscar servidor do usuário ${userId}:`, errorMessage);
     
     // Mesmo com erro, retorna um servidor padrão como fallback
     return {
