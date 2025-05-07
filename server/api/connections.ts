@@ -244,16 +244,29 @@ export async function connectWhatsAppCloud(req: Request, res: Response) {
     }
     
     try {
-      console.log(`Tentando registrar credencial no n8n via webhook: ${user.whatsappWebhookUrl}`);
+      // Buscar o servidor para obter a URL do n8n
+      const server = await fetchUserServer(userId);
+      if (!server || !server.n8nApiUrl) {
+        return res.status(400).json({
+          success: false,
+          message: "URL da API do N8N não configurada. Configure o servidor com a URL da API do N8N."
+        });
+      }
       
-      // Envia os dados para o webhook do n8n
-      const webhookResponse = await axios.post(user.whatsappWebhookUrl, {
-        action: "register_whatsapp_cloud",
-        userId: userId,
-        username: user.username,
-        phoneNumber: phoneNumber,
-        businessId: businessId,
-        timestamp: new Date().toISOString()
+      console.log(`Tentando registrar credencial no n8n via webhook: ${user.whatsappWebhookUrl}`);
+      console.log(`URL da API N8N configurada: ${server.n8nApiUrl}`);
+      
+      // Usar método GET em vez de POST para o webhook
+      const webhookResponse = await axios.get(user.whatsappWebhookUrl, {
+        params: {
+          action: "register_whatsapp_cloud",
+          userId: userId,
+          username: user.username,
+          phoneNumber: phoneNumber,
+          businessId: businessId,
+          timestamp: new Date().toISOString(),
+          n8nApiUrl: server.n8nApiUrl
+        }
       });
       
       console.log("Resposta do webhook n8n:", webhookResponse.status);
