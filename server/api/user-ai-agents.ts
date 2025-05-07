@@ -105,6 +105,9 @@ export async function assignAiAgentToUser(req: Request, res: Response) {
       .from(userAiAgents)
       .where(eq(userAiAgents.agentId, data.agentId));
       
+    // Verificação DEBUG
+    console.log(`[DEBUG] Verificando associações do agente ${data.agentId}:`, existingAssociations);
+      
     if (existingAssociations.length > 0) {
       return res.status(400).json({ 
         message: "Este agente já está associado a outro usuário. Cada agente só pode ser associado a um único usuário."
