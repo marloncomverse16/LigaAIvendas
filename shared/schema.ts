@@ -594,6 +594,7 @@ export const servers = pgTable("servers", {
   
   // URLs de Webhook específicos para cada funcionalidade
   whatsappWebhookUrl: text("whatsapp_webhook_url"),
+  aiAgentName: text("ai_agent_name"), // Nome do agente de IA
   aiAgentWebhookUrl: text("ai_agent_webhook_url"),
   prospectingWebhookUrl: text("prospecting_webhook_url"),
   contactsWebhookUrl: text("contacts_webhook_url"),
@@ -637,6 +638,7 @@ export const insertServerSchema = createInsertSchema(servers).pick({
   apiToken: true,
   n8nApiUrl: true,
   whatsappWebhookUrl: true,
+  aiAgentName: true,
   aiAgentWebhookUrl: true, 
   prospectingWebhookUrl: true,
   contactsWebhookUrl: true,

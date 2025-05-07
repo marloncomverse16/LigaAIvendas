@@ -37,6 +37,7 @@ const serverFormSchema = z.object({
   n8nApiUrl: z.string().nullable().optional(),
   maxUsers: z.coerce.number().min(1, { message: "Defina pelo menos 1 usuário" }).default(10),
   whatsappWebhookUrl: z.string().nullable().optional(),
+  aiAgentName: z.string().nullable().optional(),
   aiAgentWebhookUrl: z.string().nullable().optional(),
   prospectingWebhookUrl: z.string().nullable().optional(),
   contactsWebhookUrl: z.string().nullable().optional(),
