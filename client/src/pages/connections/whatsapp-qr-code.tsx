@@ -17,8 +17,10 @@ const WhatsAppQrCodePage = () => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
-  const hookResult = useWebSocket();
-  const { connectionStatus, lastMessage } = hookResult;
+  // Temporariamente removendo a referência ao WebSocket até ser implementado
+  // const hookResult = useWebSocket();
+  // const { connectionStatus, lastMessage } = hookResult;
+  const [lastMessage, setLastMessage] = useState<any>(null);
 
   // Verifica o status da conexão
   const { data: statusData, isLoading: statusLoading, refetch: refetchStatus } = useQuery({
@@ -152,7 +154,7 @@ const WhatsAppQrCodePage = () => {
         <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
         <AlertTitle className="text-amber-800 dark:text-amber-400">Limite de Mensagens</AlertTitle>
         <AlertDescription className="text-amber-700 dark:text-amber-300">
-          O WhatsApp limita contas pessoais a <strong>80 mensagens por dia</strong> para números não 
+          O WhatsApp limita contas pessoais a um número reduzido de mensagens por dia para números não 
           salvos em sua agenda. Exceder esse limite pode resultar em bloqueio temporário ou permanente da sua conta.
         </AlertDescription>
       </Alert>
@@ -230,7 +232,7 @@ const WhatsAppQrCodePage = () => {
             <ul className="list-disc ml-5 space-y-2 mb-6 text-sm text-muted-foreground">
               <li>Mantenha seu celular carregado e conectado à internet</li>
               <li>Não feche o aplicativo WhatsApp no seu celular</li>
-              <li>Evite enviar mais de 80 mensagens por dia para contatos não salvos</li>
+              <li>Evite enviar muitas mensagens por dia para contatos não salvos</li>
               <li>Evite enviar a mesma mensagem para muitos contatos em sequência</li>
               <li>Se possível, adicione os números à sua agenda antes de enviar mensagens</li>
             </ul>
