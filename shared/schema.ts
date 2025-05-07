@@ -590,6 +590,7 @@ export const servers = pgTable("servers", {
   provider: text("provider").notNull(), // Nome personalizado do provedor
   apiUrl: text("api_url").notNull(),
   apiToken: text("api_token"),
+  n8nApiUrl: text("n8n_api_url"), // URL da API do n8n
   
   // URLs de Webhook específicos para cada funcionalidade
   whatsappWebhookUrl: text("whatsapp_webhook_url"),
@@ -634,6 +635,7 @@ export const insertServerSchema = createInsertSchema(servers).pick({
   provider: true,
   apiUrl: true,
   apiToken: true,
+  n8nApiUrl: true,
   whatsappWebhookUrl: true,
   aiAgentWebhookUrl: true, 
   prospectingWebhookUrl: true,
