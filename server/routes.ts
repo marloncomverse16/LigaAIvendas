@@ -28,6 +28,15 @@ import {
 import { EvolutionApiClient } from "./evolution-api";
 import { listContacts, syncContacts, exportContacts } from "./api/contacts";
 
+// Importações para os agentes IA de servidores
+import {
+  getServerAiAgents,
+  getServerAiAgent,
+  createServerAiAgent,
+  updateServerAiAgent,
+  deleteServerAiAgent
+} from "./api/server-ai-agents";
+
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password: string) {
@@ -1954,6 +1963,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error(`Erro ao excluir servidor ${req.params.id}:`, error);
       res.status(500).json({ message: "Erro ao excluir servidor" });
     }
+  });
+  
+  // Rotas para gerenciar agentes IA de servidores
+  app.get("/api/servers/:serverId/ai-agents", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // A função getServerAiAgents trata os parâmetros e retorna os agentes
+    return getServerAiAgents(req, res);
+  });
+  
+  app.post("/api/servers/:serverId/ai-agents", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // A função createServerAiAgent trata os parâmetros e cria o agente
+    return createServerAiAgent(req, res);
+  });
+  
+  app.get("/api/server-ai-agents/:agentId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // A função getServerAiAgent trata os parâmetros e retorna o agente específico
+    return getServerAiAgent(req, res);
+  });
+  
+  app.put("/api/server-ai-agents/:agentId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // A função updateServerAiAgent trata os parâmetros e atualiza o agente
+    return updateServerAiAgent(req, res);
+  });
+  
+  app.delete("/api/server-ai-agents/:agentId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // A função deleteServerAiAgent trata os parâmetros e remove o agente
+    return deleteServerAiAgent(req, res);
   });
   
   // Rotas de associação de usuário com servidor
