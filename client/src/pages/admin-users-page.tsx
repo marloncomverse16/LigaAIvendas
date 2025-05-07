@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare, User as UserIcon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -36,7 +36,7 @@ import UserPermissionsDialog from "@/components/admin/user-permissions-dialog";
 import ModulePermissions from "@/components/admin/module-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { InsertUser, User } from "@shared/schema";
+import { InsertUser, User as UserType } from "@shared/schema";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -76,7 +76,7 @@ export default function AdminUsersPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isWhatsAppInstanceDialogOpen, setIsWhatsAppInstanceDialogOpen] = useState(false);
   const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [formValues, setFormValues] = useState<UserFormValues>({
     username: "",
     email: "",
@@ -725,6 +725,11 @@ export default function AdminUsersPage() {
     setCurrentUser(user);
     setIsPermissionsDialogOpen(true);
   };
+  
+  // Função para ativar/desativar um usuário
+  const handleToggleUserActive = (user: User) => {
+    toggleUserActiveMutation.mutate(user.id);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
@@ -827,6 +832,7 @@ export default function AdminUsersPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Empresa</TableHead>
                     <TableHead>Admin</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Tokens</TableHead>
                     <TableHead>Mensalidade</TableHead>
                     <TableHead className="w-20">Ações</TableHead>
@@ -853,6 +859,17 @@ export default function AdminUsersPage() {
                           ) : (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                               Não
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {user.active !== false ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Ativo
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Inativo
                             </span>
                           )}
                         </TableCell>
@@ -914,6 +931,21 @@ export default function AdminUsersPage() {
                                 Atribuir Servidor Auto
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleToggleUserActive(user)}
+                              >
+                                {user.active !== false ? (
+                                  <>
+                                    <User className="mr-2 h-4 w-4 text-red-500" />
+                                    Desativar Usuário
+                                  </>
+                                ) : (
+                                  <>
+                                    <User className="mr-2 h-4 w-4 text-green-500" />
+                                    Ativar Usuário
+                                  </>
+                                )}
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleDeleteDialog(user)}
                                 className="text-red-600"
