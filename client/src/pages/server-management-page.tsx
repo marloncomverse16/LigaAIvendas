@@ -722,6 +722,41 @@ export default function ServerManagementPage() {
                 </TabsContent>
                 
                 <TabsContent value="webhooks" className="space-y-4 pt-4">
+                  <div className="border p-4 rounded-md mb-4 bg-secondary/20">
+                    <h3 className="text-md font-semibold mb-2">Configuração do Agente IA</h3>
+                    <FormField
+                      control={form.control}
+                      name="aiAgentName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome do Agente IA</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nome do agente de IA (ex: Assistente de Vendas)" {...field} value={field.value || ""} />
+                          </FormControl>
+                          <FormDescription>
+                            Nome personalizado para o assistente de IA
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="aiAgentWebhookUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Webhook de AI Agent</FormLabel>
+                          <FormControl>
+                            <Input placeholder="URL do webhook para integrações de IA" {...field} value={field.value || ""} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <h3 className="text-md font-semibold">Outros Webhooks</h3>
                   <FormField
                     control={form.control}
                     name="whatsappWebhookUrl"
@@ -730,34 +765,6 @@ export default function ServerManagementPage() {
                         <FormLabel>Webhook de WhatsApp</FormLabel>
                         <FormControl>
                           <Input placeholder="URL do webhook para notificações do WhatsApp" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="aiAgentName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome do Agente IA</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Nome do agente de IA (ex: Assistente de Vendas)" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="aiAgentWebhookUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Webhook de AI Agent</FormLabel>
-                        <FormControl>
-                          <Input placeholder="URL do webhook para integrações de IA" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -996,6 +1003,41 @@ export default function ServerManagementPage() {
                 </TabsContent>
                 
                 <TabsContent value="webhooks" className="space-y-4 pt-4">
+                  <div className="border p-4 rounded-md mb-4 bg-secondary/20">
+                    <h3 className="text-md font-semibold mb-2">Configuração do Agente IA</h3>
+                    <FormField
+                      control={editForm.control}
+                      name="aiAgentName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome do Agente IA</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nome do agente de IA (ex: Assistente de Vendas)" {...field} value={field.value || ""} />
+                          </FormControl>
+                          <FormDescription>
+                            Nome personalizado para o assistente de IA
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="aiAgentWebhookUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Webhook de AI Agent</FormLabel>
+                          <FormControl>
+                            <Input placeholder="URL do webhook para integrações de IA" {...field} value={field.value || ""} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <h3 className="text-md font-semibold">Outros Webhooks</h3>
                   <FormField
                     control={editForm.control}
                     name="whatsappWebhookUrl"
@@ -1004,34 +1046,6 @@ export default function ServerManagementPage() {
                         <FormLabel>Webhook de WhatsApp</FormLabel>
                         <FormControl>
                           <Input placeholder="URL do webhook para notificações do WhatsApp" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="aiAgentName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome do Agente IA</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Nome do agente de IA (ex: Assistente de Vendas)" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="aiAgentWebhookUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Webhook de AI Agent</FormLabel>
-                        <FormControl>
-                          <Input placeholder="URL do webhook para integrações de IA" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
