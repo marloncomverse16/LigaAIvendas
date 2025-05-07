@@ -148,43 +148,70 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
 
 /**
  * Obtém os dados do servidor do usuário
+ * Adicionada lógica para usar um servidor padrão quando o usuário não tem servidor associado
  */
 async function fetchUserServer(userId: number) {
   try {
     // Buscar todos os servidores do usuário
     const userServers = await storage.getUserServers(userId);
     
-    // Se não houver nenhum servidor, retorna erro
-    if (!userServers || userServers.length === 0) {
-      console.log(`Nenhum servidor encontrado para o usuário ${userId}`);
-      return null;
+    // Encontrar servidor ativo entre os servidores do usuário
+    if (userServers && userServers.length > 0) {
+      // Encontrar servidor ativo
+      const activeServer = userServers.find(us => us.server?.active === true);
+      
+      // Se houver um servidor ativo, retorná-lo
+      if (activeServer?.server) {
+        return {
+          apiUrl: activeServer.server.apiUrl,
+          apiToken: activeServer.server.apiToken,
+          instanceId: activeServer.server.instanceId
+        };
+      }
+      
+      // Se não houver servidor ativo, pegar o primeiro da lista
+      if (userServers[0]?.server) {
+        return {
+          apiUrl: userServers[0].server.apiUrl,
+          apiToken: userServers[0].server.apiToken,
+          instanceId: userServers[0].server.instanceId
+        };
+      }
     }
     
-    // Encontrar servidor ativo
-    const activeServer = userServers.find(us => us.server?.active === true);
+    // Se não encontrou servidor do usuário, buscar um servidor padrão ativo
+    console.log(`Nenhum servidor encontrado para o usuário ${userId}. Buscando um servidor padrão ativo...`);
     
-    // Se houver um servidor ativo, retorná-lo
-    if (activeServer?.server) {
-      return {
-        apiUrl: activeServer.server.apiUrl,
-        apiToken: activeServer.server.apiToken,
-        instanceId: activeServer.server.instanceId
-      };
+    try {
+      const defaultServers = await storage.getActiveServers();
+      
+      if (defaultServers && defaultServers.length > 0) {
+        console.log(`Usando servidor padrão: ${defaultServers[0].name}`);
+        return {
+          apiUrl: defaultServers[0].apiUrl,
+          apiToken: defaultServers[0].apiToken,
+          instanceId: null // Será substituído pelo username do usuário
+        };
+      }
+    } catch (defaultServerError) {
+      console.error("Erro ao buscar servidor padrão:", defaultServerError);
     }
     
-    // Se não houver servidor ativo, pegar o primeiro da lista
-    if (userServers[0]?.server) {
-      return {
-        apiUrl: userServers[0].server.apiUrl,
-        apiToken: userServers[0].server.apiToken,
-        instanceId: userServers[0].server.instanceId
-      };
-    }
-    
-    console.log(`Nenhum servidor válido encontrado para o usuário ${userId}`);
-    return null;
+    // Se ainda não encontrou, usar valores hardcoded como último recurso
+    console.log(`Nenhum servidor encontrado no banco de dados. Usando valores padrão.`);
+    return {
+      apiUrl: "https://api.primerastreadores.com",
+      apiToken: process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN,
+      instanceId: null // Será substituído pelo username do usuário
+    };
   } catch (error) {
     console.error(`Erro ao buscar servidor do usuário ${userId}:`, error);
-    return null;
+    
+    // Mesmo com erro, retorna um servidor padrão como fallback
+    return {
+      apiUrl: "https://api.primerastreadores.com",
+      apiToken: process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN,
+      instanceId: null // Será substituído pelo username do usuário
+    };
   }
 }
