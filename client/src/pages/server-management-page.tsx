@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -71,6 +71,28 @@ interface Server {
   updatedAt: string | Date | null;
 }
 
+// Interface para agentes de IA vinculados a servidores
+interface ServerAiAgent {
+  id: number;
+  serverId: number;
+  name: string;
+  description: string | null;
+  webhookUrl: string | null;
+  active: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date | null;
+}
+
+// Formulário para adicionar/editar agente IA
+const aiAgentFormSchema = z.object({
+  name: z.string().min(1, { message: "Nome é obrigatório" }),
+  description: z.string().optional(),
+  webhookUrl: z.string().min(1, { message: "URL do webhook é obrigatório" }),
+  active: z.boolean().default(true),
+});
+
+type AiAgentFormValues = z.infer<typeof aiAgentFormSchema>;
+
 export default function ServerManagementPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -84,6 +106,23 @@ export default function ServerManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userServerDialogOpen, setUserServerDialogOpen] = useState(false);
   const [serverUserSearch, setServerUserSearch] = useState("");
+  
+  // Estados específicos para agentes IA
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [isAgentCreateDialogOpen, setIsAgentCreateDialogOpen] = useState(false);
+  const [isAgentEditDialogOpen, setIsAgentEditDialogOpen] = useState(false);
+  const [isAgentDeleteDialogOpen, setIsAgentDeleteDialogOpen] = useState(false);
+  
+  // Formulário para criar/editar agente IA
+  const aiAgentForm = useForm<AiAgentFormValues>({
+    resolver: zodResolver(aiAgentFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      webhookUrl: "",
+      active: true,
+    },
+  });
   
   // Formulário para criar servidor
   const form = useForm<ServerFormValues>({
@@ -194,6 +233,24 @@ export default function ServerManagementPage() {
       }
     },
     enabled: userServerDialogOpen && !!user?.isAdmin,
+  });
+  
+  // Busca os agentes IA associados ao servidor selecionado
+  const { data: serverAiAgents = [], isLoading: isLoadingAiAgents, refetch: refetchServerAiAgents } = useQuery({
+    queryKey: ["/api/servers/ai-agents", selectedServer?.id],
+    queryFn: async () => {
+      if (!selectedServer) return [];
+      try {
+        const res = await apiRequest("GET", `/api/servers/${selectedServer.id}/ai-agents`);
+        const data = await res.json();
+        console.log("Agentes IA do servidor:", data);
+        return data;
+      } catch (error) {
+        console.error("Erro ao buscar agentes IA do servidor:", error);
+        return [];
+      }
+    },
+    enabled: !!selectedServer && isEditDialogOpen,
   });
   
   // Filtra usuários por nome ou email para o modal de associação
@@ -328,6 +385,81 @@ export default function ServerManagementPage() {
     },
   });
   
+  // Mutação para criar agente IA
+  const createAiAgentMutation = useMutation({
+    mutationFn: async (data: AiAgentFormValues) => {
+      if (!selectedServer) throw new Error("Nenhum servidor selecionado");
+      const res = await apiRequest("POST", `/api/servers/${selectedServer.id}/ai-agents`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Agente IA criado com sucesso",
+        description: "O novo agente IA foi adicionado ao servidor.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/servers/ai-agents", selectedServer?.id] });
+      setIsAgentCreateDialogOpen(false);
+      aiAgentForm.reset();
+      refetchServerAiAgents();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao criar agente IA",
+        description: error.message || "Ocorreu um erro ao criar o agente IA",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Mutação para atualizar agente IA
+  const updateAiAgentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: AiAgentFormValues }) => {
+      const res = await apiRequest("PUT", `/api/server-ai-agents/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Agente IA atualizado com sucesso",
+        description: "As informações do agente IA foram atualizadas.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/servers/ai-agents", selectedServer?.id] });
+      setIsAgentEditDialogOpen(false);
+      aiAgentForm.reset();
+      refetchServerAiAgents();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar agente IA",
+        description: error.message || "Ocorreu um erro ao atualizar o agente IA",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Mutação para excluir agente IA
+  const deleteAiAgentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/server-ai-agents/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Agente IA excluído com sucesso",
+        description: "O agente IA foi removido do servidor.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/servers/ai-agents", selectedServer?.id] });
+      setSelectedAgentId(null);
+      setIsAgentDeleteDialogOpen(false);
+      refetchServerAiAgents();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao excluir agente IA",
+        description: error.message || "Ocorreu um erro ao excluir o agente IA",
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Handler para criar servidor
   const onCreateSubmit = (data: ServerFormValues) => {
     createServerMutation.mutate(data);
@@ -399,6 +531,47 @@ export default function ServerManagementPage() {
     if (selectedServer) {
       removeUserServerMutation.mutate({ relationId, serverId: selectedServer.id });
     }
+  };
+  
+  // Handler para criar agente IA
+  const onCreateAiAgentSubmit = (data: AiAgentFormValues) => {
+    createAiAgentMutation.mutate(data);
+  };
+  
+  // Handler para atualizar agente IA
+  const onEditAiAgentSubmit = (data: AiAgentFormValues) => {
+    if (selectedAgentId) {
+      updateAiAgentMutation.mutate({ id: selectedAgentId, data });
+    }
+  };
+  
+  // Abre o modal de criação de agente IA
+  const handleCreateAiAgent = () => {
+    aiAgentForm.reset({
+      name: "",
+      description: "",
+      webhookUrl: "",
+      active: true,
+    });
+    setIsAgentCreateDialogOpen(true);
+  };
+  
+  // Abre o modal de edição de agente IA e preenche o formulário
+  const handleEditAiAgent = (agent: ServerAiAgent) => {
+    setSelectedAgentId(agent.id);
+    aiAgentForm.reset({
+      name: agent.name,
+      description: agent.description || "",
+      webhookUrl: agent.webhookUrl || "",
+      active: agent.active,
+    });
+    setIsAgentEditDialogOpen(true);
+  };
+  
+  // Abre o modal de exclusão de agente IA
+  const handleDeleteAiAgent = (agentId: number) => {
+    setSelectedAgentId(agentId);
+    setIsAgentDeleteDialogOpen(true);
   };
   
   // Pega a contagem de usuários para um servidor específico
