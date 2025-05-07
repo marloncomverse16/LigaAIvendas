@@ -18,6 +18,14 @@ import { checkConnectionStatus, disconnectWhatsApp } from "./connection";
 import { getWhatsAppQrCode } from "./direct-connection";
 import { setupWebSocketServer, sendMessage } from "./websocket";
 
+// Novas importações para o menu Conexões
+import { 
+  getWhatsAppQrCode as getQrCode, 
+  connectWhatsAppCloud, 
+  checkConnectionStatus as checkConnectionStatusNew,
+  disconnectWhatsApp as disconnectWhatsAppNew
+} from "./api/connections";
+
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password: string) {
@@ -2216,6 +2224,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao remover relação de usuário-servidor" });
     }
   });
+  
+  // Novas rotas para o menu Conexões
+  app.post("/api/connections/qrcode", getQrCode);
+  app.post("/api/connections/cloud", connectWhatsAppCloud);
+  app.get("/api/connections/status", checkConnectionStatusNew);
+  app.post("/api/connections/disconnect", disconnectWhatsAppNew);
   
   // Configure HTTP server
   const httpServer = createServer(app);

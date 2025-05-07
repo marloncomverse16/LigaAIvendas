@@ -75,8 +75,8 @@ export function Sidebar() {
       permissionKey: "accessContacts"
     },
     { 
-      path: "/connection", 
-      label: "Conexão WhatsApp", 
+      path: "/conexoes", 
+      label: "Conexões", 
       icon: <MessageSquare size={collapsed ? 24 : 20} />, 
       permissionKey: "accessWhatsapp"
     },

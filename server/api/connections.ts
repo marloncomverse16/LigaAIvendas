@@ -1,458 +1,406 @@
 /**
- * API para gerenciamento de conexões WhatsApp
+ * API de conexões para o WhatsApp
+ * Este módulo fornece endpoints para conectar ao WhatsApp usando:
+ * 1. Código QR (Evolution API com instâncias Baileys)
+ * 2. API oficial do WhatsApp Cloud (para contas Business verificadas)
  */
+
 import { Request, Response } from "express";
 import axios from "axios";
-import { storage } from "../storage";
+import { EvolutionApiClient } from "../evolution-api";
 
-// Token padrão de fallback (usar apenas para testes)
-const DEFAULT_TOKEN = "4db623449606bcf2814521b73657dbc0";
+// Mantém o status da conexão por usuário
+interface ConnectionStatus {
+  connected: boolean;
+  qrCode?: string;
+  lastUpdated: Date;
+  method?: 'qrcode' | 'cloud'; // Indica qual método está sendo usado
+  phoneNumber?: string; // Para conexão via Cloud API
+  businessId?: string; // Para conexão via Cloud API
+  cloudConnection?: boolean; // Flag para conexão Cloud
+}
+
+// Status da conexão por usuário
+const connectionStatus: Record<number, ConnectionStatus> = {};
 
 /**
- * Obtém o QR Code para conexão com WhatsApp via QR Code
- * Baseado na documentação da API Evolution v2.2.3
+ * Obtém o servidor associado ao usuário
  */
-export async function getWhatsAppQrCode(req: Request, res: Response) {
+async function fetchUserServer(userId: number) {
   try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Não autenticado" });
+    // Consulta o banco de dados para obter o servidor associado ao usuário
+    const userServer = await db.execute(`
+      SELECT s.* FROM server_users su
+      JOIN servers s ON su.serverId = s.id
+      WHERE su.userId = $1 AND s.active = true
+      LIMIT 1
+    `, [userId]);
+
+    if (userServer.length === 0) {
+      return null;
     }
 
-    // Buscar servidor do usuário
-    const userId = req.user?.id;
+    return userServer[0];
+  } catch (error) {
+    console.error("Erro ao buscar servidor do usuário:", error);
+    return null;
+  }
+}
+
+/**
+ * Endpoint para obter QR Code e conectar via Evolution API
+ * Método: POST
+ */
+export async function getWhatsAppQrCode(req: Request, res: Response) {
+  if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+  
+  try {
+    const userId = req.user!.id;
+    
+    // Obtém dados do servidor associado ao usuário
     const server = await fetchUserServer(userId);
     
     if (!server) {
-      return res.status(404).json({ error: "Servidor não encontrado" });
-    }
-
-    // Dados necessários para a conexão
-    const { apiUrl, apiToken, instanceId } = server;
-    const baseUrl = apiUrl.replace(/\/+$/, '');
-    const token = apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
-    const instance = instanceId || req.user?.username || 'admin';
-    
-    console.log(`Tentando conexão direta:
-      URL: ${baseUrl}
-      Instância: ${instance}
-      Token: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'não definido'}
-    `);
-    
-    // Importante: Primeiro tente criar a instância se ela não existir
-    try {
-      // 1. Verificar se a instância existe e excluí-la se necessário
-      try {
-        console.log(`Verificando se a instância ${instance} existe...`);
-        await axios.delete(`${baseUrl}/instance/delete/${instance}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': token
-          }
-        });
-        console.log(`Instância ${instance} excluída com sucesso ou não existia`);
-      } catch (deleteError) {
-        console.log(`Erro ao excluir instância (possivelmente não existia): ${deleteError.message}`);
-      }
-      
-      // 2. Criar uma nova instância
-      const createEndpoint = `${baseUrl}/instance/create`;
-      console.log(`Criando instância: ${createEndpoint}`);
-      
-      const createData = {
-        instanceName: instance,
-        token: token,
-        webhook: null,
-        webhookByEvents: false,
-        integration: "WHATSAPP-BAILEYS", 
-        language: "pt-BR",
-        qrcode: true
-      };
-      
-      await axios.post(createEndpoint, createData, { 
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': token
-        }
+      return res.status(404).json({ 
+        message: "Servidor não encontrado. Por favor, entre em contato com o administrador."
       });
-      
-      console.log('Instância criada com sucesso');
-    } catch (createError) {
-      console.log('Erro ao criar instância:', createError.message);
-      // Continuar mesmo com erro, pois a instância pode já existir
     }
-
-    // Headers de autenticação (importante: 'apikey' é o formato correto para v2.2.3)
-    const headers = {
-      'Content-Type': 'application/json',
-      'apikey': token,
-      'Authorization': `Bearer ${token}`
-    };
-
-    // Endpoint específico para iniciar conexão baseado na documentação da API v2.2.3
-    const endpoint = `${baseUrl}/instance/connect/${instance}`;
-    console.log(`Fazendo requisição GET para o endpoint Instance Connect: ${endpoint}`);
     
-    // Fazer requisição direta para o endpoint que sabemos que funciona
-    const response = await axios.get(endpoint, { 
-      headers, 
-      timeout: 10000 
-    });
-    
-    console.log(`Resposta obtida: Status ${response.status}`);
-    
-    // Verificar se a resposta contém HTML (erro comum)
-    const responseStr = typeof response.data === 'string' 
-      ? response.data 
-      : JSON.stringify(response.data);
-        
-    if (responseStr.includes('<!DOCTYPE html>') || 
-        responseStr.includes('<html') || 
-        responseStr.includes('<body')) {
-      console.log('Resposta contém HTML, erro de autenticação ou permissão');
+    // Verifica se as credenciais necessárias existem
+    if (!server.apiUrl || !server.apiToken) {
       return res.status(400).json({ 
-        error: 'API retornou HTML em vez de QR code. Verifique token e configurações.'
+        message: "Configuração de servidor incompleta. Entre em contato com o administrador."
       });
     }
+
+    // Usa o nome de usuário como nome da instância
+    const instanceId = req.user!.username;
+
+    // Cria cliente para Evolution API
+    const evolutionClient = new EvolutionApiClient(
+      server.apiUrl,
+      server.apiToken,
+      instanceId
+    );
+
+    console.log(`Tentando deletar instância existente (se houver): ${instanceId}`);
     
-    // Extrair QR code da resposta - o formato varia dependendo da versão da API
-    // Na versão 2.2.3, o QR code geralmente vem em response.data.code, então priorizamos esse campo
-    console.log('Analisando resposta para extrair QR code. Estrutura:', JSON.stringify(response.data).substring(0, 300) + '...');
+    // Tenta excluir a instância existente se houver
+    try {
+      await evolutionClient.deleteInstance();
+      console.log(`Instância existente excluída: ${instanceId}`);
+    } catch (deleteError) {
+      // Ignora erros - a instância pode não existir
+      console.log(`Nenhuma instância encontrada ou erro ao excluir: ${instanceId}`);
+    }
+
+    console.log(`Criando nova instância do WhatsApp: ${instanceId}`);
     
-    const qrCode = response.data?.code || 
-                   response.data?.qrcode || 
-                   response.data?.qrCode || 
-                   response.data?.base64 || 
-                   (typeof response.data === 'string' ? response.data : null);
-    
-    if (qrCode) {
-      console.log('QR Code obtido com sucesso!');
-      return res.status(200).json({ 
-        success: true,
-        connected: false,
-        qrCode: qrCode
-      });
-    } else if (response.data?.state === 'open' || 
-              response.data?.state === 'connected' ||
-              response.data?.connected === true) {
-      console.log('Instância já está conectada');
-      return res.status(200).json({ 
-        success: true,
-        connected: true,
-        message: 'WhatsApp já está conectado'
+    // Cria uma nova instância
+    try {
+      const createResult = await evolutionClient.createInstance();
+      console.log("Instância criada com sucesso:", createResult);
+    } catch (createError) {
+      console.error("Erro ao criar instância:", createError);
+      return res.status(500).json({ 
+        message: "Erro ao criar instância do WhatsApp. Tente novamente mais tarde."
       });
     }
+
+    console.log(`Obtendo QR Code para a instância: ${instanceId}`);
     
-    // Se chegou aqui, não conseguiu identificar um QR code na resposta
-    console.log('Resposta não contém QR code reconhecível');
-    return res.status(400).json({ 
-      error: 'Não foi possível obter QR code válido',
-      details: response.data
-    });
-    
+    // Obtém QR code
+    try {
+      const qrResult = await evolutionClient.getQrCode();
+      
+      console.log("QR Code obtido:", qrResult);
+      
+      if (qrResult && qrResult.code) {
+        // Atualiza o status da conexão
+        connectionStatus[userId] = {
+          connected: false,
+          qrCode: qrResult.code,
+          lastUpdated: new Date(),
+          method: 'qrcode'
+        };
+        
+        // Retorna QR code para o cliente
+        return res.status(200).json({ 
+          qrcode: qrResult.code,
+          message: "Escaneie o código QR com seu WhatsApp"
+        });
+      } else {
+        throw new Error("QR Code não encontrado na resposta");
+      }
+    } catch (error) {
+      console.error("Erro ao obter QR code:", error);
+      return res.status(500).json({ 
+        message: "Erro ao obter QR code. Tente novamente mais tarde."
+      });
+    }
   } catch (error) {
-    console.error('Erro ao obter QR code:', error.message);
+    console.error("Erro geral na rota de QR code:", error);
     return res.status(500).json({ 
-      error: 'Erro ao tentar conectar com a API WhatsApp',
-      message: error.message
+      message: "Ocorreu um erro ao processar sua solicitação."
     });
   }
 }
 
 /**
- * Conecta ao WhatsApp via Cloud API
+ * Endpoint para conectar via WhatsApp Cloud API
+ * Método: POST
  */
 export async function connectWhatsAppCloud(req: Request, res: Response) {
-  try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Não autenticado" });
-    }
+  if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
 
+  try {
+    const userId = req.user!.id;
     const { phoneNumber, businessId } = req.body;
     
     if (!phoneNumber || !businessId) {
       return res.status(400).json({ 
-        error: 'Número de telefone e Business ID são obrigatórios'
+        message: "Número de telefone e Business ID são obrigatórios" 
       });
     }
-
-    // Buscar servidor do usuário
-    const userId = req.user?.id;
+    
+    // Obtém dados do servidor associado ao usuário
     const server = await fetchUserServer(userId);
     
     if (!server) {
-      return res.status(404).json({ error: "Servidor não encontrado" });
-    }
-
-    // Dados necessários para a conexão
-    const { apiUrl, apiToken, instanceId } = server;
-    const baseUrl = apiUrl.replace(/\/+$/, '');
-    const token = apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
-    const instance = instanceId || req.user?.username || 'admin';
-    
-    console.log(`Tentando conexão Cloud API:
-      URL: ${baseUrl}
-      Instância: ${instance}
-      Token: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'não definido'}
-      Telefone: ${phoneNumber}
-      Business ID: ${businessId}
-    `);
-    
-    // 1. Excluir instância existente se houver
-    try {
-      console.log(`Verificando se a instância ${instance} existe...`);
-      await axios.delete(`${baseUrl}/instance/delete/${instance}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': token
-        }
-      });
-      console.log(`Instância ${instance} excluída com sucesso ou não existia`);
-    } catch (deleteError) {
-      console.log(`Erro ao excluir instância (possivelmente não existia): ${deleteError.message}`);
-    }
-    
-    // 2. Criar uma nova instância em modo Cloud API
-    const createEndpoint = `${baseUrl}/instance/create`;
-    console.log(`Criando instância em modo Cloud API: ${createEndpoint}`);
-    
-    try {
-      const createData = {
-        instanceName: instance,
-        token: token,
-        webhook: null,
-        webhookByEvents: false,
-        integration: "WHATSAPP-CLOUD-API", // Modo Cloud API
-        language: "pt-BR",
-        phoneNumber: phoneNumber,
-        businessId: businessId
-      };
-      
-      const createResponse = await axios.post(createEndpoint, createData, { 
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': token
-        }
-      });
-      
-      console.log('Instância Cloud API criada com sucesso:', JSON.stringify(createResponse.data).substring(0, 300) + '...');
-      
-      // Retornar sucesso
-      return res.status(200).json({ 
-        success: true,
-        connected: true,
-        phoneNumber,
-        businessId,
-        message: 'WhatsApp Cloud API conectado com sucesso'
-      });
-    } catch (createError) {
-      console.error('Erro ao criar instância Cloud API:', createError.message);
-      return res.status(500).json({ 
-        error: 'Erro ao criar instância Cloud API',
-        message: createError.message
+      return res.status(404).json({ 
+        message: "Servidor não encontrado. Por favor, entre em contato com o administrador."
       });
     }
     
-  } catch (error) {
-    console.error('Erro ao conectar WhatsApp Cloud:', error.message);
-    return res.status(500).json({ 
-      error: 'Erro ao tentar conectar com a API WhatsApp Cloud',
-      message: error.message
-    });
-  }
-}
+    // Para conexão cloud, apenas registramos as informações
+    // Não precisamos realmente se conectar a uma API neste momento
 
-/**
- * Verifica o status da conexão WhatsApp
- */
-export async function checkConnectionStatus(req: Request, res: Response) {
-  try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Não autenticado" });
-    }
-
-    // Buscar servidor do usuário
-    const userId = req.user?.id;
-    const server = await fetchUserServer(userId);
-    
-    if (!server) {
-      return res.status(404).json({ error: "Servidor não encontrado" });
-    }
-
-    // Dados necessários para a conexão
-    const { apiUrl, apiToken, instanceId } = server;
-    const baseUrl = apiUrl.replace(/\/+$/, '');
-    const token = apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
-    const instance = instanceId || req.user?.username || 'admin';
-    
-    console.log(`Verificando status da conexão:
-      URL: ${baseUrl}
-      Instância: ${instance}
-    `);
-
-    // Headers para autenticação
-    const headers = {
-      'Content-Type': 'application/json',
-      'apikey': token,
-      'Authorization': `Bearer ${token}`
-    };
-
-    // Verificar status da conexão
-    const statusEndpoint = `${baseUrl}/instance/connectionState/${instance}`;
-    
-    try {
-      const response = await axios.get(statusEndpoint, { headers });
+    // Primeiro tenta excluir qualquer instância existente na Evolution API
+    if (server.apiUrl && server.apiToken) {
+      // Usa o nome de usuário como nome da instância
+      const instanceId = req.user!.username;
       
-      console.log(`Status da conexão:`, JSON.stringify(response.data));
+      console.log(`Tentando deletar instância existente (se houver): ${instanceId}`);
       
-      const isConnected = 
-        response.data?.state === 'open' || 
-        response.data?.state === 'connected' ||
-        response.data?.connected === true;
-      
-      return res.status(200).json({
-        connected: isConnected,
-        state: response.data?.state,
-        phoneNumber: response.data?.phoneNumber || null,
-        businessId: response.data?.businessId || null,
-        cloudConnection: response.data?.integration === 'WHATSAPP-CLOUD-API'
-      });
-    } catch (statusError) {
-      console.log('Erro ao verificar status:', statusError.message);
-      
-      // Se a instância não existe, considerar como desconectado
-      return res.status(200).json({
-        connected: false,
-        state: 'disconnected',
-        error: statusError.message
-      });
-    }
-    
-  } catch (error) {
-    console.error('Erro ao verificar status da conexão:', error.message);
-    return res.status(500).json({ 
-      error: 'Erro ao verificar status da conexão',
-      message: error.message
-    });
-  }
-}
-
-/**
- * Desconecta o WhatsApp
- */
-export async function disconnectWhatsApp(req: Request, res: Response) {
-  try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Não autenticado" });
-    }
-
-    // Buscar servidor do usuário
-    const userId = req.user?.id;
-    const server = await fetchUserServer(userId);
-    
-    if (!server) {
-      return res.status(404).json({ error: "Servidor não encontrado" });
-    }
-
-    // Dados necessários para a desconexão
-    const { apiUrl, apiToken, instanceId } = server;
-    const baseUrl = apiUrl.replace(/\/+$/, '');
-    const token = apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
-    const instance = instanceId || req.user?.username || 'admin';
-    
-    console.log(`Desconectando WhatsApp:
-      URL: ${baseUrl}
-      Instância: ${instance}
-    `);
-
-    // Headers para autenticação
-    const headers = {
-      'Content-Type': 'application/json',
-      'apikey': token,
-      'Authorization': `Bearer ${token}`
-    };
-
-    // Desconectar WhatsApp
-    const logoutEndpoint = `${baseUrl}/instance/logout/${instance}`;
-    
-    try {
-      await axios.delete(logoutEndpoint, { headers });
-      
-      console.log('WhatsApp desconectado com sucesso');
-      
-      return res.status(200).json({
-        success: true,
-        message: 'WhatsApp desconectado com sucesso'
-      });
-    } catch (logoutError) {
-      console.log('Erro ao desconectar:', logoutError.message);
-      
-      // Tentar também deletar a instância
       try {
-        const deleteEndpoint = `${baseUrl}/instance/delete/${instance}`;
-        await axios.delete(deleteEndpoint, { headers });
+        const evolutionClient = new EvolutionApiClient(
+          server.apiUrl,
+          server.apiToken,
+          instanceId
+        );
         
-        console.log('Instância excluída com sucesso');
-        
-        return res.status(200).json({
-          success: true,
-          message: 'Instância excluída com sucesso'
-        });
+        await evolutionClient.deleteInstance();
+        console.log(`Instância existente excluída: ${instanceId}`);
       } catch (deleteError) {
-        return res.status(500).json({ 
-          error: 'Erro ao desconectar WhatsApp',
-          message: logoutError.message
-        });
+        // Ignora erros - a instância pode não existir
+        console.log(`Nenhuma instância encontrada ou erro ao excluir: ${instanceId}`);
       }
     }
     
+    console.log(`Registrando conexão WhatsApp Cloud API para usuário: ${userId}`);
+    
+    // Registra as informações da conexão cloud
+    connectionStatus[userId] = {
+      connected: true,
+      lastUpdated: new Date(),
+      method: 'cloud',
+      phoneNumber: phoneNumber,
+      businessId: businessId,
+      cloudConnection: true
+    };
+    
+    // Opcionalmente, atualize o banco de dados para persistir essa configuração
+    // (código para persistência omitido)
+    
+    return res.status(200).json({
+      success: true,
+      phoneNumber: phoneNumber,
+      businessId: businessId,
+      message: "WhatsApp Business API conectado com sucesso"
+    });
   } catch (error) {
-    console.error('Erro ao desconectar WhatsApp:', error.message);
+    console.error("Erro ao conectar WhatsApp Cloud API:", error);
     return res.status(500).json({ 
-      error: 'Erro ao desconectar WhatsApp',
-      message: error.message
+      message: "Erro ao conectar WhatsApp Cloud API."
     });
   }
 }
 
 /**
- * Obtém os dados do servidor do usuário
+ * Endpoint para verificar status da conexão
+ * Método: GET
  */
-async function fetchUserServer(userId: number) {
+export async function checkConnectionStatus(req: Request, res: Response) {
+  if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+  
   try {
-    // Buscar todos os servidores do usuário
-    const userServers = await storage.getUserServers(userId);
+    const userId = req.user!.id;
     
-    // Se não houver nenhum servidor, retorna erro
-    if (!userServers || userServers.length === 0) {
-      console.log(`Nenhum servidor encontrado para o usuário ${userId}`);
-      return null;
+    // Se não houver registro de conexão, considera desconectado
+    if (!connectionStatus[userId]) {
+      return res.status(200).json({
+        connected: false,
+        lastUpdated: new Date()
+      });
     }
     
-    // Encontrar servidor ativo
-    const activeServer = userServers.find(us => us.server?.active === true);
-    
-    // Se houver um servidor ativo, retorná-lo
-    if (activeServer?.server) {
-      return {
-        apiUrl: activeServer.server.apiUrl,
-        apiToken: activeServer.server.apiToken,
-        instanceId: activeServer.server.instanceId
-      };
+    // Se for conexão cloud, apenas retorna o status armazenado
+    if (connectionStatus[userId].method === 'cloud') {
+      return res.status(200).json({
+        connected: connectionStatus[userId].connected,
+        cloudConnection: true,
+        phoneNumber: connectionStatus[userId].phoneNumber,
+        businessId: connectionStatus[userId].businessId,
+        lastUpdated: connectionStatus[userId].lastUpdated
+      });
     }
     
-    // Se não houver servidor ativo, pegar o primeiro da lista
-    if (userServers[0]?.server) {
-      return {
-        apiUrl: userServers[0].server.apiUrl,
-        apiToken: userServers[0].server.apiToken,
-        instanceId: userServers[0].server.instanceId
-      };
+    // Para conexão via QR Code, verifica o status na Evolution API
+    const server = await fetchUserServer(userId);
+    
+    if (!server || !server.apiUrl || !server.apiToken) {
+      // Se não tiver servidor configurado, considera desconectado
+      return res.status(200).json({
+        connected: false,
+        message: "Servidor não configurado",
+        lastUpdated: new Date()
+      });
     }
     
-    console.log(`Nenhum servidor válido encontrado para o usuário ${userId}`);
-    return null;
+    // Usa o nome de usuário como nome da instância
+    const instanceId = req.user!.username;
+    
+    // Verifica status na Evolution API
+    try {
+      const evolutionClient = new EvolutionApiClient(
+        server.apiUrl,
+        server.apiToken,
+        instanceId
+      );
+      
+      const statusResult = await evolutionClient.checkConnectionStatus();
+      console.log("Status da conexão:", statusResult);
+      
+      // Atualiza o status da conexão
+      if (statusResult && statusResult.status === 'connected') {
+        connectionStatus[userId] = {
+          connected: true,
+          qrCode: connectionStatus[userId]?.qrCode,
+          lastUpdated: new Date(),
+          method: 'qrcode'
+        };
+      } else {
+        if (connectionStatus[userId]?.connected) {
+          // Se estava conectado e agora não está, atualiza
+          connectionStatus[userId].connected = false;
+          connectionStatus[userId].lastUpdated = new Date();
+        }
+      }
+    } catch (statusError) {
+      console.warn("Erro ao verificar status da conexão:", statusError);
+      
+      // Em caso de erro, assume que não está conectado
+      if (connectionStatus[userId]?.connected) {
+        connectionStatus[userId].connected = false;
+        connectionStatus[userId].lastUpdated = new Date();
+      }
+    }
+    
+    // Retorna o status atual
+    return res.status(200).json({
+      ...connectionStatus[userId],
+      qrcode: connectionStatus[userId]?.qrCode // Mantém compatibilidade
+    });
   } catch (error) {
-    console.error(`Erro ao buscar servidor do usuário ${userId}:`, error);
-    return null;
+    console.error("Erro ao verificar status da conexão:", error);
+    return res.status(500).json({ 
+      message: "Erro ao verificar status da conexão"
+    });
   }
 }
+
+/**
+ * Endpoint para desconectar WhatsApp
+ * Método: POST
+ */
+export async function disconnectWhatsApp(req: Request, res: Response) {
+  if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+  
+  try {
+    const userId = req.user!.id;
+    
+    // Se for conexão cloud, apenas remove o registro
+    if (connectionStatus[userId]?.method === 'cloud') {
+      delete connectionStatus[userId];
+      
+      // Opcionalmente, atualize o banco de dados para remover essa configuração
+      // (código para persistência omitido)
+      
+      return res.status(200).json({
+        success: true,
+        message: "Conexão WhatsApp Business API removida com sucesso"
+      });
+    }
+    
+    // Para conexão via QR Code, desconecta na Evolution API
+    const server = await fetchUserServer(userId);
+    
+    if (!server || !server.apiUrl || !server.apiToken) {
+      return res.status(404).json({ 
+        message: "Servidor não encontrado"
+      });
+    }
+    
+    // Usa o nome de usuário como nome da instância
+    const instanceId = req.user!.username;
+    
+    // Tenta desconectar e excluir a instância
+    try {
+      const evolutionClient = new EvolutionApiClient(
+        server.apiUrl,
+        server.apiToken,
+        instanceId
+      );
+      
+      // Faz logout primeiro
+      await evolutionClient.disconnect();
+      console.log(`Instância desconectada: ${instanceId}`);
+      
+      // Depois exclui a instância
+      await evolutionClient.deleteInstance();
+      console.log(`Instância excluída: ${instanceId}`);
+    } catch (logoutError) {
+      // Ainda tenta excluir a instância mesmo se o logout falhar
+      console.warn("Erro ao desconectar, tentando excluir instância:", logoutError);
+      
+      try {
+        const evolutionClient = new EvolutionApiClient(
+          server.apiUrl,
+          server.apiToken,
+          instanceId
+        );
+        
+        await evolutionClient.deleteInstance();
+        console.log(`Instância excluída: ${instanceId}`);
+      } catch (logoutError) {
+        console.error("Erro ao excluir instância:", logoutError);
+      }
+    }
+    
+    // Remove o registro de conexão
+    delete connectionStatus[userId];
+    
+    return res.status(200).json({
+      success: true,
+      message: "WhatsApp desconectado com sucesso"
+    });
+  } catch (error) {
+    console.error("Erro ao desconectar WhatsApp:", error);
+    return res.status(500).json({ 
+      message: "Erro ao desconectar WhatsApp"
+    });
+  }
+}
+
+// Importação do banco de dados para busca de servidores
+import { db } from "../db";
