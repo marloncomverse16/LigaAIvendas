@@ -42,7 +42,9 @@ export async function getUserAiAgents(req: Request, res: Response) {
 
 /**
  * Retorna os agentes IA disponíveis para um servidor específico que ainda
- * não estão associados ao usuário.
+ * não estão associados a nenhum usuário.
+ * 
+ * IMPORTANTE: Esta versão garante que cada agente IA só pode ser associado a um único usuário.
  */
 export async function getAvailableServerAiAgents(req: Request, res: Response) {
   try {
@@ -53,16 +55,15 @@ export async function getAvailableServerAiAgents(req: Request, res: Response) {
       return res.status(400).json({ message: "Parâmetros inválidos" });
     }
 
-    // Buscar os IDs dos agentes que o usuário já possui
-    const userAgents = await db
+    // Buscar todos os IDs de agentes que já estão associados a qualquer usuário
+    const allAssociatedAgents = await db
       .select({ agentId: userAiAgents.agentId })
-      .from(userAiAgents)
-      .where(eq(userAiAgents.userId, userId));
+      .from(userAiAgents);
     
     // Extrair apenas os IDs para um array
-    const userAgentIds = userAgents.map(ua => ua.agentId);
+    const allAssociatedAgentIds = allAssociatedAgents.map(ua => ua.agentId);
     
-    // Buscar agentes do servidor que não estão na lista de agentes do usuário
+    // Buscar agentes do servidor que não estão associados a nenhum usuário
     const availableAgents = await db
       .select()
       .from(serverAiAgents)
@@ -70,8 +71,8 @@ export async function getAvailableServerAiAgents(req: Request, res: Response) {
         and(
           eq(serverAiAgents.serverId, serverId),
           eq(serverAiAgents.active, true),
-          userAgentIds.length > 0 
-            ? sql`${serverAiAgents.id} NOT IN (${userAgentIds.join(',')})`
+          allAssociatedAgentIds.length > 0 
+            ? sql`${serverAiAgents.id} NOT IN (${allAssociatedAgentIds.join(',')})`
             : undefined // Se não houver agentes associados, não aplicar esta condição
         )
       );
@@ -85,6 +86,9 @@ export async function getAvailableServerAiAgents(req: Request, res: Response) {
 
 /**
  * Associa um agente IA a um usuário
+ * 
+ * IMPORTANTE: Verifica se o agente já está associado a algum usuário para
+ * garantir que cada agente só possa ser associado a um único usuário.
  */
 export async function assignAiAgentToUser(req: Request, res: Response) {
   try {
@@ -95,19 +99,16 @@ export async function assignAiAgentToUser(req: Request, res: Response) {
       return res.status(400).json({ message: "Dados incompletos" });
     }
     
-    // Verificar se a associação já existe
-    const existing = await db
+    // Verificar se o agente já está associado a qualquer usuário (mesmo outro)
+    const existingAssociations = await db
       .select()
       .from(userAiAgents)
-      .where(
-        and(
-          eq(userAiAgents.userId, data.userId),
-          eq(userAiAgents.agentId, data.agentId)
-        )
-      );
+      .where(eq(userAiAgents.agentId, data.agentId));
       
-    if (existing.length > 0) {
-      return res.status(400).json({ message: "Este agente já está associado ao usuário" });
+    if (existingAssociations.length > 0) {
+      return res.status(400).json({ 
+        message: "Este agente já está associado a outro usuário. Cada agente só pode ser associado a um único usuário."
+      });
     }
     
     // Se for definido como padrão, primeiro remover o padrão existente
