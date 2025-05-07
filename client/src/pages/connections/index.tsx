@@ -1,64 +1,67 @@
-import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import React from "react";
+import { Link } from "wouter";
+import { Phone, QrCode, CloudCog } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Cloud } from "lucide-react";
-import { PageTitle } from "@/components/ui/page-title";
+import PageTitle from "@/components/ui/page-title";
 
-export default function ConnectionsPage() {
-  const [location] = useLocation();
-  
+const ConnectionsPage = () => {
   return (
     <div className="container mx-auto py-6">
-      <PageTitle title="Conexões" description="Gerencie suas conexões de WhatsApp" />
-      
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 mt-6">
-        <Link href="/conexoes/whatsapp-qr-code">
-          <Card className="cursor-pointer hover:border-primary transition-all duration-200 h-full">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-primary" />
-                <span>WhatsApp QR Code</span>
-              </CardTitle>
-              <CardDescription>
-                Conexão com WhatsApp via QR Code
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Conecte o WhatsApp escaneando um QR Code com seu celular. 
-                Ideal para uso pessoal e envios em volume baixo.
-              </p>
-              <Button variant="outline" className="w-full">
-                Acessar
+      <PageTitle 
+        icon={<Phone />}
+        subtitle="Escolha o método de conexão para seu WhatsApp"
+      >
+        Conexões
+      </PageTitle>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Opção de QR Code */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xl font-bold">WhatsApp QR Code</CardTitle>
+            <QrCode className="h-8 w-8 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <CardDescription className="text-sm mb-4">
+              Conecte com QR Code (método tradicional). <span className="text-red-500 font-semibold">Limite de 80 mensagens por dia!</span>
+            </CardDescription>
+            <p className="text-sm mb-6">
+              Use este método para conectar um número WhatsApp normal através da leitura de um código QR.
+              Ideal para testes e envios em baixo volume.
+            </p>
+            <div className="flex justify-end">
+              <Button asChild>
+                <Link to="/conexoes/whatsapp-qr-code">Configurar</Link>
               </Button>
-            </CardContent>
-          </Card>
-        </Link>
-        
-        <Link href="/conexoes/whatsapp-cloud">
-          <Card className="cursor-pointer hover:border-primary transition-all duration-200 h-full">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <Cloud className="h-5 w-5 text-primary" />
-                <span>WhatsApp Cloud</span>
-              </CardTitle>
-              <CardDescription>
-                Conexão com WhatsApp Business Cloud API
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Conecte-se à API oficial do WhatsApp Business Cloud. 
-                Recomendado para envios em massa e uso profissional.
-              </p>
-              <Button variant="outline" className="w-full">
-                Acessar
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Opção de Cloud API */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xl font-bold">WhatsApp Cloud API</CardTitle>
+            <CloudCog className="h-8 w-8 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <CardDescription className="text-sm mb-4">
+              Conecte com WhatsApp Business API. <span className="text-green-500 font-semibold">Mensagens ilimitadas!</span>
+            </CardDescription>
+            <p className="text-sm mb-6">
+              Use este método para conectar uma conta WhatsApp Business oficial do Meta.
+              Ideal para envios em alto volume e automações corporativas.
+            </p>
+            <div className="flex justify-end">
+              <Button asChild>
+                <Link to="/conexoes/whatsapp-cloud">Configurar</Link>
               </Button>
-            </CardContent>
-          </Card>
-        </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
-}
+};
+
+export default ConnectionsPage;

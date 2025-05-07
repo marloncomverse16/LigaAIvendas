@@ -11,7 +11,6 @@ import SettingsPage from "@/pages/settings-page";
 import AiAgentPage from "@/pages/ai-agent-page";
 import ProspectingPage from "@/pages/prospecting-page";
 import ConnectionPage from "@/pages/connection-page";
-// As novas páginas de conexão serão adicionadas depois que o servidor estiver funcionando
 import ChatPage from "@/pages/chat-page";
 import MessageSendingPage from "@/pages/message-sending-page";
 import AdminUsersPage from "@/pages/admin-users-page";
@@ -19,6 +18,11 @@ import UserPermissionsPage from "@/pages/user-permissions-page";
 import ServerManagementPage from "@/pages/server-management-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
+
+// Novas páginas de conexões
+import ConnectionsPage from "@/pages/connections";
+import WhatsAppQrCodePage from "@/pages/connections/whatsapp-qr-code";
+import WhatsAppCloudPage from "@/pages/connections/whatsapp-cloud";
 
 function Router() {
   return (
@@ -29,6 +33,9 @@ function Router() {
       <ProtectedRoute path="/settings" component={SettingsPage} />
       <ProtectedRoute path="/ai-agent" component={AiAgentPage} />
       <ProtectedRoute path="/prospecting" component={ProspectingPage} />
+      <ProtectedRoute path="/conexoes" component={ConnectionsPage} />
+      <ProtectedRoute path="/conexoes/whatsapp-qr-code" component={WhatsAppQrCodePage} />
+      <ProtectedRoute path="/conexoes/whatsapp-cloud" component={WhatsAppCloudPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
       <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/message-sending" component={MessageSendingPage} />

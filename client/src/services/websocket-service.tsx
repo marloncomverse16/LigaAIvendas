@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, createContext, useContext, ReactNode } from "react";
+import { createContext, ReactNode, useContext, useState, useEffect, useRef, useCallback } from "react";
 
 type WebSocketContextType = {
   lastMessage: WebSocketEventMap["message"] | null;
@@ -6,7 +6,7 @@ type WebSocketContextType = {
   sendMessage: (data: any) => void;
 };
 
-const WebSocketContext = createContext<WebSocketContextType | null>(null);
+const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
 type WebSocketProviderProps = {
   children: ReactNode;
@@ -14,62 +14,50 @@ type WebSocketProviderProps = {
 };
 
 export function WebSocketProvider({ children, url }: WebSocketProviderProps) {
+  const [socket, setSocket] = useState<WebSocket | null>(null);
   const [lastMessage, setLastMessage] = useState<WebSocketEventMap["message"] | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState(false);
-  const socketRef = useRef<WebSocket | null>(null);
-
-  const connect = useCallback(() => {
-    // Usar protocolo correto de acordo com a URL atual (ws ou wss)
+  const [connectionStatus, setConnectionStatus] = useState<boolean>(false);
+  
+  // Criar URL do WebSocket
+  useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = url.startsWith("ws") 
-      ? url
-      : `${protocol}//${window.location.host}${url}`;
-
-    const socket = new WebSocket(wsUrl);
-
-    socket.onopen = () => {
-      setConnectionStatus(true);
+    const fullUrl = `${protocol}//${window.location.host}${url}`;
+    const ws = new WebSocket(fullUrl);
+    
+    setSocket(ws);
+    
+    ws.onopen = () => {
       console.log("WebSocket conectado");
+      setConnectionStatus(true);
     };
-
-    socket.onclose = (event) => {
-      setConnectionStatus(false);
-      console.log("WebSocket desconectado:", event.code, event.reason);
-      
-      // Tentar reconectar após 3 segundos
-      setTimeout(() => {
-        connect();
-      }, 3000);
-    };
-
-    socket.onerror = (error) => {
-      console.error("Erro no WebSocket:", error);
-    };
-
-    socket.onmessage = (event) => {
+    
+    ws.onmessage = (event) => {
       setLastMessage(event);
     };
-
-    socketRef.current = socket;
-
+    
+    ws.onclose = (event) => {
+      console.log(`WebSocket desconectado: ${event.code} ${event.reason}`);
+      setConnectionStatus(false);
+    };
+    
+    ws.onerror = (error) => {
+      console.error("Erro na conexão WebSocket:", error);
+      setConnectionStatus(false);
+    };
+    
     return () => {
-      socket.close();
+      ws.close();
     };
   }, [url]);
-
-  useEffect(() => {
-    const cleanup = connect();
-    return cleanup;
-  }, [connect]);
-
+  
   const sendMessage = useCallback((data: any) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify(data));
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(data));
     } else {
-      console.error("WebSocket não está conectado");
+      console.warn("Conexão WebSocket não está aberta. Não foi possível enviar a mensagem.");
     }
-  }, []);
-
+  }, [socket]);
+  
   return (
     <WebSocketContext.Provider value={{ lastMessage, connectionStatus, sendMessage }}>
       {children}
@@ -77,60 +65,14 @@ export function WebSocketProvider({ children, url }: WebSocketProviderProps) {
   );
 }
 
-export function useWebSocket(url: string = "/api/ws") {
-  const contextValue = useContext(WebSocketContext);
+export function useWebSocket() {
+  const context = useContext(WebSocketContext);
   
-  // Se o contexto já estiver disponível, retorne-o
-  if (contextValue) {
-    return contextValue;
+  if (context === undefined) {
+    throw new Error("useWebSocket deve ser usado dentro de um WebSocketProvider");
   }
   
-  // Caso contrário, crie um hook personalizado
-  const [lastMessage, setLastMessage] = useState<WebSocketEventMap["message"] | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState(false);
-  const socketRef = useRef<WebSocket | null>(null);
-  
-  const sendMessage = useCallback((data: any) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify(data));
-    } else {
-      console.error("WebSocket não está conectado");
-    }
-  }, []);
-  
-  useEffect(() => {
-    // Usar protocolo correto de acordo com a URL atual (ws ou wss)
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = url.startsWith("ws") 
-      ? url
-      : `${protocol}//${window.location.host}${url}`;
-    
-    const socket = new WebSocket(wsUrl);
-    
-    socket.onopen = () => {
-      setConnectionStatus(true);
-      console.log("WebSocket conectado");
-    };
-    
-    socket.onclose = (event) => {
-      setConnectionStatus(false);
-      console.log("WebSocket desconectado:", event.code, event.reason);
-    };
-    
-    socket.onerror = (error) => {
-      console.error("Erro no WebSocket:", error);
-    };
-    
-    socket.onmessage = (event) => {
-      setLastMessage(event);
-    };
-    
-    socketRef.current = socket;
-    
-    return () => {
-      socket.close();
-    };
-  }, [url]);
-  
-  return { lastMessage, connectionStatus, sendMessage };
+  return context;
 }
+
+export default useWebSocket;
