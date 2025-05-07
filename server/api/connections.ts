@@ -31,8 +31,8 @@ async function fetchUserServer(userId: number) {
     // Consulta o banco de dados para obter o servidor associado ao usuário
     const userServer = await db.execute(`
       SELECT s.* FROM server_users su
-      JOIN servers s ON su.serverId = s.id
-      WHERE su.userId = $1 AND s.active = true
+      JOIN servers s ON su.server_id = s.id
+      WHERE su.user_id = $1 AND s.active = true
       LIMIT 1
     `, [userId]);
 
