@@ -2231,6 +2231,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/connections/status", checkConnectionStatusNew);
   app.post("/api/connections/disconnect", disconnectWhatsAppNew);
   
+  // Endpoints para contatos
+  app.get("/api/contacts", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user.id;
+      
+      // Obter o servidor para o usuário
+      const server = await storage.getUserServer(userId);
+      if (!server || !server.apiUrl || !server.apiToken) {
+        return res.status(404).json({
+          success: false,
+          message: "Servidor não configurado ou não encontrado"
+        });
+      }
+      
+      // Criar cliente da API Evolution
+      const evolutionClient = new EvolutionApiClient(
+        server.apiUrl,
+        server.apiToken,
+        req.user.username
+      );
+      
+      // Obter contatos
+      const result = await evolutionClient.getContacts();
+      
+      if (!result.success) {
+        return res.status(500).json({
+          success: false,
+          message: result.error || "Erro ao obter contatos"
+        });
+      }
+      
+      return res.json({
+        success: true,
+        contacts: result.contacts
+      });
+    } catch (error) {
+      console.error("Erro ao buscar contatos:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erro ao buscar contatos"
+      });
+    }
+  });
+  
   // Configure HTTP server
   const httpServer = createServer(app);
   

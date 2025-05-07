@@ -626,6 +626,70 @@ export class EvolutionApiClient {
   }
 
   /**
+   * Obtém contatos do WhatsApp
+   * @returns Lista de contatos
+   */
+  async getContacts(): Promise<any> {
+    try {
+      console.log(`Buscando contatos para a instância: ${this.instance}`);
+      
+      // Lista de possíveis endpoints para buscar contatos
+      const endpoints = [
+        `${this.baseUrl}/instance/fetchContacts/${this.instance}`,
+        `${this.baseUrl}/contacts/${this.instance}`,
+        `${this.baseUrl}/instance/contacts/${this.instance}`,
+        `${this.baseUrl}/instances/${this.instance}/contacts`,
+        `${this.baseUrl}/manager/contacts/${this.instance}`
+      ];
+      
+      // Tentar cada endpoint
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Tentando buscar contatos em: ${endpoint}`);
+          
+          const response = await axios.get(endpoint, {
+            headers: this.getHeaders()
+          });
+          
+          if (response.status === 200) {
+            console.log(`Contatos obtidos com sucesso do endpoint: ${endpoint}`);
+            console.log(`Quantidade de contatos: ${
+              Array.isArray(response.data) ? response.data.length : 
+              response.data.contacts ? response.data.contacts.length : 
+              'Desconhecido'
+            }`);
+            
+            // Processando diferentes formatos de resposta
+            const contacts = Array.isArray(response.data) 
+              ? response.data 
+              : response.data.contacts || response.data.data || response.data.result || [];
+            
+            return {
+              success: true,
+              contacts: contacts,
+              endpoint
+            };
+          }
+        } catch (error) {
+          console.log(`Erro ao buscar contatos em ${endpoint}: ${error.message}`);
+        }
+      }
+      
+      // Se nenhum endpoint funcionou, retornar erro
+      return {
+        success: false,
+        error: "Não foi possível obter os contatos. Tente novamente mais tarde."
+      };
+    } catch (error) {
+      console.error(`Erro geral ao buscar contatos:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Retorna os cabeçalhos HTTP padrão com token de autorização
    */
   private getHeaders() {
