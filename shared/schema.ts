@@ -610,6 +610,7 @@ export const userServers = pgTable("user_servers", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   serverId: integer("server_id").notNull().references(() => servers.id),
+  isDefault: boolean("is_default").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
