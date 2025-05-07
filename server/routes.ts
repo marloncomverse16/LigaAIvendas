@@ -615,6 +615,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Admin - Ativar/Desativar usuário
+  app.patch("/api/admin/users/:id/toggle-active", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Verificar se usuário existe
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Impedir desativação do próprio usuário admin
+      if (userId === (req.user as Express.User).id) {
+        return res.status(400).json({ message: "Não é possível desativar seu próprio usuário" });
+      }
+      
+      // Alternar o status de ativo/inativo
+      const newActiveStatus = !existingUser.active;
+      const updatedUser = await storage.updateUser(userId, { active: newActiveStatus });
+      
+      // Remover senha da resposta
+      const { password, ...userResponse } = updatedUser || existingUser;
+      
+      // Adicionar mensagem adequada na resposta
+      const statusMessage = newActiveStatus ? "ativado" : "desativado";
+      res.json({ 
+        ...userResponse, 
+        active: newActiveStatus,
+        message: `Usuário ${statusMessage} com sucesso` 
+      });
+    } catch (error) {
+      console.error("Erro ao alterar status do usuário:", error);
+      res.status(500).json({ message: "Erro ao alterar status do usuário" });
+    }
+  });
+  
   // Configurações de usuário
   app.get("/api/settings", async (req, res) => {
     try {
