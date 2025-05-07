@@ -17,7 +17,8 @@ export async function listContacts(req: Request, res: Response) {
     const userId = req.user.id;
     
     // Buscar contatos do banco de dados
-    const contacts = await db.select().from(whatsappContacts)
+    const contacts = await db.select()
+      .from(whatsappContacts)
       .where(eq(whatsappContacts.userId, userId))
       .orderBy(whatsappContacts.name);
 
@@ -136,7 +137,8 @@ export async function syncContacts(req: Request, res: Response) {
         };
         
         // Verificar se o contato já existe
-        const existingContact = await db.select().from(whatsappContacts)
+        const existingContact = await db.select()
+          .from(whatsappContacts)
           .where(eq(whatsappContacts.userId, userId))
           .where(eq(whatsappContacts.contactId, normalizedContact.contactId))
           .limit(1);
@@ -166,7 +168,8 @@ export async function syncContacts(req: Request, res: Response) {
     }
     
     // Buscar a lista atualizada de contatos
-    const updatedContacts = await db.select().from(whatsappContacts)
+    const updatedContacts = await db.select()
+      .from(whatsappContacts)
       .where(eq(whatsappContacts.userId, userId))
       .orderBy(whatsappContacts.name);
     
@@ -196,7 +199,8 @@ export async function exportContacts(req: Request, res: Response) {
     const userId = req.user.id;
     
     // Buscar contatos do banco de dados
-    const contacts = await db.select().from(whatsappContacts)
+    const contacts = await db.select()
+      .from(whatsappContacts)
       .where(eq(whatsappContacts.userId, userId))
       .orderBy(whatsappContacts.name);
 

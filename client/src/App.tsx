@@ -19,6 +19,7 @@ import ServerManagementPage from "@/pages/server-management-page";
 import ConnectionsPage from "@/pages/connections";
 import WhatsAppQrCodePage from "@/pages/connections/whatsapp-qr-code";
 import WhatsAppCloudPage from "@/pages/connections/whatsapp-cloud";
+import ContactsPage from "@/pages/contacts-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 

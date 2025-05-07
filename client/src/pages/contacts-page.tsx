@@ -1,311 +1,253 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import React, { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { DataTable } from "@/components/ui/data-table";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  PhoneCall, 
-  AlertCircle, 
-  Loader2, 
-  RefreshCcw, 
-  Search, 
-  FileDown, 
-  UserPlus,
-  Check,
-  X
-} from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2, RefreshCw, Search, Download, User, Users, Phone } from "lucide-react";
 
-interface Contact {
-  id: string;
-  name: string;
+// Tipo para contatos do WhatsApp
+interface WhatsAppContact {
+  id: number;
+  contactId: string;
+  name: string | null;
   number: string;
-  pushname?: string;
-  isUser?: boolean;
-  isGroup?: boolean;
-  isWAContact?: boolean;
+  profilePicture: string | null;
+  isGroup: boolean;
+  lastActivity: string | null;
+  lastMessageContent: string | null;
+  unreadCount: number;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
 export default function ContactsPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
 
-  // Buscar contatos da API
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/contacts", refreshTrigger],
-    queryFn: async () => {
-      try {
-        const response = await apiRequest("GET", "/api/contacts");
-        const data = await response.json();
-        
-        if (!data.success) {
-          throw new Error(data.message || "Erro ao buscar contatos");
-        }
-        
-        return data.contacts.map((contact: any) => ({
-          id: contact.id || contact.jid || contact.number || contact.wa_id || Math.random().toString(36).substring(7),
-          name: contact.name || contact.displayName || contact.pushname || "Sem nome",
-          number: contact.number || contact.jid?.replace(/@.*$/, "") || contact.wa_id || "",
-          pushname: contact.pushname || contact.displayName || "",
-          isUser: contact.isUser || contact.type === "user" || true,
-          isGroup: contact.isGroup || contact.type === "group" || false,
-          isWAContact: contact.isWAContact || contact.isMyContact || false
-        }));
-      } catch (error) {
-        console.error("Erro ao buscar contatos:", error);
-        throw error;
-      }
-    }
+  // Consulta para obter contatos
+  const {
+    data: contactsData,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["/api/contacts"],
+    refetchOnWindowFocus: false,
   });
 
-  // Atualizar contatos filtrados quando o termo de busca ou dados mudarem
-  useEffect(() => {
-    if (!data) return;
-    
-    const filtered = data.filter((contact: Contact) => {
-      const searchTermLower = searchTerm.toLowerCase();
-      return (
-        contact.name.toLowerCase().includes(searchTermLower) ||
-        contact.number.toLowerCase().includes(searchTermLower) ||
-        (contact.pushname && contact.pushname.toLowerCase().includes(searchTermLower))
-      );
-    });
-    
-    setFilteredContacts(filtered);
-  }, [data, searchTerm]);
-
-  // Função para forçar atualização
-  const handleRefresh = () => {
-    setRefreshTrigger(prev => prev + 1);
-    toast({
-      title: "Atualizando contatos",
-      description: "Os contatos estão sendo atualizados...",
-      variant: "default",
-    });
-    refetch();
-  };
-
-  // Função para exportar contatos para CSV
-  const exportContacts = () => {
-    if (!filteredContacts.length) {
+  // Mutação para sincronizar contatos
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/contacts/sync");
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
       toast({
-        title: "Nenhum contato para exportar",
-        description: "Não há contatos disponíveis para exportação.",
+        title: "Contatos sincronizados",
+        description: `${data.importResults?.created || 0} novos, ${data.importResults?.updated || 0} atualizados`,
+      });
+      setShowSyncDialog(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao sincronizar contatos",
+        description: error.message,
         variant: "destructive",
       });
-      return;
-    }
-    
-    // Criar cabeçalho CSV
-    const csvHeader = ["Nome", "Número", "Nome WhatsApp", "Usuário", "Grupo", "Contato WhatsApp"];
-    
-    // Converter contatos para linhas CSV
-    const csvRows = filteredContacts.map(contact => [
-      contact.name.replace(/,/g, " "),
-      contact.number,
-      (contact.pushname || "").replace(/,/g, " "),
-      contact.isUser ? "Sim" : "Não",
-      contact.isGroup ? "Sim" : "Não",
-      contact.isWAContact ? "Sim" : "Não"
-    ]);
-    
-    // Combinar cabeçalho e linhas
-    const csvContent = [
-      csvHeader.join(","),
-      ...csvRows.map(row => row.join(","))
-    ].join("\n");
-    
-    // Criar blob e link de download
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `contatos_whatsapp_${new Date().toISOString().split("T")[0]}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Exportação concluída",
-      description: `${filteredContacts.length} contatos exportados com sucesso.`,
-      variant: "default",
-    });
+      setShowSyncDialog(false);
+    },
+  });
+
+  // Função para exportar contatos
+  const handleExport = () => {
+    window.open("/api/contacts/export", "_blank");
   };
 
-  // Colunas da tabela
-  const columns = [
-    {
-      accessorKey: "name",
-      header: "Nome",
-      cell: ({ row }: any) => (
-        <div className="flex flex-col">
-          <span className="font-medium">{row.original.name}</span>
-          {row.original.pushname && row.original.pushname !== row.original.name && (
-            <span className="text-xs text-muted-foreground">{row.original.pushname}</span>
-          )}
-        </div>
-      )
-    },
-    {
-      accessorKey: "number",
-      header: "Número",
-      cell: ({ row }: any) => (
-        <div className="font-mono">{row.original.number}</div>
-      )
-    },
-    {
-      accessorKey: "isUser",
-      header: "Tipo",
-      cell: ({ row }: any) => (
-        <div>
-          {row.original.isGroup ? (
-            <Badge variant="secondary">Grupo</Badge>
-          ) : (
-            <Badge>Usuário</Badge>
-          )}
-        </div>
-      )
-    },
-    {
-      accessorKey: "isWAContact",
-      header: "Contato",
-      cell: ({ row }: any) => (
-        <div className="flex items-center">
-          {row.original.isWAContact ? (
-            <Check className="h-5 w-5 text-green-500" />
-          ) : (
-            <X className="h-5 w-5 text-red-500" />
-          )}
-        </div>
-      )
-    }
-  ];
+  // Filtrar contatos com base no termo de busca
+  const filteredContacts = contactsData?.contacts?.filter((contact: WhatsAppContact) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (contact.name?.toLowerCase().includes(searchLower) || "") ||
+      contact.number.toLowerCase().includes(searchLower)
+    );
+  }) || [];
+
+  // Função para formatar número de telefone
+  const formatPhone = (phone: string) => {
+    return phone ? phone.replace(/^(\d{2})(\d{2})(\d{4,5})(\d{4})$/, "+$1 ($2) $3-$4") : "";
+  };
 
   return (
-    <DashboardLayout>
-      <div className="container py-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center">
-              <PhoneCall className="mr-2 h-8 w-8" />
-              Contatos
-            </h1>
-            <p className="text-muted-foreground">
-              Gerencie seus contatos do WhatsApp
-            </p>
-          </div>
-          
-          <div className="flex space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefresh}
-              disabled={isLoading}
-            >
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Atualizar
-            </Button>
-            <Button 
-              variant="default" 
-              size="sm" 
-              onClick={exportContacts}
-              disabled={isLoading || !data?.length}
-            >
-              <FileDown className="mr-2 h-4 w-4" />
-              Exportar CSV
-            </Button>
-          </div>
-        </div>
-        
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Lista de Contatos</CardTitle>
-                <CardDescription>
-                  {filteredContacts.length} contato(s) encontrado(s)
-                </CardDescription>
-              </div>
-              
-              <div className="relative w-64">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar contatos..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-2">Carregando contatos...</span>
-                </div>
-                <div className="space-y-2">
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <div key={index} className="flex items-center gap-4">
-                      <Skeleton className="h-12 w-12 rounded-full" />
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-[250px]" />
-                        <Skeleton className="h-4 w-[200px]" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : error ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Erro</AlertTitle>
-                <AlertDescription>
-                  {error instanceof Error ? error.message : "Erro ao carregar contatos"}
-                </AlertDescription>
-              </Alert>
-            ) : filteredContacts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Nenhum contato encontrado</h3>
-                <p className="text-muted-foreground max-w-md mt-2">
-                  {data?.length ? "Tente ajustar o termo de busca para encontrar o que procura." : "Nenhum contato disponível. Certifique-se de que seu WhatsApp está conectado."}
-                </p>
-                {!data?.length && (
-                  <Button 
-                    variant="outline" 
-                    className="mt-4"
-                    onClick={() => window.location.href = "/conexoes"}
-                  >
-                    <PhoneCall className="mr-2 h-4 w-4" />
-                    Ir para página de conexões
-                  </Button>
-                )}
-              </div>
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Contatos</h1>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={isLoading || !contactsData?.contacts?.length}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Exportar
+          </Button>
+          <Button
+            onClick={() => setShowSyncDialog(true)}
+            disabled={syncMutation.isPending}
+          >
+            {syncMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <div className="rounded-md border">
-                <DataTable
-                  columns={columns}
-                  data={filteredContacts}
-                  searchKey="name"
-                  pagination={true}
-                />
-              </div>
+              <RefreshCw className="mr-2 h-4 w-4" />
             )}
-          </CardContent>
-        </Card>
+            Sincronizar
+          </Button>
+        </div>
       </div>
-    </DashboardLayout>
+
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>
+              Lista de Contatos
+              {contactsData?.contacts?.length > 0 && (
+                <Badge variant="outline" className="ml-2">
+                  {contactsData.contacts.length}
+                </Badge>
+              )}
+            </CardTitle>
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar contatos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-60">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 text-destructive">
+              Erro ao carregar contatos. Tente novamente.
+            </div>
+          ) : filteredContacts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {searchTerm
+                ? "Nenhum contato encontrado para esta busca."
+                : "Nenhum contato disponível. Clique em Sincronizar para importar seus contatos."}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Número</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="hidden md:table-cell">Última Atividade</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredContacts.map((contact: WhatsAppContact) => (
+                  <TableRow key={contact.id}>
+                    <TableCell className="font-medium flex items-center">
+                      {contact.profilePicture ? (
+                        <img
+                          src={contact.profilePicture}
+                          alt={contact.name || ""}
+                          className="w-8 h-8 rounded-full mr-2"
+                        />
+                      ) : contact.isGroup ? (
+                        <Users className="h-6 w-6 mr-2 text-muted-foreground" />
+                      ) : (
+                        <User className="h-6 w-6 mr-2 text-muted-foreground" />
+                      )}
+                      {contact.name || "Sem nome"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                        {formatPhone(contact.number)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={contact.isGroup ? "secondary" : "default"}>
+                        {contact.isGroup ? "Grupo" : "Contato"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {contact.lastActivity
+                        ? new Date(contact.lastActivity).toLocaleString("pt-BR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })
+                        : "N/A"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Diálogo de confirmação para sincronização */}
+      <AlertDialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sincronizar Contatos</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso buscará todos os seus contatos do WhatsApp. A operação pode levar alguns instantes.
+              Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                syncMutation.mutate();
+              }}
+              disabled={syncMutation.isPending}
+            >
+              {syncMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sincronizando...
+                </>
+              ) : (
+                "Continuar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

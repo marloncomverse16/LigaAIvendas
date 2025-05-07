@@ -26,8 +26,6 @@ import {
   disconnectWhatsApp as disconnectWhatsAppNew
 } from "./api/connections";
 import { EvolutionApiClient } from "./evolution-api";
-
-// Importar os endpoints para contatos
 import { listContacts, syncContacts, exportContacts } from "./api/contacts";
 
 const scryptAsync = promisify(scrypt);
