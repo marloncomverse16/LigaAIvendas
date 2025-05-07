@@ -640,7 +640,7 @@ export default function AdminUsersPage() {
     });
   };
 
-  const handleEditUser = async (user: User) => {
+  const handleEditUser = async (user: UserType) => {
     setCurrentUser(user);
     
     // Buscar as relações de servidor deste usuário
@@ -716,18 +716,18 @@ export default function AdminUsersPage() {
     setIsEditOpen(true);
   };
 
-  const handleDeleteDialog = (user: User) => {
+  const handleDeleteDialog = (user: UserType) => {
     setCurrentUser(user);
     setIsDeleteOpen(true);
   };
   
-  const handleManagePermissions = (user: User) => {
+  const handleManagePermissions = (user: UserType) => {
     setCurrentUser(user);
     setIsPermissionsDialogOpen(true);
   };
   
   // Função para ativar/desativar um usuário
-  const handleToggleUserActive = (user: User) => {
+  const handleToggleUserActive = (user: UserType) => {
     toggleUserActiveMutation.mutate(user.id);
   };
 
@@ -846,7 +846,7 @@ export default function AdminUsersPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    users.map((user: User) => (
+                    users.map((user: UserType) => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name || user.username}</TableCell>
                         <TableCell>{user.email}</TableCell>
@@ -936,12 +936,12 @@ export default function AdminUsersPage() {
                               >
                                 {user.active !== false ? (
                                   <>
-                                    <User className="mr-2 h-4 w-4 text-red-500" />
+                                    <UserIcon className="mr-2 h-4 w-4 text-red-500" />
                                     Desativar Usuário
                                   </>
                                 ) : (
                                   <>
-                                    <User className="mr-2 h-4 w-4 text-green-500" />
+                                    <UserIcon className="mr-2 h-4 w-4 text-green-500" />
                                     Ativar Usuário
                                   </>
                                 )}
