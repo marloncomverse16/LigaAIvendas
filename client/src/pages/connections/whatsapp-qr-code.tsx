@@ -231,9 +231,18 @@ const WhatsAppQrCodePage = () => {
               <div className="flex flex-col items-center justify-center min-h-[300px]">
                 <div className="bg-white p-4 rounded-md mb-4">
                   <img 
-                    src={`data:image/png;base64,${qrCode}`} 
+                    src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} 
                     alt="WhatsApp QR Code" 
                     className="w-64 h-64"
+                    onError={(e) => {
+                      console.error("Erro ao carregar QR code:", qrCode.substring(0, 100) + "...");
+                      e.currentTarget.style.display = 'none';
+                      toast({
+                        title: "Erro ao exibir QR Code",
+                        description: "Tente gerar novamente",
+                        variant: "destructive"
+                      });
+                    }}
                   />
                 </div>
                 <p className="text-center mb-4 text-muted-foreground">
