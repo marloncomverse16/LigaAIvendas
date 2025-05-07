@@ -332,11 +332,28 @@ export async function checkConnectionStatus(req: Request, res: Response) {
             const data = await response.json();
             console.log("Resposta do endpoint direto:", data);
             
-            // Verificar se já está conectado
-            const isConnected = data.connected === true || 
-                              data.status === 'connected' || 
-                              data.state === 'open' || 
-                              data.state === 'connected';
+            // Verificar state específico para Evolution API v2.x:
+            // data: { instance: { instanceName: 'admin', state: 'open' } }
+            let isConnected = false;
+            
+            if (data.instance && data.instance.state === 'open') {
+              console.log("🟢 CONECTADO: Estado 'open' na instância detectado");
+              isConnected = true;
+            } else if (data.connected === true) {
+              console.log("🟢 CONECTADO: Flag 'connected' detectada");
+              isConnected = true;
+            } else if (data.state === 'open' || data.state === 'connected') {
+              console.log("🟢 CONECTADO: Estado 'open'/'connected' detectado");
+              isConnected = true;
+            } else if (data.status === 'connected') {
+              console.log("🟢 CONECTADO: Status 'connected' detectado");
+              isConnected = true;
+            } else {
+              console.log("🔴 DESCONECTADO: Nenhum estado de conexão positivo detectado");
+              console.log("Dados recebidos:", JSON.stringify(data));
+            }
+            
+            console.log(`Estado final da conexão: ${isConnected ? '✅ CONECTADO' : '❌ DESCONECTADO'}`);
             
             connectionStatus[userId] = {
               connected: isConnected,

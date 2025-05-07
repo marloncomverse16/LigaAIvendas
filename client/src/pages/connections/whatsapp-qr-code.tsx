@@ -39,15 +39,21 @@ const WhatsAppQrCodePage = () => {
     if (statusData) {
       // Verificar se está conectado e não é conexão cloud
       const isConnected = statusData.connected === true && !statusData.cloudConnection;
-      console.log("Status de conexão:", isConnected ? "Conectado" : "Desconectado");
+      console.log("Status de conexão recebido do servidor:", statusData);
+      console.log("Estado de conexão:", isConnected ? "CONECTADO ✅" : "DESCONECTADO ❌");
       
+      // Atualizar estado local
       setConnected(isConnected);
       
       // Se tiver um QR code e não estiver conectado, exibir
-      if (statusData.qrcode || statusData.qrCode) {
+      if (!isConnected && (statusData.qrcode || statusData.qrCode)) {
         const code = statusData.qrcode || statusData.qrCode;
         console.log("QR Code encontrado, atualizando visualização");
         setQrCode(code);
+      } else if (isConnected) {
+        // Se estiver conectado, limpar o QR code
+        console.log("Conexão estabelecida, removendo QR code");
+        setQrCode(null);
       }
     }
   }, [statusData]);
