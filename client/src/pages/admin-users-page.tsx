@@ -323,6 +323,97 @@ export default function AdminUsersPage() {
       });
     },
   });
+  
+  // Associar um agente IA a um usuário
+  const assignAiAgentMutation = useMutation({
+    mutationFn: async ({ userId, agentId, isDefault }: { userId: number; agentId: number; isDefault?: boolean }) => {
+      const res = await apiRequest("POST", "/api/user-ai-agents", {
+        userId,
+        agentId,
+        isDefault: isDefault || false
+      });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Agente IA associado com sucesso",
+        description: "O agente IA foi associado ao usuário.",
+      });
+      
+      // Se o usuário atual estiver em edição, atualizar a lista de agentes
+      if (currentUser) {
+        getUserAiAgents(currentUser.id);
+        
+        // Se tiver um servidor selecionado, atualizar a lista de agentes disponíveis
+        if (formValues.serverId) {
+          getAvailableServerAiAgents(formValues.serverId, currentUser.id);
+        }
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao associar agente IA",
+        description: error.message || "Ocorreu um erro ao associar o agente IA ao usuário.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Remover a associação de um agente IA com um usuário
+  const removeAiAgentMutation = useMutation({
+    mutationFn: async (userAgentId: number) => {
+      await apiRequest("DELETE", `/api/user-ai-agents/${userAgentId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Agente IA removido com sucesso",
+        description: "O agente IA foi removido do usuário.",
+      });
+      
+      // Se o usuário atual estiver em edição, atualizar a lista de agentes
+      if (currentUser) {
+        getUserAiAgents(currentUser.id);
+        
+        // Se tiver um servidor selecionado, atualizar a lista de agentes disponíveis
+        if (formValues.serverId) {
+          getAvailableServerAiAgents(formValues.serverId, currentUser.id);
+        }
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao remover agente IA",
+        description: error.message || "Ocorreu um erro ao remover o agente IA do usuário.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Definir um agente IA como padrão para o usuário
+  const setDefaultAiAgentMutation = useMutation({
+    mutationFn: async (userAgentId: number) => {
+      const res = await apiRequest("POST", `/api/user-ai-agents/${userAgentId}/set-default`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Agente IA padrão definido",
+        description: "O agente IA foi definido como padrão para o usuário.",
+      });
+      
+      // Se o usuário atual estiver em edição, atualizar a lista de agentes
+      if (currentUser) {
+        getUserAiAgents(currentUser.id);
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao definir agente IA padrão",
+        description: error.message || "Ocorreu um erro ao definir o agente IA como padrão.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleCreateUser = async () => {
     // Validar senhas
@@ -539,6 +630,14 @@ export default function AdminUsersPage() {
         ? userServerRelations[0].serverId 
         : user.serverId || undefined;
       
+      // Carregar os agentes IA do usuário
+      getUserAiAgents(user.id);
+      
+      // Se o usuário tem um servidor associado, carregar agentes IA disponíveis
+      if (serverId) {
+        getAvailableServerAiAgents(serverId, user.id);
+      }
+      
       setFormValues({
         username: user.username,
         email: user.email,
@@ -643,6 +742,35 @@ export default function AdminUsersPage() {
       userId: currentUser.id,
       webhookUrl: instanceWebhookUrl
     });
+  };
+  
+  // Função para lidar com a adição de um agente IA ao usuário
+  const handleAddAiAgent = (agentId: number) => {
+    if (!currentUser) return;
+    
+    // Confirmar se o usuário quer adicionar o agente
+    const shouldAddAsDefault = userAiAgents.length === 0;
+    
+    // Associar o agente ao usuário
+    assignAiAgentMutation.mutate({ 
+      userId: currentUser.id, 
+      agentId, 
+      isDefault: shouldAddAsDefault 
+    });
+  };
+  
+  // Função para lidar com a remoção de um agente IA do usuário
+  const handleRemoveAiAgent = (userAgentId: number) => {
+    if (!currentUser) return;
+    
+    removeAiAgentMutation.mutate(userAgentId);
+  };
+  
+  // Função para definir um agente IA como padrão para o usuário
+  const handleSetDefaultAiAgent = (userAgentId: number) => {
+    if (!currentUser) return;
+    
+    setDefaultAiAgentMutation.mutate(userAgentId);
   };
 
   return (
