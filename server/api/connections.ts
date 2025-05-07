@@ -21,6 +21,7 @@ interface ConnectionStatus {
   phoneNumber?: string; // Para conexão via Cloud API
   businessId?: string; // Para conexão via Cloud API
   cloudConnection?: boolean; // Flag para conexão Cloud
+  n8nConnected?: boolean; // Flag para conexão via n8n
 }
 
 // Status da conexão por usuário
@@ -158,10 +159,10 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
         console.error("Resposta sem QR code:", qrResult);
         throw new Error("QR Code não encontrado na resposta: " + (qrResult.error || "Erro desconhecido"));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao obter QR code:", error);
       return res.status(500).json({ 
-        message: "Erro ao obter QR code: " + error.message
+        message: "Erro ao obter QR code: " + (error.message || "Erro desconhecido")
       });
     }
   } catch (error) {
