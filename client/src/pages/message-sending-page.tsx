@@ -478,6 +478,9 @@ const CreateSendingForm = () => {
       // Desabilitar o aprendizado de IA para conexão Meta API
       form.setValue("aiLearningEnabled", false);
       
+      // Forçar o uso de templates e desabilitar mensagem personalizada
+      form.setValue("useTemplate", true);
+      
       // Carregar templates da Meta API
       setIsLoadingMetaTemplates(true);
       fetch("/api/user/meta-templates")
@@ -486,6 +489,7 @@ const CreateSendingForm = () => {
           return res.json();
         })
         .then(data => {
+          console.log("Templates da Meta API carregados:", data);
           setMetaTemplates(data);
         })
         .catch(error => {
@@ -595,21 +599,24 @@ const CreateSendingForm = () => {
               )}
             />
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="use-template"
-                  checked={useTemplate}
-                  onCheckedChange={setUseTemplate}
-                />
-                <label
-                  htmlFor="use-template"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Usar template
-                </label>
+            {/* Exibir o switch apenas se não estiver usando Meta API */}
+            {form.watch("whatsappConnectionType") !== "meta" && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="use-template"
+                    checked={useTemplate}
+                    onCheckedChange={setUseTemplate}
+                  />
+                  <label
+                    htmlFor="use-template"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Usar template
+                  </label>
+                </div>
               </div>
-            </div>
+            )}
             
             {useTemplate ? (
               <FormField

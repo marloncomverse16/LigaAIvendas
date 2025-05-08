@@ -2445,11 +2445,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/connections/status", checkConnectionStatusNew);
   app.post("/api/connections/disconnect", disconnectWhatsAppNew);
   
-  // Rotas para conexão direta com a Meta API
+  // Rotas para conexão direta com a Meta API (nível de servidor)
   app.post("/api/meta-connections/connect", connectWhatsAppMeta);
   app.get("/api/meta-connections/status", checkMetaConnectionStatus);
   app.post("/api/meta-connections/disconnect", disconnectWhatsAppMeta);
   app.post("/api/meta-connections/send", sendMetaWhatsAppMessage);
+  
+  // Rotas para conexão Meta API específicas do usuário
+  app.post("/api/user/meta-connections/connect", connectUserWhatsAppMeta);
+  app.get("/api/user/meta-connections/status", checkUserMetaConnectionStatus);
+  app.post("/api/user/meta-connections/disconnect", disconnectUserWhatsAppMeta);
+  app.post("/api/user/meta-connections/send", sendUserMetaWhatsAppMessage);
+  app.get("/api/user/meta-settings", getMetaSettings);
+  app.post("/api/user/meta-settings", updateMetaSettings);
+  
+  // Rota para obter templates da Meta API
+  app.get("/api/user/meta-templates", getMetaTemplates);
   
   // Endpoints para gerenciamento de contatos
   app.get("/api/contacts", listContacts);

@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { MetaWhatsAppAPI } from '../meta-whatsapp-api';
+import { getMetaApiTemplates, sendMetaApiMessage } from '../meta-whatsapp-api';
 import userSettingsService from '../user-settings-service';
 import * as metaApiService from '../meta-api-service';
 
@@ -150,23 +150,45 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
     const apiVersion = settings.whatsappMetaApiVersion || 'v18.0';
     console.log(`Conectando com Meta API. Token: ${settings.whatsappMetaToken.substring(0, 5)}... BusinessID: ${settings.whatsappMetaBusinessId}, PhoneID: ${phoneNumberId}, APIVersion: ${apiVersion}`);
     
-    // Criar cliente da Meta API
-    const metaClient = new MetaWhatsAppAPI(
-      settings.whatsappMetaToken,
-      settings.whatsappMetaBusinessId,
-      phoneNumberId, 
-      apiVersion
-    );
+    // Verificar conexão com a Meta API diretamente
+    // Fazendo chamada GET para a API da Meta para verificar o status da conta
+    const apiUrl = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}`;
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${settings.whatsappMetaToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-    // Tentar conectar
-    const connectionResult = await metaClient.connect(phoneNumberId);
+    const data = await response.json();
     
-    if (!connectionResult.connected) {
+    if (!response.ok) {
       return res.status(400).json({
-        message: connectionResult.error || 'Não foi possível conectar à Meta API',
-        error: connectionResult.error
+        message: 'Não foi possível conectar à Meta API',
+        error: data.error?.message || 'Erro desconhecido'
       });
     }
+    
+    // Conexão bem sucedida - obter dados do negócio
+    const businessResponse = await fetch(`https://graph.facebook.com/${apiVersion}/${settings.whatsappMetaBusinessId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${settings.whatsappMetaToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const businessData = await businessResponse.json();
+    
+    const connectionResult = {
+      connected: true,
+      phoneNumberId: phoneNumberId,
+      businessId: settings.whatsappMetaBusinessId,
+      businessName: businessData.name || 'Empresa',
+      businessPhoneNumber: data.display_phone_number || data.verified_name || '',
+      apiVersion: apiVersion
+    };
 
     // Armazenar status de conexão
     metaConnections[userId] = {
@@ -191,7 +213,6 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
       message: 'Conectado com sucesso à Meta API',
       ...connectionResult
     });
-
   } catch (error: any) {
     console.error('Erro ao conectar com Meta API:', error);
     res.status(500).json({ 
@@ -254,23 +275,65 @@ export async function checkMetaConnectionStatus(req: Request, res: Response) {
     
     const phoneNumberId = metaPhoneResult.phoneNumberId;
 
-    // Criar cliente da Meta API e verificar conexão
-    const metaClient = new MetaWhatsAppAPI(
-      settings.whatsappMetaToken,
-      settings.whatsappMetaBusinessId,
-      phoneNumberId,
-      settings.whatsappMetaApiVersion || 'v18.0'
-    );
-
-    const connectionStatus = await metaClient.checkConnection();
+    // Verificar conexão diretamente com a API da Meta
+    const apiVersion = settings.whatsappMetaApiVersion || 'v18.0';
+    
+    // Verificar número de telefone
+    const phoneResponse = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${settings.whatsappMetaToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!phoneResponse.ok) {
+      const errorData = await phoneResponse.json();
+      return res.json({
+        connected: false,
+        message: 'Erro ao verificar número de telefone',
+        error: errorData.error?.message
+      });
+    }
+    
+    const phoneData = await phoneResponse.json();
+    
+    // Verificar conta de negócio
+    const businessResponse = await fetch(`https://graph.facebook.com/${apiVersion}/${settings.whatsappMetaBusinessId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${settings.whatsappMetaToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!businessResponse.ok) {
+      const errorData = await businessResponse.json();
+      return res.json({
+        connected: false,
+        message: 'Erro ao verificar conta de negócio',
+        error: errorData.error?.message
+      });
+    }
+    
+    const businessData = await businessResponse.json();
+    
+    const connectionStatus = {
+      connected: true,
+      phoneNumberId: phoneNumberId,
+      businessId: settings.whatsappMetaBusinessId,
+      businessName: businessData.name || 'Empresa',
+      businessPhoneNumber: phoneData.display_phone_number || phoneData.verified_name || '',
+      apiVersion: apiVersion
+    };
     
     // Atualizar cache
     metaConnections[userId] = {
       ...connectionStatus,
       lastChecked: new Date()
     };
-
-    res.json(connectionStatus);
+    
+    return res.json(connectionStatus);
   } catch (error: any) {
     console.error('Erro ao verificar status da Meta API:', error);
     res.status(500).json({
@@ -347,28 +410,33 @@ export async function getMetaTemplates(req: Request, res: Response) {
       });
     }
 
-    // Criar cliente da Meta API
-    const metaClient = new MetaWhatsAppAPI(
+    // Obter ID do número de telefone
+    const metaPhoneResult = await metaApiService.getMetaPhoneNumberId(userId);
+    
+    if (!metaPhoneResult.success || !metaPhoneResult.phoneNumberId) {
+      return res.status(400).json({
+        message: 'ID do número de telefone não configurado'
+      });
+    }
+    
+    const phoneNumberId = metaPhoneResult.phoneNumberId;
+    
+    // Obter templates usando a função específica
+    const templates = await getMetaApiTemplates(
       settings.whatsappMetaToken,
       settings.whatsappMetaBusinessId,
-      '', // phoneNumberId não é necessário para listar templates
       settings.whatsappMetaApiVersion || 'v18.0'
     );
-
-    // Obter templates
-    const templates = await metaClient.getMessageTemplates();
     
-    // Processar os templates para um formato mais simples
-    const processedTemplates = templates.map((template: any) => ({
-      id: template.id,
-      name: template.name,
-      status: template.status,
-      category: template.category,
-      components: template.components,
-      language: template.language
-    }));
-
-    res.json(processedTemplates);
+    if (!templates.success) {
+      return res.status(500).json({
+        message: 'Erro ao obter templates',
+        error: templates.error
+      });
+    }
+    
+    // Retornar templates
+    res.json(templates.templates || []);
   } catch (error: any) {
     console.error('Erro ao obter templates da Meta API:', error);
     res.status(500).json({
@@ -425,47 +493,48 @@ export async function sendMetaWhatsAppMessage(req: Request, res: Response) {
     
     const phoneNumberId = metaPhoneResult.phoneNumberId;
 
-    // Criar cliente da Meta API
-    const metaClient = new MetaWhatsAppAPI(
+    // Usar a função sendMetaApiMessage para enviar a mensagem
+    let templateName = '';
+    let components: any[] = [];
+    let language = 'pt_BR';
+    
+    if (type === 'text') {
+      // Não podemos enviar mensagens de texto diretamente pela API Cloud, apenas templates
+      return res.status(400).json({
+        success: false,
+        message: 'A Meta API Cloud só permite envio de templates aprovados. Utilize um template.'
+      });
+    } else if (type === 'template') {
+      templateName = message.template;
+      components = message.components || [];
+      language = message.language || 'pt_BR';
+    }
+    
+    // Enviar mensagem usando a função específica para a API da Meta
+    const response = await sendMetaApiMessage(
       settings.whatsappMetaToken,
       settings.whatsappMetaBusinessId,
       phoneNumberId,
-      settings.whatsappMetaApiVersion || 'v18.0'
+      templateName,
+      to,
+      settings.whatsappMetaApiVersion || 'v18.0',
+      language,
+      components
     );
-
-    // Formatar a mensagem de acordo com o tipo
-    let whatsappMessage: any = { to };
     
-    if (type === 'text') {
-      whatsappMessage = {
-        to,
-        type: 'text',
-        text: {
-          body: message
-        }
-      };
-    } else if (type === 'template') {
-      whatsappMessage = {
-        to,
-        type: 'template',
-        template: {
-          name: message.template,
-          language: {
-            code: message.language || 'pt_BR'
-          },
-          components: message.components
-        }
-      };
+    if (!response.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Erro ao enviar mensagem',
+        error: response.error
+      });
     }
-
-    // Enviar mensagem
-    const response = await metaClient.sendMessage(whatsappMessage);
     
     res.json({
       success: true,
       message: 'Mensagem enviada com sucesso',
-      messageId: response.messages?.[0]?.id,
-      response
+      messageId: response.messageId,
+      response: response
     });
   } catch (error: any) {
     console.error('Erro ao enviar mensagem pelo WhatsApp:', error);
