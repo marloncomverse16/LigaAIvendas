@@ -39,7 +39,10 @@ import PageTitle from '@/components/ui/page-title';
 const metaConnectionSchema = z.object({
   phoneNumberId: z.string()
     .min(10, { message: 'ID do número de telefone deve ter pelo menos 10 caracteres' })
-    .max(50, { message: 'ID do número de telefone não pode exceder 50 caracteres' })
+    .max(50, { message: 'ID do número de telefone não pode exceder 50 caracteres' }),
+  businessId: z.string()
+    .min(5, { message: 'ID do negócio deve ter pelo menos 5 caracteres' })
+    .max(50, { message: 'ID do negócio não pode exceder 50 caracteres' })
 });
 
 // Tipo para valores do formulário
@@ -123,7 +126,8 @@ const WhatsAppMetaPage = () => {
   const form = useForm<MetaConnectionFormValues>({
     resolver: zodResolver(metaConnectionSchema),
     defaultValues: {
-      phoneNumberId: ''
+      phoneNumberId: '',
+      businessId: ''
     },
   });
 
@@ -131,6 +135,9 @@ const WhatsAppMetaPage = () => {
   useEffect(() => {
     if (connectionStatus?.connected && connectionStatus?.phoneNumberId) {
       form.setValue('phoneNumberId', connectionStatus.phoneNumberId);
+    }
+    if (connectionStatus?.businessId) {
+      form.setValue('businessId', connectionStatus.businessId);
     }
     setIsLoading(false);
   }, [connectionStatus, form]);
@@ -291,6 +298,23 @@ const WhatsAppMetaPage = () => {
                     </FormControl>
                     <FormDescription>
                       ID do número de telefone na plataforma Meta Business (formato numérico)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="businessId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Identificação da conta do WhatsApp Business:</FormLabel>
+                    <FormControl>
+                      <Input placeholder="12345678901234567" {...field} disabled={isConnected} />
+                    </FormControl>
+                    <FormDescription>
+                      ID do negócio na plataforma Meta Business (Business Account ID)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

@@ -10,7 +10,8 @@ import * as metaApiService from '../meta-api-service';
 
 // Schema de validação para conexão da Meta API
 const metaConnectionSchema = z.object({
-  phoneNumberId: z.string().min(10).max(50)
+  phoneNumberId: z.string().min(10).max(50),
+  businessId: z.string().min(5).max(50)
 });
 
 // Armazenamento temporário para status de conexão por usuário
@@ -55,7 +56,7 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
   try {
     const userId = req.user!.id;
     const validatedData = metaConnectionSchema.parse(req.body);
-    const { phoneNumberId } = validatedData;
+    const { phoneNumberId, businessId } = validatedData;
 
     // Obter servidor do usuário
     const server = await getUserServer(userId);
@@ -63,6 +64,28 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
       return res.status(404).json({ 
         message: 'Servidor não encontrado. Verifique se você tem um servidor associado.'
       });
+    }
+
+    // Verificar e atualizar o ID de negócio se fornecido
+    if (businessId && (!server.whatsappMetaBusinessId || server.whatsappMetaBusinessId !== businessId)) {
+      // Atualizar o ID de negócio no servidor
+      const updateServerResult = await userServerService.updateServerWhatsAppMetaBusinessId(
+        server.id, 
+        businessId
+      );
+      
+      if (!updateServerResult.success) {
+        console.error(`Erro ao atualizar ID de negócio do servidor:`, updateServerResult.error);
+        return res.status(400).json({
+          message: 'Não foi possível atualizar o ID de negócio do servidor',
+          error: updateServerResult.error
+        });
+      }
+      
+      console.log(`ID de negócio do servidor atualizado para: ${businessId}`);
+      
+      // Atualizar o objeto server com o novo ID
+      server.whatsappMetaBusinessId = businessId;
     }
 
     // Verificar se o servidor tem as configurações necessárias para Meta API
