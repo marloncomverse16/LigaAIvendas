@@ -50,7 +50,12 @@ const whatsappMetaSchema = z.object({
 
 type WhatsappMetaFormValues = z.infer<typeof whatsappMetaSchema>;
 
-function WhatsappMetaSettings() {
+interface WhatsappMetaSettingsProps {
+  settings?: any;
+  isLoadingSettings?: boolean;
+}
+
+function WhatsappMetaSettings({ settings, isLoadingSettings }: WhatsappMetaSettingsProps) {
   // Fetch Meta API settings data
   const { data: metaSettings, isLoading: isLoadingMetaSettings } = useQuery({
     queryKey: ["/api/user/meta-settings"],
@@ -171,11 +176,13 @@ function WhatsappMetaSettings() {
   );
 }
 
-function GoalsSettings() {
-  // Fetch settings data
-  const { data: settings, isLoading: isLoadingSettings } = useQuery({
-    queryKey: ["/api/settings"],
-  });
+interface GoalsSettingsProps {
+  settings?: any;
+  isLoadingSettings?: boolean;
+}
+
+function GoalsSettings({ settings, isLoadingSettings }: GoalsSettingsProps) {
+  // Usamos os dados passados via props em vez de buscar novamente
   
   // Update settings mutation
   const updateSettingsMutation = useMutation({
@@ -323,6 +330,11 @@ export default function SettingsPage() {
   // Fetch user profile data
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["/api/profile"],
+  });
+  
+  // Fetch settings data (for goals and appearance)
+  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["/api/settings"],
   });
   
   // Update profile mutation
@@ -801,7 +813,7 @@ export default function SettingsPage() {
                     <div className="space-y-6">
                       <div>
                         <h3 className="text-lg font-semibold mb-4">Credenciais da API</h3>
-                        <WhatsappMetaSettings settings={settings} isLoadingSettings={isLoadingSettings} />
+                        <WhatsappMetaSettings />
                       </div>
                       
                       <div className="border-t pt-6">
