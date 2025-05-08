@@ -9,7 +9,7 @@ import { storage } from '../storage';
 import { servers, userServers } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { MetaWhatsAppAPI } from '../meta-whatsapp-api';
-import metaApiService from '../meta-api-service';
+import * as metaApiService from '../meta-api-service';
 
 // Schema de validação para conexão da Meta API
 const metaConnectionSchema = z.object({
@@ -117,15 +117,12 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
       lastChecked: new Date()
     };
 
-    // Atualizar o phoneNumberId no banco de dados (na tabela user_servers)
-    await pool.query(`
-      UPDATE user_servers 
-      SET meta_phone_number_id = $1, 
-          meta_connected = true, 
-          meta_connected_at = NOW(),
-          updated_at = NOW()
-      WHERE user_id = $2
-    `, [phoneNumberId, userId]);
+    // Atualizar o phoneNumberId no banco de dados usando nosso serviço dedicado
+    const updateResult = await metaApiService.updateMetaPhoneNumberId(userId, phoneNumberId);
+    
+    if (!updateResult.success) {
+      console.error('Erro ao atualizar meta_phone_number_id:', updateResult.error);
+    }
 
     res.json({
       success: true,
@@ -180,21 +177,17 @@ export async function checkMetaConnectionStatus(req: Request, res: Response) {
       });
     }
 
-    // Obter ID do número de telefone configurado usando SQL nativo
-    const result = await pool.query(`
-      SELECT meta_phone_number_id FROM user_servers
-      WHERE user_id = $1
-      LIMIT 1
-    `, [userId]);
+    // Obter ID do número de telefone usando nosso serviço dedicado
+    const metaPhoneResult = await metaApiService.getMetaPhoneNumberId(userId);
     
-    const phoneNumberId = result && result.rows && result.rows[0]?.meta_phone_number_id;
-
-    if (!phoneNumberId) {
+    if (!metaPhoneResult.success || !metaPhoneResult.phoneNumberId) {
       return res.json({
         connected: false,
         message: 'ID do número de telefone não configurado'
       });
     }
+    
+    const phoneNumberId = metaPhoneResult.phoneNumberId;
 
     // Criar cliente da Meta API e verificar conexão
     const metaClient = new MetaWhatsAppAPI(
@@ -234,15 +227,12 @@ export async function disconnectWhatsAppMeta(req: Request, res: Response) {
   try {
     const userId = req.user!.id;
     
-    // Remover PhoneNumberID da tabela user_servers
-    await pool.query(`
-      UPDATE user_servers
-      SET meta_phone_number_id = NULL,
-          meta_connected = false,
-          meta_connected_at = NULL,
-          updated_at = NOW()
-      WHERE user_id = $1
-    `, [userId]);
+    // Remover PhoneNumberID da tabela user_servers usando nosso serviço dedicado
+    const resetResult = await metaApiService.resetMetaConnection(userId);
+    
+    if (!resetResult.success) {
+      console.error('Erro ao resetar conexão Meta:', resetResult.error);
+    }
     
     // Limpar cache
     if (metaConnections[userId]) {
@@ -296,20 +286,16 @@ export async function sendMetaWhatsAppMessage(req: Request, res: Response) {
       });
     }
 
-    // Obter ID do número de telefone configurado usando SQL nativo
-    const result = await pool.query(`
-      SELECT meta_phone_number_id FROM user_servers
-      WHERE user_id = $1
-      LIMIT 1
-    `, [userId]);
+    // Obter ID do número de telefone usando nosso serviço dedicado
+    const metaPhoneResult = await metaApiService.getMetaPhoneNumberId(userId);
     
-    const phoneNumberId = result && result.rows && result.rows[0]?.meta_phone_number_id;
-
-    if (!phoneNumberId) {
+    if (!metaPhoneResult.success || !metaPhoneResult.phoneNumberId) {
       return res.status(400).json({
         message: 'ID do número de telefone não configurado'
       });
     }
+    
+    const phoneNumberId = metaPhoneResult.phoneNumberId;
 
     // Criar cliente da Meta API
     const metaClient = new MetaWhatsAppAPI(

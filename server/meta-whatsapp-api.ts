@@ -45,9 +45,9 @@ export class MetaWhatsAppAPI {
   private token: string;
   private businessId: string;
   private apiVersion: string;
-  private phoneNumberId: string | null;
+  private phoneNumberId?: string | null;
 
-  constructor(token: string, businessId: string, phoneNumberId: string | null = null, apiVersion: string = 'v18.0') {
+  constructor(token: string, businessId: string, phoneNumberId?: string | null, apiVersion: string = 'v18.0') {
     this.token = token;
     this.businessId = businessId;
     this.apiVersion = apiVersion;
@@ -148,7 +148,7 @@ export class MetaWhatsAppAPI {
   }
 
   // Método estático para criar instância a partir dos dados do servidor
-  static fromServer(server: Server, phoneNumberId: string | null = null): MetaWhatsAppAPI | null {
+  static fromServer(server: Server, phoneNumberId?: string | null): MetaWhatsAppAPI | null {
     // Verificar se o servidor tem as configurações necessárias
     if (!server.whatsappMetaToken || !server.whatsappMetaBusinessId) {
       console.error('Servidor não possui configurações para Meta API');
