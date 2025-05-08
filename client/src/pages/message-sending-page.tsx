@@ -456,6 +456,10 @@ const CreateSendingForm = () => {
     },
   });
   
+  // Estados para controlar os templates da Meta API
+  const [metaTemplates, setMetaTemplates] = useState([]);
+  const [isLoadingMetaTemplates, setIsLoadingMetaTemplates] = useState(false);
+
   // Monitorar mudanças no interruptor de template/mensagem personalizada
   useEffect(() => {
     if (useTemplate) {
@@ -464,6 +468,39 @@ const CreateSendingForm = () => {
       form.setValue("templateId", null);
     }
   }, [useTemplate, form]);
+  
+  // Monitorar mudanças no tipo de conexão WhatsApp
+  useEffect(() => {
+    const connectionType = form.watch("whatsappConnectionType");
+    
+    // Se estiver usando a conexão Meta API
+    if (connectionType === "meta") {
+      // Desabilitar o aprendizado de IA para conexão Meta API
+      form.setValue("aiLearningEnabled", false);
+      
+      // Carregar templates da Meta API
+      setIsLoadingMetaTemplates(true);
+      fetch("/api/meta/templates")
+        .then(res => {
+          if (!res.ok) throw new Error("Falha ao carregar templates da Meta API");
+          return res.json();
+        })
+        .then(data => {
+          setMetaTemplates(data);
+        })
+        .catch(error => {
+          console.error("Erro ao carregar templates da Meta API:", error);
+          toast({
+            title: "Erro ao carregar templates da Meta API",
+            description: error.message,
+            variant: "destructive",
+          });
+        })
+        .finally(() => {
+          setIsLoadingMetaTemplates(false);
+        });
+    }
+  }, [form.watch("whatsappConnectionType"), form]);
   
   // Função para lidar com o envio do formulário
   const onSubmit = (data) => {
@@ -492,6 +529,34 @@ const CreateSendingForm = () => {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="whatsappConnectionType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Conexão de WhatsApp</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo de conexão" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="qrcode">WhatsApp QR Code</SelectItem>
+                      <SelectItem value="meta">WhatsApp Meta API</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Escolha o método de conexão para envio das mensagens
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
             <FormField
               control={form.control}
               name="searchId"
@@ -563,20 +628,40 @@ const CreateSendingForm = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {isLoadingTemplates ? (
-                          <SelectItem value="loading" disabled>
-                            Carregando...
-                          </SelectItem>
-                        ) : templates && templates.length > 0 ? (
-                          templates.map((template) => (
-                            <SelectItem key={template.id} value={template.id.toString()}>
-                              {template.title}
+                        {form.watch("whatsappConnectionType") === "meta" ? (
+                          // Templates da Meta API
+                          isLoadingMetaTemplates ? (
+                            <SelectItem value="loading" disabled>
+                              Carregando templates da Meta API...
                             </SelectItem>
-                          ))
+                          ) : metaTemplates && metaTemplates.length > 0 ? (
+                            metaTemplates.map((template) => (
+                              <SelectItem key={template.id} value={template.id.toString()}>
+                                {template.name} ({template.status})
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="none" disabled>
+                              Nenhum template Meta API encontrado
+                            </SelectItem>
+                          )
                         ) : (
-                          <SelectItem value="none" disabled>
-                            Nenhum template encontrado
-                          </SelectItem>
+                          // Templates normais (QR Code)
+                          isLoadingTemplates ? (
+                            <SelectItem value="loading" disabled>
+                              Carregando...
+                            </SelectItem>
+                          ) : templates && templates.length > 0 ? (
+                            templates.map((template) => (
+                              <SelectItem key={template.id} value={template.id.toString()}>
+                                {template.title}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="none" disabled>
+                              Nenhum template encontrado
+                            </SelectItem>
+                          )
                         )}
                       </SelectContent>
                     </Select>
@@ -684,45 +769,50 @@ const CreateSendingForm = () => {
               )}
             />
             
-            <FormField
-              control={form.control}
-              name="aiLearningEnabled"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Aprendizado de IA</FormLabel>
-                    <FormDescription>
-                      Permite que a IA aprenda com o feedback dos envios para melhorar futuras mensagens
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            
-            {form.watch("aiLearningEnabled") && (
-              <FormField
-                control={form.control}
-                name="aiNotes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notas para IA</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Instrua a IA sobre como melhorar as mensagens..."
-                        className="min-h-[80px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+            {/* Mostrar campo de aprendizado de IA apenas para conexão QR Code */}
+            {form.watch("whatsappConnectionType") === "qrcode" && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="aiLearningEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Aprendizado de IA</FormLabel>
+                        <FormDescription>
+                          Permite que a IA aprenda com o feedback dos envios para melhorar futuras mensagens
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                {form.watch("aiLearningEnabled") && (
+                  <FormField
+                    control={form.control}
+                    name="aiNotes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notas para IA</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Instrua a IA sobre como melhorar as mensagens..."
+                            className="min-h-[80px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
+              </>
             )}
             
             <Button 
