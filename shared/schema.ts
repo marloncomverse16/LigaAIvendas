@@ -35,9 +35,9 @@ export const users = pgTable("users", {
   whatsappApiUrl: text("whatsapp_api_url"),
   whatsappApiToken: text("whatsapp_api_token"),
   // Meta WhatsApp Cloud API
-  whatsappMetaPhoneNumberId: text("whatsapp_meta_phone_number_id"), // ID do número de telefone no WhatsApp Business
-  whatsappMetaConnected: boolean("whatsapp_meta_connected").default(false), // Indica se está conectado diretamente à API da Meta
-  whatsappMetaConnectedAt: timestamp("whatsapp_meta_connected_at"),
+  metaPhoneNumberId: text("meta_phone_number_id"), // ID do número de telefone no WhatsApp Business
+  metaConnected: boolean("meta_connected").default(false), // Indica se está conectado diretamente à API da Meta
+  metaConnectedAt: timestamp("meta_connected_at"),
   isAdmin: boolean("is_admin").default(false),
   // Controle de acesso a módulos 
   accessDashboard: boolean("access_dashboard").default(true),
@@ -185,46 +185,7 @@ export const leadRecommendations = pgTable("lead_recommendations", {
 });
 
 // Insert Schemas
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  email: true,
-  password: true,
-  name: true,
-  company: true,
-  phone: true,
-  bio: true,
-  whatsappWebhookUrl: true,
-  aiAgentWebhookUrl: true,
-  prospectingWebhookUrl: true,
-  dispatchesWebhookUrl: true,
-  contactsWebhookUrl: true,
-  schedulingWebhookUrl: true,
-  crmWebhookUrl: true,
-  whatsappInstanceWebhook: true,
-  whatsappInstanceId: true,
-  whatsappApiUrl: true,
-  whatsappApiToken: true,
-  whatsappMetaPhoneNumberId: true,
-  whatsappMetaConnected: true,
-  whatsappMetaConnectedAt: true,
-  availableTokens: true,
-  tokenExpirationDays: true,
-  monthlyFee: true,
-  serverAddress: true,
-  serverId: true,
-  isAdmin: true,
-  // Permissões de acesso a módulos
-  accessDashboard: true,
-  accessLeads: true,
-  accessProspecting: true,
-  accessAiAgent: true,
-  accessWhatsapp: true,
-  accessContacts: true,
-  accessScheduling: true,
-  accessReports: true,
-  accessSettings: true,
-  active: true
-});
+export const insertUserSchema = createInsertSchema(users);
 
 // Lead Interactions Insert Schema
 export const insertLeadInteractionSchema = createInsertSchema(leadInteractions)
