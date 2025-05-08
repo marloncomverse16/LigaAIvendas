@@ -727,6 +727,9 @@ export const insertUserServerSchema = createInsertSchema(userServers).pick({
   userId: true,
   serverId: true,
   isDefault: true,
+  metaPhoneNumberId: true,
+  metaConnected: true,
+  metaConnectedAt: true,
 });
 
 export const insertServerAiAgentSchema = createInsertSchema(serverAiAgents).pick({
