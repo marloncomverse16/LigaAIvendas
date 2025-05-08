@@ -1,13 +1,23 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import PageTitle from "@/components/ui/page-title";
-import { Button } from "@/components/ui/button";
+/**
+ * Página para conexão direta com API do WhatsApp Meta (Cloud API)
+ */
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'wouter';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -15,283 +25,313 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Cloud,
-  CloudCog,
-  Smartphone,
-  Link as LinkIcon,
-} from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
+  FormMessage
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Loader2, CheckCircle, XCircle, ExternalLink, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// Schema de validação do formulário
+import PageTitle from '@/components/ui/page-title';
+
+// Schema de validação para o formulário de conexão Meta API
 const metaConnectionSchema = z.object({
-  phoneNumberId: z.string().min(1, "Identificação do número de telefone é obrigatória"),
+  phoneNumberId: z.string()
+    .min(10, { message: 'ID do número de telefone deve ter pelo menos 10 caracteres' })
+    .max(50, { message: 'ID do número de telefone não pode exceder 50 caracteres' })
 });
 
-// Tipo baseado no schema
+// Tipo para valores do formulário
 type MetaConnectionFormValues = z.infer<typeof metaConnectionSchema>;
 
+// Página de conexão com WhatsApp Cloud API (Meta)
 const WhatsAppMetaPage = () => {
-  const [, navigate] = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [connected, setConnected] = useState(false);
-  const [connectedData, setConnectedData] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Formulário
+  // Verifica o status da conexão
+  const {
+    data: connectionStatus,
+    isLoading: isLoadingStatus,
+    error: connectionError,
+    refetch: refetchStatus
+  } = useQuery({
+    queryKey: ['/api/meta-connections/status'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/meta-connections/status');
+      const data = await response.json();
+      return data;
+    },
+    refetchInterval: 5000, // Atualiza a cada 5 segundos quando a página está aberta
+  });
+
+  // Mutation para conectar com a API da Meta
+  const connectMutation = useMutation({
+    mutationFn: async (values: MetaConnectionFormValues) => {
+      const response = await apiRequest('POST', '/api/meta-connections/connect', values);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Conexão estabelecida',
+        description: 'Conexão direta com WhatsApp Meta API configurada com sucesso!',
+        variant: 'success',
+      });
+      refetchStatus();
+      queryClient.invalidateQueries({ queryKey: ['/api/meta-connections/status'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao conectar',
+        description: error.message || 'Não foi possível conectar ao WhatsApp Meta API.',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Mutation para desconectar
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/meta-connections/disconnect');
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Desconectado',
+        description: 'Conexão com WhatsApp Meta API removida com sucesso.',
+        variant: 'success',
+      });
+      refetchStatus();
+      queryClient.invalidateQueries({ queryKey: ['/api/meta-connections/status'] });
+      form.reset({
+        phoneNumberId: ''
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao desconectar',
+        description: error.message || 'Não foi possível desconectar do WhatsApp Meta API.',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Formulário para conexão
   const form = useForm<MetaConnectionFormValues>({
     resolver: zodResolver(metaConnectionSchema),
     defaultValues: {
-      phoneNumberId: "",
+      phoneNumberId: ''
     },
   });
 
-  // Verifica o status da conexão
-  const { data: statusData, isLoading: statusLoading, refetch: refetchStatus } = useQuery({
-    queryKey: ["connections", "meta", "status"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/connections/meta/status");
-      return await response.json();
-    },
-    refetchInterval: 10000, // Refaz a verificação a cada 10 segundos
-  });
-
-  // Quando o status é carregado, atualiza o estado de conexão
+  // Efeito para preencher formulário com dados existentes
   useEffect(() => {
-    if (statusData) {
-      setConnected(statusData.connected);
-      if (statusData.connected) {
-        setConnectedData({
-          phoneNumberId: statusData.phoneNumberId,
-          businessName: statusData.businessName,
-          businessPhoneNumber: statusData.businessPhoneNumber
-        });
-      }
+    if (connectionStatus?.connected && connectionStatus?.phoneNumberId) {
+      form.setValue('phoneNumberId', connectionStatus.phoneNumberId);
     }
-  }, [statusData]);
+    setIsLoading(false);
+  }, [connectionStatus, form]);
 
-  // Conexão com WhatsApp Meta API
-  const connectMutation = useMutation({
-    mutationFn: async (values: MetaConnectionFormValues) => {
-      setLoading(true);
-      try {
-        const response = await apiRequest("POST", "/api/connections/meta", values);
-        return await response.json();
-      } catch (error) {
-        throw error;
-      } finally {
-        setLoading(false);
-      }
-    },
-    onSuccess: (data) => {
-      setConnected(true);
-      setConnectedData({
-        phoneNumberId: data.phoneNumberId,
-        businessName: data.businessName,
-        businessPhoneNumber: data.businessPhoneNumber
-      });
-      toast({
-        title: "WhatsApp conectado",
-        description: "A conexão com o WhatsApp Meta API foi estabelecida com sucesso.",
-        variant: "default",
-      });
-      refetchStatus();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao conectar",
-        description: error.message || "Não foi possível conectar ao WhatsApp Meta API.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Desconexão do WhatsApp
-  const disconnectMutation = useMutation({
-    mutationFn: async () => {
-      setLoading(true);
-      try {
-        const response = await apiRequest("POST", "/api/connections/meta/disconnect");
-        return await response.json();
-      } catch (error) {
-        throw error;
-      } finally {
-        setLoading(false);
-      }
-    },
-    onSuccess: () => {
-      setConnected(false);
-      setConnectedData(null);
-      toast({
-        title: "WhatsApp desconectado",
-        description: "A conta do WhatsApp Meta API foi desconectada com sucesso.",
-        variant: "default"
-      });
-      refetchStatus();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao desconectar",
-        description: error.message || "Não foi possível desconectar o WhatsApp.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Função de envio do formulário
+  // Função para submeter o formulário
   const onSubmit = (values: MetaConnectionFormValues) => {
     connectMutation.mutate(values);
   };
 
-  // Função para desconectar
+  // Handler para desconectar
   const handleDisconnect = () => {
-    disconnectMutation.mutate();
+    if (confirm('Tem certeza que deseja desconectar do WhatsApp Meta API?')) {
+      disconnectMutation.mutate();
+    }
   };
 
+  const isConnected = connectionStatus?.connected === true;
+  const isConnecting = connectMutation.isPending;
+  const isDisconnecting = disconnectMutation.isPending;
+
   return (
-    <div className="container mx-auto py-6">
-      <PageTitle 
-        icon={<CloudCog />}
-        subtitle="Conecte diretamente com a API oficial do WhatsApp Business da Meta"
-        actions={
-          <Button variant="outline" onClick={() => navigate("/conexoes")}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para Conexões
-          </Button>
-        }
-      >
-        WhatsApp Cloud API (Meta)
-      </PageTitle>
+    <div className="container mx-auto px-4 py-6">
+      <PageTitle
+        title="WhatsApp Meta API"
+        description="Conecte diretamente com a API oficial da Meta para WhatsApp Business"
+        backTo="/conexoes"
+      />
 
-      <div className="mt-6 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Configuração da Conexão</CardTitle>
-              {connected && (
-                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700">
-                  Conectado
-                </Badge>
-              )}
-            </div>
-            <CardDescription>
-              Conecte-se diretamente com a API oficial do WhatsApp Business da Meta
-            </CardDescription>
-          </CardHeader>
+      {isLoadingStatus ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+          <span>Verificando status da conexão...</span>
+        </div>
+      ) : connectionError ? (
+        <Alert variant="destructive" className="mb-6">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Erro ao verificar conexão</AlertTitle>
+          <AlertDescription>
+            Não foi possível verificar o status da conexão. Por favor, tente novamente.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-          <CardContent>
-            {!connected ? (
-              <>
-                <Alert className="mb-6">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Requisitos para conexão</AlertTitle>
-                  <AlertDescription>
-                    <p className="mt-2">
-                      Para usar a API oficial da Meta, você precisa ter:
-                    </p>
-                    <ul className="list-disc pl-5 mt-2 space-y-1">
-                      <li>Conta Business verificada no WhatsApp</li>
-                      <li>Aprovação da Meta para uso da API</li>
-                      <li>Token de acesso permanente configurado pelo administrador</li>
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="phoneNumberId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Identificação do número de telefone:</FormLabel>
-                          <FormControl>
-                            <Input placeholder="01234567890123" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Identificador único do seu número no WhatsApp Business (exemplo: 01234567890123)
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button type="submit" disabled={loading}>
-                      {loading ? "Conectando..." : "Conectar WhatsApp Business"}
-                    </Button>
-                  </form>
-                </Form>
-              </>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium">Status da Conexão</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-muted rounded p-3">
-                      <p className="text-xs text-muted-foreground">Identificação do número</p>
-                      <p className="font-medium">{connectedData?.phoneNumberId || "-"}</p>
-                    </div>
-                    <div className="bg-muted rounded p-3">
-                      <p className="text-xs text-muted-foreground">Nome do negócio</p>
-                      <p className="font-medium">{connectedData?.businessName || "-"}</p>
-                    </div>
-                    <div className="bg-muted rounded p-3">
-                      <p className="text-xs text-muted-foreground">Número do WhatsApp</p>
-                      <p className="font-medium">{connectedData?.businessPhoneNumber || "-"}</p>
-                    </div>
-                    <div className="bg-muted rounded p-3">
-                      <p className="text-xs text-muted-foreground">Última verificação</p>
-                      <p className="font-medium">
-                        {statusData?.lastUpdated
-                          ? new Date(statusData.lastUpdated).toLocaleString()
-                          : "-"}
-                      </p>
-                    </div>
-                  </div>
+      {isConnected && (
+        <Card className="mb-6 border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+              <div className="flex items-center gap-3 mb-4 md:mb-0">
+                <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-500 flex-shrink-0" />
+                <div>
+                  <h3 className="text-lg font-semibold text-green-800 dark:text-green-400">
+                    WhatsApp Meta API Conectado
+                  </h3>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    Conexão direta com a API oficial da Meta para WhatsApp Business está ativa.
+                  </p>
                 </div>
+              </div>
+              <Button 
+                variant="outline" 
+                className="border-green-300 text-green-700 hover:bg-green-100 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900"
+                onClick={handleDisconnect}
+                disabled={isDisconnecting}
+              >
+                {isDisconnecting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Desconectando...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Desconectar
+                  </>
+                )}
+              </Button>
+            </div>
 
-                <Separator />
-
-                <div className="pt-4">
-                  <Button variant="destructive" onClick={handleDisconnect} disabled={loading}>
-                    {loading ? "Desconectando..." : "Desconectar WhatsApp Business"}
-                  </Button>
+            {connectionStatus?.businessName && (
+              <div className="mt-4 px-4 py-3 bg-white dark:bg-green-900/30 rounded-md">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Nome do negócio</p>
+                    <p className="font-medium">{connectionStatus.businessName}</p>
+                  </div>
+                  {connectionStatus.businessPhoneNumber && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Número/Identificação</p>
+                      <p className="font-medium">{connectionStatus.businessPhoneNumber}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">ID do número de telefone</p>
+                    <p className="font-medium">{connectionStatus.phoneNumberId}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Versão da API</p>
+                    <p className="font-medium">{connectionStatus.apiVersion || 'v18.0'}</p>
+                  </div>
                 </div>
               </div>
             )}
           </CardContent>
-
-          <CardFooter className="flex flex-col items-start">
-            <div className="text-sm text-muted-foreground">
-              <p className="flex items-center gap-2 mt-2">
-                <LinkIcon className="h-4 w-4" />
-                <a 
-                  href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Documentação oficial da API do WhatsApp Business
-                </a>
-              </p>
-            </div>
-          </CardFooter>
         </Card>
-      </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuração da API da Meta</CardTitle>
+          <CardDescription>
+            Configure a conexão direta com a API oficial da Meta para o WhatsApp Business
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-6">
+            <Alert variant="warning" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Configuração prévia necessária</AlertTitle>
+              <AlertDescription>
+                Antes de conectar, seu administrador deve configurar o token de acesso da Meta e o ID do negócio no servidor.
+              </AlertDescription>
+            </Alert>
+
+            <h3 className="text-lg font-medium mb-2">Pré-requisitos:</h3>
+            <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-2 mb-4">
+              <li>Conta no Meta Business (Meta for Developers)</li>
+              <li>Aplicativo WhatsApp configurado no Meta for Developers</li>
+              <li>Número de telefone verificado e aprovado pela Meta</li>
+              <li>Token de acesso permanente configurado no servidor</li>
+            </ul>
+
+            <h3 className="text-lg font-medium mb-2">Como obter o ID do número:</h3>
+            <ol className="list-decimal list-inside space-y-2 text-muted-foreground ml-2">
+              <li>Acesse o <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium inline-flex items-center">Meta for Developers <ExternalLink className="h-3 w-3 ml-1" /></a></li>
+              <li>Vá para seu aplicativo WhatsApp Business</li>
+              <li>Na seção de configuração do WhatsApp, encontre seus números de telefone</li>
+              <li>Copie o ID do número de telefone (formato numérico, ex: 01234567890123)</li>
+            </ol>
+          </div>
+
+          <Separator className="my-6" />
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="phoneNumberId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Identificação do número de telefone:</FormLabel>
+                    <FormControl>
+                      <Input placeholder="01234567890123" {...field} disabled={isConnected} />
+                    </FormControl>
+                    <FormDescription>
+                      ID do número de telefone na plataforma Meta Business (formato numérico)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </form>
+          </Form>
+        </CardContent>
+        <CardFooter>
+          {!isConnected ? (
+            <Button 
+              onClick={form.handleSubmit(onSubmit)} 
+              className="w-full md:w-auto" 
+              disabled={isConnecting}
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                'Conectar ao WhatsApp Meta API'
+              )}
+            </Button>
+          ) : (
+            <Button 
+              variant="outline" 
+              className="w-full md:w-auto" 
+              onClick={handleDisconnect}
+              disabled={isDisconnecting}
+            >
+              {isDisconnecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Desconectando...
+                </>
+              ) : (
+                <>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Desconectar
+                </>
+              )}
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   );
 };
