@@ -35,8 +35,9 @@ export const users = pgTable("users", {
   whatsappApiUrl: text("whatsapp_api_url"),
   whatsappApiToken: text("whatsapp_api_token"),
   // Meta WhatsApp Cloud API
-  whatsappPhoneNumberId: text("whatsapp_phone_number_id"), // ID do número de telefone no WhatsApp Business
-  whatsappBusinessId: text("whatsapp_business_id"), // ID do negócio no WhatsApp Business
+  whatsappMetaPhoneNumberId: text("whatsapp_meta_phone_number_id"), // ID do número de telefone no WhatsApp Business
+  whatsappMetaConnected: boolean("whatsapp_meta_connected").default(false), // Indica se está conectado diretamente à API da Meta
+  whatsappMetaConnectedAt: timestamp("whatsapp_meta_connected_at"),
   isAdmin: boolean("is_admin").default(false),
   // Controle de acesso a módulos 
   accessDashboard: boolean("access_dashboard").default(true),
@@ -203,8 +204,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
   whatsappInstanceId: true,
   whatsappApiUrl: true,
   whatsappApiToken: true,
-  whatsappPhoneNumberId: true,
-  whatsappBusinessId: true,
+  whatsappMetaPhoneNumberId: true,
+  whatsappMetaConnected: true,
+  whatsappMetaConnectedAt: true,
   availableTokens: true,
   tokenExpirationDays: true,
   monthlyFee: true,
@@ -600,8 +602,9 @@ export const servers = pgTable("servers", {
   n8nApiUrl: text("n8n_api_url"), // URL da API do n8n
   
   // Campos para WhatsApp Cloud API direta (Meta)
-  metaWhatsappAccessToken: text("meta_whatsapp_access_token"), // Token de acesso para API da Meta
-  metaWhatsappApiVersion: text("meta_whatsapp_api_version").default("v18.0"), // Versão da API da Meta
+  whatsappMetaToken: text("whatsapp_meta_token"), // Token de acesso para API da Meta
+  whatsappMetaBusinessId: text("whatsapp_meta_business_id"), // ID do negócio na Meta
+  whatsappMetaApiVersion: text("whatsapp_meta_api_version").default("v18.0"), // Versão da API da Meta
   
   // URLs de Webhook específicos para cada funcionalidade
   whatsappWebhookUrl: text("whatsapp_webhook_url"),
@@ -698,8 +701,9 @@ export const insertServerSchema = createInsertSchema(servers).pick({
   apiUrl: true,
   apiToken: true,
   n8nApiUrl: true,
-  metaWhatsappAccessToken: true,
-  metaWhatsappApiVersion: true,
+  whatsappMetaToken: true,
+  whatsappMetaBusinessId: true,
+  whatsappMetaApiVersion: true,
   whatsappWebhookUrl: true,
   aiAgentName: true,
   aiAgentWebhookUrl: true, 
