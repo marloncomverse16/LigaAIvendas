@@ -130,53 +130,7 @@ const ConnectionsPage = () => {
           </CardFooter>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Cloud className="h-5 w-5 text-primary" />
-                <span>WhatsApp Cloud API</span>
-              </CardTitle>
-              {isConnected && isCloudConnection && !isMetaConnected && (
-                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700">
-                  Conectado
-                </Badge>
-              )}
-            </div>
-            <CardDescription>
-              Conecte usando o servidor Evolution API para WhatsApp Business
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span><strong>Sem limites</strong> de mensagens diárias</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Envio em massa permitido</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Conexão estável sem necessidade de smartphone</span>
-              </p>
-              <Separator className="my-2" />
-              <p className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <span>Requer servidor Evolution API configurado</span>
-              </p>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button asChild className="w-full" variant="outline">
-              <Link to="/conexoes/whatsapp-cloud">
-                {isConnected && isCloudConnection && !isMetaConnected ? "Gerenciar Conexão" : "Conectar via Evolution API"}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
+{/* Opção de WhatsApp Cloud API removida - agora utilizamos a Meta API diretamente */}
         
         <Card>
           <CardHeader>

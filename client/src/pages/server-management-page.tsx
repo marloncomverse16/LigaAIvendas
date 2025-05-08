@@ -1263,75 +1263,7 @@ export default function ServerManagementPage() {
                     )}
                   />
 
-                  <Separator className="my-4" />
-                  
-                  <div className="mb-2">
-                    <h3 className="text-lg font-semibold">WhatsApp Cloud API (Meta)</h3>
-                    <p className="text-sm text-muted-foreground">Configurações para conexão direta com a API da Meta</p>
-                  </div>
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="whatsappMetaToken"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Token da API da Meta</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Token permanente da API do WhatsApp Cloud" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormDescription>
-                          Token de acesso permanente da API Meta para WhatsApp
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="whatsappMetaBusinessId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ID da Conta de Negócios</FormLabel>
-                        <FormControl>
-                          <Input placeholder="ID da conta do WhatsApp Business (ex: 650117527835138)" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormDescription>
-                          Business Account ID da sua conta WhatsApp Business na Meta
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="whatsappMetaApiVersion"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Versão da API da Meta</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value || "v18.0"}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione a versão da API" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="v18.0">v18.0 (Recomendado)</SelectItem>
-                            <SelectItem value="v17.0">v17.0</SelectItem>
-                            <SelectItem value="v16.0">v16.0</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Versão da API da Meta para WhatsApp Cloud API
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Seção de WhatsApp Cloud API removida - agora nas configurações do usuário */}
                 </TabsContent>
                 
                 <TabsContent value="webhooks" className="space-y-4 pt-4">

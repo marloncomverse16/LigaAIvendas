@@ -18,7 +18,7 @@ import UserPermissionsPage from "@/pages/user-permissions-page";
 import ServerManagementPage from "@/pages/server-management-page";
 import ConnectionsPage from "@/pages/connections";
 import WhatsAppQrCodePage from "@/pages/connections/whatsapp-qr-code";
-import WhatsAppCloudPage from "@/pages/connections/whatsapp-cloud";
+{/* WhatsAppCloudPage removido - usando apenas a integração Meta API direta */}
 import WhatsAppMetaPage from "@/pages/connections/whatsapp-meta";
 import ContactsPage from "@/pages/contacts-page";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -35,7 +35,7 @@ function Router() {
       <ProtectedRoute path="/prospecting" component={ProspectingPage} />
       <ProtectedRoute path="/conexoes" component={ConnectionsPage} />
       <ProtectedRoute path="/conexoes/whatsapp-qr-code" component={WhatsAppQrCodePage} />
-      <ProtectedRoute path="/conexoes/whatsapp-cloud" component={WhatsAppCloudPage} />
+      {/* Rota para WhatsApp Cloud API removida */}
       <ProtectedRoute path="/conexoes/whatsapp-meta" component={WhatsAppMetaPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
       <ProtectedRoute path="/contatos" component={ContactsPage} />
