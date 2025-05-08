@@ -440,6 +440,13 @@ export default function SettingsPage() {
                       >
                         Metas
                       </Button>
+                      <Button 
+                        variant={activeTab === "whatsappMeta" ? "default" : "ghost"} 
+                        className="w-full justify-start"
+                        onClick={() => setActiveTab("whatsappMeta")}
+                      >
+                        WhatsApp Meta API
+                      </Button>
                     </div>
                   </nav>
                 </CardContent>
