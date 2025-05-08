@@ -42,9 +42,9 @@ import {
   disconnectWhatsAppMeta as disconnectUserWhatsAppMeta,
   sendMetaWhatsAppMessage as sendUserMetaWhatsAppMessage,
   updateMetaSettings,
-  getMetaSettings,
-  getMetaTemplates
+  getMetaSettings
 } from "./api/user-meta-connections";
+import { getUserMetaTemplates } from "./api/meta-templates";
 import { EvolutionApiClient } from "./evolution-api";
 import { listContacts, syncContacts, exportContacts } from "./api/contacts";
 
@@ -2468,9 +2468,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/user/meta-templates", async (req, res) => {
     console.log("Rota /api/user/meta-templates chamada");
     try {
-      await getMetaTemplates(req, res);
+      await getUserMetaTemplates(req, res);
     } catch (error) {
-      console.error("Erro ao processar requisição getMetaTemplates:", error);
+      console.error("Erro ao processar requisição getUserMetaTemplates:", error);
       res.status(500).json({ 
         message: "Erro interno ao obter templates", 
         error: error instanceof Error ? error.message : String(error) 
