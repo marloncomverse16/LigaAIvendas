@@ -733,7 +733,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/user/meta-status", checkUserMetaConnectionStatus);
   app.post("/api/user/meta-disconnect", disconnectUserWhatsAppMeta);
   app.post("/api/user/meta-send-message", sendUserMetaWhatsAppMessage);
-  app.get("/api/user/meta-templates", getMetaTemplates);
   
   // Carregar informações do usuário atual
   app.get("/api/user", async (req, res) => {
