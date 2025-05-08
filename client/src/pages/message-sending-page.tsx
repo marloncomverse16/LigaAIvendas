@@ -483,13 +483,31 @@ const CreateSendingForm = () => {
       
       // Carregar templates da Meta API
       setIsLoadingMetaTemplates(true);
+      console.log("Tentando carregar templates da Meta API via /api/user/meta-templates");
+      
       fetch("/api/user/meta-templates")
         .then(res => {
-          if (!res.ok) throw new Error("Falha ao carregar templates da Meta API");
+          console.log("Resposta da API de templates:", {
+            status: res.status,
+            ok: res.ok,
+            statusText: res.statusText
+          });
+          
+          if (!res.ok) {
+            return res.text().then(text => {
+              console.error("Corpo da resposta de erro:", text);
+              try {
+                return Promise.reject(new Error(JSON.parse(text).message || "Falha ao carregar templates da Meta API"));
+              } catch (e) {
+                return Promise.reject(new Error("Falha ao carregar templates da Meta API: " + text));
+              }
+            });
+          }
+          
           return res.json();
         })
         .then(data => {
-          console.log("Templates da Meta API carregados:", data);
+          console.log("Templates da Meta API carregados com sucesso:", data);
           setMetaTemplates(data);
         })
         .catch(error => {
@@ -501,6 +519,7 @@ const CreateSendingForm = () => {
           });
         })
         .finally(() => {
+          console.log("Finalizando carregamento de templates da Meta API");
           setIsLoadingMetaTemplates(false);
         });
     }

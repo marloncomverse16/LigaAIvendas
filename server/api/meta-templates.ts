@@ -13,12 +13,14 @@ import { settings } from "@shared/schema";
  */
 export async function getUserMetaTemplates(req: Request, res: Response) {
   if (!req.isAuthenticated()) {
+    console.log("GET /api/user/meta-templates: Usuário não autenticado");
     return res.status(401).json({ message: "Não autenticado" });
   }
 
   try {
     // Obtém as configurações do usuário (que contém as credenciais da Meta API)
     const userId = req.user.id;
+    console.log(`GET /api/user/meta-templates: Processando para usuário ${userId}`);
     
     // Buscar configurações do usuário
     const [userSettings] = await db
@@ -26,23 +28,36 @@ export async function getUserMetaTemplates(req: Request, res: Response) {
       .from(settings)
       .where(eq(settings.userId, userId));
     
+    console.log(`GET /api/user/meta-templates: Configurações encontradas: ${userSettings ? 'Sim' : 'Não'}`);
+    
     if (!userSettings) {
+      console.log("GET /api/user/meta-templates: Configurações não encontradas");
       return res.status(400).json({ message: "Configurações do usuário não encontradas" });
     }
     
     // Verificar se as credenciais da Meta API estão configuradas
-    if (!userSettings.whatsappMetaToken || !userSettings.whatsappMetaBusinessId) {
+    const hasToken = !!userSettings.whatsappMetaToken;
+    const hasBusinessId = !!userSettings.whatsappMetaBusinessId;
+    console.log(`GET /api/user/meta-templates: Token configurado: ${hasToken}, Business ID configurado: ${hasBusinessId}`);
+    
+    if (!hasToken || !hasBusinessId) {
+      console.log("GET /api/user/meta-templates: Credenciais da Meta API não configuradas");
       return res.status(400).json({ message: "API da Meta não configurada. Configure nas Configurações." });
     }
     
     // Obter templates da API da Meta
+    console.log(`GET /api/user/meta-templates: Chamando getMetaApiTemplates com token=${hasToken ? '***' : 'null'}, businessId=${userSettings.whatsappMetaBusinessId}, apiVersion=${userSettings.whatsappMetaApiVersion || "v18.0"}`);
+    
     const result = await getMetaApiTemplates(
-      userSettings.whatsappMetaToken,
-      userSettings.whatsappMetaBusinessId,
+      userSettings.whatsappMetaToken!,
+      userSettings.whatsappMetaBusinessId!,
       userSettings.whatsappMetaApiVersion || "v18.0"
     );
     
+    console.log(`GET /api/user/meta-templates: Resultado da API: success=${result.success}, templates=${result.templates ? result.templates.length : 0}`);
+    
     if (!result.success) {
+      console.log(`GET /api/user/meta-templates: Erro na API: ${result.error}`);
       return res.status(400).json({ message: result.error });
     }
     
@@ -50,6 +65,8 @@ export async function getUserMetaTemplates(req: Request, res: Response) {
     const approvedTemplates = result.templates.filter((template: any) => 
       template && template.status === "APPROVED"
     );
+    
+    console.log(`GET /api/user/meta-templates: Templates aprovados: ${approvedTemplates.length}`);
     
     return res.status(200).json(approvedTemplates);
   } catch (error) {
