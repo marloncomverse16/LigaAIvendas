@@ -34,6 +34,16 @@ import {
   disconnectWhatsAppMeta,
   sendMetaWhatsAppMessage
 } from "./api/meta-connections";
+
+// Novas importações para conexões Meta API específicas do usuário
+import {
+  connectWhatsAppMeta as connectUserWhatsAppMeta,
+  checkMetaConnectionStatus as checkUserMetaConnectionStatus,
+  disconnectWhatsAppMeta as disconnectUserWhatsAppMeta,
+  sendMetaWhatsAppMessage as sendUserMetaWhatsAppMessage,
+  updateMetaSettings,
+  getMetaSettings
+} from "./api/user-meta-connections";
 import { EvolutionApiClient } from "./evolution-api";
 import { listContacts, syncContacts, exportContacts } from "./api/contacts";
 
