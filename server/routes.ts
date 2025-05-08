@@ -42,7 +42,8 @@ import {
   disconnectWhatsAppMeta as disconnectUserWhatsAppMeta,
   sendMetaWhatsAppMessage as sendUserMetaWhatsAppMessage,
   updateMetaSettings,
-  getMetaSettings
+  getMetaSettings,
+  getMetaTemplates
 } from "./api/user-meta-connections";
 import { EvolutionApiClient } from "./evolution-api";
 import { listContacts, syncContacts, exportContacts } from "./api/contacts";
@@ -732,6 +733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/user/meta-status", checkUserMetaConnectionStatus);
   app.post("/api/user/meta-disconnect", disconnectUserWhatsAppMeta);
   app.post("/api/user/meta-send-message", sendUserMetaWhatsAppMessage);
+  app.get("/api/user/meta-templates", getMetaTemplates);
   
   // Carregar informações do usuário atual
   app.get("/api/user", async (req, res) => {
@@ -1781,14 +1783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Configurações da Meta API a nível de usuário
-  app.get("/api/user/meta-settings", getMetaSettings);
-  app.put("/api/user/meta-settings", updateMetaSettings);
-  
-  // Conexão com a Meta API a nível de usuário
-  app.post("/api/user/meta-connect", connectUserWhatsAppMeta);
-  app.get("/api/user/meta-status", checkUserMetaConnectionStatus);
-  app.post("/api/user/meta-disconnect", disconnectUserWhatsAppMeta);
-  app.post("/api/user/meta-send", sendUserMetaWhatsAppMessage);
+  // Rota removida pois já existe acima
   
   app.get("/api/whatsapp/contacts/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });

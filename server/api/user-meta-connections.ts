@@ -319,6 +319,66 @@ export async function disconnectWhatsAppMeta(req: Request, res: Response) {
 }
 
 /**
+ * Controller para obter os templates de mensagem aprovados da Meta API
+ */
+export async function getMetaTemplates(req: Request, res: Response) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Não autenticado' });
+  }
+
+  try {
+    const userId = req.user!.id;
+    
+    // Obter configurações do usuário
+    const settingsResult = await userSettingsService.getUserSettings(userId);
+    
+    if (!settingsResult.success || !settingsResult.data) {
+      return res.status(404).json({ 
+        message: 'Configurações não encontradas'
+      });
+    }
+
+    const settings = settingsResult.data;
+
+    // Verificar configurações da Meta API
+    if (!settings.whatsappMetaToken || !settings.whatsappMetaBusinessId) {
+      return res.status(400).json({ 
+        message: 'API da Meta não configurada nas configurações'
+      });
+    }
+
+    // Criar cliente da Meta API
+    const metaClient = new MetaWhatsAppAPI(
+      settings.whatsappMetaToken,
+      settings.whatsappMetaBusinessId,
+      '', // phoneNumberId não é necessário para listar templates
+      settings.whatsappMetaApiVersion || 'v18.0'
+    );
+
+    // Obter templates
+    const templates = await metaClient.getMessageTemplates();
+    
+    // Processar os templates para um formato mais simples
+    const processedTemplates = templates.map((template: any) => ({
+      id: template.id,
+      name: template.name,
+      status: template.status,
+      category: template.category,
+      components: template.components,
+      language: template.language
+    }));
+
+    res.json(processedTemplates);
+  } catch (error: any) {
+    console.error('Erro ao obter templates da Meta API:', error);
+    res.status(500).json({
+      message: 'Erro ao obter templates',
+      error: error.message
+    });
+  }
+}
+
+/**
  * Controller para enviar mensagem pelo WhatsApp usando a Meta API
  */
 export async function sendMetaWhatsAppMessage(req: Request, res: Response) {
