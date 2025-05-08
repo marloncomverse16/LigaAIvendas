@@ -16,14 +16,20 @@ export async function getMetaApiTemplates(
       throw new Error("Meta API não configurada corretamente. Token e Business ID são obrigatórios.");
     }
 
+    console.log(`Buscando templates via API: ${apiVersion}/${whatsappMetaBusinessId}/message_templates`);
     const endpoint = `https://graph.facebook.com/${apiVersion}/${whatsappMetaBusinessId}/message_templates`;
     
+    console.log(`Endpoint de templates: ${endpoint}`);
     const response = await axios.get(endpoint, {
       headers: {
         Authorization: `Bearer ${whatsappMetaToken}`,
         "Content-Type": "application/json",
       },
     });
+    
+    console.log(`Resposta da API de templates: status ${response.status}`);
+    console.log('Headers:', JSON.stringify(response.headers));
+    console.log('Dados:', JSON.stringify(response.data));
 
     if (response.data && response.data.data) {
       return {
