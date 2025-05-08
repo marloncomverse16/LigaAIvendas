@@ -34,6 +34,9 @@ export const users = pgTable("users", {
   // Evolution API
   whatsappApiUrl: text("whatsapp_api_url"),
   whatsappApiToken: text("whatsapp_api_token"),
+  // Meta WhatsApp Cloud API
+  whatsappPhoneNumberId: text("whatsapp_phone_number_id"), // ID do número de telefone no WhatsApp Business
+  whatsappBusinessId: text("whatsapp_business_id"), // ID do negócio no WhatsApp Business
   isAdmin: boolean("is_admin").default(false),
   // Controle de acesso a módulos 
   accessDashboard: boolean("access_dashboard").default(true),
@@ -200,6 +203,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   whatsappInstanceId: true,
   whatsappApiUrl: true,
   whatsappApiToken: true,
+  whatsappPhoneNumberId: true,
+  whatsappBusinessId: true,
   availableTokens: true,
   tokenExpirationDays: true,
   monthlyFee: true,
@@ -594,6 +599,10 @@ export const servers = pgTable("servers", {
   apiToken: text("api_token"),
   n8nApiUrl: text("n8n_api_url"), // URL da API do n8n
   
+  // Campos para WhatsApp Cloud API direta (Meta)
+  metaWhatsappAccessToken: text("meta_whatsapp_access_token"), // Token de acesso para API da Meta
+  metaWhatsappApiVersion: text("meta_whatsapp_api_version").default("v18.0"), // Versão da API da Meta
+  
   // URLs de Webhook específicos para cada funcionalidade
   whatsappWebhookUrl: text("whatsapp_webhook_url"),
   // Mantido para compatibilidade - migrando para a nova tabela server_ai_agents
@@ -689,6 +698,8 @@ export const insertServerSchema = createInsertSchema(servers).pick({
   apiUrl: true,
   apiToken: true,
   n8nApiUrl: true,
+  metaWhatsappAccessToken: true,
+  metaWhatsappApiVersion: true,
   whatsappWebhookUrl: true,
   aiAgentName: true,
   aiAgentWebhookUrl: true, 

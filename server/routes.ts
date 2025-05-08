@@ -28,6 +28,12 @@ import {
   checkConnectionStatus as checkConnectionStatusNew,
   disconnectWhatsApp as disconnectWhatsAppNew
 } from "./api/connections";
+import {
+  connectWhatsAppMeta,
+  checkMetaConnectionStatus,
+  disconnectWhatsAppMeta,
+  sendMetaWhatsAppMessage
+} from "./api/meta-connections";
 import { EvolutionApiClient } from "./evolution-api";
 import { listContacts, syncContacts, exportContacts } from "./api/contacts";
 
