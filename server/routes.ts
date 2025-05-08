@@ -2465,7 +2465,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/user/meta-settings", updateMetaSettings);
   
   // Rota para obter templates da Meta API
-  app.get("/api/user/meta-templates", getMetaTemplates);
+  app.get("/api/user/meta-templates", async (req, res) => {
+    console.log("Rota /api/user/meta-templates chamada");
+    try {
+      await getMetaTemplates(req, res);
+    } catch (error) {
+      console.error("Erro ao processar requisição getMetaTemplates:", error);
+      res.status(500).json({ 
+        message: "Erro interno ao obter templates", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
   
   // Endpoints para gerenciamento de contatos
   app.get("/api/contacts", listContacts);
