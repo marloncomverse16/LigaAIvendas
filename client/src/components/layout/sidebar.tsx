@@ -135,7 +135,7 @@ export function Sidebar() {
             ) : (
               <div className="flex items-center justify-center w-10 h-10 bg-sidebar-primary text-white font-bold rounded-md">L</div>
             )}
-            {!collapsed && <span className="ml-2 text-white font-bold text-xl">LiguIA</span>}
+            {/* Nome da aplicação removido conforme solicitado */}
           </div>
           
           {/* Toggle button */}
