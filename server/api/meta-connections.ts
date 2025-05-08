@@ -4,11 +4,12 @@
 
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { db, pool } from '../db';
+import { db } from '../db';
 import { storage } from '../storage';
 import { servers, userServers } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { MetaWhatsAppAPI } from '../meta-whatsapp-api';
+import metaApiService from '../meta-api-service';
 
 // Schema de validação para conexão da Meta API
 const metaConnectionSchema = z.object({
