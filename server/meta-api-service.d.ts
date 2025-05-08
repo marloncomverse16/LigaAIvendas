@@ -14,6 +14,16 @@ export interface ServerData {
   [key: string]: any;
 }
 
+export interface UserServerData {
+  id: number;
+  userId: number;
+  serverId: number;
+  metaPhoneNumberId?: string | null;
+  metaConnected: boolean;
+  metaConnectedAt?: Date | null;
+  [key: string]: any;
+}
+
 export interface MetaApiSuccess {
   success: true;
   phoneNumberId?: string;
@@ -21,6 +31,7 @@ export interface MetaApiSuccess {
   connectedAt?: Date | string;
   updatedServer?: any;
   server?: ServerData;
+  userServer?: UserServerData;
 }
 
 export interface MetaApiError {
@@ -36,11 +47,3 @@ export function resetMetaConnection(userId: number): Promise<MetaApiResult>;
 export function getMetaPhoneNumberId(userId: number): Promise<MetaApiResult>;
 export function getUserServer(userId: number): Promise<MetaApiResult>;
 export function cleanupResources(): Promise<void>;
-
-export default {
-  updateMetaPhoneNumberId,
-  resetMetaConnection,
-  getMetaPhoneNumberId,
-  getUserServer,
-  cleanupResources
-};

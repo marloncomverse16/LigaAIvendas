@@ -4,11 +4,8 @@
 
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { db } from '../db';
-import { storage } from '../storage';
-import { servers, userServers } from '@shared/schema';
-import { eq } from 'drizzle-orm';
 import { MetaWhatsAppAPI } from '../meta-whatsapp-api';
+import * as userServerService from '../user-server-service';
 import * as metaApiService from '../meta-api-service';
 
 // Schema de validação para conexão da Meta API
@@ -33,14 +30,14 @@ const metaConnections: Record<number, {
 async function getUserServer(userId: number) {
   try {
     // Obter o servidor usando nosso serviço dedicado
-    const serverResult = await metaApiService.getUserServer(userId);
+    const result = await userServerService.getUserServerByUserId(userId);
     
-    if (!serverResult.success || !serverResult.server) {
+    if (!result.success || !result.data) {
       console.log(`Usuário ${userId} não tem servidor associado`);
       return null;
     }
     
-    return serverResult.server;
+    return result.data.server;
   } catch (error) {
     console.error('Erro ao buscar servidor do usuário:', error);
     return null;

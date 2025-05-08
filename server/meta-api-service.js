@@ -4,67 +4,91 @@
  */
 
 import pg from 'pg';
-const { Pool } = pg;
 
-const pool = new Pool({
+const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL
 });
 
+/**
+ * Atualiza o phoneNumberId para um usuário
+ * @param {number} userId - ID do usuário
+ * @param {string} phoneNumberId - ID do número de telefone da Meta
+ * @returns {Promise<object>} Resultado da operação
+ */
 export async function updateMetaPhoneNumberId(userId, phoneNumberId) {
   try {
-    console.log(`Atualizando phoneNumberId para usuário ${userId}: ${phoneNumberId}`);
+    console.log(`Atualizando meta_phone_number_id para '${phoneNumberId}' do usuário ${userId}...`);
     
-    const result = await pool.query(`
-      UPDATE user_servers 
-      SET meta_phone_number_id = $1, 
-          meta_connected = true, 
+    const updateResult = await pool.query(`
+      UPDATE user_servers
+      SET meta_phone_number_id = $1,
+          meta_connected = true,
           meta_connected_at = NOW(),
           updated_at = NOW()
       WHERE user_id = $2
-      RETURNING *
+      RETURNING id, user_id, meta_phone_number_id, meta_connected, meta_connected_at
     `, [phoneNumberId, userId]);
     
-    if (result.rows.length === 0) {
-      console.log(`Nenhum registro encontrado para usuário ${userId}`);
-      return { success: false, message: 'Nenhum registro de servidor encontrado para o usuário' };
+    if (updateResult.rows.length === 0) {
+      return { 
+        success: false, 
+        message: `Nenhum registro user_server encontrado para o usuário ${userId}` 
+      };
     }
     
-    console.log(`Atualização realizada com sucesso para usuário ${userId}`);
-    return { success: true, updatedServer: result.rows[0] };
+    return { 
+      success: true, 
+      phoneNumberId: updateResult.rows[0].meta_phone_number_id,
+      connected: updateResult.rows[0].meta_connected,
+      connectedAt: updateResult.rows[0].meta_connected_at 
+    };
   } catch (error) {
     console.error('Erro ao atualizar meta_phone_number_id:', error);
     return { success: false, error: error.message };
   }
 }
 
+/**
+ * Limpa a conexão Meta para um usuário
+ * @param {number} userId - ID do usuário
+ * @returns {Promise<object>} Resultado da operação
+ */
 export async function resetMetaConnection(userId) {
   try {
-    console.log(`Resetando conexão Meta para usuário ${userId}`);
+    console.log(`Resetando conexão Meta para o usuário ${userId}...`);
     
-    const result = await pool.query(`
+    const updateResult = await pool.query(`
       UPDATE user_servers
       SET meta_phone_number_id = NULL,
           meta_connected = false,
           meta_connected_at = NULL,
           updated_at = NOW()
       WHERE user_id = $1
-      RETURNING *
+      RETURNING id, user_id
     `, [userId]);
     
-    if (result.rows.length === 0) {
-      return { success: false, message: 'Nenhum registro encontrado para o usuário' };
+    if (updateResult.rows.length === 0) {
+      return { 
+        success: false, 
+        message: `Nenhum registro user_server encontrado para o usuário ${userId}` 
+      };
     }
     
-    return { success: true, updatedServer: result.rows[0] };
+    return { success: true };
   } catch (error) {
     console.error('Erro ao resetar conexão Meta:', error);
     return { success: false, error: error.message };
   }
 }
 
+/**
+ * Obtém o phoneNumberId para um usuário
+ * @param {number} userId - ID do usuário
+ * @returns {Promise<object>} Resultado da operação
+ */
 export async function getMetaPhoneNumberId(userId) {
   try {
-    console.log(`Obtendo meta_phone_number_id para usuário ${userId}`);
+    console.log(`Obtendo meta_phone_number_id para o usuário ${userId}...`);
     
     const result = await pool.query(`
       SELECT meta_phone_number_id, meta_connected, meta_connected_at
@@ -74,17 +98,17 @@ export async function getMetaPhoneNumberId(userId) {
     `, [userId]);
     
     if (result.rows.length === 0) {
-      return { success: false, message: 'Usuário não tem servidor associado' };
+      return { 
+        success: false, 
+        message: `Nenhum registro user_server encontrado para o usuário ${userId}` 
+      };
     }
-    
-    const data = result.rows[0];
-    console.log(`Dados para usuário ${userId}:`, data);
     
     return { 
       success: true, 
-      phoneNumberId: data.meta_phone_number_id,
-      connected: data.meta_connected,
-      connectedAt: data.meta_connected_at
+      phoneNumberId: result.rows[0].meta_phone_number_id,
+      connected: result.rows[0].meta_connected,
+      connectedAt: result.rows[0].meta_connected_at
     };
   } catch (error) {
     console.error('Erro ao obter meta_phone_number_id:', error);
@@ -92,39 +116,79 @@ export async function getMetaPhoneNumberId(userId) {
   }
 }
 
+/**
+ * Obtém o servidor associado a um usuário
+ * @param {number} userId - ID do usuário
+ * @returns {Promise<object>} Resultado da operação
+ */
 export async function getUserServer(userId) {
   try {
-    console.log(`Obtendo servidor para usuário ${userId}`);
+    console.log(`Consultando informações do servidor para o usuário ${userId}...`);
     
-    // Primeiro, obtemos a relação user_servers
-    const userServerResult = await pool.query(`
-      SELECT us.*, s.* 
+    const result = await pool.query(`
+      SELECT 
+        us.id, us.user_id, us.server_id, us.created_at, us.is_default,
+        us.meta_phone_number_id, us.meta_connected, us.meta_connected_at, 
+        us.updated_at,
+        s.id as server_id, s.name, s.ip_address, s.provider, s.api_url, 
+        s.api_token, s.whatsapp_meta_token, s.whatsapp_meta_business_id, 
+        s.whatsapp_meta_api_version, s.n8n_api_url, s.whatsapp_webhook_url
       FROM user_servers us
       JOIN servers s ON us.server_id = s.id
       WHERE us.user_id = $1
       LIMIT 1
     `, [userId]);
     
-    if (userServerResult.rows.length === 0) {
-      return { success: false, message: 'Usuário não tem servidor associado' };
+    if (result.rows.length === 0) {
+      return { 
+        success: false, 
+        message: `Nenhuma informação de servidor encontrada para o usuário ${userId}` 
+      };
     }
     
-    const serverData = userServerResult.rows[0];
-    return { success: true, server: serverData };
+    const row = result.rows[0];
+    
+    // Convertendo para formato mais legível/utilizável
+    const server = {
+      id: row.server_id,
+      name: row.name,
+      ipAddress: row.ip_address,
+      provider: row.provider,
+      apiUrl: row.api_url,
+      apiToken: row.api_token,
+      whatsappMetaToken: row.whatsapp_meta_token,
+      whatsappMetaBusinessId: row.whatsapp_meta_business_id,
+      whatsappMetaApiVersion: row.whatsapp_meta_api_version || 'v18.0',
+      n8nApiUrl: row.n8n_api_url,
+      whatsappWebhookUrl: row.whatsapp_webhook_url
+    };
+    
+    return { 
+      success: true, 
+      server,
+      userServer: {
+        id: row.id,
+        userId: row.user_id,
+        serverId: row.server_id,
+        metaPhoneNumberId: row.meta_phone_number_id,
+        metaConnected: row.meta_connected,
+        metaConnectedAt: row.meta_connected_at
+      }
+    };
   } catch (error) {
     console.error('Erro ao obter servidor do usuário:', error);
     return { success: false, error: error.message };
   }
 }
 
+/**
+ * Fecha o pool de conexões (chamar ao encerrar o app)
+ */
 export async function cleanupResources() {
-  await pool.end();
+  try {
+    await pool.end();
+    console.log('Pool de conexões meta-api-service fechado.');
+  } catch (error) {
+    console.error('Erro ao fechar pool de conexões meta-api-service:', error);
+  }
 }
-
-export default {
-  updateMetaPhoneNumberId,
-  resetMetaConnection,
-  getMetaPhoneNumberId,
-  getUserServer,
-  cleanupResources
-};

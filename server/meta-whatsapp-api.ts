@@ -1,167 +1,193 @@
 /**
- * Implementação direta com a Meta API para WhatsApp Cloud API
- * 
+ * Cliente para a WhatsApp Cloud API da Meta
  * Documentação oficial: https://developers.facebook.com/docs/whatsapp/cloud-api
  */
 
 import axios from 'axios';
-import { Server } from '@shared/schema';
 
-// Interface para mensagem do WhatsApp
-interface WhatsAppMessage {
-  to: string;           // Número de telefone do destinatário (com código do país)
-  type: string;         // Tipo da mensagem: text, template, media, etc.
-  text?: {              // Conteúdo da mensagem de texto
-    body: string;
-  };
-  template?: {          // Conteúdo do template
-    name: string;
-    language: {
-      code: string;     // Código do idioma (ex: pt_BR)
-    };
-    components?: any[]; // Componentes do template
-  };
-  media?: {             // Conteúdo de mídia
-    id?: string;        // ID da mídia (se já foi enviada)
-    link?: string;      // URL da mídia
-    caption?: string;   // Legenda da mídia
-    filename?: string;  // Nome do arquivo
-  };
-}
-
-// Interface para resposta de conexão
-interface WhatsAppConnectionResponse {
+export interface ConnectionResult {
   connected: boolean;
   phoneNumberId?: string;
   businessName?: string;
   businessPhoneNumber?: string;
   apiVersion?: string;
   error?: string;
+  details?: any;
 }
 
-// Classe para comunicação direta com a API da Meta
 export class MetaWhatsAppAPI {
-  private baseUrl: string;
   private token: string;
   private businessId: string;
+  private phoneNumberId: string;
   private apiVersion: string;
-  private phoneNumberId?: string | null;
-
-  constructor(token: string, businessId: string, phoneNumberId?: string | null, apiVersion: string = 'v18.0') {
+  private baseUrl: string;
+  
+  /**
+   * Cria um novo cliente para a API do WhatsApp da Meta
+   * @param token Token de acesso
+   * @param businessId ID do negócio no WhatsApp Business
+   * @param phoneNumberId ID do número de telefone (opcional para algumas operações)
+   * @param apiVersion Versão da API (default: v18.0)
+   */
+  constructor(
+    token: string,
+    businessId: string,
+    phoneNumberId: string = '',
+    apiVersion: string = 'v18.0'
+  ) {
     this.token = token;
     this.businessId = businessId;
-    this.apiVersion = apiVersion;
     this.phoneNumberId = phoneNumberId;
+    this.apiVersion = apiVersion;
     this.baseUrl = `https://graph.facebook.com/${this.apiVersion}`;
   }
-
-  // Método para obter cabeçalhos padrão com autenticação
+  
+  /**
+   * Verifica a conexão com a API da Meta e valida o phoneNumberId
+   * @param phoneNumberId ID do número de telefone
+   */
+  async connect(phoneNumberId: string = this.phoneNumberId): Promise<ConnectionResult> {
+    try {
+      // Configurar o número de telefone
+      if (phoneNumberId) {
+        this.phoneNumberId = phoneNumberId;
+      }
+      
+      if (!this.phoneNumberId) {
+        return {
+          connected: false,
+          error: 'ID do número de telefone não fornecido'
+        };
+      }
+      
+      // Obter informações sobre o número para validar a conexão
+      const infoResult = await this.getPhoneNumberInfo();
+      
+      if (!infoResult.connected || infoResult.error) {
+        return infoResult;
+      }
+      
+      return {
+        connected: true,
+        phoneNumberId: this.phoneNumberId,
+        businessName: infoResult.businessName,
+        businessPhoneNumber: infoResult.businessPhoneNumber,
+        apiVersion: this.apiVersion
+      };
+    } catch (error: any) {
+      console.error('Erro ao conectar com API da Meta:', error);
+      return {
+        connected: false,
+        error: error.message || 'Erro desconhecido ao conectar',
+        details: error.response?.data
+      };
+    }
+  }
+  
+  /**
+   * Obtém informações sobre o número de telefone
+   */
+  async getPhoneNumberInfo(): Promise<ConnectionResult> {
+    try {
+      if (!this.phoneNumberId) {
+        return {
+          connected: false,
+          error: 'ID do número de telefone não fornecido'
+        };
+      }
+      
+      const url = `${this.baseUrl}/${this.phoneNumberId}`;
+      
+      const response = await axios.get(url, {
+        headers: this.getHeaders(),
+        params: {
+          fields: 'verified_name,display_phone_number,quality_rating,status'
+        }
+      });
+      
+      if (response.data && response.data.verified_name) {
+        return {
+          connected: true,
+          phoneNumberId: this.phoneNumberId,
+          businessName: response.data.verified_name,
+          businessPhoneNumber: response.data.display_phone_number,
+          apiVersion: this.apiVersion,
+          details: response.data
+        };
+      } else {
+        return {
+          connected: false,
+          error: 'Resposta da API não contém informações esperadas',
+          details: response.data
+        };
+      }
+    } catch (error: any) {
+      console.error('Erro ao obter informações do número:', error);
+      return {
+        connected: false,
+        error: error.message || 'Erro desconhecido',
+        details: error.response?.data
+      };
+    }
+  }
+  
+  /**
+   * Verifica o status da conexão
+   */
+  async checkConnection(): Promise<ConnectionResult> {
+    return this.getPhoneNumberInfo();
+  }
+  
+  /**
+   * Envia uma mensagem pelo WhatsApp
+   * @param messageData Dados da mensagem (conforme especificação da API)
+   */
+  async sendMessage(messageData: any): Promise<any> {
+    try {
+      if (!this.phoneNumberId) {
+        throw new Error('ID do número de telefone não configurado');
+      }
+      
+      const url = `${this.baseUrl}/${this.phoneNumberId}/messages`;
+      
+      const response = await axios.post(url, messageData, {
+        headers: this.getHeaders()
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Erro ao enviar mensagem:', error);
+      throw new Error(error.response?.data?.error?.message || error.message || 'Erro ao enviar mensagem');
+    }
+  }
+  
+  /**
+   * Envia uma mensagem de texto simples
+   * @param to Número de telefone de destino (formato internacional sem '+')
+   * @param text Texto da mensagem
+   */
+  async sendTextMessage(to: string, text: string): Promise<any> {
+    const messageData = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      type: 'text',
+      text: {
+        preview_url: false,
+        body: text
+      }
+    };
+    
+    return this.sendMessage(messageData);
+  }
+  
+  /**
+   * Retorna os cabeçalhos HTTP para as requisições
+   */
   private getHeaders() {
     return {
       'Authorization': `Bearer ${this.token}`,
       'Content-Type': 'application/json'
     };
   }
-
-  // Verifica se a conexão está ativa
-  async checkConnection(): Promise<WhatsAppConnectionResponse> {
-    try {
-      if (!this.phoneNumberId) {
-        return { connected: false, error: 'ID do número de telefone não configurado' };
-      }
-
-      // Obter informações do número de telefone
-      const response = await axios.get(
-        `${this.baseUrl}/${this.phoneNumberId}`,
-        { headers: this.getHeaders() }
-      );
-
-      if (response.status === 200 && response.data) {
-        return {
-          connected: true,
-          phoneNumberId: this.phoneNumberId,
-          businessName: response.data.display_phone_number || response.data.name,
-          businessPhoneNumber: response.data.verified_name || response.data.display_phone_number,
-          apiVersion: this.apiVersion
-        };
-      }
-      
-      return { connected: false, error: 'Não foi possível verificar a conexão' };
-    } catch (error: any) {
-      console.error('Erro ao verificar conexão com Meta API:', error.response?.data || error.message);
-      return { 
-        connected: false, 
-        error: error.response?.data?.error?.message || error.message || 'Erro ao verificar conexão' 
-      };
-    }
-  }
-
-  // Método para criar uma conexão (apenas validação de parâmetros)
-  async connect(newPhoneNumberId: string): Promise<WhatsAppConnectionResponse> {
-    try {
-      this.phoneNumberId = newPhoneNumberId;
-      
-      // Verificar se o número existe e está disponível
-      return await this.checkConnection();
-    } catch (error: any) {
-      console.error('Erro ao conectar com Meta API:', error.response?.data || error.message);
-      return { 
-        connected: false, 
-        error: error.response?.data?.error?.message || error.message || 'Erro ao conectar' 
-      };
-    }
-  }
-
-  // Método para enviar mensagem
-  async sendMessage(message: WhatsAppMessage): Promise<any> {
-    try {
-      if (!this.phoneNumberId) {
-        throw new Error('ID do número de telefone não configurado');
-      }
-
-      const response = await axios.post(
-        `${this.baseUrl}/${this.phoneNumberId}/messages`,
-        message,
-        { headers: this.getHeaders() }
-      );
-
-      return response.data;
-    } catch (error: any) {
-      console.error('Erro ao enviar mensagem:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.error?.message || error.message || 'Erro ao enviar mensagem');
-    }
-  }
-
-  // Método para obter o status do webhook
-  async getWebhookStatus(): Promise<any> {
-    try {
-      const response = await axios.get(
-        `${this.baseUrl}/${this.businessId}/message_webhooks`,
-        { headers: this.getHeaders() }
-      );
-
-      return response.data;
-    } catch (error: any) {
-      console.error('Erro ao obter status do webhook:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.error?.message || error.message || 'Erro ao obter status do webhook');
-    }
-  }
-
-  // Método estático para criar instância a partir dos dados do servidor
-  static fromServer(server: Server, phoneNumberId?: string | null): MetaWhatsAppAPI | null {
-    // Verificar se o servidor tem as configurações necessárias
-    if (!server.whatsappMetaToken || !server.whatsappMetaBusinessId) {
-      console.error('Servidor não possui configurações para Meta API');
-      return null;
-    }
-
-    return new MetaWhatsAppAPI(
-      server.whatsappMetaToken,
-      server.whatsappMetaBusinessId,
-      phoneNumberId,
-      server.whatsappMetaApiVersion || 'v18.0'
-    );
-  }
 }
-
-export default MetaWhatsAppAPI;
