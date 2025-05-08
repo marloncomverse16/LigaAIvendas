@@ -652,7 +652,14 @@ export const userServers = pgTable("user_servers", {
   userId: integer("user_id").notNull().references(() => users.id),
   serverId: integer("server_id").notNull().references(() => servers.id),
   isDefault: boolean("is_default").default(false),
+  
+  // Campos para WhatsApp Meta API (Cloud API)
+  metaPhoneNumberId: text("meta_phone_number_id"), // ID do número de telefone no WhatsApp Business
+  metaConnected: boolean("meta_connected").default(false), // Status da conexão
+  metaConnectedAt: timestamp("meta_connected_at"), // Quando a conexão foi estabelecida
+  
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
 });
 
 // Definições de relações
