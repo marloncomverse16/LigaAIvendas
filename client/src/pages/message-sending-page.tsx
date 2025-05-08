@@ -480,7 +480,7 @@ const CreateSendingForm = () => {
       
       // Carregar templates da Meta API
       setIsLoadingMetaTemplates(true);
-      fetch("/api/meta/templates")
+      fetch("/api/user/meta-templates")
         .then(res => {
           if (!res.ok) throw new Error("Falha ao carregar templates da Meta API");
           return res.json();
@@ -500,7 +500,7 @@ const CreateSendingForm = () => {
           setIsLoadingMetaTemplates(false);
         });
     }
-  }, [form.watch("whatsappConnectionType"), form]);
+  }, [form, toast]);
   
   // Função para lidar com o envio do formulário
   const onSubmit = (data) => {

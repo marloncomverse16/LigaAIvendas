@@ -185,6 +185,32 @@ export class MetaWhatsAppAPI {
   }
   
   /**
+   * Obtém os templates de mensagem aprovados
+   * Retorna a lista de templates disponíveis para o número de telefone atual
+   */
+  async getMessageTemplates(): Promise<any> {
+    try {
+      if (!this.businessId) {
+        throw new Error('ID do negócio não configurado');
+      }
+      
+      const url = `${this.baseUrl}/${this.businessId}/message_templates`;
+      
+      const response = await axios.get(url, {
+        headers: this.getHeaders(),
+        params: {
+          limit: 100
+        }
+      });
+      
+      return response.data?.data || [];
+    } catch (error: any) {
+      console.error('Erro ao obter templates de mensagens:', error);
+      throw new Error(error.response?.data?.error?.message || error.message || 'Erro ao obter templates');
+    }
+  }
+  
+  /**
    * Retorna os cabeçalhos HTTP para as requisições
    */
   private getHeaders() {
