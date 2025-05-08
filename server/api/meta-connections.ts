@@ -28,30 +28,19 @@ const metaConnections: Record<number, {
 
 /**
  * Obtém o servidor associado ao usuário
+ * Usando SQL nativo para contornar problemas com o Drizzle ORM
  */
 async function getUserServer(userId: number) {
   try {
-    // Obter a relação usuário-servidor
-    const [userServer] = await db.select()
-      .from(userServers)
-      .where(eq(userServers.userId, userId));
-
-    if (!userServer || !userServer.serverId) {
+    // Obter o servidor usando nosso serviço dedicado
+    const serverResult = await metaApiService.getUserServer(userId);
+    
+    if (!serverResult.success || !serverResult.server) {
       console.log(`Usuário ${userId} não tem servidor associado`);
       return null;
     }
-
-    // Obter os dados do servidor
-    const [server] = await db.select()
-      .from(servers)
-      .where(eq(servers.id, userServer.serverId));
-
-    if (!server) {
-      console.log(`Servidor ${userServer.serverId} não encontrado`);
-      return null;
-    }
-
-    return server;
+    
+    return serverResult.server;
   } catch (error) {
     console.error('Erro ao buscar servidor do usuário:', error);
     return null;
