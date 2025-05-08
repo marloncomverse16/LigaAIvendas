@@ -2255,6 +2255,7 @@ export class DatabaseStorage implements IStorage {
   // Message Template methods
   async getMessageTemplates(userId: number): Promise<MessageTemplate[]> {
     try {
+      // Usar user_id em vez de userId para corresponder ao nome da coluna no banco de dados
       return db
         .select()
         .from(messageTemplates)
