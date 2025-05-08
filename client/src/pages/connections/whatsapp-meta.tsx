@@ -2,7 +2,7 @@
  * Página para conexão direta com API do WhatsApp Meta (Cloud API)
  */
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'wouter';
+import { useLocation } from 'wouter';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -47,7 +47,7 @@ type MetaConnectionFormValues = z.infer<typeof metaConnectionSchema>;
 
 // Página de conexão com WhatsApp Cloud API (Meta)
 const WhatsAppMetaPage = () => {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(true);
@@ -78,7 +78,7 @@ const WhatsAppMetaPage = () => {
       toast({
         title: 'Conexão estabelecida',
         description: 'Conexão direta com WhatsApp Meta API configurada com sucesso!',
-        variant: 'success',
+        variant: 'default',
       });
       refetchStatus();
       queryClient.invalidateQueries({ queryKey: ['/api/meta-connections/status'] });
@@ -102,7 +102,7 @@ const WhatsAppMetaPage = () => {
       toast({
         title: 'Desconectado',
         description: 'Conexão com WhatsApp Meta API removida com sucesso.',
-        variant: 'success',
+        variant: 'default',
       });
       refetchStatus();
       queryClient.invalidateQueries({ queryKey: ['/api/meta-connections/status'] });
@@ -154,10 +154,15 @@ const WhatsAppMetaPage = () => {
   return (
     <div className="container mx-auto px-4 py-6">
       <PageTitle
-        title="WhatsApp Meta API"
-        description="Conecte diretamente com a API oficial da Meta para WhatsApp Business"
-        backTo="/conexoes"
-      />
+        subtitle="Conecte diretamente com a API oficial da Meta para WhatsApp Business"
+        actions={
+          <a href="/conexoes" className="text-sm text-muted-foreground hover:text-primary">
+            ← Voltar para conexões
+          </a>
+        }
+      >
+        WhatsApp Meta API
+      </PageTitle>
 
       {isLoadingStatus ? (
         <div className="flex items-center justify-center py-10">
@@ -246,7 +251,7 @@ const WhatsAppMetaPage = () => {
         </CardHeader>
         <CardContent>
           <div className="mb-6">
-            <Alert variant="warning" className="mb-4">
+            <Alert className="mb-4 bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Configuração prévia necessária</AlertTitle>
               <AlertDescription>
