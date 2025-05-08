@@ -723,6 +723,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rotas para configurações da Meta API específicas do usuário
+  app.get("/api/user/meta-settings", getMetaSettings);
+  app.put("/api/user/meta-settings", updateMetaSettings);
+  
+  // Rotas para conexão com a Meta API específicas do usuário
+  app.post("/api/user/meta-connect", connectUserWhatsAppMeta);
+  app.get("/api/user/meta-status", checkUserMetaConnectionStatus);
+  app.post("/api/user/meta-disconnect", disconnectUserWhatsAppMeta);
+  app.post("/api/user/meta-send-message", sendUserMetaWhatsAppMessage);
+  
   // Carregar informações do usuário atual
   app.get("/api/user", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
