@@ -111,9 +111,11 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
     };
     
     if (!connectionResult.connected) {
+      // Conexão falhou - observe que este código nunca será executado com a implementação atual,
+      // mas é mantido para compatibilidade futura quando a verificação real for implementada
       return res.status(400).json({
-        message: connectionResult.error || 'Não foi possível conectar à Meta API',
-        error: connectionResult.error
+        message: 'Não foi possível conectar à Meta API',
+        error: 'Erro de conexão'
       });
     }
 

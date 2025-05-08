@@ -47,8 +47,8 @@ export async function getUserMetaTemplates(req: Request, res: Response) {
     }
     
     // Filtra apenas templates APPROVED para exibir
-    const approvedTemplates = result.templates.filter(template => 
-      template.status === "APPROVED"
+    const approvedTemplates = result.templates.filter((template: any) => 
+      template && template.status === "APPROVED"
     );
     
     return res.status(200).json(approvedTemplates);
