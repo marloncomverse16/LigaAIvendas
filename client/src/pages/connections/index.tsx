@@ -3,10 +3,12 @@ import { Link } from "wouter";
 import { 
   QrCode, 
   Cloud, 
+  CloudCog,
   ArrowRight, 
   MessageSquareWarning, 
   CheckCircle2, 
-  AlertTriangle
+  AlertTriangle,
+  Smartphone
 } from "lucide-react";
 import PageTitle from "@/components/ui/page-title";
 import { Button } from "@/components/ui/button";
@@ -31,9 +33,25 @@ const ConnectionsPage = () => {
     },
     refetchInterval: 30000 // Refaz a verificação a cada 30 segundos
   });
+  
+  // Verificar status da conexão Meta
+  const { data: metaStatus } = useQuery({
+    queryKey: ["connections", "meta", "status"],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("GET", "/api/connections/meta/status");
+        return await response.json();
+      } catch (error) {
+        console.error("Erro ao verificar status da conexão Meta:", error);
+        return { connected: false };
+      }
+    },
+    refetchInterval: 30000 // Refaz a verificação a cada 30 segundos
+  });
 
   const isConnected = connectionStatus?.connected || false;
   const isCloudConnection = connectionStatus?.cloudConnection || false;
+  const isMetaConnected = metaStatus?.connected || false;
 
   return (
     <div className="container mx-auto py-6">
@@ -44,7 +62,7 @@ const ConnectionsPage = () => {
         Conexões
       </PageTitle>
 
-      {isConnected && (
+      {(isConnected || isMetaConnected) && (
         <div className="mb-6">
           <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
             <CardContent className="pt-6">
@@ -55,9 +73,11 @@ const ConnectionsPage = () => {
                     WhatsApp Conectado
                   </h3>
                   <p className="text-sm text-green-700 dark:text-green-300">
-                    {isCloudConnection 
-                      ? "Você está conectado através da API Cloud do WhatsApp." 
-                      : "Você está conectado através de WhatsApp Web (QR Code)."}
+                    {isMetaConnected
+                      ? "Você está conectado através da API oficial Meta do WhatsApp Business."
+                      : isCloudConnection 
+                        ? "Você está conectado através da API Cloud do WhatsApp via Evolution API." 
+                        : "Você está conectado através de WhatsApp Web (QR Code)."}
                   </p>
                 </div>
               </div>
@@ -66,7 +86,7 @@ const ConnectionsPage = () => {
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -74,7 +94,7 @@ const ConnectionsPage = () => {
                 <QrCode className="h-5 w-5 text-primary" />
                 <span>WhatsApp QR Code</span>
               </CardTitle>
-              {isConnected && !isCloudConnection && (
+              {isConnected && !isCloudConnection && !isMetaConnected && (
                 <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700">
                   Conectado
                 </Badge>
@@ -103,7 +123,7 @@ const ConnectionsPage = () => {
           <CardFooter>
             <Button asChild className="w-full">
               <Link to="/conexoes/whatsapp-qr-code">
-                {isConnected && !isCloudConnection ? "Gerenciar Conexão" : "Conectar com QR Code"}
+                {isConnected && !isCloudConnection && !isMetaConnected ? "Gerenciar Conexão" : "Conectar com QR Code"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -117,14 +137,14 @@ const ConnectionsPage = () => {
                 <Cloud className="h-5 w-5 text-primary" />
                 <span>WhatsApp Cloud API</span>
               </CardTitle>
-              {isConnected && isCloudConnection && (
+              {isConnected && isCloudConnection && !isMetaConnected && (
                 <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700">
                   Conectado
                 </Badge>
               )}
             </div>
             <CardDescription>
-              Conecte uma conta WhatsApp Business verificada através da API oficial do WhatsApp
+              Conecte usando o servidor Evolution API para WhatsApp Business
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -144,14 +164,62 @@ const ConnectionsPage = () => {
               <Separator className="my-2" />
               <p className="flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <span>Requer conta WhatsApp Business verificada com autorização da Meta</span>
+                <span>Requer servidor Evolution API configurado</span>
               </p>
             </div>
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full" variant="outline">
               <Link to="/conexoes/whatsapp-cloud">
-                {isConnected && isCloudConnection ? "Gerenciar Conexão" : "Conectar via Cloud API"}
+                {isConnected && isCloudConnection && !isMetaConnected ? "Gerenciar Conexão" : "Conectar via Evolution API"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <CloudCog className="h-5 w-5 text-primary" />
+                <span>WhatsApp Meta API</span>
+              </CardTitle>
+              {isMetaConnected && (
+                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700">
+                  Conectado
+                </Badge>
+              )}
+            </div>
+            <CardDescription>
+              Conexão direta com a API oficial da Meta Business para WhatsApp
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span><strong>Acesso nativo</strong> à API oficial da Meta</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span>Conexão direta sem intermediários</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span>Recursos completos da plataforma Meta</span>
+              </p>
+              <Separator className="my-2" />
+              <p className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <span>Requer conta Business, token de acesso e aprovação oficial da Meta</span>
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full" variant="outline">
+              <Link to="/conexoes/whatsapp-meta">
+                {isMetaConnected ? "Gerenciar Conexão" : "Conectar com Meta API"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
