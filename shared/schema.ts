@@ -654,9 +654,9 @@ export const userServers = pgTable("user_servers", {
   isDefault: boolean("is_default").default(false),
   
   // Campos para WhatsApp Meta API (Cloud API)
-  whatsapp_meta_phone_number_id: text("whatsapp_meta_phone_number_id"), // ID do número de telefone no WhatsApp Business
-  whatsapp_meta_connected: boolean("whatsapp_meta_connected").default(false), // Status da conexão
-  whatsapp_meta_connected_at: timestamp("whatsapp_meta_connected_at"), // Quando a conexão foi estabelecida
+  metaPhoneNumberId: text("meta_phone_number_id"), // ID do número de telefone no WhatsApp Business
+  metaConnected: boolean("meta_connected").default(false), // Status da conexão
+  metaConnectedAt: timestamp("meta_connected_at"), // Quando a conexão foi estabelecida
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),

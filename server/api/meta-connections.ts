@@ -119,10 +119,10 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
     // Atualizar o phoneNumberId no banco de dados (na tabela user_servers)
     await db.update(userServers)
       .set({ 
-        meta_phone_number_id: phoneNumberId,
-        meta_connected: true,
-        meta_connected_at: new Date(),
-        updated_at: new Date() 
+        metaPhoneNumberId: phoneNumberId,
+        metaConnected: true,
+        metaConnectedAt: new Date(),
+        updatedAt: new Date() 
       })
       .where(eq(userServers.userId, userId));
 
@@ -184,7 +184,7 @@ export async function checkMetaConnectionStatus(req: Request, res: Response) {
       .from(userServers)
       .where(eq(userServers.userId, userId));
 
-    if (!userServer || !userServer.meta_phone_number_id) {
+    if (!userServer || !userServer.metaPhoneNumberId) {
       return res.json({
         connected: false,
         message: 'ID do número de telefone não configurado'
@@ -195,7 +195,7 @@ export async function checkMetaConnectionStatus(req: Request, res: Response) {
     const metaClient = new MetaWhatsAppAPI(
       server.whatsappMetaToken,
       server.whatsappMetaBusinessId,
-      userServer.meta_phone_number_id,
+      userServer.metaPhoneNumberId,
       server.whatsappMetaApiVersion
     );
 
@@ -232,10 +232,10 @@ export async function disconnectWhatsAppMeta(req: Request, res: Response) {
     // Remover PhoneNumberID da tabela user_servers
     await db.update(userServers)
       .set({ 
-        meta_phone_number_id: null,
-        meta_connected: false,
-        meta_connected_at: null,
-        updated_at: new Date() 
+        metaPhoneNumberId: null,
+        metaConnected: false,
+        metaConnectedAt: null,
+        updatedAt: new Date() 
       })
       .where(eq(userServers.userId, userId));
     
@@ -296,7 +296,7 @@ export async function sendMetaWhatsAppMessage(req: Request, res: Response) {
       .from(userServers)
       .where(eq(userServers.userId, userId));
 
-    if (!userServer || !userServer.meta_phone_number_id) {
+    if (!userServer || !userServer.metaPhoneNumberId) {
       return res.status(400).json({
         message: 'ID do número de telefone não configurado'
       });
@@ -306,7 +306,7 @@ export async function sendMetaWhatsAppMessage(req: Request, res: Response) {
     const metaClient = new MetaWhatsAppAPI(
       server.whatsappMetaToken,
       server.whatsappMetaBusinessId,
-      userServer.meta_phone_number_id,
+      userServer.metaPhoneNumberId,
       server.whatsappMetaApiVersion
     );
 
