@@ -1502,11 +1502,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
+      console.log("Buscando templates para o usuário");
       const userId = (req.user as Express.User).id;
+      console.log("ID do usuário:", userId);
+      
       const templates = await storage.getMessageTemplates(userId);
+      console.log("Templates encontrados:", templates.length);
+      
       res.json(templates);
     } catch (error) {
       console.error("Erro ao buscar modelos de mensagens:", error);
+      console.error("Detalhes do erro:", JSON.stringify(error, null, 2));
       res.status(500).json({ message: "Erro ao buscar modelos de mensagens" });
     }
   });

@@ -2255,14 +2255,29 @@ export class DatabaseStorage implements IStorage {
   // Message Template methods
   async getMessageTemplates(userId: number): Promise<MessageTemplate[]> {
     try {
-      // Usar user_id em vez de userId para corresponder ao nome da coluna no banco de dados
-      return db
+      console.log("DatabaseStorage.getMessageTemplates chamado para usuário:", userId);
+      
+      // Vamos imprimir a consulta SQL que seria executada
+      const query = db
         .select()
         .from(messageTemplates)
         .where(eq(messageTemplates.userId, userId))
         .orderBy(messageTemplates.title);
+      
+      console.log("Consulta SQL:", query.toSQL().sql);
+      console.log("Parâmetros:", query.toSQL().params);
+      
+      const results = await query;
+      console.log("Resultados obtidos:", results.length);
+      
+      return results;
     } catch (error) {
       console.error("Erro ao buscar templates de mensagens:", error);
+      console.error("Detalhes do erro:", JSON.stringify(error, Object.getOwnPropertyNames(error).reduce((acc, key) => {
+        acc[key] = (error as any)[key];
+        return acc;
+      }, {} as any)));
+      
       return [];
     }
   }
