@@ -8,6 +8,7 @@ import axios from 'axios';
 export interface ConnectionResult {
   connected: boolean;
   phoneNumberId?: string;
+  businessId?: string;
   businessName?: string;
   businessPhoneNumber?: string;
   apiVersion?: string;
@@ -70,6 +71,7 @@ export class MetaWhatsAppAPI {
       return {
         connected: true,
         phoneNumberId: this.phoneNumberId,
+        businessId: this.businessId,
         businessName: infoResult.businessName,
         businessPhoneNumber: infoResult.businessPhoneNumber,
         apiVersion: this.apiVersion
@@ -109,6 +111,7 @@ export class MetaWhatsAppAPI {
         return {
           connected: true,
           phoneNumberId: this.phoneNumberId,
+          businessId: this.businessId,
           businessName: response.data.verified_name,
           businessPhoneNumber: response.data.display_phone_number,
           apiVersion: this.apiVersion,

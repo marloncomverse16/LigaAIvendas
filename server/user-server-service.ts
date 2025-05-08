@@ -205,9 +205,51 @@ export async function cleanup(): Promise<void> {
   await pool.end();
 }
 
+/**
+ * Atualiza o ID de negócio do WhatsApp (Business Account ID) para um servidor específico
+ */
+export async function updateServerWhatsAppMetaBusinessId(
+  serverId: number,
+  businessId: string
+): Promise<ServiceResult<any>> {
+  try {
+    console.log(`Atualizando whatsapp_meta_business_id para '${businessId}' no servidor ${serverId}`);
+    
+    const updateQuery = `
+      UPDATE servers
+      SET whatsapp_meta_business_id = $1,
+          updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, name, whatsapp_meta_business_id
+    `;
+    
+    const result = await pool.query(updateQuery, [businessId, serverId]);
+    
+    if (result.rows.length === 0) {
+      return { 
+        success: false, 
+        message: `Servidor com ID ${serverId} não encontrado` 
+      };
+    }
+    
+    return { 
+      success: true, 
+      data: {
+        id: result.rows[0].id,
+        name: result.rows[0].name,
+        whatsappMetaBusinessId: result.rows[0].whatsapp_meta_business_id
+      }
+    };
+  } catch (error: any) {
+    console.error('Erro ao atualizar whatsapp_meta_business_id:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export default {
   getUserServerByUserId,
   updateMetaConnectionFields,
   resetMetaConnection,
+  updateServerWhatsAppMetaBusinessId,
   cleanup
 };

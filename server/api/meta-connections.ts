@@ -5,7 +5,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { MetaWhatsAppAPI } from '../meta-whatsapp-api';
-import * as userServerService from '../user-server-service';
+import userServerService from '../user-server-service';
 import * as metaApiService from '../meta-api-service';
 
 // Schema de validação para conexão da Meta API
@@ -18,6 +18,7 @@ const metaConnectionSchema = z.object({
 const metaConnections: Record<number, { 
   connected: boolean, 
   phoneNumberId?: string,
+  businessId?: string,
   businessName?: string,
   businessPhoneNumber?: string,
   apiVersion?: string,
@@ -120,6 +121,7 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
     metaConnections[userId] = {
       connected: true,
       phoneNumberId: connectionResult.phoneNumberId,
+      businessId: connectionResult.businessId,
       businessName: connectionResult.businessName,
       businessPhoneNumber: connectionResult.businessPhoneNumber,
       apiVersion: connectionResult.apiVersion,
