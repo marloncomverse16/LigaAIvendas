@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, Target, DollarSign, Users } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const profileSchema = z.object({
   name: z.string().optional(),
@@ -40,6 +41,135 @@ const goalsSchema = z.object({
 });
 
 type GoalsFormValues = z.infer<typeof goalsSchema>;
+
+const whatsappMetaSchema = z.object({
+  whatsappMetaToken: z.string().min(5, "Token da API deve ter pelo menos 5 caracteres"),
+  whatsappMetaBusinessId: z.string().min(5, "ID do negócio deve ter pelo menos 5 caracteres"),
+  whatsappMetaApiVersion: z.string().default("v18.0"),
+});
+
+type WhatsappMetaFormValues = z.infer<typeof whatsappMetaSchema>;
+
+function WhatsappMetaSettings() {
+  // Fetch Meta API settings data
+  const { data: metaSettings, isLoading: isLoadingMetaSettings } = useQuery({
+    queryKey: ["/api/user/meta-settings"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/user/meta-settings");
+      const data = await res.json();
+      return data.settings;
+    }
+  });
+  
+  // Update Meta API settings mutation
+  const updateMetaSettingsMutation = useMutation({
+    mutationFn: async (data: WhatsappMetaFormValues) => {
+      const res = await apiRequest("PUT", "/api/user/meta-settings", data);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/meta-settings"] });
+    },
+  });
+  
+  const metaForm = useForm<WhatsappMetaFormValues>({
+    resolver: zodResolver(whatsappMetaSchema),
+    defaultValues: {
+      whatsappMetaToken: "",
+      whatsappMetaBusinessId: "",
+      whatsappMetaApiVersion: "v18.0",
+    },
+    values: {
+      whatsappMetaToken: metaSettings?.whatsappMetaToken || "",
+      whatsappMetaBusinessId: metaSettings?.whatsappMetaBusinessId || "",
+      whatsappMetaApiVersion: metaSettings?.whatsappMetaApiVersion || "v18.0",
+    },
+  });
+  
+  const onMetaSubmit = (data: WhatsappMetaFormValues) => {
+    updateMetaSettingsMutation.mutate(data);
+  };
+  
+  return (
+    <div>
+      {isLoadingMetaSettings ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <Form {...metaForm}>
+          <form onSubmit={metaForm.handleSubmit(onMetaSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6">
+              <FormField
+                control={metaForm.control}
+                name="whatsappMetaToken"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Token da API do WhatsApp Cloud API (Meta)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password"
+                        placeholder="Seu token de acesso da Meta"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={metaForm.control}
+                name="whatsappMetaBusinessId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ID de Negócio do WhatsApp (Business Account ID)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="ID do seu negócio na Meta"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={metaForm.control}
+                name="whatsappMetaApiVersion"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Versão da API da Meta</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="v18.0"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <div className="flex justify-end">
+              <Button 
+                type="submit" 
+                disabled={updateMetaSettingsMutation.isPending}
+              >
+                {updateMetaSettingsMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Salvar configurações da Meta API
+              </Button>
+            </div>
+          </form>
+        </Form>
+      )}
+    </div>
+  );
+}
 
 function GoalsSettings() {
   // Fetch settings data
@@ -462,6 +592,24 @@ export default function SettingsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Integrações</CardTitle>
+                    <CardDescription>
+                      Conecte aplicativos externos e serviços à sua conta
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">WhatsApp Cloud API (Meta)</h3>
+                      <WhatsappMetaSettings />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Obsoleto: Aba antiga para integrações com WhatsApp Meta */}
+              {false && activeTab === "old_integrations" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Integrações Antigas</CardTitle>
                     <CardDescription>
                       Conecte aplicativos externos e serviços à sua conta
                     </CardDescription>

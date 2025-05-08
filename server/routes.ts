@@ -1770,6 +1770,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Configurações da Meta API a nível de usuário
+  app.get("/api/user/meta-settings", getMetaSettings);
+  app.put("/api/user/meta-settings", updateMetaSettings);
+  
+  // Conexão com a Meta API a nível de usuário
+  app.post("/api/user/meta-connect", connectUserWhatsAppMeta);
+  app.get("/api/user/meta-status", checkUserMetaConnectionStatus);
+  app.post("/api/user/meta-disconnect", disconnectUserWhatsAppMeta);
+  app.post("/api/user/meta-send", sendUserMetaWhatsAppMessage);
+  
   app.get("/api/whatsapp/contacts/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
