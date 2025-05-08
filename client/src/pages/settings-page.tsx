@@ -784,7 +784,45 @@ export default function SettingsPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <GoalsSettings />
+                    <GoalsSettings settings={settings} isLoadingSettings={isLoadingSettings} />
+                  </CardContent>
+                </Card>
+              )}
+              
+              {activeTab === "whatsappMeta" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>WhatsApp Meta API</CardTitle>
+                    <CardDescription>
+                      Configure suas credenciais para conexão direta com a API da Meta para WhatsApp Business
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Credenciais da API</h3>
+                        <WhatsappMetaSettings settings={settings} isLoadingSettings={isLoadingSettings} />
+                      </div>
+                      
+                      <div className="border-t pt-6">
+                        <h3 className="text-lg font-semibold mb-4">Informações e Ajuda</h3>
+                        <div className="text-sm text-muted-foreground space-y-4">
+                          <p>
+                            Para configurar a integração com a WhatsApp Cloud API da Meta, você precisa:
+                          </p>
+                          <ol className="list-decimal pl-5 space-y-2">
+                            <li>Criar uma conta no <a href="https://developers.facebook.com/" target="_blank" className="text-primary hover:underline">Meta for Developers</a></li>
+                            <li>Registrar um aplicativo e configurar o produto "WhatsApp"</li>
+                            <li>Obter o Token de Acesso Permanente e o ID de Negócio</li>
+                            <li>Configurar um número de telefone verificado para WhatsApp Business</li>
+                          </ol>
+                          <p className="mt-4">
+                            Somente templates aprovados pela Meta podem ser enviados através da API Cloud. 
+                            Você pode gerenciar seus templates no painel da Meta for Developers.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
