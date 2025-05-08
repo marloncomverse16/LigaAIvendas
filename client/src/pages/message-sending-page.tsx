@@ -74,6 +74,7 @@ const createTemplateSchema = z.object({
 
 // Definição do esquema de validação para criação de envios
 const createSendingSchema = z.object({
+  whatsappConnectionType: z.enum(["qrcode", "meta"]).default("qrcode"),
   searchId: z.number().optional().nullable(),
   templateId: z.number().optional().nullable(),
   customMessage: z.string().optional(),
@@ -411,6 +412,7 @@ const CreateSendingForm = () => {
   const form = useForm({
     resolver: zodResolver(createSendingSchema),
     defaultValues: {
+      whatsappConnectionType: "qrcode",
       searchId: null,
       templateId: null,
       customMessage: "",
@@ -434,6 +436,7 @@ const CreateSendingForm = () => {
         variant: "default",
       });
       form.reset({
+        whatsappConnectionType: "qrcode",
         searchId: null,
         templateId: null,
         customMessage: "",
