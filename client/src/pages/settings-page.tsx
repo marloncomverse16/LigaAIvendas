@@ -466,10 +466,108 @@ export default function SettingsPage() {
                       Conecte aplicativos externos e serviços à sua conta
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
-                      Configurações de integração estarão disponíveis em breve.
-                    </p>
+                  <CardContent className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">WhatsApp Cloud API (Meta)</h3>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        Configure suas credenciais para conexão direta com a API da Meta para WhatsApp Business.
+                      </p>
+                      
+                      {isLoadingSettings ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : (
+                        <Form {...goalsForm}>
+                          <form onSubmit={goalsForm.handleSubmit(onGoalsSubmit)} className="space-y-6">
+                            <div className="space-y-4 border p-4 rounded-md">
+                              <FormField
+                                control={goalsForm.control}
+                                name="whatsappMetaToken"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Token da API da Meta</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder="Token permanente da API do WhatsApp Cloud" 
+                                        {...field} 
+                                        value={field.value || ""} 
+                                      />
+                                    </FormControl>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Token de acesso permanente, obtido no painel da Meta for Developers
+                                    </p>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={goalsForm.control}
+                                name="whatsappMetaBusinessId"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>ID da Conta de Negócios</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder="ID da conta do WhatsApp Business (ex: 650117527835138)" 
+                                        {...field} 
+                                        value={field.value || ""} 
+                                      />
+                                    </FormControl>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Business Account ID da sua conta WhatsApp Business na Meta
+                                    </p>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={goalsForm.control}
+                                name="whatsappMetaApiVersion"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Versão da API da Meta</FormLabel>
+                                    <Select
+                                      onValueChange={field.onChange}
+                                      defaultValue={field.value || "v18.0"}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Selecione a versão da API" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="v18.0">v18.0 (Recomendado)</SelectItem>
+                                        <SelectItem value="v17.0">v17.0</SelectItem>
+                                        <SelectItem value="v16.0">v16.0</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Versão da API da Meta para WhatsApp Cloud API
+                                    </p>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            
+                            <div className="flex justify-end">
+                              <Button 
+                                type="submit" 
+                                disabled={updateSettingsMutation.isPending}
+                              >
+                                {updateSettingsMutation.isPending ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : null}
+                                Salvar configurações
+                              </Button>
+                            </div>
+                          </form>
+                        </Form>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               )}

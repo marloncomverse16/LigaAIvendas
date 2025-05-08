@@ -64,6 +64,10 @@ export const settings = pgTable("settings", {
   whatsappSendingGoal: integer("whatsapp_sending_goal").default(0),
   revenueGoal: text("revenue_goal").default("0"),
   leadsGoal: integer("leads_goal").default(0),
+  // WhatsApp Meta Cloud API (Específico por usuário)
+  whatsappMetaToken: text("whatsapp_meta_token"),
+  whatsappMetaBusinessId: text("whatsapp_meta_business_id"),
+  whatsappMetaApiVersion: text("whatsapp_meta_api_version").default("v18.0"),
 });
 
 export const leads = pgTable("leads", {
@@ -236,6 +240,9 @@ export const insertSettingsSchema = createInsertSchema(settings).pick({
   whatsappSendingGoal: true,
   revenueGoal: true,
   leadsGoal: true,
+  whatsappMetaToken: true,
+  whatsappMetaBusinessId: true,
+  whatsappMetaApiVersion: true,
 });
 
 // AI Agent Insert Schemas
