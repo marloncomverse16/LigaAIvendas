@@ -510,9 +510,9 @@ const CreateSendingForm = () => {
             variant: "default",
           });
           
-          // Tentar a rota principal de templates
-          console.log("Tentando buscar templates via rota principal");
-          return fetch("/api/user/meta-templates");
+          // Tentar a rota direta otimizada para templates
+          console.log("Tentando buscar templates via rota direta");
+          return fetch("/api/meta-templates");
         })
         .then(res => {
           console.log("Resposta da API de templates:", {
@@ -523,10 +523,10 @@ const CreateSendingForm = () => {
           });
           
           if (!res.ok) {
-            // Se a resposta não for OK, tentar uma rota alternativa
+            // Se a resposta não for OK, tentar a rota alternativa
             if (res.status === 404) {
-              console.log("Rota não encontrada, tentando rota alternativa");
-              return fetch("/api/meta-templates");
+              console.log("Rota direta não encontrada, tentando rota alternativa");
+              return fetch("/api/user/meta-templates");
             }
             
             return res.text().then(text => {
