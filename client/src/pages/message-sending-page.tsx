@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -510,53 +508,14 @@ const CreateSendingForm = () => {
         })
         .then(data => {
           console.log("Templates da Meta API carregados com sucesso:", data);
-          
-          // Verificar se a resposta é um objeto com mensagem (quando não há templates)
-          if (data && data.message && data.templates) {
-            setMetaTemplates(data.templates);
-            // Mostrar mensagem sobre templates não encontrados
-            if (data.templates.length === 0) {
-              toast({
-                title: "Nenhum template encontrado",
-                description: "Você ainda não possui templates aprovados no WhatsApp Business. Configure-os no painel da Meta.",
-                variant: "default",
-              });
-            }
-          } else {
-            // Formato normal da resposta (array de templates)
-            setMetaTemplates(data);
-          }
+          setMetaTemplates(data);
         })
         .catch(error => {
           console.error("Erro ao carregar templates da Meta API:", error);
-          
-          let title = "Erro ao carregar templates";
-          let description = error.message || "Falha ao carregar templates da Meta API";
-          let action = null;
-          
-          // Se a mensagem contiver informações sobre configuração
-          if (error.message && (
-            error.message.includes("Configure em") || 
-            error.message.includes("não configurada") || 
-            error.message.includes("API token") ||
-            error.message.includes("credenciais inválidas") ||
-            error.message.includes("Meta API") ||
-            error.message.includes("WhatsApp Business")
-          )) {
-            title = "WhatsApp Cloud API não configurada";
-            description = "Configure suas credenciais da Meta API em Configurações > Integrações";
-            action = (
-              <ToastAction altText="Configurar" asChild>
-                <Link href="/configuracoes">Ir para Configurações</Link>
-              </ToastAction>
-            );
-          }
-          
           toast({
-            title: title,
-            description: description,
+            title: "Erro ao carregar templates da Meta API",
+            description: error.message,
             variant: "destructive",
-            action: action
           });
         })
         .finally(() => {
@@ -708,20 +667,9 @@ const CreateSendingForm = () => {
                               </SelectItem>
                             ))
                           ) : (
-                            <>
-                              <SelectItem value="none" disabled>
-                                Nenhum template Meta API encontrado
-                              </SelectItem>
-                              <div className="px-2 py-1.5 text-sm">
-                                <Link href="/configuracoes" className="inline-flex items-center text-primary hover:underline">
-                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                  </svg>
-                                  Ir para Configurações
-                                </Link>
-                              </div>
-                            </>
+                            <SelectItem value="none" disabled>
+                              Nenhum template Meta API encontrado
+                            </SelectItem>
                           )
                         ) : (
                           // Templates normais (QR Code)

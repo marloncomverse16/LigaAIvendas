@@ -700,38 +700,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Rota PATCH para permitir atualização parcial das configurações
-  app.patch("/api/settings", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const userId = (req.user as Express.User).id;
-      console.log("PATCH /api/settings - Atualizando configurações para usuário:", userId);
-      console.log("Dados recebidos:", JSON.stringify(req.body));
-      
-      // Verificar se já existe configurações para o usuário
-      let settings = await storage.getSettingsByUserId(userId);
-      
-      if (settings) {
-        // Atualizar configurações existentes com merge (PATCH)
-        settings = await storage.updateSettings(settings.id, req.body);
-        console.log("Configurações atualizadas:", settings);
-      } else {
-        // Criar novas configurações
-        settings = await storage.createSettings({
-          ...req.body,
-          userId
-        });
-        console.log("Novas configurações criadas:", settings);
-      }
-      
-      res.json(settings);
-    } catch (error) {
-      console.error("Erro ao atualizar configurações:", error);
-      res.status(500).json({ message: `Erro ao atualizar configurações: ${error.message}` });
-    }
-  });
-  
   app.put("/api/settings", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
@@ -2553,103 +2521,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Rota para obter templates da Meta API
   app.get("/api/user/meta-templates", async (req, res) => {
-    console.log("==== Rota /api/user/meta-templates chamada ====");
-    
-    if (!req.isAuthenticated()) {
-      console.log("Usuário não autenticado");
-      return res.status(401).json({ message: "Não autenticado" });
-    }
-    
-    console.log(`Usuário autenticado: ${req.user.id}`);
-    
+    console.log("Rota /api/user/meta-templates chamada");
     try {
-      // Obter configurações do usuário para diagnóstico
-      console.log(`Verificando configurações do usuário ${req.user.id} para Meta API`);
-      const [userSettings] = await db
-        .select()
-        .from(settings)
-        .where(eq(settings.userId, req.user.id));
-      
-      console.log("Configurações encontradas para Meta API:");
-      console.log({
-        hasSettings: !!userSettings,
-        hasMetaToken: userSettings ? !!userSettings.whatsappMetaToken : false,
-        hasMetaBusinessId: userSettings ? !!userSettings.whatsappMetaBusinessId : false,
-        metaApiVersion: userSettings ? userSettings.whatsappMetaApiVersion : null
-      });
-      
-      // Chamando o manipulador de templates com mais logs
-      console.log("Chamando getUserMetaTemplates para buscar templates...");
       await getUserMetaTemplates(req, res);
     } catch (error) {
       console.error("Erro ao processar requisição getUserMetaTemplates:", error);
       res.status(500).json({ 
         message: "Erro interno ao obter templates", 
-        error: error instanceof Error ? error.message : String(error) 
-      });
-    }
-  });
-  
-  // Rota para testar a conexão com a Meta API
-  app.post("/api/user/meta-connection/test", async (req, res) => {
-    console.log("==== Rota /api/user/meta-connection/test chamada ====");
-    
-    if (!req.isAuthenticated()) {
-      console.log("Usuário não autenticado");
-      return res.status(401).json({ message: "Não autenticado" });
-    }
-    
-    try {
-      // Extrair dados da requisição
-      const { whatsappMetaToken, whatsappMetaBusinessId, whatsappMetaApiVersion } = req.body;
-      
-      if (!whatsappMetaToken || !whatsappMetaBusinessId) {
-        return res.status(400).json({ 
-          message: "Dados incompletos. Informe token e business ID." 
-        });
-      }
-      
-      console.log(`Testando conexão com Meta API para usuário ${req.user.id}`);
-      console.log(`Business ID: ${whatsappMetaBusinessId}, API Version: ${whatsappMetaApiVersion || "v18.0"}`);
-      
-      // Importar a função apropriada do módulo meta-whatsapp-api.ts
-      const { getMetaApiTemplates } = await import("./meta-whatsapp-api");
-      
-      // Testar a conexão chamando a API da Meta para buscar templates
-      const result = await getMetaApiTemplates(
-        whatsappMetaToken,
-        whatsappMetaBusinessId,
-        whatsappMetaApiVersion || "v18.0"
-      );
-      
-      if (!result.success) {
-        console.log(`Teste de conexão com Meta API falhou: ${result.error}`);
-        return res.status(400).json({ 
-          message: `Falha na conexão: ${result.error}`,
-          error: result.error
-        });
-      }
-      
-      console.log(`Conexão com Meta API bem-sucedida. ${result.templates?.length || 0} templates encontrados.`);
-      
-      // Atualizar as configurações do usuário com os valores testados
-      await db
-        .update(settings)
-        .set({
-          whatsappMetaToken,
-          whatsappMetaBusinessId,
-          whatsappMetaApiVersion: whatsappMetaApiVersion || "v18.0"
-        })
-        .where(eq(settings.userId, req.user.id));
-      
-      return res.status(200).json({
-        message: "Conexão bem-sucedida",
-        templatesFound: result.templates?.length || 0
-      });
-    } catch (error) {
-      console.error("Erro ao testar conexão com Meta API:", error);
-      res.status(500).json({ 
-        message: "Erro interno ao testar conexão", 
         error: error instanceof Error ? error.message : String(error) 
       });
     }

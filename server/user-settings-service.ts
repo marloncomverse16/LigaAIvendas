@@ -145,63 +145,74 @@ export async function updateWhatsAppMetaSettings(
 ): Promise<ServiceResult<UserSettings>> {
   try {
     console.log(`Atualizando configurações de WhatsApp Meta API para usuário ${userId}`);
-    console.log('Dados recebidos:', JSON.stringify({
-      hasToken: !!data.whatsappMetaToken,
-      hasBusinessId: !!data.whatsappMetaBusinessId,
-      apiVersion: data.whatsappMetaApiVersion
-    }));
     
-    // Verificar primeiro se as configurações existem, se não, criar
-    const settingsResult = await getUserSettings(userId);
-    if (!settingsResult.success || !settingsResult.data) {
-      console.log('Configurações não encontradas, criando novas');
-      await createDefaultSettings(userId);
+    // Construir a query de atualização apenas com os campos fornecidos
+    let updateFields = [];
+    let queryParams = [userId]; // userId será sempre o último parâmetro
+    let paramCounter = 1;
+    
+    if (data.whatsappMetaToken !== undefined) {
+      updateFields.push(`whatsapp_meta_token = $${paramCounter++}`);
+      queryParams.unshift(data.whatsappMetaToken);
     }
     
-    // Agora podemos atualizar com um UPDATE direto
-    const settings = await pool.query(`
-      UPDATE settings 
-      SET 
-        whatsapp_meta_token = COALESCE($1, whatsapp_meta_token), 
-        whatsapp_meta_business_id = COALESCE($2, whatsapp_meta_business_id),
-        whatsapp_meta_api_version = COALESCE($3, whatsapp_meta_api_version),
-        updated_at = NOW()
-      WHERE user_id = $4
-      RETURNING *
-    `, [
-      data.whatsappMetaToken,
-      data.whatsappMetaBusinessId,
-      data.whatsappMetaApiVersion,
-      userId
-    ]);
+    if (data.whatsappMetaBusinessId !== undefined) {
+      updateFields.push(`whatsapp_meta_business_id = $${paramCounter++}`);
+      queryParams.unshift(data.whatsappMetaBusinessId);
+    }
     
-    if (settings.rows.length === 0) {
-      console.error('Não foi possível atualizar as configurações');
-      return { 
-        success: false, 
-        message: 'Não foi possível atualizar as configurações' 
-      };
+    if (data.whatsappMetaApiVersion !== undefined) {
+      updateFields.push(`whatsapp_meta_api_version = $${paramCounter++}`);
+      queryParams.unshift(data.whatsappMetaApiVersion);
+    }
+    
+    // Adicionar updated_at sempre
+    updateFields.push(`updated_at = NOW()`);
+    
+    if (updateFields.length === 1) {
+      // Se só temos updated_at, não precisamos fazer nada específico
+      return { success: false, message: 'Nenhum campo fornecido para atualização' };
+    }
+    
+    const updateQuery = `
+      UPDATE settings
+      SET ${updateFields.join(', ')}
+      WHERE user_id = $${paramCounter}
+      RETURNING *
+    `;
+    
+    const result = await pool.query(updateQuery, queryParams);
+    
+    if (result.rows.length === 0) {
+      // Tentar criar configurações se não existirem
+      const createResult = await createDefaultSettings(userId);
+      if (!createResult.success) {
+        return createResult;
+      }
+      
+      // Tentar atualizar novamente
+      return updateWhatsAppMetaSettings(userId, data);
     }
     
     // Converter para camelCase
-    const updatedSettings: UserSettings = {
-      id: settings.rows[0].id,
-      userId: settings.rows[0].user_id,
-      logoUrl: settings.rows[0].logo_url,
-      primaryColor: settings.rows[0].primary_color,
-      secondaryColor: settings.rows[0].secondary_color,
-      darkMode: settings.rows[0].dark_mode,
-      whatsappSendingGoal: settings.rows[0].whatsapp_sending_goal,
-      revenueGoal: settings.rows[0].revenue_goal,
-      leadsGoal: settings.rows[0].leads_goal,
-      whatsappMetaToken: settings.rows[0].whatsapp_meta_token,
-      whatsappMetaBusinessId: settings.rows[0].whatsapp_meta_business_id,
-      whatsappMetaApiVersion: settings.rows[0].whatsapp_meta_api_version,
-      createdAt: settings.rows[0].created_at,
-      updatedAt: settings.rows[0].updated_at
+    const settings: UserSettings = {
+      id: result.rows[0].id,
+      userId: result.rows[0].user_id,
+      logoUrl: result.rows[0].logo_url,
+      primaryColor: result.rows[0].primary_color,
+      secondaryColor: result.rows[0].secondary_color,
+      darkMode: result.rows[0].dark_mode,
+      whatsappSendingGoal: result.rows[0].whatsapp_sending_goal,
+      revenueGoal: result.rows[0].revenue_goal,
+      leadsGoal: result.rows[0].leads_goal,
+      whatsappMetaToken: result.rows[0].whatsapp_meta_token,
+      whatsappMetaBusinessId: result.rows[0].whatsapp_meta_business_id,
+      whatsappMetaApiVersion: result.rows[0].whatsapp_meta_api_version,
+      createdAt: result.rows[0].created_at,
+      updatedAt: result.rows[0].updated_at
     };
     
-    return { success: true, data: updatedSettings };
+    return { success: true, data: settings };
   } catch (error: any) {
     console.error('Erro ao atualizar configurações de WhatsApp Meta API:', error);
     return { success: false, error: error.message };

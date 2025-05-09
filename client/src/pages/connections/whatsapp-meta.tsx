@@ -1,20 +1,39 @@
-import { useEffect, useState } from 'react';
+/**
+ * Página para conexão direta com API do WhatsApp Meta (Cloud API)
+ */
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useToast } from '@/hooks/use-toast';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useToast } from '@/hooks/use-toast';
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { AlertCircle, AlertTriangle, ArrowRight, CheckCircle, ExternalLink, Loader2, ShieldAlert, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, ExternalLink, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 import PageTitle from '@/components/ui/page-title';
-import { ToastAction } from '@/components/ui/toast';
 
 // Schema de validação para o formulário de conexão Meta API
 const metaConnectionSchema = z.object({
@@ -72,11 +91,6 @@ const WhatsAppMetaPage = () => {
         title: 'Erro ao conectar',
         description: error.message || 'Não foi possível conectar ao WhatsApp Meta API.',
         variant: 'destructive',
-        action: (
-          <ToastAction altText="Configurar" onClick={() => navigate('/configuracoes')}>
-            Configurar Token
-          </ToastAction>
-        ),
       });
     }
   });
@@ -96,8 +110,7 @@ const WhatsAppMetaPage = () => {
       refetchStatus();
       queryClient.invalidateQueries({ queryKey: ['/api/meta-connections/status'] });
       form.reset({
-        phoneNumberId: '',
-        businessId: ''
+        phoneNumberId: ''
       });
     },
     onError: (error: Error) => {
@@ -129,125 +142,145 @@ const WhatsAppMetaPage = () => {
     setIsLoading(false);
   }, [connectionStatus, form]);
 
-  // Funções de submit do formulário
-  const onSubmit = (data: MetaConnectionFormValues) => {
-    connectMutation.mutate(data);
+  // Função para submeter o formulário
+  const onSubmit = (values: MetaConnectionFormValues) => {
+    connectMutation.mutate(values);
   };
 
+  // Handler para desconectar
   const handleDisconnect = () => {
-    disconnectMutation.mutate();
+    if (confirm('Tem certeza que deseja desconectar do WhatsApp Meta API?')) {
+      disconnectMutation.mutate();
+    }
   };
 
-  // Estados para exibição condicional
-  const isConnected = connectionStatus?.connected || false;
+  const isConnected = connectionStatus?.connected === true;
   const isConnecting = connectMutation.isPending;
   const isDisconnecting = disconnectMutation.isPending;
-  const hasError = !!connectionError;
 
   return (
     <div className="container mx-auto px-4 py-6">
       <PageTitle
-        subtitle="Integração com a API oficial da Meta para WhatsApp Business"
+        subtitle="Conecte diretamente com a API oficial da Meta para WhatsApp Business"
         actions={
-          <Button
-            variant="link"
-            onClick={() => navigate('/conexoes')}
-            className="text-sm text-muted-foreground hover:text-primary"
-          >
+          <a href="/conexoes" className="text-sm text-muted-foreground hover:text-primary">
             ← Voltar para conexões
-          </Button>
+          </a>
         }
       >
         WhatsApp Meta API
       </PageTitle>
 
-      <Alert className="mb-6 bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800">
-        <AlertTriangle className="h-5 w-5" />
-        <AlertTitle>Atenção</AlertTitle>
-        <AlertDescription>
-          As credenciais para uso da API do WhatsApp agora estão configuradas na página de Configurações - 
-          Integrações. Acesse essa área para configurar seu token de acesso e ID do negócio.
-        </AlertDescription>
-      </Alert>
+      {isLoadingStatus ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+          <span>Verificando status da conexão...</span>
+        </div>
+      ) : connectionError ? (
+        <Alert variant="destructive" className="mb-6">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Erro ao verificar conexão</AlertTitle>
+          <AlertDescription>
+            Não foi possível verificar o status da conexão. Por favor, tente novamente.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-      <Card className="mb-6">
-        <CardHeader className="space-y-1">
-          <CardTitle>WhatsApp Business Cloud API</CardTitle>
+      {isConnected && (
+        <Card className="mb-6 border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+              <div className="flex items-center gap-3 mb-4 md:mb-0">
+                <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-500 flex-shrink-0" />
+                <div>
+                  <h3 className="text-lg font-semibold text-green-800 dark:text-green-400">
+                    WhatsApp Meta API Conectado
+                  </h3>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    Conexão direta com a API oficial da Meta para WhatsApp Business está ativa.
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                className="border-green-300 text-green-700 hover:bg-green-100 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900"
+                onClick={handleDisconnect}
+                disabled={isDisconnecting}
+              >
+                {isDisconnecting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Desconectando...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Desconectar
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {connectionStatus?.businessName && (
+              <div className="mt-4 px-4 py-3 bg-white dark:bg-green-900/30 rounded-md">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Nome do negócio</p>
+                    <p className="font-medium">{connectionStatus.businessName}</p>
+                  </div>
+                  {connectionStatus.businessPhoneNumber && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Número/Identificação</p>
+                      <p className="font-medium">{connectionStatus.businessPhoneNumber}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">ID do número de telefone</p>
+                    <p className="font-medium">{connectionStatus.phoneNumberId}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Versão da API</p>
+                    <p className="font-medium">{connectionStatus.apiVersion || 'v18.0'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuração da API da Meta</CardTitle>
           <CardDescription>
-            Conexão direta com a API de WhatsApp Business da Meta (Facebook)
-          </CardDescription>
-          <CardDescription>
-            <Button variant="link" className="p-0" onClick={() => navigate('/configuracoes')}>
-              Configurar credenciais em Configurações - Integrações
-              <ExternalLink className="ml-1 h-4 w-4" />
-            </Button>
+            Configure a conexão direta com a API oficial da Meta para o WhatsApp Business
           </CardDescription>
         </CardHeader>
-        <CardContent className="pb-4">
-          {hasError ? (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Erro</AlertTitle>
+        <CardContent>
+          <div className="mb-6">
+            <Alert className="mb-4 bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Configuração prévia necessária</AlertTitle>
               <AlertDescription>
-                Não foi possível verificar o status da conexão. Verifique se seu token de acesso está configurado
-                corretamente na página de Configurações - Integrações.
+                Antes de conectar, seu administrador deve configurar o token de acesso da Meta e o ID do negócio no servidor.
               </AlertDescription>
             </Alert>
-          ) : isLoading || isLoadingStatus ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : isConnected ? (
-            <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950 mb-4">
-              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <AlertTitle>Conectado</AlertTitle>
-              <AlertDescription>
-                Sua conta está conectada ao WhatsApp Business Cloud API. 
-                Número de telefone: {connectionStatus?.phoneNumberId}
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Alert className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950 mb-4">
-              <ShieldAlert className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertTitle>Não conectado</AlertTitle>
-              <AlertDescription>
-                Preencha o ID do número de telefone para conectar seu WhatsApp Business Cloud API.
-                Você pode encontrar essas informações no seu painel do WhatsApp Business.
-              </AlertDescription>
-            </Alert>
-          )}
 
-          {/* Status da conexão */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
-            <div className="space-y-1">
-              <h4 className="text-sm font-medium">Status da Conexão</h4>
-              <p className="text-sm text-muted-foreground">
-                {isConnected ? (
-                  <span className="text-green-600 dark:text-green-400 font-medium flex items-center">
-                    <CheckCircle className="h-4 w-4 mr-1" /> Conectado
-                  </span>
-                ) : (
-                  <span className="text-yellow-600 dark:text-yellow-400 font-medium flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-1" /> Não conectado
-                  </span>
-                )}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <h4 className="text-sm font-medium">Método de Conexão</h4>
-              <p className="text-sm text-muted-foreground">WhatsApp Business Cloud API (Meta)</p>
-            </div>
-          </div>
+            <h3 className="text-lg font-medium mb-2">Pré-requisitos:</h3>
+            <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-2 mb-4">
+              <li>Conta no Meta Business (Meta for Developers)</li>
+              <li>Aplicativo WhatsApp configurado no Meta for Developers</li>
+              <li>Número de telefone verificado e aprovado pela Meta</li>
+              <li>Token de acesso permanente configurado no servidor</li>
+            </ul>
 
-          <div className="mt-6">
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={() => navigate('/configuracoes')}
-            >
-              Ir para Configurações - Integrações
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <h3 className="text-lg font-medium mb-2">Como obter o ID do número:</h3>
+            <ol className="list-decimal list-inside space-y-2 text-muted-foreground ml-2">
+              <li>Acesse o <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium inline-flex items-center">Meta for Developers <ExternalLink className="h-3 w-3 ml-1" /></a></li>
+              <li>Vá para seu aplicativo WhatsApp Business</li>
+              <li>Na seção de configuração do WhatsApp, encontre seus números de telefone</li>
+              <li>Copie o ID do número de telefone (formato numérico, ex: 01234567890123)</li>
+            </ol>
           </div>
 
           <Separator className="my-6" />
@@ -259,31 +292,29 @@ const WhatsAppMetaPage = () => {
                 name="phoneNumberId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ID do Número de Telefone (Phone Number ID)</FormLabel>
+                    <FormLabel>Identificação do número de telefone:</FormLabel>
                     <FormControl>
-                      <Input placeholder="Exemplo: 123456789012345" {...field} />
+                      <Input placeholder="01234567890123" {...field} disabled={isConnected} />
                     </FormControl>
                     <FormDescription>
-                      ID do número de telefone do WhatsApp Business. Você pode encontrar este ID no 
-                      painel da API Business do WhatsApp.
+                      ID do número de telefone na plataforma Meta Business (formato numérico)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
+              
               <FormField
                 control={form.control}
                 name="businessId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ID do Negócio (Business ID)</FormLabel>
+                    <FormLabel>Identificação da conta do WhatsApp Business:</FormLabel>
                     <FormControl>
-                      <Input placeholder="Exemplo: 123456789" {...field} />
+                      <Input placeholder="12345678901234567" {...field} disabled={isConnected} />
                     </FormControl>
                     <FormDescription>
-                      ID da sua conta de negócios no WhatsApp Business. Este ID é necessário para
-                      consultar templates de mensagem e outros recursos.
+                      ID do negócio na plataforma Meta Business (Business Account ID)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
