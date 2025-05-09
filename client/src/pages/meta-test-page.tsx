@@ -45,15 +45,39 @@ export default function MetaTestPage() {
   useEffect(() => {
     async function loadTemplates() {
       try {
+        console.log("Carregando templates da Meta API (método direto simplificado)");
         const response = await axios.get("/api/meta-direct-templates");
-        if (response.data && response.data.templates) {
+        console.log("Resposta da API de templates:", response.data);
+        
+        if (response.data && response.data.templates && Array.isArray(response.data.templates)) {
+          // Novo formato de resposta (mais detalhado)
+          console.log("Templates recebidos:", response.data.templates);
           setTemplates(response.data.templates);
+        } else if (Array.isArray(response.data)) {
+          // Formato antigo de resposta (array simples)
+          console.log("Templates recebidos (formato antigo):", response.data);
+          setTemplates(response.data);
         } else {
-          setError("Não foi possível carregar os templates");
+          setError("Formato de resposta da API de templates inesperado");
+          console.error("Formato de resposta inesperado:", response.data);
         }
       } catch (err: any) {
         setError(`Erro ao carregar templates: ${err.message}`);
-        console.error("Erro ao carregar templates:", err);
+        
+        if (err.response) {
+          console.error("Erro da API:", err.response.data);
+          
+          // Tentar extrair mensagem de erro mais detalhada
+          const apiErrorMsg = err.response.data?.details?.message || 
+                             err.response.data?.error || 
+                             err.response.data?.message;
+                             
+          if (apiErrorMsg) {
+            setError(`Erro ao carregar templates: ${apiErrorMsg}`);
+          }
+        } else {
+          console.error("Erro ao carregar templates:", err);
+        }
       } finally {
         setLoadingTemplates(false);
       }
