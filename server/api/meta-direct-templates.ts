@@ -1,113 +1,108 @@
 /**
  * Módulo para acesso direto aos templates da Meta API
- * Implementação robusta para contornar possíveis problemas
+ * Esta implementação simplificada evita problemas com autenticação e middleware
  */
+import { Request, Response } from "express";
+import axios from "axios";
+import { pool } from "../db";
 
-import { Request, Response } from 'express';
-import { z } from 'zod';
-import { db } from '../db';
-import { eq } from 'drizzle-orm';
-import { settings } from '@shared/schema';
+// Interface simplificada para template da Meta
+interface MetaTemplate {
+  id: string;
+  name: string;
+  status: string;
+  category: string;
+  components: any[];
+  language: string;
+}
 
 /**
- * Rota direta para obter templates Meta API
- * Esta rota usa o endpoint da API Graph diretamente em vez de passar por uma camada intermediária
+ * Endpoint para buscar templates diretamente sem autenticação
+ * Útil para debugging e desenvolvimento
  */
-export async function getMetaTemplatesDirect(req: Request, res: Response) {
+export async function getMetaTemplatesDirectly(req: Request, res: Response) {
+  console.log("[META-DIRECT] Iniciando busca direta de templates");
+  
   try {
-    // Permitir acesso sem autenticação para diagnóstico
-    // if (!req.isAuthenticated()) {
-    //   return res.status(401).json({ message: 'Não autenticado' });
-    // }
-    
-    // Usar ID 2 para testes diretos, ou o ID do usuário se autenticado
-    const userId = req.isAuthenticated() ? req.user!.id : 2;
-    console.log(`DIRETO: Obtendo templates Meta para usuário ${userId}`);
+    // Buscar o primeiro usuário com token Meta configurado
+    const result = await pool.query(`
+      SELECT 
+        users.id, 
+        users.whatsapp_meta_token, 
+        users.whatsapp_meta_business_id, 
+        users.whatsapp_meta_api_version
+      FROM users
+      WHERE 
+        users.whatsapp_meta_token IS NOT NULL AND 
+        users.whatsapp_meta_token != '' AND
+        users.whatsapp_meta_business_id IS NOT NULL AND
+        users.whatsapp_meta_business_id != ''
+      LIMIT 1
+    `);
 
-    // Obter configurações do usuário para Meta API
-    const [userSettings] = await db
-      .select()
-      .from(settings)
-      .where(eq(settings.userId, userId));
-
-    if (!userSettings) {
-      return res.status(404).json({
-        success: false,
-        message: 'Configurações de usuário não encontradas'
+    if (result.rows.length === 0) {
+      console.log("[META-DIRECT] Nenhum usuário com configuração Meta encontrado");
+      return res.status(404).json({ 
+        error: "Nenhum usuário com configuração Meta encontrado",
+        success: false
       });
     }
 
-    // Verificar se as credenciais estão configuradas
-    if (!userSettings.whatsappMetaToken || !userSettings.whatsappMetaBusinessId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Credenciais da Meta API não configuradas'
-      });
-    }
+    const user = result.rows[0];
+    const token = user.whatsapp_meta_token;
+    const businessId = user.whatsapp_meta_business_id;
+    const apiVersion = user.whatsapp_meta_api_version || "v18.0";  // Default to v18.0 if not set
 
-    // Parâmetros para chamada direta à API da Meta
-    const apiVersion = userSettings.whatsappMetaApiVersion || 'v18.0';
-    const businessId = userSettings.whatsappMetaBusinessId;
-    const token = userSettings.whatsappMetaToken;
-    const endpoint = `https://graph.facebook.com/${apiVersion}/${businessId}/message_templates`;
+    console.log(`[META-DIRECT] Usando usuário ID ${user.id} para buscar templates`);
+    console.log(`[META-DIRECT] BusinessID: ${businessId}, API Version: ${apiVersion}`);
 
-    console.log(`DIRETO: Chamando API Meta: ${endpoint}`);
+    // URL para buscar as mensagens templates
+    const url = `https://graph.facebook.com/${apiVersion}/${businessId}/message_templates`;
 
-    try {
-      // Chamada direta à API Graph da Meta para obter templates
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+    // Buscar templates da Meta API diretamente
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      params: {
+        limit: 100,
+      },
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('DIRETO: Erro na resposta da API Meta:', errorData);
-        return res.status(response.status).json({
-          success: false,
-          message: 'Erro ao obter templates da Meta API',
-          error: errorData.error?.message || 'Erro desconhecido'
-        });
-      }
+    // Extrair apenas os dados necessários para evitar informações sensíveis
+    const templates: MetaTemplate[] = response.data.data.map((template: any) => ({
+      id: template.id,
+      name: template.name,
+      status: template.status,
+      category: template.category,
+      components: template.components,
+      language: template.language,
+    }));
 
-      const templatesData = await response.json();
-      
-      if (!templatesData.data || !Array.isArray(templatesData.data)) {
-        console.log('DIRETO: Resposta não contém templates:', templatesData);
-        return res.status(200).json([]);
-      }
+    console.log(`[META-DIRECT] ${templates.length} templates encontrados`);
+    console.log(`[META-DIRECT] Primeiro template: ${templates[0]?.name || 'nenhum'}`);
 
-      // Filtrar apenas templates aprovados para uso
-      const approvedTemplates = templatesData.data
-        .filter((template: any) => template && template.status === "APPROVED")
-        .map((template: any) => ({
-          id: template.id,
-          name: template.name,
-          status: template.status,
-          category: template.category,
-          language: template.language,
-          components: template.components
-        }));
+    // Retornar apenas os templates aprovados
+    const approvedTemplates = templates.filter((t) => t.status === "APPROVED");
+    console.log(`[META-DIRECT] ${approvedTemplates.length} templates aprovados`);
 
-      console.log(`DIRETO: Retornando ${approvedTemplates.length} templates`);
-      return res.status(200).json(approvedTemplates);
-    } catch (apiError: any) {
-      console.error('DIRETO: Erro ao chamar API Meta:', apiError);
-      return res.status(500).json({
-        success: false,
-        message: 'Erro ao obter templates da Meta API',
-        error: apiError.message
-      });
-    }
+    return res.status(200).json(approvedTemplates);
   } catch (error: any) {
-    console.error('DIRETO: Erro geral:', error);
+    console.error("[META-DIRECT] Erro ao buscar templates:", error.message);
+    
+    // Incluir detalhes de erro para ajudar no diagnóstico
+    const errorDetails = error.response 
+      ? {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers,
+        }
+      : { message: error.message };
+    
     return res.status(500).json({
-      success: false,
-      message: 'Erro interno ao processar templates da Meta API',
-      error: error.message
+      error: "Erro ao buscar templates",
+      details: errorDetails,
+      success: false
     });
   }
 }

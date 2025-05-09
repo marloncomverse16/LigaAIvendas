@@ -767,22 +767,30 @@ const CreateSendingForm = () => {
                       </FormControl>
                       <SelectContent>
                         {form.watch("whatsappConnectionType") === "meta" ? (
-                          // Templates da Meta API
-                          isLoadingMetaTemplates ? (
+                          // Templates da Meta API - Usando componente específico para templates Meta
+                          <>
                             <SelectItem value="loading" disabled>
                               Carregando templates da Meta API...
                             </SelectItem>
-                          ) : metaTemplates && metaTemplates.length > 0 ? (
-                            metaTemplates.map((template) => (
-                              <SelectItem key={template.id} value={template.id.toString()}>
-                                {template.name} ({template.status})
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="none" disabled>
-                              Nenhum template Meta API encontrado
+                            {/* Busca direta usando a rota otimizada /api/meta-templates */}
+                            <SelectItem value="fetch" disabled>
+                              Buscando templates...
                             </SelectItem>
-                          )
+                            <SelectItem value="debug" onClick={() => {
+                              // Tenta buscar templates de forma direta
+                              fetch("/api/meta-templates")
+                                .then(res => res.json())
+                                .then(data => {
+                                  console.log("Debug - Templates Meta:", data);
+                                  if (Array.isArray(data) && data.length > 0) {
+                                    setMetaTemplates(data);
+                                  }
+                                })
+                                .catch(err => console.error("Erro debug:", err));
+                            }}>
+                              Recarregar templates
+                            </SelectItem>
+                          </>
                         ) : (
                           // Templates normais (QR Code)
                           isLoadingTemplates ? (
