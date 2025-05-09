@@ -44,10 +44,12 @@ import {
   updateMetaSettings,
   getMetaSettings
 } from "./api/user-meta-connections";
+import { getUserServer } from "./meta-api-service";
 import { getUserMetaTemplates } from "./api/meta-templates";
 import { getMetaTemplatesDirectly } from "./api/meta-direct-templates";
 import userSettingsService from "./user-settings-service";
 import { checkMetaApiConnection } from "./meta-debug";
+import { sendMetaApiMessage, getMetaApiTemplates } from "./meta-whatsapp-api";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { settings } from "@shared/schema";
@@ -2784,6 +2786,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/contacts", listContacts);
   app.post("/api/contacts/sync", syncContacts);
   app.get("/api/contacts/export", exportContacts);
+  
+  // Rota para diagnóstico de envio de mensagem Meta API
+  app.post("/api/diagnose/meta-send-test", async (req, res) => {
+    console.log("Teste de envio de mensagem Meta API iniciado");
+    
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const userId = req.user.id;
+      const { to, templateName } = req.body;
+      
+      if (!to || !templateName) {
+        return res.status(400).json({ 
+          message: "Parâmetros incompletos", 
+          error: "É necessário fornecer 'to' (número de telefone) e 'templateName' (nome do template)"
+        });
+      }
+      
+      // Obter configurações do usuário
+      const [userSettings] = await db
+        .select()
+        .from(settings)
+        .where(eq(settings.userId, userId));
+      
+      if (!userSettings) {
+        return res.status(404).json({ 
+          message: "Configurações não encontradas",
+          error: "Não foi possível encontrar configurações para este usuário"
+        });
+      }
+      
+      // Obter phoneNumberId
+      const userServer = await getUserServer(userId);
+      
+      if (!userServer.success || !userServer.phoneNumberId) {
+        return res.status(404).json({ 
+          message: "PhoneNumberId não encontrado", 
+          error: "É necessário configurar uma conexão Meta WhatsApp primeiro",
+          userServerInfo: userServer
+        });
+      }
+      
+      // Verificar possíveis problemas com os parâmetros
+      let possiblySwapped = false;
+      
+      if (userSettings.whatsappMetaBusinessId?.length > 60 && userSettings.whatsappMetaToken?.length < 30) {
+        possiblySwapped = true;
+      }
+      
+      // Preparar resultado diagnóstico
+      const diagnosticoData = {
+        phoneNumberId: userServer.phoneNumberId,
+        template: templateName,
+        to,
+        possiblySwapped,
+        token: {
+          length: userSettings.whatsappMetaToken?.length || 0,
+          preview: userSettings.whatsappMetaToken?.substring(0, 8) + "..."
+        },
+        businessId: {
+          length: userSettings.whatsappMetaBusinessId?.length || 0,
+          value: userSettings.whatsappMetaBusinessId
+        }
+      };
+      
+      // Tentar enviar mensagem
+      const sendResult = await sendMetaApiMessage(
+        userSettings.whatsappMetaToken || "",
+        userSettings.whatsappMetaBusinessId || "",
+        userServer.phoneNumberId,
+        templateName,
+        to,
+        userSettings.whatsappMetaApiVersion || "v18.0"
+      );
+      
+      return res.json({
+        diagnostico: diagnosticoData,
+        resultado: sendResult
+      });
+      
+    } catch (error) {
+      console.error("Erro no diagnóstico de envio de mensagem:", error);
+      return res.status(500).json({
+        message: "Erro no diagnóstico de envio",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
   
   // Configure HTTP server
   const httpServer = createServer(app);
