@@ -23,6 +23,11 @@ interface MetaTemplate {
 export async function getMetaTemplatesDirectly(req: Request, res: Response) {
   console.log("[META-DIRECT] Iniciando busca direta de templates");
   
+  // Declarar variáveis no escopo mais externo para uso no bloco de catch
+  let token = '';
+  let businessId = '';
+  let apiVersion = 'v18.0';
+  
   try {
     // Buscar o primeiro usuário com token Meta configurado
     // As configurações estão na tabela 'settings', não na tabela 'users'
@@ -50,10 +55,17 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
     }
 
     const user = result.rows[0];
-    const token = user.whatsapp_meta_token;
-    const businessId = user.whatsapp_meta_business_id;
-    const apiVersion = user.whatsapp_meta_api_version || "v18.0";  // Default to v18.0 if not set
-
+    // Vamos atualizar as variáveis declaradas no escopo externo
+    token = user.whatsapp_meta_token;
+    businessId = user.whatsapp_meta_business_id;
+    apiVersion = user.whatsapp_meta_api_version || "v18.0";  // Default to v18.0 if not set
+    
+    // Variáveis que serão potencialmente modificadas durante a detecção de problemas
+    let actualToken = token;
+    let actualBusinessId = businessId;
+    let actualApiVersion = apiVersion;
+    let valuesSwapped = false;
+    
     // Verificando se os valores parecem estar em ordem
     if (token.length < 20) {
       console.log("[META-DIRECT] ALERTA: Token parece muito curto, apenas", token.length, "caracteres");
@@ -63,12 +75,6 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
     console.log("[META-DIRECT] Token length:", token.length);
     console.log("[META-DIRECT] BusinessId length:", businessId.length);
     console.log("[META-DIRECT] API Version value:", apiVersion);
-    
-    // Verificar se o businessId e token estão invertidos (um erro comum)
-    let actualToken = token;
-    let actualBusinessId = businessId;
-    let actualApiVersion = apiVersion;
-    let valuesSwapped = false;
     
     // Verificar formato do businessId (deve ser numérico)
     const businessIdIsNumeric = !isNaN(Number(businessId));
@@ -186,7 +192,8 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
       });
       
       // Diagnóstico de possíveis problemas comuns com a API da Meta
-      if (errorCode === 190) {
+      const errorCodeStr = String(errorCode);
+      if (errorCodeStr === "190") {
         // Erro de autenticação - token inválido
         if (token.length < 50) {
           suggestedFix = "O token da API parece muito curto. Verifique se você está usando o 'Permanent Access Token' da Meta API.";
@@ -194,15 +201,15 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
         } else {
           suggestedFix = "Token de acesso inválido ou expirado. Gere um novo token na Meta Business Platform.";
         }
-      } else if (errorCode === 100) {
+      } else if (errorCodeStr === "100") {
         // Parâmetro inválido
         if (businessId.length > 50) {
           suggestedFix = "O ID do negócio parece ser na verdade um token. Os campos podem estar invertidos nas configurações.";
           valuesLikelySwapped = true;
-        } else if (!businessIdIsNumeric) {
+        } else if (isNaN(Number(businessId))) {
           suggestedFix = "O ID do negócio deve ser um valor numérico. Verifique a configuração.";
         }
-      } else if (errorCode === 803) {
+      } else if (errorCodeStr === "803") {
         // ID do negócio inválido
         suggestedFix = "ID do negócio inválido. Verifique o ID correto no Meta Business Suite.";
       }
@@ -224,7 +231,8 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
           valuesLikelySwapped,
           tokenLength: token.length,
           businessIdLength: businessId.length,
-          tokenFormat: token.substring(0, 3) + "..."
+          apiVersion: apiVersion,
+          tokenFormat: token.substring(0, 3) + "..." 
         }
       : { 
           message: error.message,

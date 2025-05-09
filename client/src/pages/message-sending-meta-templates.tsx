@@ -103,7 +103,7 @@ export function MetaTemplateSelector({
         toast({
           title: "Nenhum template encontrado",
           description: "Verifique se há templates aprovados na sua conta do WhatsApp Business",
-          variant: "warning",
+          variant: "destructive",
         });
       }
     } catch (error: any) {
