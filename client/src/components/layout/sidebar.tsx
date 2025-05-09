@@ -111,12 +111,6 @@ export function Sidebar() {
       permissionKey: "isAdmin"  // Somente administradores
     },
     { 
-      path: "/test-meta-api", 
-      label: "Teste Meta API", 
-      icon: <MessageSquare size={collapsed ? 24 : 20} />, 
-      permissionKey: "isAdmin"  // Somente administradores
-    },
-    { 
       path: "/settings", 
       label: "Configurações", 
       icon: <Settings size={collapsed ? 24 : 20} />, 

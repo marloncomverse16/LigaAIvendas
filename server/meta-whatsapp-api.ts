@@ -123,21 +123,7 @@ export async function sendMetaApiMessage(
     if (!whatsappMetaToken || !whatsappMetaBusinessId || !phoneNumberId) {
       throw new Error("Meta API não configurada corretamente");
     }
-    
-    // Verificações se o token e businessId estão invertidos
-    let actualToken = whatsappMetaToken;
-    let actualBusinessId = whatsappMetaBusinessId;
-    
-    // Verificar se o businessId e token estão invertidos (um erro comum)
-    if (whatsappMetaBusinessId.length > 60 && whatsappMetaToken.length < 30) {
-      console.log("sendMetaApiMessage: ALERTA: BusinessId e Token parecem estar invertidos. Tentando corrigir...");
-      // Trocar os valores
-      actualToken = whatsappMetaBusinessId;
-      actualBusinessId = whatsappMetaToken;
-      console.log("sendMetaApiMessage: Valores trocados para correção");
-    }
-    
-    console.log(`sendMetaApiMessage: Enviando mensagem via API para ${phoneNumberId}/messages`);
+
     const endpoint = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
     
     const messageData: any = {
@@ -158,12 +144,9 @@ export async function sendMetaApiMessage(
       messageData.template.components = components;
     }
 
-    console.log(`sendMetaApiMessage: Template utilizado: ${templateName}`);
-    console.log(`sendMetaApiMessage: Destinatário: ${to}`);
-    
     const response = await axios.post(endpoint, messageData, {
       headers: {
-        Authorization: `Bearer ${actualToken}`,
+        Authorization: `Bearer ${whatsappMetaToken}`,
         "Content-Type": "application/json",
       },
     });

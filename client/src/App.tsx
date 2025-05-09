@@ -20,7 +20,6 @@ import ConnectionsPage from "@/pages/connections";
 import WhatsAppQrCodePage from "@/pages/connections/whatsapp-qr-code";
 import WhatsAppMetaPage from "@/pages/connections/whatsapp-meta";
 import ContactsPage from "@/pages/contacts-page";
-import TestMetaApiPage from "@/pages/test-meta-api";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 
@@ -43,7 +42,6 @@ function Router() {
       <ProtectedRoute path="/admin-users" component={AdminUsersPage} />
       <ProtectedRoute path="/admin-users/permissions/:userId" component={UserPermissionsPage} />
       <ProtectedRoute path="/servers" component={ServerManagementPage} />
-      <ProtectedRoute path="/test-meta-api" component={TestMetaApiPage} />
       <Route component={NotFound} />
     </Switch>
   );
