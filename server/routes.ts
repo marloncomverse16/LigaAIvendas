@@ -700,6 +700,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota PATCH para permitir atualização parcial das configurações
+  app.patch("/api/settings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      console.log("PATCH /api/settings - Atualizando configurações para usuário:", userId);
+      console.log("Dados recebidos:", JSON.stringify(req.body));
+      
+      // Verificar se já existe configurações para o usuário
+      let settings = await storage.getSettingsByUserId(userId);
+      
+      if (settings) {
+        // Atualizar configurações existentes com merge (PATCH)
+        settings = await storage.updateSettings(settings.id, req.body);
+        console.log("Configurações atualizadas:", settings);
+      } else {
+        // Criar novas configurações
+        settings = await storage.createSettings({
+          ...req.body,
+          userId
+        });
+        console.log("Novas configurações criadas:", settings);
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Erro ao atualizar configurações:", error);
+      res.status(500).json({ message: `Erro ao atualizar configurações: ${error.message}` });
+    }
+  });
+  
   app.put("/api/settings", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
