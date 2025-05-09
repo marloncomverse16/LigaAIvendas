@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,9 +22,9 @@ export default function TestMetaApiPage() {
   const [templatesError, setTemplatesError] = useState<string | null>(null);
 
   // Carregar templates ao carregar a página
-  useState(() => {
+  useEffect(() => {
     loadTemplates();
-  });
+  }, []);
 
   const loadTemplates = async () => {
     try {

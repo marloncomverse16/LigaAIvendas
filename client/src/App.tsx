@@ -43,6 +43,7 @@ function Router() {
       <ProtectedRoute path="/admin-users" component={AdminUsersPage} />
       <ProtectedRoute path="/admin-users/permissions/:userId" component={UserPermissionsPage} />
       <ProtectedRoute path="/servers" component={ServerManagementPage} />
+      <ProtectedRoute path="/test-meta-api" component={TestMetaApiPage} />
       <Route component={NotFound} />
     </Switch>
   );
