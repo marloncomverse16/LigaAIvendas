@@ -46,6 +46,7 @@ import {
 } from "./api/user-meta-connections";
 import { getUserMetaTemplates } from "./api/meta-templates";
 import { getMetaTemplatesDirectly } from "./api/meta-direct-templates";
+import { sendMetaMessageDirectly } from "./api/meta-direct-send";
 import userSettingsService from "./user-settings-service";
 import { checkMetaApiConnection } from "./meta-debug";
 import { db } from "./db";
@@ -2559,6 +2560,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao processar requisição getMetaTemplatesDirectly:", error);
       res.status(500).json({
         message: "Erro interno ao obter templates diretamente",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Rota direta para enviar mensagens via Meta API sem autenticação
+  // Útil para diagnóstico e testes
+  app.post("/api/meta-direct-send", async (req, res) => {
+    console.log("Rota /api/meta-direct-send chamada - ACESSO DIRETO");
+    try {
+      await sendMetaMessageDirectly(req, res);
+    } catch (error) {
+      console.error("Erro ao processar requisição sendMetaMessageDirectly:", error);
+      res.status(500).json({
+        message: "Erro interno ao enviar mensagem diretamente",
         error: error instanceof Error ? error.message : String(error)
       });
     }
