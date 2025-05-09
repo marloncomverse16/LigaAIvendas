@@ -2541,6 +2541,200 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para diagnóstico de templates da Meta API
+  app.get("/api/diagnose/meta-templates", async (req, res) => {
+    console.log("Diagnóstico de templates da Meta API iniciado");
+    
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const userId = req.user.id;
+      const diagnosticoData = { userId, steps: [] };
+      
+      // Passo 1: Verificar se usuário tem configurações
+      diagnosticoData.steps.push({ step: 1, name: "Verificar configurações do usuário" });
+      const [userSettings] = await db
+        .select()
+        .from(settings)
+        .where(eq(settings.userId, userId));
+      
+      if (!userSettings) {
+        diagnosticoData.steps.push({ 
+          step: 1,
+          status: "error",
+          message: "Configurações do usuário não encontradas" 
+        });
+        return res.json(diagnosticoData);
+      }
+      
+      diagnosticoData.steps.push({ 
+        step: 1,
+        status: "success",
+        message: "Configurações encontradas",
+        hasMetaToken: !!userSettings.whatsappMetaToken,
+        hasMetaBusinessId: !!userSettings.whatsappMetaBusinessId,
+        apiVersion: userSettings.whatsappMetaApiVersion || "v18.0"
+      });
+      
+      // Passo 2: Verificar se credenciais Meta estão presentes
+      diagnosticoData.steps.push({ step: 2, name: "Verificar credenciais da Meta API" });
+      
+      if (!userSettings.whatsappMetaToken || !userSettings.whatsappMetaBusinessId) {
+        diagnosticoData.steps.push({ 
+          step: 2,
+          status: "error",
+          message: "Credenciais da Meta API não configuradas" 
+        });
+        return res.json(diagnosticoData);
+      }
+      
+      diagnosticoData.steps.push({ 
+        step: 2,
+        status: "success",
+        message: "Credenciais da Meta API encontradas"
+      });
+      
+      // Passo 3: Testar conexão básica com a API da Meta
+      diagnosticoData.steps.push({ step: 3, name: "Testar conexão com API da Meta" });
+      
+      try {
+        const testEndpoint = `https://graph.facebook.com/${userSettings.whatsappMetaApiVersion || 'v18.0'}/${userSettings.whatsappMetaBusinessId}`;
+        
+        diagnosticoData.steps.push({ 
+          step: 3,
+          status: "info",
+          message: "Tentando conexão com endpoint",
+          endpoint: testEndpoint
+        });
+        
+        const response = await fetch(testEndpoint, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${userSettings.whatsappMetaToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          diagnosticoData.steps.push({ 
+            step: 3,
+            status: "error",
+            message: "Falha na conexão básica com a API",
+            statusCode: response.status,
+            error: errorData.error?.message || "Erro desconhecido"
+          });
+          return res.json(diagnosticoData);
+        }
+        
+        const businessData = await response.json();
+        diagnosticoData.steps.push({ 
+          step: 3,
+          status: "success",
+          message: "Conexão básica com API bem-sucedida",
+          businessInfo: {
+            id: businessData.id,
+            name: businessData.name || "Nome não disponível"
+          }
+        });
+      } catch (connectionError) {
+        diagnosticoData.steps.push({ 
+          step: 3,
+          status: "error",
+          message: "Erro ao testar conexão com API",
+          error: connectionError instanceof Error ? connectionError.message : "Erro desconhecido"
+        });
+        return res.json(diagnosticoData);
+      }
+      
+      // Passo 4: Buscar templates
+      diagnosticoData.steps.push({ step: 4, name: "Buscar templates" });
+      
+      try {
+        const templatesEndpoint = `https://graph.facebook.com/${userSettings.whatsappMetaApiVersion || 'v18.0'}/${userSettings.whatsappMetaBusinessId}/message_templates`;
+        
+        diagnosticoData.steps.push({ 
+          step: 4,
+          status: "info",
+          message: "Tentando buscar templates",
+          endpoint: templatesEndpoint
+        });
+        
+        const response = await fetch(templatesEndpoint, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${userSettings.whatsappMetaToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          diagnosticoData.steps.push({ 
+            step: 4,
+            status: "error",
+            message: "Falha ao buscar templates",
+            statusCode: response.status,
+            error: errorData.error?.message || "Erro desconhecido"
+          });
+          return res.json(diagnosticoData);
+        }
+        
+        const templatesData = await response.json();
+        
+        // Verificar se há templates
+        if (!templatesData.data || templatesData.data.length === 0) {
+          diagnosticoData.steps.push({ 
+            step: 4,
+            status: "warning",
+            message: "Nenhum template encontrado",
+            rawResponse: templatesData
+          });
+          return res.json(diagnosticoData);
+        }
+        
+        // Filtrar templates aprovados
+        const approvedTemplates = templatesData.data.filter(
+          (template: any) => template && template.status === "APPROVED"
+        );
+        
+        diagnosticoData.steps.push({ 
+          step: 4,
+          status: "success",
+          message: "Templates obtidos com sucesso",
+          totalTemplates: templatesData.data.length,
+          approvedTemplates: approvedTemplates.length,
+          templates: approvedTemplates.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            status: t.status,
+            category: t.category,
+            language: t.language
+          }))
+        });
+      } catch (templatesError) {
+        diagnosticoData.steps.push({ 
+          step: 4,
+          status: "error",
+          message: "Erro ao buscar templates",
+          error: templatesError instanceof Error ? templatesError.message : "Erro desconhecido"
+        });
+        return res.json(diagnosticoData);
+      }
+      
+      // Diagnóstico concluído com sucesso
+      return res.json(diagnosticoData);
+    } catch (error) {
+      console.error("Erro no diagnóstico de templates:", error);
+      return res.status(500).json({
+        message: "Erro no diagnóstico",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // Endpoints para gerenciamento de contatos
   app.get("/api/contacts", listContacts);
   app.post("/api/contacts/sync", syncContacts);

@@ -13,47 +13,74 @@ export async function getMetaApiTemplates(
 ) {
   try {
     if (!whatsappMetaToken || !whatsappMetaBusinessId) {
+      console.error("getMetaApiTemplates: Token ou Business ID faltando", { 
+        hasToken: !!whatsappMetaToken, 
+        hasBusinessId: !!whatsappMetaBusinessId 
+      });
       throw new Error("Meta API não configurada corretamente. Token e Business ID são obrigatórios.");
     }
 
-    console.log(`Buscando templates via API: ${apiVersion}/${whatsappMetaBusinessId}/message_templates`);
+    console.log(`getMetaApiTemplates: Buscando templates via API: ${apiVersion}/${whatsappMetaBusinessId}/message_templates`);
     const endpoint = `https://graph.facebook.com/${apiVersion}/${whatsappMetaBusinessId}/message_templates`;
     
-    console.log(`Endpoint de templates: ${endpoint}`);
-    const response = await axios.get(endpoint, {
-      headers: {
-        Authorization: `Bearer ${whatsappMetaToken}`,
-        "Content-Type": "application/json",
-      },
-    });
+    console.log(`getMetaApiTemplates: Endpoint de templates: ${endpoint}`);
     
-    console.log(`Resposta da API de templates: status ${response.status}`);
-    console.log('Headers:', JSON.stringify(response.headers));
-    console.log('Dados:', JSON.stringify(response.data));
-
-    if (response.data && response.data.data) {
-      return {
-        success: true,
-        templates: response.data.data.map((template: any) => ({
+    try {
+      const response = await axios.get(endpoint, {
+        headers: {
+          Authorization: `Bearer ${whatsappMetaToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+      
+      console.log(`getMetaApiTemplates: Resposta da API de templates: status ${response.status}`);
+      
+      if (response.data && response.data.data) {
+        const templates = response.data.data.map((template: any) => ({
           id: template.id,
           name: template.name,
           status: template.status,
           category: template.category,
           language: template.language,
           components: template.components,
-        })),
-      };
-    } else {
+        }));
+        
+        console.log(`getMetaApiTemplates: ${templates.length} templates encontrados`);
+        
+        return {
+          success: true,
+          templates
+        };
+      } else {
+        console.log(`getMetaApiTemplates: Nenhum template encontrado na resposta`, response.data);
+        return {
+          success: true,
+          templates: [],
+        };
+      }
+    } catch (axiosError: any) {
+      console.error("getMetaApiTemplates: Erro ao fazer requisição:", {
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        data: axiosError.response?.data,
+        message: axiosError.message
+      });
+      
+      const errorMessage = axiosError.response?.data?.error?.message || 
+                          axiosError.response?.statusText || 
+                          axiosError.message || 
+                          "Erro desconhecido ao conectar com API da Meta";
+      
       return {
         success: false,
-        error: "Nenhum template encontrado na API da Meta",
+        error: errorMessage,
       };
     }
   } catch (error: any) {
-    console.error("Erro ao buscar templates da Meta API:", error.response?.data || error.message);
+    console.error("getMetaApiTemplates: Erro geral:", error);
     return {
       success: false,
-      error: error.response?.data?.error?.message || error.message,
+      error: error.message || "Erro desconhecido",
     };
   }
 }

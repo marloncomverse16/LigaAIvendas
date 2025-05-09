@@ -483,9 +483,23 @@ const CreateSendingForm = () => {
       
       // Carregar templates da Meta API
       setIsLoadingMetaTemplates(true);
+      setMetaTemplates([]); // Limpar templates anteriores
+      
       console.log("Tentando carregar templates da Meta API via /api/user/meta-templates");
       
-      fetch("/api/user/meta-templates")
+      // Verificar primeiro se o usuário está conectado com a Meta API
+      fetch("/api/meta-connections/status")
+        .then(res => res.json())
+        .then(statusData => {
+          console.log("Status da conexão Meta:", statusData);
+          
+          if (!statusData.connected || !statusData.phoneNumberId) {
+            throw new Error("Conexão com WhatsApp Cloud API (Meta) não configurada. Configure nas Configurações > WhatsApp Cloud API (Meta).");
+          }
+          
+          // Se a conexão estiver OK, buscar os templates
+          return fetch("/api/user/meta-templates");
+        })
         .then(res => {
           console.log("Resposta da API de templates:", {
             status: res.status,
@@ -497,7 +511,8 @@ const CreateSendingForm = () => {
             return res.text().then(text => {
               console.error("Corpo da resposta de erro:", text);
               try {
-                return Promise.reject(new Error(JSON.parse(text).message || "Falha ao carregar templates da Meta API"));
+                const errorObj = JSON.parse(text);
+                return Promise.reject(new Error(errorObj.message || errorObj.error || "Falha ao carregar templates da Meta API"));
               } catch (e) {
                 return Promise.reject(new Error("Falha ao carregar templates da Meta API: " + text));
               }
@@ -508,7 +523,18 @@ const CreateSendingForm = () => {
         })
         .then(data => {
           console.log("Templates da Meta API carregados com sucesso:", data);
-          setMetaTemplates(data);
+          
+          if (Array.isArray(data) && data.length > 0) {
+            setMetaTemplates(data);
+          } else {
+            console.log("Nenhum template encontrado na resposta da Meta API");
+            setMetaTemplates([]);
+            toast({
+              title: "Nenhum template encontrado",
+              description: "Não foi encontrado nenhum template aprovado na sua conta WhatsApp Cloud API (Meta). Crie templates no Facebook Business Manager.",
+              variant: "default",
+            });
+          }
         })
         .catch(error => {
           console.error("Erro ao carregar templates da Meta API:", error);
