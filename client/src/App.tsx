@@ -20,6 +20,7 @@ import ConnectionsPage from "@/pages/connections";
 import WhatsAppQrCodePage from "@/pages/connections/whatsapp-qr-code";
 import WhatsAppMetaPage from "@/pages/connections/whatsapp-meta";
 import ContactsPage from "@/pages/contacts-page";
+import IntegrationsPage from "@/pages/integrations-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 
@@ -30,6 +31,7 @@ function Router() {
       <ProtectedRoute path="/" component={DashboardPage} />
       <ProtectedRoute path="/dashboard" component={DashboardPage} />
       <ProtectedRoute path="/settings" component={SettingsPage} />
+      <ProtectedRoute path="/integracoes" component={IntegrationsPage} />
       <ProtectedRoute path="/ai-agent" component={AiAgentPage} />
       <ProtectedRoute path="/prospecting" component={ProspectingPage} />
       <ProtectedRoute path="/conexoes" component={ConnectionsPage} />

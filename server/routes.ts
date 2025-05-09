@@ -2558,6 +2558,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para testar a conexão com a Meta API
+  app.post("/api/user/meta-connection/test", async (req, res) => {
+    console.log("==== Rota /api/user/meta-connection/test chamada ====");
+    
+    if (!req.isAuthenticated()) {
+      console.log("Usuário não autenticado");
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      // Extrair dados da requisição
+      const { whatsappMetaToken, whatsappMetaBusinessId, whatsappMetaApiVersion } = req.body;
+      
+      if (!whatsappMetaToken || !whatsappMetaBusinessId) {
+        return res.status(400).json({ 
+          message: "Dados incompletos. Informe token e business ID." 
+        });
+      }
+      
+      console.log(`Testando conexão com Meta API para usuário ${req.user.id}`);
+      console.log(`Business ID: ${whatsappMetaBusinessId}, API Version: ${whatsappMetaApiVersion || "v18.0"}`);
+      
+      // Testar a conexão chamando a API da Meta para buscar templates
+      const result = await getMetaApiTemplates(
+        whatsappMetaToken,
+        whatsappMetaBusinessId,
+        whatsappMetaApiVersion || "v18.0"
+      );
+      
+      if (!result.success) {
+        console.log(`Teste de conexão com Meta API falhou: ${result.error}`);
+        return res.status(400).json({ 
+          message: `Falha na conexão: ${result.error}`,
+          error: result.error
+        });
+      }
+      
+      console.log(`Conexão com Meta API bem-sucedida. ${result.templates?.length || 0} templates encontrados.`);
+      
+      // Atualizar as configurações do usuário com os valores testados
+      await db
+        .update(settings)
+        .set({
+          whatsappMetaToken,
+          whatsappMetaBusinessId,
+          whatsappMetaApiVersion: whatsappMetaApiVersion || "v18.0"
+        })
+        .where(eq(settings.userId, req.user.id));
+      
+      return res.status(200).json({
+        message: "Conexão bem-sucedida",
+        templatesFound: result.templates?.length || 0
+      });
+    } catch (error) {
+      console.error("Erro ao testar conexão com Meta API:", error);
+      res.status(500).json({ 
+        message: "Erro interno ao testar conexão", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+  
   // Endpoints para gerenciamento de contatos
   app.get("/api/contacts", listContacts);
   app.post("/api/contacts/sync", syncContacts);
