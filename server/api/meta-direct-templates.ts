@@ -54,16 +54,43 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
     const businessId = user.whatsapp_meta_business_id;
     const apiVersion = user.whatsapp_meta_api_version || "v18.0";  // Default to v18.0 if not set
 
+    // Verificando se os valores parecem estar em ordem
+    if (token.length < 20) {
+      console.log("[META-DIRECT] ALERTA: Token parece muito curto");
+    }
+    
+    // Verificar se o businessId e token estão invertidos (um erro comum)
+    let actualToken = token;
+    let actualBusinessId = businessId;
+    
+    if (businessId.length > 60 && token.length < 30) {
+      console.log("[META-DIRECT] ALERTA: BusinessId e Token parecem estar invertidos. Tentando corrigir...");
+      // Trocar os valores
+      actualToken = businessId;
+      actualBusinessId = token;
+      console.log("[META-DIRECT] Valores trocados para correção");
+    }
+    
+    // Verificar formato do businessId (deve ser numérico)
+    if (isNaN(Number(businessId))) {
+      console.log("[META-DIRECT] ALERTA: BusinessId não é numérico:", businessId);
+    }
+
     console.log(`[META-DIRECT] Usando usuário ID ${user.user_id} para buscar templates`);
-    console.log(`[META-DIRECT] BusinessID: ${businessId}, API Version: ${apiVersion}`);
+    console.log(`[META-DIRECT] BusinessID: ${businessId}`);
+    console.log(`[META-DIRECT] API Version: ${apiVersion}`);
+    console.log(`[META-DIRECT] Token (primeiros 10 chars): ${token.substring(0, 10)}...`);
 
     // URL para buscar as mensagens templates
-    const url = `https://graph.facebook.com/${apiVersion}/${businessId}/message_templates`;
+    const url = `https://graph.facebook.com/${apiVersion}/${actualBusinessId}/message_templates`;
+
+    console.log(`[META-DIRECT] URL final: ${url}`);
+    console.log(`[META-DIRECT] Token utilizado (primeiros 10 chars): ${actualToken.substring(0, 10)}...`);
 
     // Buscar templates da Meta API diretamente
     const response = await axios.get(url, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${actualToken}`,
       },
       params: {
         limit: 100,
@@ -92,11 +119,28 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
     console.error("[META-DIRECT] Erro ao buscar templates:", error.message);
     
     // Incluir detalhes de erro para ajudar no diagnóstico
+    // Extrair detalhes específicos do erro da Meta API
+    let errorMessage = "Erro desconhecido";
+    let errorCode = "UNKNOWN";
+    
+    if (error.response?.data?.error) {
+      // Formato de erro da Meta API
+      errorMessage = error.response.data.error.message || "Erro na API";
+      errorCode = error.response.data.error.code || error.response.status;
+      console.log("[META-DIRECT] Erro específico da Meta API:", {
+        message: errorMessage,
+        code: errorCode,
+        type: error.response.data.error.type
+      });
+    }
+    
     const errorDetails = error.response 
       ? {
           status: error.response.status,
-          data: error.response.data,
-          headers: error.response.headers,
+          statusText: error.response.statusText,
+          message: errorMessage,
+          code: errorCode,
+          data: error.response.data
         }
       : { message: error.message };
     
