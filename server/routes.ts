@@ -2549,6 +2549,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota direta para obter templates da Meta API sem autenticação
+  // Útil para diagnóstico e testes
+  app.get("/api/meta-direct-templates", async (req, res) => {
+    console.log("Rota /api/meta-direct-templates chamada - ACESSO DIRETO");
+    try {
+      await getMetaTemplatesDirectly(req, res);
+    } catch (error) {
+      console.error("Erro ao processar requisição getMetaTemplatesDirectly:", error);
+      res.status(500).json({
+        message: "Erro interno ao obter templates diretamente",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // Rota para diagnóstico de templates da Meta API
   app.get("/api/diagnose/meta-templates", async (req, res) => {
     console.log("Diagnóstico de templates da Meta API iniciado");
