@@ -485,10 +485,17 @@ const CreateSendingForm = () => {
       setIsLoadingMetaTemplates(true);
       setMetaTemplates([]); // Limpar templates anteriores
       
-      console.log("Tentando carregar templates da Meta API via /api/user/meta-templates");
+      console.log("Tentando carregar templates da Meta API");
+      
+      // Adicionando feedback visual de diagnóstico
+      toast({
+        title: "Carregando templates Meta API",
+        description: "Verificando conexão...",
+        variant: "default",
+      });
       
       // Verificar primeiro se o usuário está conectado com a Meta API
-      fetch("/api/meta-connections/status")
+      fetch("/api/user/meta-connections/status")
         .then(res => res.json())
         .then(statusData => {
           console.log("Status da conexão Meta:", statusData);
@@ -497,17 +504,31 @@ const CreateSendingForm = () => {
             throw new Error("Conexão com WhatsApp Cloud API (Meta) não configurada. Configure nas Configurações > WhatsApp Cloud API (Meta).");
           }
           
-          // Se a conexão estiver OK, buscar os templates
+          toast({
+            title: "Conexão Meta API OK",
+            description: "Buscando templates disponíveis...",
+            variant: "default",
+          });
+          
+          // Tentar a rota principal de templates
+          console.log("Tentando buscar templates via rota principal");
           return fetch("/api/user/meta-templates");
         })
         .then(res => {
           console.log("Resposta da API de templates:", {
+            url: res.url,
             status: res.status,
             ok: res.ok,
             statusText: res.statusText
           });
           
           if (!res.ok) {
+            // Se a resposta não for OK, tentar uma rota alternativa
+            if (res.status === 404) {
+              console.log("Rota não encontrada, tentando rota alternativa");
+              return fetch("/api/meta-templates");
+            }
+            
             return res.text().then(text => {
               console.error("Corpo da resposta de erro:", text);
               try {
@@ -521,11 +542,34 @@ const CreateSendingForm = () => {
           
           return res.json();
         })
+        .then(res => {
+          // Verificar se é uma resposta HTTP (de uma segunda tentativa)
+          if (res.url && res.status) {
+            console.log("Processando resposta da segunda tentativa:", res);
+            if (!res.ok) {
+              return res.text().then(text => {
+                try {
+                  const errorObj = JSON.parse(text);
+                  return Promise.reject(new Error(errorObj.message || errorObj.error || "Falha ao carregar templates da Meta API"));
+                } catch (e) {
+                  return Promise.reject(new Error("Falha ao carregar templates da Meta API: " + text));
+                }
+              });
+            }
+            return res.json();
+          }
+          return res; // Se já for os dados JSON, retorna diretamente
+        })
         .then(data => {
           console.log("Templates da Meta API carregados com sucesso:", data);
           
           if (Array.isArray(data) && data.length > 0) {
             setMetaTemplates(data);
+            toast({
+              title: "Templates carregados",
+              description: `${data.length} templates encontrados.`,
+              variant: "default",
+            });
           } else {
             console.log("Nenhum template encontrado na resposta da Meta API");
             setMetaTemplates([]);
@@ -538,11 +582,53 @@ const CreateSendingForm = () => {
         })
         .catch(error => {
           console.error("Erro ao carregar templates da Meta API:", error);
+          
+          // Como último recurso, tentar via endpoint de diagnóstico
           toast({
-            title: "Erro ao carregar templates da Meta API",
-            description: error.message,
-            variant: "destructive",
+            title: "Tentando método alternativo",
+            description: "Utilizando diagnóstico de templates...",
+            variant: "default",
           });
+          
+          fetch("/api/diagnose/meta-templates")
+            .then(res => res.ok ? res.json() : Promise.reject("Falha no diagnóstico"))
+            .then(data => {
+              console.log("Diagnóstico de templates:", data);
+              if (data.steps && data.steps.length > 0) {
+                const lastStep = data.steps.find(s => s.templates && s.templates.length > 0);
+                if (lastStep) {
+                  const simpleTemplates = lastStep.templates.map((t: any) => ({
+                    id: t.id,
+                    name: t.name,
+                    status: t.status,
+                    category: t.category,
+                    language: t.language
+                  }));
+                  setMetaTemplates(simpleTemplates);
+                  toast({
+                    title: "Templates recuperados via diagnóstico",
+                    description: `${simpleTemplates.length} templates encontrados.`,
+                    variant: "default",
+                  });
+                  return;
+                }
+              }
+              
+              // Se chegou aqui, não foi possível recuperar via diagnóstico também
+              toast({
+                title: "Erro ao carregar templates da Meta API",
+                description: error.message,
+                variant: "destructive",
+              });
+            })
+            .catch(diagError => {
+              console.error("Falha no diagnóstico:", diagError);
+              toast({
+                title: "Erro ao carregar templates da Meta API",
+                description: error.message,
+                variant: "destructive",
+              });
+            });
         })
         .finally(() => {
           console.log("Finalizando carregamento de templates da Meta API");
