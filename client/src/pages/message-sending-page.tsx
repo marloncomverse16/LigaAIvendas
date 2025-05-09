@@ -694,7 +694,7 @@ const CreateSendingForm = () => {
                             ))
                           ) : (
                             <SelectItem value="none" disabled>
-                              Nenhum template Meta API encontrado
+                              Nenhum template Meta API encontrado. Verifique suas credenciais.
                             </SelectItem>
                           )
                         ) : (
