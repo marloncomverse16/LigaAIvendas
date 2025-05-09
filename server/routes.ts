@@ -45,6 +45,7 @@ import {
   getMetaSettings
 } from "./api/user-meta-connections";
 import { getUserMetaTemplates } from "./api/meta-templates";
+import { getMetaTemplatesDirect } from "./api/meta-direct-templates";
 import userSettingsService from "./user-settings-service";
 import { checkMetaApiConnection } from "./meta-debug";
 import { db } from "./db";
@@ -2471,6 +2472,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Rota de diagnóstico da Meta API (sem autenticação para facilitar testes)
   app.get("/api/meta-debug", checkMetaApiConnection);
+  
+  // Rota robusta direta para obter templates da Meta API
+  app.get("/api/meta-templates", getMetaTemplatesDirect);
   
   // Endpoint de diagnóstico para verificar se as configurações da Meta API estão sendo carregadas corretamente
   app.get("/api/diagnose/meta-settings", async (req, res) => {
