@@ -25,18 +25,19 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
   
   try {
     // Buscar o primeiro usuário com token Meta configurado
+    // As configurações estão na tabela 'settings', não na tabela 'users'
     const result = await pool.query(`
       SELECT 
-        users.id, 
-        users.whatsapp_meta_token, 
-        users.whatsapp_meta_business_id, 
-        users.whatsapp_meta_api_version
-      FROM users
+        settings.user_id, 
+        settings.whatsapp_meta_token, 
+        settings.whatsapp_meta_business_id, 
+        settings.whatsapp_meta_api_version
+      FROM settings
       WHERE 
-        users.whatsapp_meta_token IS NOT NULL AND 
-        users.whatsapp_meta_token != '' AND
-        users.whatsapp_meta_business_id IS NOT NULL AND
-        users.whatsapp_meta_business_id != ''
+        settings.whatsapp_meta_token IS NOT NULL AND 
+        settings.whatsapp_meta_token != '' AND
+        settings.whatsapp_meta_business_id IS NOT NULL AND
+        settings.whatsapp_meta_business_id != ''
       LIMIT 1
     `);
 
@@ -53,7 +54,7 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
     const businessId = user.whatsapp_meta_business_id;
     const apiVersion = user.whatsapp_meta_api_version || "v18.0";  // Default to v18.0 if not set
 
-    console.log(`[META-DIRECT] Usando usuário ID ${user.id} para buscar templates`);
+    console.log(`[META-DIRECT] Usando usuário ID ${user.user_id} para buscar templates`);
     console.log(`[META-DIRECT] BusinessID: ${businessId}, API Version: ${apiVersion}`);
 
     // URL para buscar as mensagens templates
