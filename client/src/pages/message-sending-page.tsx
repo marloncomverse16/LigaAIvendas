@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
@@ -529,20 +530,34 @@ const CreateSendingForm = () => {
         .catch(error => {
           console.error("Erro ao carregar templates da Meta API:", error);
           
+          let title = "Erro ao carregar templates";
+          let description = error.message || "Falha ao carregar templates da Meta API";
+          let action = null;
+          
           // Se a mensagem contiver informações sobre configuração
-          if (error.message && error.message.includes("Configure em")) {
-            toast({
-              title: "WhatsApp Cloud API não configurada",
-              description: "Configure suas credenciais da Meta API em Integrações > WhatsApp Cloud API",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Erro ao carregar templates",
-              description: error.message || "Falha ao carregar templates da Meta API",
-              variant: "destructive",
-            });
+          if (error.message && (
+            error.message.includes("Configure em") || 
+            error.message.includes("não configurada") || 
+            error.message.includes("API token") ||
+            error.message.includes("credenciais inválidas") ||
+            error.message.includes("Meta API") ||
+            error.message.includes("WhatsApp Business")
+          )) {
+            title = "WhatsApp Cloud API não configurada";
+            description = "Configure suas credenciais da Meta API para acessar templates";
+            action = (
+              <ToastAction altText="Configurar" asChild>
+                <Link href="/integracoes">Configurar agora</Link>
+              </ToastAction>
+            );
           }
+          
+          toast({
+            title: title,
+            description: description,
+            variant: "destructive",
+            action: action
+          });
         })
         .finally(() => {
           console.log("Finalizando carregamento de templates da Meta API");
