@@ -45,6 +45,10 @@ import {
   getMetaSettings
 } from "./api/user-meta-connections";
 import { getUserMetaTemplates } from "./api/meta-templates";
+import userSettingsService from "./user-settings-service";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import { settings } from "@shared/schema";
 import { EvolutionApiClient } from "./evolution-api";
 import { listContacts, syncContacts, exportContacts } from "./api/contacts";
 
@@ -2463,6 +2467,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/user/meta-connections/send", sendUserMetaWhatsAppMessage);
   app.get("/api/user/meta-settings", getMetaSettings);
   app.post("/api/user/meta-settings", updateMetaSettings);
+  
+  // Endpoint de diagnóstico para verificar se as configurações da Meta API estão sendo carregadas corretamente
+  app.get("/api/diagnose/meta-settings", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const userId = req.user.id;
+      console.log(`DIAGNÓSTICO: Obtendo configurações Meta para usuário ${userId}`);
+      
+      // Buscar via serviço de usuário-settings
+      const userSettingsResult = await userSettingsService.getUserSettings(userId);
+      
+      // Buscar também via ORM para comparação
+      const [ormSettings] = await db
+        .select()
+        .from(settings)
+        .where(eq(settings.userId, userId));
+      
+      // Verificar se as configurações existem em ambos
+      const serviceSettingsExist = !!userSettingsResult.data;
+      const ormSettingsExist = !!ormSettings;
+      
+      // Preparar resposta de diagnóstico
+      const diagnosticData = {
+        userId,
+        serviceSettings: {
+          exists: serviceSettingsExist,
+          token: serviceSettingsExist ? (userSettingsResult.data.whatsappMetaToken ? "Presente" : "Ausente") : "N/A",
+          businessId: serviceSettingsExist ? (userSettingsResult.data.whatsappMetaBusinessId ? "Presente" : "Ausente") : "N/A",
+          apiVersion: serviceSettingsExist ? userSettingsResult.data.whatsappMetaApiVersion : "N/A",
+        },
+        ormSettings: {
+          exists: ormSettingsExist,
+          token: ormSettingsExist ? (ormSettings.whatsappMetaToken ? "Presente" : "Ausente") : "N/A", 
+          businessId: ormSettingsExist ? (ormSettings.whatsappMetaBusinessId ? "Presente" : "Ausente") : "N/A",
+          apiVersion: ormSettingsExist ? ormSettings.whatsappMetaApiVersion : "N/A",
+          database_columns: ormSettingsExist ? Object.keys(ormSettings) : []
+        }
+      };
+      
+      return res.status(200).json(diagnosticData);
+    } catch (error) {
+      console.error("Erro ao diagnosticar configurações Meta:", error);
+      return res.status(500).json({ 
+        message: "Erro ao diagnosticar configurações", 
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
   
   // Rota para obter templates da Meta API
   app.get("/api/user/meta-templates", async (req, res) => {
