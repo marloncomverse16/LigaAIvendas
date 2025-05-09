@@ -20,15 +20,38 @@ export async function getMetaApiTemplates(
       throw new Error("Meta API não configurada corretamente. Token e Business ID são obrigatórios.");
     }
 
-    console.log(`getMetaApiTemplates: Buscando templates via API: ${apiVersion}/${whatsappMetaBusinessId}/message_templates`);
-    const endpoint = `https://graph.facebook.com/${apiVersion}/${whatsappMetaBusinessId}/message_templates`;
+    // Verificações se o token e businessId estão invertidos
+    let actualToken = whatsappMetaToken;
+    let actualBusinessId = whatsappMetaBusinessId;
+    
+    if (whatsappMetaToken.length < 20) {
+      console.log("getMetaApiTemplates: ALERTA: Token parece muito curto");
+    }
+    
+    // Verificar se o businessId e token estão invertidos (um erro comum)
+    if (whatsappMetaBusinessId.length > 60 && whatsappMetaToken.length < 30) {
+      console.log("getMetaApiTemplates: ALERTA: BusinessId e Token parecem estar invertidos. Tentando corrigir...");
+      // Trocar os valores
+      actualToken = whatsappMetaBusinessId;
+      actualBusinessId = whatsappMetaToken;
+      console.log("getMetaApiTemplates: Valores trocados para correção");
+    }
+    
+    // Verificar formato do businessId (deve ser numérico)
+    if (isNaN(Number(whatsappMetaBusinessId))) {
+      console.log("getMetaApiTemplates: ALERTA: BusinessId não é numérico:", whatsappMetaBusinessId);
+    }
+
+    console.log(`getMetaApiTemplates: Buscando templates via API: ${apiVersion}/${actualBusinessId}/message_templates`);
+    const endpoint = `https://graph.facebook.com/${apiVersion}/${actualBusinessId}/message_templates`;
     
     console.log(`getMetaApiTemplates: Endpoint de templates: ${endpoint}`);
+    console.log(`getMetaApiTemplates: Token utilizado (primeiros 10 chars): ${actualToken.substring(0, 10)}...`);
     
     try {
       const response = await axios.get(endpoint, {
         headers: {
-          Authorization: `Bearer ${whatsappMetaToken}`,
+          Authorization: `Bearer ${actualToken}`,
           "Content-Type": "application/json",
         },
       });

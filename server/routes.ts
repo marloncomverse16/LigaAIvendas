@@ -2586,7 +2586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         apiVersion: userSettings.whatsappMetaApiVersion || "v18.0"
       });
       
-      // Passo 2: Verificar se credenciais Meta estão presentes
+      // Passo 2: Verificar se credenciais Meta estão presentes e corretamente formatadas
       diagnosticoData.steps.push({ step: 2, name: "Verificar credenciais da Meta API" });
       
       if (!userSettings.whatsappMetaToken || !userSettings.whatsappMetaBusinessId) {
@@ -2598,29 +2598,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(diagnosticoData);
       }
       
+      // Verificar formato e possíveis valores invertidos
+      let possiblySwapped = false;
+      let tokenLooksOk = userSettings.whatsappMetaToken.length > 20;
+      let businessIdLooksOk = !isNaN(Number(userSettings.whatsappMetaBusinessId));
+      let tokenLength = userSettings.whatsappMetaToken.length || 0;
+      let businessIdLength = userSettings.whatsappMetaBusinessId.length || 0;
+      
+      // Verificar se parecem estar invertidos
+      if (businessIdLength > 60 && tokenLength < 30) {
+        possiblySwapped = true;
+      }
+      
       diagnosticoData.steps.push({ 
         step: 2,
-        status: "success",
-        message: "Credenciais da Meta API encontradas"
+        status: possiblySwapped ? "warning" : "success",
+        message: possiblySwapped 
+          ? "Credenciais encontradas, mas podem estar invertidas" 
+          : "Credenciais da Meta API encontradas",
+        details: {
+          tokenLooksValid: tokenLooksOk,
+          businessIdLooksValid: businessIdLooksOk,
+          possiblySwapped,
+          businessIdLength,
+          tokenLength: tokenLength > 10 ? "OK" : "MUITO CURTO"
+        }
       });
       
       // Passo 3: Testar conexão básica com a API da Meta
       diagnosticoData.steps.push({ step: 3, name: "Testar conexão com API da Meta" });
       
       try {
-        const testEndpoint = `https://graph.facebook.com/${userSettings.whatsappMetaApiVersion || 'v18.0'}/${userSettings.whatsappMetaBusinessId}`;
+        // Se os valores parecem estar invertidos, use as versões corrigidas
+        const token = possiblySwapped ? userSettings.whatsappMetaBusinessId : userSettings.whatsappMetaToken;
+        const businessId = possiblySwapped ? userSettings.whatsappMetaToken : userSettings.whatsappMetaBusinessId;
+        const apiVersion = userSettings.whatsappMetaApiVersion || 'v18.0';
+        
+        const testEndpoint = `https://graph.facebook.com/${apiVersion}/${businessId}`;
         
         diagnosticoData.steps.push({ 
           step: 3,
           status: "info",
-          message: "Tentando conexão com endpoint",
-          endpoint: testEndpoint
+          message: possiblySwapped 
+            ? "Tentando conexão com endpoint usando valores corrigidos" 
+            : "Tentando conexão com endpoint",
+          endpoint: testEndpoint,
+          usingCorrectedValues: possiblySwapped
         });
         
         const response = await fetch(testEndpoint, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${userSettings.whatsappMetaToken}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
@@ -2661,19 +2690,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       diagnosticoData.steps.push({ step: 4, name: "Buscar templates" });
       
       try {
-        const templatesEndpoint = `https://graph.facebook.com/${userSettings.whatsappMetaApiVersion || 'v18.0'}/${userSettings.whatsappMetaBusinessId}/message_templates`;
+        // Se os valores parecem estar invertidos, use as versões corrigidas
+        const token = possiblySwapped ? userSettings.whatsappMetaBusinessId : userSettings.whatsappMetaToken;
+        const businessId = possiblySwapped ? userSettings.whatsappMetaToken : userSettings.whatsappMetaBusinessId;
+        const apiVersion = userSettings.whatsappMetaApiVersion || 'v18.0';
+        
+        const templatesEndpoint = `https://graph.facebook.com/${apiVersion}/${businessId}/message_templates`;
         
         diagnosticoData.steps.push({ 
           step: 4,
           status: "info",
-          message: "Tentando buscar templates",
-          endpoint: templatesEndpoint
+          message: possiblySwapped 
+            ? "Tentando buscar templates com valores corrigidos" 
+            : "Tentando buscar templates",
+          endpoint: templatesEndpoint,
+          usingCorrectedValues: possiblySwapped
         });
         
         const response = await fetch(templatesEndpoint, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${userSettings.whatsappMetaToken}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
