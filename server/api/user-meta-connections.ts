@@ -382,90 +382,11 @@ export async function disconnectWhatsAppMeta(req: Request, res: Response) {
 }
 
 /**
- * Controller para obter os templates de mensagem aprovados da Meta API
+ * FUNÇÃO REMOVIDA: Controller para obter os templates de mensagem aprovados da Meta API
+ * Esta função foi duplicada com getUserMetaTemplates em api/meta-templates.ts
+ * Agora estamos usando apenas a implementação em getUserMetaTemplates
+ * via rota /api/user/meta-templates
  */
-export async function getMetaTemplates(req: Request, res: Response) {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: 'Não autenticado' });
-  }
-
-  try {
-    console.log('Buscando templates da Meta API');
-    const userId = req.user!.id;
-    
-    // Verificar se SECRET está disponível
-    const haveMetaCredentials = process.env.EVOLUTION_API_TOKEN !== undefined;
-    if (!haveMetaCredentials) {
-      console.log('TOKEN_META_API não está disponível no ambiente');
-      return res.json([{
-        id: "sample_template",
-        name: "Precisa configurar TOKEN_META_API",
-        status: "ERROR",
-        category: "SETUP_REQUIRED",
-        language: "pt_BR"
-      }]);
-    }
-    
-    // Obter configurações do usuário
-    const settingsResult = await userSettingsService.getUserSettings(userId);
-    console.log('Resultado das configurações:', JSON.stringify(settingsResult));
-    
-    if (!settingsResult.success || !settingsResult.data) {
-      console.log('Configurações não encontradas para usuário', userId);
-      return res.status(404).json({ 
-        message: 'Configurações não encontradas'
-      });
-    }
-
-    const settings = settingsResult.data;
-    console.log('Configurações carregadas:', {
-      hasToken: !!settings.whatsappMetaToken,
-      hasBusinessId: !!settings.whatsappMetaBusinessId,
-      apiVersion: settings.whatsappMetaApiVersion 
-    });
-
-    // Verificar configurações da Meta API
-    // Se token e businessId não estiverem configurados, use os valores padrão de teste
-    // para possibilitar desenvolvimento e teste da interface
-    const token = settings.whatsappMetaToken || process.env.EVOLUTION_API_TOKEN || '';
-    const businessId = settings.whatsappMetaBusinessId || '1234567890';
-    const apiVersion = settings.whatsappMetaApiVersion || 'v18.0';
-    
-    if (!token) {
-      console.log('Token da Meta API não configurado');
-      return res.status(400).json({ 
-        message: 'Token da API da Meta não configurado nas configurações'
-      });
-    }
-    
-    // Obter templates usando a função específica
-    console.log('Chamando API para obter templates com:', { token: '***', businessId, apiVersion });
-    const templates = await getMetaApiTemplates(
-      token,
-      businessId,
-      apiVersion
-    );
-    
-    console.log('Resposta da API de templates:', JSON.stringify(templates));
-    
-    if (!templates.success) {
-      console.error('Erro na resposta da API de templates:', templates.error);
-      return res.status(500).json({
-        message: 'Erro ao obter templates',
-        error: templates.error
-      });
-    }
-    
-    // Retornar templates
-    res.json(templates.templates || []);
-  } catch (error: any) {
-    console.error('Erro ao obter templates da Meta API:', error);
-    res.status(500).json({
-      message: 'Erro ao obter templates',
-      error: error.message
-    });
-  }
-}
 
 /**
  * Controller para enviar mensagem pelo WhatsApp usando a Meta API

@@ -2521,8 +2521,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Rota para obter templates da Meta API
   app.get("/api/user/meta-templates", async (req, res) => {
-    console.log("Rota /api/user/meta-templates chamada");
+    console.log("Rota /api/user/meta-templates chamada - VERSÃO CORRIGIDA");
+    
+    // Verificar autenticação logo de início
+    if (!req.isAuthenticated()) {
+      console.log("GET /api/user/meta-templates: Usuário não autenticado");
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
+      console.log(`GET /api/user/meta-templates: Chamando implementação para usuário ${req.user.id}`);
       await getUserMetaTemplates(req, res);
     } catch (error) {
       console.error("Erro ao processar requisição getUserMetaTemplates:", error);
