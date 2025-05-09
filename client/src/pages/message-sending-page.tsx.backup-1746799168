@@ -457,7 +457,7 @@ const CreateSendingForm = () => {
   });
   
   // Estados para controlar os templates da Meta API
-  const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
+  const [metaTemplates, setMetaTemplates] = useState([]);
   const [isLoadingMetaTemplates, setIsLoadingMetaTemplates] = useState(false);
 
   // Monitorar mudanças no interruptor de template/mensagem personalizada
@@ -767,66 +767,30 @@ const CreateSendingForm = () => {
                       </FormControl>
                       <SelectContent>
                         {form.watch("whatsappConnectionType") === "meta" ? (
-                          // Templates da Meta API 
-                          isLoadingMetaTemplates ? (
+                          // Templates da Meta API - Usando componente específico para templates Meta
+                          <>
                             <SelectItem value="loading" disabled>
                               Carregando templates da Meta API...
                             </SelectItem>
-                          ) : metaTemplates && metaTemplates.length > 0 ? (
-                            // Mostrar os templates Meta carregados
-                            <>
-                              {console.log("Renderizando templates Meta:", metaTemplates)}
-                              {metaTemplates.map((template) => {
-                                console.log("Template individual:", template);
-                                return (
-                                  <SelectItem 
-                                    key={template.id} 
-                                    value={template.id.toString()}
-                                  >
-                                    {template.name} {template.status ? `(${template.status})` : ''}
-                                  </SelectItem>
-                                );
-                              })}
-                              <SelectItem value="debug" onClick={() => {
-                                // Opção para recarregar templates manualmente
-                                fetch("/api/meta-templates")
-                                  .then(res => res.json())
-                                  .then(data => {
-                                    console.log("Templates Meta recarregados:", data);
-                                    if (Array.isArray(data) && data.length > 0) {
-                                      setMetaTemplates(data);
-                                      toast({
-                                        title: "Templates recarregados",
-                                        description: `${data.length} templates encontrados`,
-                                        variant: "default",
-                                      });
-                                    }
-                                  })
-                                  .catch(err => console.error("Erro ao recarregar:", err));
-                              }}>
-                                🔄 Recarregar templates
-                              </SelectItem>
-                            </>
-                          ) : (
-                            <>
-                              <SelectItem value="none" disabled>
-                                Nenhum template Meta API encontrado
-                              </SelectItem>
-                              <SelectItem value="reload" onClick={() => {
-                                fetch("/api/meta-templates")
-                                  .then(res => res.json())
-                                  .then(data => {
-                                    console.log("Tentativa de recarregar templates:", data);
-                                    if (Array.isArray(data) && data.length > 0) {
-                                      setMetaTemplates(data);
-                                    }
-                                  })
-                                  .catch(err => console.error("Erro ao tentar recarregar:", err));
-                              }}>
-                                🔄 Recarregar templates
-                              </SelectItem>
-                            </>
-                          )
+                            {/* Busca direta usando a rota otimizada /api/meta-templates */}
+                            <SelectItem value="fetch" disabled>
+                              Buscando templates...
+                            </SelectItem>
+                            <SelectItem value="debug" onClick={() => {
+                              // Tenta buscar templates de forma direta
+                              fetch("/api/meta-templates")
+                                .then(res => res.json())
+                                .then(data => {
+                                  console.log("Debug - Templates Meta:", data);
+                                  if (Array.isArray(data) && data.length > 0) {
+                                    setMetaTemplates(data);
+                                  }
+                                })
+                                .catch(err => console.error("Erro debug:", err));
+                            }}>
+                              Recarregar templates
+                            </SelectItem>
+                          </>
                         ) : (
                           // Templates normais (QR Code)
                           isLoadingTemplates ? (

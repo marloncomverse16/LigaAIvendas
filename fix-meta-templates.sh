@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Substitui a implementação complexa da busca de templates por uma mais simples e robusta
+# Arquivo temporário para o código substituído
 cat > /tmp/meta-templates-fix.js << 'EOL'
+  // Monitorar mudanças no tipo de conexão WhatsApp
   useEffect(() => {
     const connectionType = form.watch("whatsappConnectionType");
     
@@ -17,33 +18,44 @@ cat > /tmp/meta-templates-fix.js << 'EOL'
       setIsLoadingMetaTemplates(true);
       setMetaTemplates([]); // Limpar templates anteriores
       
-      console.log("Tentando carregar templates da Meta API (método simplificado)");
+      console.log("Tentando carregar templates da Meta API (método direto)");
       
-      // Buscar os templates diretamente pela rota otimizada
+      // Buscar os templates diretamente pelo endpoint otimizado
       fetch("/api/meta-templates")
-        .then(res => {
-          console.log("Resposta da rota otimizada:", {
+        .then((res) => {
+          console.log("Resposta da API de templates:", {
             status: res.status,
-            ok: res.ok
+            ok: res.ok,
           });
           
           if (!res.ok) {
-            console.warn("Falha na rota otimizada, tentando rota alternativa");
-            return fetch("/api/user/meta-templates");
+            throw new Error(`Erro ao buscar templates: ${res.status}`);
           }
           
-          return res;
+          return res.json();
         })
-        .then(res => res.json())
-        .then(data => {
+        .then((data) => {
           console.log("Templates recebidos:", data);
           
           if (Array.isArray(data)) {
-            setMetaTemplates(data);
-            if (data.length > 0) {
+            // Mapear os templates para um formato consistente
+            const formattedTemplates = data.map((template) => ({
+              id: template.id,
+              name: template.name,
+              status: template.status,
+              category: template.category,
+              language: template.language
+            }));
+            
+            setMetaTemplates(formattedTemplates);
+            
+            if (formattedTemplates.length > 0) {
+              // Selecionar o primeiro template automaticamente
+              form.setValue("templateId", formattedTemplates[0].id);
+              
               toast({
                 title: "Templates carregados",
-                description: `${data.length} templates encontrados`,
+                description: `${formattedTemplates.length} templates encontrados`,
                 variant: "default",
               });
             } else {
@@ -62,7 +74,7 @@ cat > /tmp/meta-templates-fix.js << 'EOL'
             });
           }
         })
-        .catch(error => {
+        .catch((error) => {
           console.error("Erro ao carregar templates Meta:", error);
           toast({
             title: "Erro ao carregar templates",
@@ -75,45 +87,55 @@ cat > /tmp/meta-templates-fix.js << 'EOL'
         });
         
     } else {
-      // Limpeza quando a conexão não for Meta
+      // Se mudar para modo QR Code, limpar os templates Meta e recarregar os templates normais
       setMetaTemplates([]);
+      
+      // Recarregar templates normais se for modo QR Code
+      if (connectionType === "qrcode") {
+        loadTemplates();
+      }
     }
   }, [form.watch("whatsappConnectionType"), toast, setUseTemplate]);
 EOL
 
 # Backup do arquivo original
-cp client/src/pages/message-sending-page.tsx client/src/pages/message-sending-page.tsx.before-fix
+cp client/src/pages/message-sending-page.tsx client/src/pages/message-sending-page.tsx.backup-$(date +%s)
 
-# Procure a linha onde começar o useEffect de whatsappConnectionType
-START_LINE=$(grep -n "useEffect.*whatsappConnectionType" client/src/pages/message-sending-page.tsx | cut -d: -f1)
+# Use grep para encontrar o início do useEffect que queremos substituir
+LINE_NUMBER=$(grep -n "useEffect.*whatsappConnectionType" client/src/pages/message-sending-page.tsx | head -1 | cut -d: -f1)
 
-# Conte quantas linhas o useEffect tem
-END_MARKER='  }, \[form\.watch("whatsappConnectionType"), toast\]);'
-END_LINE=$(grep -n "$END_MARKER" client/src/pages/message-sending-page.tsx | cut -d: -f1)
-
-# Se não encontrou o END_MARKER, tente outras variações
-if [ -z "$END_LINE" ]; then
-  END_MARKER='  }, \[form.watch("whatsappConnectionType")'
-  END_LINE=$(grep -n "$END_MARKER" client/src/pages/message-sending-page.tsx | cut -d: -f1)
-fi
-
-if [ -z "$START_LINE" ] || [ -z "$END_LINE" ]; then
-  echo "Não foi possível encontrar as linhas de início e fim do useEffect para whatsappConnectionType"
+if [ -z "$LINE_NUMBER" ]; then
+  echo "Não foi possível encontrar o useEffect para substituição"
   exit 1
 fi
 
-echo "Encontrado useEffect nas linhas $START_LINE até $END_LINE"
+echo "Encontrado useEffect na linha $LINE_NUMBER"
 
-# Extrai a parte antes do useEffect
-head -n $(($START_LINE - 1)) client/src/pages/message-sending-page.tsx > /tmp/part1.txt
+# Calcular o final do useEffect
+END_LINE=$(tail -n +$LINE_NUMBER client/src/pages/message-sending-page.tsx | grep -n "}, \[form\.watch(\"whatsappConnectionType\")" | head -1 | cut -d: -f1)
+END_LINE=$((LINE_NUMBER + END_LINE - 1))
 
-# Extrai a parte depois do useEffect
-tail -n +$(($END_LINE + 1)) client/src/pages/message-sending-page.tsx > /tmp/part3.txt
+if [ -z "$END_LINE" ]; then
+  echo "Não foi possível encontrar o fim do useEffect"
+  exit 1
+fi
 
-# Junta as partes com a nova implementação
-cat /tmp/part1.txt /tmp/meta-templates-fix.js /tmp/part3.txt > client/src/pages/message-sending-page.tsx.new
+echo "Fim do useEffect na linha $END_LINE"
 
-# Substitui o arquivo original
+# Extrair as partes antes e depois do useEffect
+head -n $((LINE_NUMBER - 1)) client/src/pages/message-sending-page.tsx > /tmp/before.tsx
+tail -n +$((END_LINE + 1)) client/src/pages/message-sending-page.tsx > /tmp/after.tsx
+
+# Juntar tudo com o novo código
+cat /tmp/before.tsx /tmp/meta-templates-fix.js /tmp/after.tsx > client/src/pages/message-sending-page.tsx.new
+
+# Verificar se o arquivo resultante não está vazio
+if [ ! -s client/src/pages/message-sending-page.tsx.new ]; then
+  echo "Erro: o arquivo resultante está vazio"
+  exit 1
+fi
+
+# Substituir o arquivo original
 mv client/src/pages/message-sending-page.tsx.new client/src/pages/message-sending-page.tsx
 
-echo "Implementação simplificada aplicada com sucesso!"
+echo "Substituição concluída com sucesso"
