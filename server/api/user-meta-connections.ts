@@ -16,7 +16,7 @@ const metaConnectionSchema = z.object({
 
 // Schema para atualização das configurações da Meta API
 const metaSettingsSchema = z.object({
-  whatsappMetaToken: z.string().min(10).max(500).optional(),
+  whatsappMetaToken: z.string().min(5).max(2000).optional(),
   whatsappMetaBusinessId: z.string().min(5).max(100).optional(),
   whatsappMetaApiVersion: z.string().min(3).max(50).optional()
 });

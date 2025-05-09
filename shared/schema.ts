@@ -65,8 +65,8 @@ export const settings = pgTable("settings", {
   revenueGoal: text("revenue_goal").default("0"),
   leadsGoal: integer("leads_goal").default(0),
   // WhatsApp Meta Cloud API (Específico por usuário)
-  whatsappMetaToken: text("whatsapp_meta_token"),
-  whatsappMetaBusinessId: text("whatsapp_meta_business_id"),
+  whatsappMetaToken: text("whatsapp_meta_token").notNull().default(""), // Token de acesso à API da Meta
+  whatsappMetaBusinessId: text("whatsapp_meta_business_id").notNull().default(""), // ID do negócio na Meta
   whatsappMetaApiVersion: text("whatsapp_meta_api_version").default("v18.0"),
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
