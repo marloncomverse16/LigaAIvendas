@@ -148,22 +148,25 @@ export async function updateWhatsAppMetaSettings(
     
     // Construir a query de atualização apenas com os campos fornecidos
     let updateFields = [];
-    let queryParams = [userId]; // userId será sempre o último parâmetro
+    let queryParams = []; // Adicionar parâmetros na ordem correta
     let paramCounter = 1;
     
     if (data.whatsappMetaToken !== undefined) {
-      updateFields.push(`whatsapp_meta_token = $${paramCounter++}`);
-      queryParams.unshift(data.whatsappMetaToken);
+      updateFields.push(`whatsapp_meta_token = $${paramCounter}`);
+      queryParams.push(data.whatsappMetaToken);
+      paramCounter++;
     }
     
     if (data.whatsappMetaBusinessId !== undefined) {
-      updateFields.push(`whatsapp_meta_business_id = $${paramCounter++}`);
-      queryParams.unshift(data.whatsappMetaBusinessId);
+      updateFields.push(`whatsapp_meta_business_id = $${paramCounter}`);
+      queryParams.push(data.whatsappMetaBusinessId);
+      paramCounter++;
     }
     
     if (data.whatsappMetaApiVersion !== undefined) {
-      updateFields.push(`whatsapp_meta_api_version = $${paramCounter++}`);
-      queryParams.unshift(data.whatsappMetaApiVersion);
+      updateFields.push(`whatsapp_meta_api_version = $${paramCounter}`);
+      queryParams.push(data.whatsappMetaApiVersion);
+      paramCounter++;
     }
     
     // Adicionar updated_at sempre
@@ -180,6 +183,9 @@ export async function updateWhatsAppMetaSettings(
       WHERE user_id = $${paramCounter}
       RETURNING *
     `;
+    
+    // Adicionar userId como último parâmetro
+    queryParams.push(userId);
     
     const result = await pool.query(updateQuery, queryParams);
     

@@ -56,24 +56,71 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
 
     // Verificando se os valores parecem estar em ordem
     if (token.length < 20) {
-      console.log("[META-DIRECT] ALERTA: Token parece muito curto");
+      console.log("[META-DIRECT] ALERTA: Token parece muito curto, apenas", token.length, "caracteres");
     }
+    
+    // Logging das informações para debug
+    console.log("[META-DIRECT] Token length:", token.length);
+    console.log("[META-DIRECT] BusinessId length:", businessId.length);
+    console.log("[META-DIRECT] API Version value:", apiVersion);
     
     // Verificar se o businessId e token estão invertidos (um erro comum)
     let actualToken = token;
     let actualBusinessId = businessId;
-    
-    if (businessId.length > 60 && token.length < 30) {
-      console.log("[META-DIRECT] ALERTA: BusinessId e Token parecem estar invertidos. Tentando corrigir...");
-      // Trocar os valores
-      actualToken = businessId;
-      actualBusinessId = token;
-      console.log("[META-DIRECT] Valores trocados para correção");
-    }
+    let actualApiVersion = apiVersion;
+    let valuesSwapped = false;
     
     // Verificar formato do businessId (deve ser numérico)
-    if (isNaN(Number(businessId))) {
+    const businessIdIsNumeric = !isNaN(Number(businessId));
+    const tokenIsNumeric = !isNaN(Number(token));
+    
+    // Verificar se o apiVersion pode estar no lugar errado (outro erro comum)
+    const apiVersionMisplaced = apiVersion.startsWith("EAA") || apiVersion.length > 50;
+    
+    // Testes para detectar inversão de token/businessId
+    const businessIdLooksLikeToken = businessId.length > 50 || businessId.includes("EAA");
+    const tokenLooksLikeBusinessId = token.length < 30 && tokenIsNumeric;
+    const apiVersionLooksLikeBusinessId = !apiVersionMisplaced && apiVersion.length < 30 && !isNaN(Number(apiVersion));
+    
+    console.log("[META-DIRECT] Diagnóstico: businessIdIsNumeric:", businessIdIsNumeric);
+    console.log("[META-DIRECT] Diagnóstico: tokenIsNumeric:", tokenIsNumeric);
+    console.log("[META-DIRECT] Diagnóstico: businessIdLooksLikeToken:", businessIdLooksLikeToken);
+    console.log("[META-DIRECT] Diagnóstico: tokenLooksLikeBusinessId:", tokenLooksLikeBusinessId);
+    console.log("[META-DIRECT] Diagnóstico: apiVersionMisplaced:", apiVersionMisplaced);
+    
+    // Caso 1: BusinessId e Token estão invertidos
+    if ((businessIdLooksLikeToken && tokenLooksLikeBusinessId) || 
+        (businessId.length > 50 && token.length < 30 && tokenIsNumeric)) {
+      console.log("[META-DIRECT] ALERTA: BusinessId e Token parecem estar invertidos.");
+      actualToken = businessId;
+      actualBusinessId = token;
+      valuesSwapped = true;
+      console.log("[META-DIRECT] Valores invertidos: BusinessId e Token trocados.");
+    } 
+    // Caso 2: API Version contém o token
+    else if (apiVersionMisplaced) {
+      console.log("[META-DIRECT] ALERTA: API Version parece conter um token de acesso.");
+      actualToken = apiVersion;
+      actualApiVersion = "v18.0"; // Usar valor padrão para API
+      console.log("[META-DIRECT] Usando API Version padrão (v18.0) e movendo o valor original para token.");
+    } 
+    // Caso 3: BusinessId não é numérico
+    else if (!businessIdIsNumeric && !valuesSwapped) {
       console.log("[META-DIRECT] ALERTA: BusinessId não é numérico:", businessId);
+      
+      // Se o token parece ser numérico, pode ser outro caso de inversão
+      if (tokenIsNumeric && token.length < 30) {
+        console.log("[META-DIRECT] ALERTA: Token parece ser um businessId válido. Invertendo...");
+        actualToken = businessId;
+        actualBusinessId = token;
+        valuesSwapped = true;
+      }
+      // Se API version parece ser um businessId, também verificar
+      else if (apiVersionLooksLikeBusinessId) {
+        console.log("[META-DIRECT] ALERTA: API Version parece ser um businessId válido. Ajustando...");
+        actualBusinessId = apiVersion;
+        actualApiVersion = "v18.0";
+      }
     }
 
     console.log(`[META-DIRECT] Usando usuário ID ${user.user_id} para buscar templates`);
@@ -82,10 +129,12 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
     console.log(`[META-DIRECT] Token (primeiros 10 chars): ${token.substring(0, 10)}...`);
 
     // URL para buscar as mensagens templates
-    const url = `https://graph.facebook.com/${apiVersion}/${actualBusinessId}/message_templates`;
+    const url = `https://graph.facebook.com/${actualApiVersion}/${actualBusinessId}/message_templates`;
 
     console.log(`[META-DIRECT] URL final: ${url}`);
     console.log(`[META-DIRECT] Token utilizado (primeiros 10 chars): ${actualToken.substring(0, 10)}...`);
+    console.log(`[META-DIRECT] API Version utilizada: ${actualApiVersion}`);
+    console.log(`[META-DIRECT] BusinessId utilizado: ${actualBusinessId}`);
 
     // Buscar templates da Meta API diretamente
     const response = await axios.get(url, {
@@ -122,16 +171,46 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
     // Extrair detalhes específicos do erro da Meta API
     let errorMessage = "Erro desconhecido";
     let errorCode = "UNKNOWN";
+    let valuesLikelySwapped = false;
+    let suggestedFix = "";
     
     if (error.response?.data?.error) {
       // Formato de erro da Meta API
       errorMessage = error.response.data.error.message || "Erro na API";
       errorCode = error.response.data.error.code || error.response.status;
+      
       console.log("[META-DIRECT] Erro específico da Meta API:", {
         message: errorMessage,
         code: errorCode,
         type: error.response.data.error.type
       });
+      
+      // Diagnóstico de possíveis problemas comuns com a API da Meta
+      if (errorCode === 190) {
+        // Erro de autenticação - token inválido
+        if (token.length < 50) {
+          suggestedFix = "O token da API parece muito curto. Verifique se você está usando o 'Permanent Access Token' da Meta API.";
+          valuesLikelySwapped = true;
+        } else {
+          suggestedFix = "Token de acesso inválido ou expirado. Gere um novo token na Meta Business Platform.";
+        }
+      } else if (errorCode === 100) {
+        // Parâmetro inválido
+        if (businessId.length > 50) {
+          suggestedFix = "O ID do negócio parece ser na verdade um token. Os campos podem estar invertidos nas configurações.";
+          valuesLikelySwapped = true;
+        } else if (!businessIdIsNumeric) {
+          suggestedFix = "O ID do negócio deve ser um valor numérico. Verifique a configuração.";
+        }
+      } else if (errorCode === 803) {
+        // ID do negócio inválido
+        suggestedFix = "ID do negócio inválido. Verifique o ID correto no Meta Business Suite.";
+      }
+    }
+    
+    // Diagnóstico adicional para problemas de conexão
+    if (!error.response && error.code === 'ENOTFOUND') {
+      suggestedFix = "Não foi possível conectar ao servidor da Meta. Verifique sua conexão com a internet.";
     }
     
     const errorDetails = error.response 
@@ -140,9 +219,18 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
           statusText: error.response.statusText,
           message: errorMessage,
           code: errorCode,
-          data: error.response.data
+          data: error.response.data,
+          suggestedFix,
+          valuesLikelySwapped,
+          tokenLength: token.length,
+          businessIdLength: businessId.length,
+          tokenFormat: token.substring(0, 3) + "..."
         }
-      : { message: error.message };
+      : { 
+          message: error.message,
+          suggestedFix,
+          code: error.code || 'UNKNOWN'
+        };
     
     return res.status(500).json({
       error: "Erro ao buscar templates",
