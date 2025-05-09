@@ -2475,6 +2475,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota de diagnóstico da Meta API (sem autenticação para facilitar testes)
   app.get("/api/meta-debug", checkMetaApiConnection);
   
+  // Rota para testar o envio de mensagem via Meta API
+  app.post("/api/meta-send-test", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { to, templateName } = req.body;
+      
+      if (!to || !templateName) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Parâmetros inválidos. 'to' e 'templateName' são obrigatórios." 
+        });
+      }
+      
+      // Validar número de telefone (formato internacional)
+      if (!to.match(/^\d+$/) || to.length < 10) {
+        return res.status(400).json({
+          success: false,
+          message: "Número de telefone inválido. Use formato internacional sem símbolos (ex: 5511999998888)"
+        });
+      }
+      
+      const steps = [];
+      
+      // 1. Obter configurações do usuário
+      steps.push({
+        step: 1,
+        name: "Obtendo configurações do usuário"
+      });
+      
+      const userServerResult = await getUserServer(req.user.id);
+      
+      if (!userServerResult.success) {
+        steps.push({
+          step: 1,
+          status: "erro",
+          message: "Não foi possível obter configurações do usuário",
+          error: userServerResult.message || userServerResult.error
+        });
+        return res.json({ success: false, steps });
+      }
+      
+      // Verificar se o usuário tem phoneNumberId configurado
+      const userServer = userServerResult.userServer;
+      
+      if (!userServer || !userServer.metaPhoneNumberId) {
+        steps.push({
+          step: 1,
+          status: "erro",
+          message: "Usuário não possui um Phone Number ID configurado. Conecte-se à Meta API primeiro."
+        });
+        return res.json({ success: false, steps });
+      }
+      
+      // 2. Obter settings do usuário para token e businessId
+      steps.push({
+        step: 2,
+        name: "Verificando credenciais da Meta API"
+      });
+      
+      const userSettingsResult = await userSettingsService.getUserSettings(req.user.id);
+      
+      if (!userSettingsResult.success || !userSettingsResult.data) {
+        steps.push({
+          step: 2,
+          status: "erro",
+          message: "Não foi possível obter configurações do usuário"
+        });
+        return res.json({ success: false, steps });
+      }
+      
+      const userSettings = userSettingsResult.data;
+      
+      if (!userSettings.whatsappMetaToken || !userSettings.whatsappMetaBusinessId) {
+        steps.push({
+          step: 2,
+          status: "erro",
+          message: "Credenciais da Meta API não configuradas",
+          hasToken: !!userSettings.whatsappMetaToken,
+          hasBusinessId: !!userSettings.whatsappMetaBusinessId
+        });
+        return res.json({ success: false, steps });
+      }
+      
+      // 3. Verificar formato dos parâmetros
+      const tokenLooksValid = userSettings.whatsappMetaToken && userSettings.whatsappMetaToken.length > 30;
+      const businessIdLooksValid = userSettings.whatsappMetaBusinessId && !isNaN(Number(userSettings.whatsappMetaBusinessId));
+      const possiblySwapped = userSettings.whatsappMetaBusinessId && userSettings.whatsappMetaToken &&
+        userSettings.whatsappMetaBusinessId.length > 60 && 
+        userSettings.whatsappMetaToken.length < 30;
+      
+      steps.push({
+        step: 2,
+        status: possiblySwapped ? "aviso" : "sucesso",
+        message: possiblySwapped 
+          ? "Token e Business ID parecem estar invertidos (serão corrigidos automaticamente)" 
+          : "Parâmetros parecem estar no formato correto",
+        details: {
+          tokenLooksValid,
+          businessIdLooksValid,
+          possiblySwapped
+        }
+      });
+      
+      // 4. Tentar enviar a mensagem
+      steps.push({
+        step: 3,
+        name: "Enviando mensagem de teste"
+      });
+      
+      try {
+        // Usar a implementação direta de meta-whatsapp-api.ts que inclui correção automática
+        const result = await sendMetaApiMessage(
+          userSettings.whatsappMetaToken,
+          userSettings.whatsappMetaBusinessId,
+          userServer.metaPhoneNumberId,
+          templateName,
+          to,
+          userSettings.whatsappMetaApiVersion || "v18.0"
+        );
+        
+        if (result.success) {
+          steps.push({
+            step: 3,
+            status: "sucesso",
+            message: "Mensagem enviada com sucesso!",
+            messageId: result.messageId,
+            details: result.response
+          });
+          
+          return res.json({
+            success: true,
+            message: "Mensagem enviada com sucesso!",
+            messageId: result.messageId,
+            steps
+          });
+        } else {
+          steps.push({
+            step: 3,
+            status: "erro",
+            message: `Erro ao enviar mensagem: ${result.error}`,
+            error: result.error
+          });
+          
+          return res.json({
+            success: false,
+            message: `Erro ao enviar mensagem: ${result.error}`,
+            steps
+          });
+        }
+      } catch (error) {
+        steps.push({
+          step: 3,
+          status: "erro",
+          message: "Exceção ao tentar enviar mensagem",
+          error: error.message
+        });
+        
+        return res.json({
+          success: false,
+          message: "Erro ao enviar mensagem",
+          error: error.message,
+          steps
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao testar envio de mensagem pela Meta API:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erro ao processar a requisição",
+        error: error.message
+      });
+    }
+  });
+  
   // Rota robusta direta para obter templates da Meta API
   app.get("/api/meta-templates", getMetaTemplatesDirectly);
   

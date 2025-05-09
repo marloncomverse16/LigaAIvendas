@@ -20,6 +20,7 @@ import ConnectionsPage from "@/pages/connections";
 import WhatsAppQrCodePage from "@/pages/connections/whatsapp-qr-code";
 import WhatsAppMetaPage from "@/pages/connections/whatsapp-meta";
 import ContactsPage from "@/pages/contacts-page";
+import TestMetaApiPage from "@/pages/test-meta-api";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 
