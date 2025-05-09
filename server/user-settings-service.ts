@@ -201,7 +201,7 @@ export async function updateWhatsAppMetaSettings(
       updatedAt: settings.rows[0].updated_at
     };
     
-    return { success: true, data: settings };
+    return { success: true, data: updatedSettings };
   } catch (error: any) {
     console.error('Erro ao atualizar configurações de WhatsApp Meta API:', error);
     return { success: false, error: error.message };
