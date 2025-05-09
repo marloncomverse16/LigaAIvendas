@@ -2580,6 +2580,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Testando conexão com Meta API para usuário ${req.user.id}`);
       console.log(`Business ID: ${whatsappMetaBusinessId}, API Version: ${whatsappMetaApiVersion || "v18.0"}`);
       
+      // Importar a função apropriada do módulo meta-whatsapp-api.ts
+      const { getMetaApiTemplates } = await import("./meta-whatsapp-api");
+      
       // Testar a conexão chamando a API da Meta para buscar templates
       const result = await getMetaApiTemplates(
         whatsappMetaToken,
