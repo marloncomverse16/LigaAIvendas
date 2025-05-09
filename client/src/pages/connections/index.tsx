@@ -166,14 +166,14 @@ const ConnectionsPage = () => {
               <Separator className="my-2" />
               <p className="flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <span>Requer conta Business, token de acesso e aprovação oficial da Meta</span>
+                <span>Configuração disponível em Configurações - Integrações</span>
               </p>
             </div>
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full" variant="outline">
-              <Link to="/conexoes/whatsapp-meta">
-                {isMetaConnected ? "Gerenciar Conexão" : "Conectar com Meta API"}
+              <Link to="/configuracoes">
+                {isMetaConnected ? "Gerenciar Configurações" : "Configurar Meta API"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>

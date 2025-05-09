@@ -1,38 +1,14 @@
 /**
- * Página para conexão direta com API do WhatsApp Meta (Cloud API)
+ * PÁGINA DESCONTINUADA
+ * A configuração da Meta API foi movida para Configurações > Integrações
  */
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Loader2, CheckCircle, XCircle, ExternalLink, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
+import { Button } from '@/components/ui/button';
+import { AlertCircle, ArrowRight } from 'lucide-react';
 import PageTitle from '@/components/ui/page-title';
 
 // Schema de validação para o formulário de conexão Meta API
