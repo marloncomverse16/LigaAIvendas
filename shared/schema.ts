@@ -68,6 +68,9 @@ export const settings = pgTable("settings", {
   whatsappMetaToken: text("whatsapp_meta_token"),
   whatsappMetaBusinessId: text("whatsapp_meta_business_id"),
   whatsappMetaApiVersion: text("whatsapp_meta_api_version").default("v18.0"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const leads = pgTable("leads", {

@@ -46,6 +46,7 @@ import {
 } from "./api/user-meta-connections";
 import { getUserMetaTemplates } from "./api/meta-templates";
 import userSettingsService from "./user-settings-service";
+import { checkMetaApiConnection } from "./meta-debug";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { settings } from "@shared/schema";
@@ -2467,6 +2468,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/user/meta-connections/send", sendUserMetaWhatsAppMessage);
   app.get("/api/user/meta-settings", getMetaSettings);
   app.post("/api/user/meta-settings", updateMetaSettings);
+  
+  // Rota de diagnóstico da Meta API (sem autenticação para facilitar testes)
+  app.get("/api/meta-debug", checkMetaApiConnection);
   
   // Endpoint de diagnóstico para verificar se as configurações da Meta API estão sendo carregadas corretamente
   app.get("/api/diagnose/meta-settings", async (req, res) => {
