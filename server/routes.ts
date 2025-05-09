@@ -2521,8 +2521,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Rota para obter templates da Meta API
   app.get("/api/user/meta-templates", async (req, res) => {
-    console.log("Rota /api/user/meta-templates chamada");
+    console.log("==== Rota /api/user/meta-templates chamada ====");
+    
+    if (!req.isAuthenticated()) {
+      console.log("Usuário não autenticado");
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    console.log(`Usuário autenticado: ${req.user.id}`);
+    
     try {
+      // Obter configurações do usuário para diagnóstico
+      console.log(`Verificando configurações do usuário ${req.user.id} para Meta API`);
+      const [userSettings] = await db
+        .select()
+        .from(settings)
+        .where(eq(settings.userId, req.user.id));
+      
+      console.log("Configurações encontradas para Meta API:");
+      console.log({
+        hasSettings: !!userSettings,
+        hasMetaToken: userSettings ? !!userSettings.whatsappMetaToken : false,
+        hasMetaBusinessId: userSettings ? !!userSettings.whatsappMetaBusinessId : false,
+        metaApiVersion: userSettings ? userSettings.whatsappMetaApiVersion : null
+      });
+      
+      // Chamando o manipulador de templates com mais logs
+      console.log("Chamando getUserMetaTemplates para buscar templates...");
       await getUserMetaTemplates(req, res);
     } catch (error) {
       console.error("Erro ao processar requisição getUserMetaTemplates:", error);

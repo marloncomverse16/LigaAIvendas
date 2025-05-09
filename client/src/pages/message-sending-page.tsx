@@ -508,15 +508,40 @@ const CreateSendingForm = () => {
         })
         .then(data => {
           console.log("Templates da Meta API carregados com sucesso:", data);
-          setMetaTemplates(data);
+          
+          // Verificar se a resposta é um objeto com mensagem (quando não há templates)
+          if (data && data.message && data.templates) {
+            setMetaTemplates(data.templates);
+            // Mostrar mensagem sobre templates não encontrados
+            if (data.templates.length === 0) {
+              toast({
+                title: "Nenhum template encontrado",
+                description: "Você ainda não possui templates aprovados no WhatsApp Business. Configure-os no painel da Meta.",
+                variant: "default",
+              });
+            }
+          } else {
+            // Formato normal da resposta (array de templates)
+            setMetaTemplates(data);
+          }
         })
         .catch(error => {
           console.error("Erro ao carregar templates da Meta API:", error);
-          toast({
-            title: "Erro ao carregar templates da Meta API",
-            description: error.message,
-            variant: "destructive",
-          });
+          
+          // Se a mensagem contiver informações sobre configuração
+          if (error.message && error.message.includes("Configure em")) {
+            toast({
+              title: "WhatsApp Cloud API não configurada",
+              description: "Configure suas credenciais da Meta API em Integrações > WhatsApp Cloud API",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Erro ao carregar templates",
+              description: error.message || "Falha ao carregar templates da Meta API",
+              variant: "destructive",
+            });
+          }
         })
         .finally(() => {
           console.log("Finalizando carregamento de templates da Meta API");

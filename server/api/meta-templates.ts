@@ -30,6 +30,18 @@ export async function getUserMetaTemplates(req: Request, res: Response) {
     
     console.log(`GET /api/user/meta-templates: Configurações encontradas: ${userSettings ? 'Sim' : 'Não'}`);
     
+    // Imprimir todas as colunas encontradas para diagnóstico
+    if (userSettings) {
+      console.log("Colunas disponíveis nas configurações:");
+      Object.keys(userSettings).forEach(key => {
+        // Não mostrar o token completo para segurança
+        const value = key === 'whatsappMetaToken' 
+          ? (userSettings[key] ? `${userSettings[key].substring(0, 5)}...` : 'null')
+          : userSettings[key];
+        console.log(`  ${key}: ${value}`);
+      });
+    }
+    
     if (!userSettings) {
       console.log("GET /api/user/meta-templates: Configurações não encontradas");
       return res.status(400).json({ message: "Configurações do usuário não encontradas" });
@@ -42,7 +54,14 @@ export async function getUserMetaTemplates(req: Request, res: Response) {
     
     if (!hasToken || !hasBusinessId) {
       console.log("GET /api/user/meta-templates: Credenciais da Meta API não configuradas");
-      return res.status(400).json({ message: "API da Meta não configurada. Configure nas Configurações." });
+      return res.status(400).json({ 
+        message: "API da Meta não configurada. Configure em Integrações > WhatsApp Cloud API (Meta).",
+        requiredConfig: {
+          hasToken,
+          hasBusinessId,
+          configPage: "Integrações"
+        }
+      });
     }
     
     // Obter templates da API da Meta
@@ -55,10 +74,18 @@ export async function getUserMetaTemplates(req: Request, res: Response) {
     );
     
     console.log(`GET /api/user/meta-templates: Resultado da API: success=${result.success}, templates=${result.templates ? result.templates.length : 0}`);
+    console.log("Resposta completa da Meta API:", JSON.stringify(result));
     
     if (!result.success) {
       console.log(`GET /api/user/meta-templates: Erro na API: ${result.error}`);
-      return res.status(400).json({ message: result.error });
+      return res.status(400).json({ 
+        message: `Erro ao buscar templates: ${result.error}`,
+        error: result.error,
+        configStatus: {
+          token: hasToken,
+          businessId: hasBusinessId
+        }
+      });
     }
     
     // Filtra apenas templates APPROVED para exibir
@@ -67,6 +94,17 @@ export async function getUserMetaTemplates(req: Request, res: Response) {
     );
     
     console.log(`GET /api/user/meta-templates: Templates aprovados: ${approvedTemplates.length}`);
+    
+    // Se não encontrar templates, retorna um array vazio com detalhes
+    if (approvedTemplates.length === 0) {
+      console.log("GET /api/user/meta-templates: Nenhum template aprovado encontrado");
+      return res.status(200).json({
+        templates: [],
+        message: "Nenhum template aprovado encontrado. Crie templates no painel do WhatsApp Business.",
+        totalFound: result.templates ? result.templates.length : 0,
+        approved: 0
+      });
+    }
     
     return res.status(200).json(approvedTemplates);
   } catch (error) {
