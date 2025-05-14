@@ -247,11 +247,8 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
     const approvedTemplates = allTemplates.filter((t) => t.status === "APPROVED");
     console.log(`[META-DIRECT] ${approvedTemplates.length} templates aprovados do total de ${allTemplates.length}`);
 
-    return res.status(200).json({
-      templates: approvedTemplates,
-      status: 200,
-      ok: true
-    });
+    // Retornar diretamente o array de templates aprovados para compatibilidade com código existente
+    return res.status(200).json(approvedTemplates);
   } catch (error: any) {
     console.error("[META-DIRECT] Erro ao buscar templates:", error.message);
     
