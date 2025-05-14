@@ -47,6 +47,7 @@ import {
 import { getUserMetaTemplates } from "./api/meta-templates";
 import { getMetaTemplatesDirectly } from "./api/meta-direct-templates";
 import { sendMetaMessageDirectly } from "./api/meta-direct-send";
+import { diagnoseMeta } from "./api/meta-diagnostic";
 import userSettingsService from "./user-settings-service";
 import { checkMetaApiConnection } from "./meta-debug";
 import { db } from "./db";
@@ -2560,6 +2561,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao processar requisição getMetaTemplatesDirectly:", error);
       res.status(500).json({
         message: "Erro interno ao obter templates diretamente",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Rota de diagnóstico avançado para Meta API
+  app.get("/api/meta-diagnostic", async (req, res) => {
+    console.log("Iniciando diagnóstico avançado da Meta API");
+    try {
+      await diagnoseMeta(req, res);
+    } catch (error) {
+      console.error("Erro ao executar diagnóstico Meta:", error);
+      res.status(500).json({
+        message: "Erro interno no diagnóstico Meta",
         error: error instanceof Error ? error.message : String(error)
       });
     }

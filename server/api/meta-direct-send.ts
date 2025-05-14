@@ -46,8 +46,7 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
         settings.user_id, 
         settings.whatsapp_meta_token, 
         settings.whatsapp_meta_business_id, 
-        settings.whatsapp_meta_api_version,
-        settings.whatsapp_meta_phone_number_id
+        settings.whatsapp_meta_api_version
       FROM settings
       WHERE 
         settings.whatsapp_meta_token IS NOT NULL AND 

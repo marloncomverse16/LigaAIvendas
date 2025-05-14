@@ -36,8 +36,7 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
         settings.user_id, 
         settings.whatsapp_meta_token, 
         settings.whatsapp_meta_business_id, 
-        settings.whatsapp_meta_api_version,
-        settings.whatsapp_meta_phone_number_id
+        settings.whatsapp_meta_api_version
       FROM settings
       WHERE 
         (settings.whatsapp_meta_token IS NOT NULL AND settings.whatsapp_meta_token != '') OR
@@ -76,10 +75,8 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
         score += 3;
       }
       
-      // Tem phone_number_id configurado
-      if (config.whatsapp_meta_phone_number_id) {
-        score += 2;
-      }
+      // Bonificação extra para pontuação
+      score += 1;
       
       if (score > bestScore) {
         bestScore = score;

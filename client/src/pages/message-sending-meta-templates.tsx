@@ -77,11 +77,22 @@ export function MetaTemplateSelector({
         throw new Error(errorData.error || `Erro ${response.status}`);
       }
       
-      const templates = await response.json();
+      const responseData = await response.json();
       
-      // Validar se a resposta é um array
-      if (!Array.isArray(templates)) {
-        throw new Error("Formato de resposta inválido: não é um array");
+      // Verificar o formato da resposta, que pode ser um array direto ou um objeto com propriedade templates
+      let templates: MetaTemplate[] = [];
+      
+      if (Array.isArray(responseData)) {
+        // Formato antigo - array direto
+        templates = responseData;
+        console.log("Templates recebidos (formato array):", templates.length);
+      } else if (responseData.templates && Array.isArray(responseData.templates)) {
+        // Novo formato - objeto com propriedade templates
+        templates = responseData.templates;
+        console.log("Templates recebidos (formato objeto):", templates.length);
+      } else {
+        console.error("Formato de resposta desconhecido:", responseData);
+        throw new Error("Formato de resposta inválido: não contém templates");
       }
       
       // Guardar templates e notificar usuário
