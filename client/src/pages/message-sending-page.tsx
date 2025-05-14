@@ -457,7 +457,7 @@ const CreateSendingForm = () => {
   });
   
   // Estados para controlar os templates da Meta API
-  const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
+  const [metaTemplates, setMetaTemplates] = useState([]);
   const [isLoadingMetaTemplates, setIsLoadingMetaTemplates] = useState(false);
 
   // Monitorar mudanças no interruptor de template/mensagem personalizada
@@ -469,7 +469,7 @@ const CreateSendingForm = () => {
     }
   }, [useTemplate, form]);
   
-  // Monitorar mudanças no tipo de conexão WhatsApp - VERSÃO SIMPLIFICADA
+  // Monitorar mudanças no tipo de conexão WhatsApp
   useEffect(() => {
     const connectionType = form.watch("whatsappConnectionType");
     
@@ -480,81 +480,162 @@ const CreateSendingForm = () => {
       
       // Forçar o uso de templates e desabilitar mensagem personalizada
       form.setValue("useTemplate", true);
-      setUseTemplate(true);
       
-      // Carregar templates da Meta API - MÉTODO SIMPLIFICADO DIRETO
+      // Carregar templates da Meta API
       setIsLoadingMetaTemplates(true);
       setMetaTemplates([]); // Limpar templates anteriores
       
-      console.log("Carregando templates da Meta API (método direto simplificado)");
+      console.log("Tentando carregar templates da Meta API");
       
-      // Buscar os templates diretamente, sem verificar conexão
-      // Usar o endpoint meta-direct-templates que foi específicamente otimizado para esta função
-      fetch("/api/meta-direct-templates")
-        .then(response => {
-          console.log("Resposta da API de templates:", {
-            status: response.status,
-            ok: response.ok,
+      // Adicionando feedback visual de diagnóstico
+      toast({
+        title: "Carregando templates Meta API",
+        description: "Verificando conexão...",
+        variant: "default",
+      });
+      
+      // Verificar primeiro se o usuário está conectado com a Meta API
+      fetch("/api/user/meta-connections/status")
+        .then(res => res.json())
+        .then(statusData => {
+          console.log("Status da conexão Meta:", statusData);
+          
+          if (!statusData.connected || !statusData.phoneNumberId) {
+            throw new Error("Conexão com WhatsApp Cloud API (Meta) não configurada. Configure nas Configurações > WhatsApp Cloud API (Meta).");
+          }
+          
+          toast({
+            title: "Conexão Meta API OK",
+            description: "Buscando templates disponíveis...",
+            variant: "default",
           });
           
-          if (!response.ok) {
-            throw new Error(`Erro ao buscar templates: ${response.status}`);
+          // Tentar a rota direta otimizada para templates
+          console.log("Tentando buscar templates via rota direta");
+          return fetch("/api/meta-templates");
+        })
+        .then(res => {
+          console.log("Resposta da API de templates:", {
+            url: res.url,
+            status: res.status,
+            ok: res.ok,
+            statusText: res.statusText
+          });
+          
+          if (!res.ok) {
+            // Se a resposta não for OK, tentar a rota alternativa
+            if (res.status === 404) {
+              console.log("Rota direta não encontrada, tentando rota alternativa");
+              return fetch("/api/user/meta-templates");
+            }
+            
+            return res.text().then(text => {
+              console.error("Corpo da resposta de erro:", text);
+              try {
+                const errorObj = JSON.parse(text);
+                return Promise.reject(new Error(errorObj.message || errorObj.error || "Falha ao carregar templates da Meta API"));
+              } catch (e) {
+                return Promise.reject(new Error("Falha ao carregar templates da Meta API: " + text));
+              }
+            });
           }
           
-          return response.json();
+          return res.json();
+        })
+        .then(res => {
+          // Verificar se é uma resposta HTTP (de uma segunda tentativa)
+          if (res.url && res.status) {
+            console.log("Processando resposta da segunda tentativa:", res);
+            if (!res.ok) {
+              return res.text().then(text => {
+                try {
+                  const errorObj = JSON.parse(text);
+                  return Promise.reject(new Error(errorObj.message || errorObj.error || "Falha ao carregar templates da Meta API"));
+                } catch (e) {
+                  return Promise.reject(new Error("Falha ao carregar templates da Meta API: " + text));
+                }
+              });
+            }
+            return res.json();
+          }
+          return res; // Se já for os dados JSON, retorna diretamente
         })
         .then(data => {
-          console.log("Templates recebidos:", data);
+          console.log("Templates da Meta API carregados com sucesso:", data);
           
-          // Extrair os templates da resposta, que pode ser um array ou um objeto com propriedade "templates"
-          let templates = [];
-          
-          if (Array.isArray(data)) {
-            templates = data;
-          } else if (data.templates && Array.isArray(data.templates)) {
-            templates = data.templates;
-          }
-          
-          console.log("Templates processados:", templates);
-          
-          if (templates.length > 0) {
-            setMetaTemplates(templates);
-            
-            // Selecionar o primeiro template automaticamente
-            form.setValue("templateId", templates[0].id);
-            
+          if (Array.isArray(data) && data.length > 0) {
+            setMetaTemplates(data);
             toast({
               title: "Templates carregados",
-              description: `${templates.length} templates encontrados`,
+              description: `${data.length} templates encontrados.`,
               variant: "default",
             });
           } else {
-            console.log("Nenhum template encontrado na resposta");
+            console.log("Nenhum template encontrado na resposta da Meta API");
+            setMetaTemplates([]);
             toast({
               title: "Nenhum template encontrado",
-              description: "Não foram encontrados templates aprovados na sua conta WhatsApp Cloud API (Meta)",
+              description: "Não foi encontrado nenhum template aprovado na sua conta WhatsApp Cloud API (Meta). Crie templates no Facebook Business Manager.",
               variant: "default",
             });
           }
         })
         .catch(error => {
-          console.error("Erro ao carregar templates Meta:", error);
+          console.error("Erro ao carregar templates da Meta API:", error);
+          
+          // Como último recurso, tentar via endpoint de diagnóstico
           toast({
-            title: "Erro ao carregar templates",
-            description: error.message || "Falha ao buscar templates da Meta API",
-            variant: "destructive",
+            title: "Tentando método alternativo",
+            description: "Utilizando diagnóstico de templates...",
+            variant: "default",
           });
+          
+          fetch("/api/diagnose/meta-templates")
+            .then(res => res.ok ? res.json() : Promise.reject("Falha no diagnóstico"))
+            .then(data => {
+              console.log("Diagnóstico de templates:", data);
+              if (data.steps && data.steps.length > 0) {
+                const lastStep = data.steps.find(s => s.templates && s.templates.length > 0);
+                if (lastStep) {
+                  const simpleTemplates = lastStep.templates.map((t: any) => ({
+                    id: t.id,
+                    name: t.name,
+                    status: t.status,
+                    category: t.category,
+                    language: t.language
+                  }));
+                  setMetaTemplates(simpleTemplates);
+                  toast({
+                    title: "Templates recuperados via diagnóstico",
+                    description: `${simpleTemplates.length} templates encontrados.`,
+                    variant: "default",
+                  });
+                  return;
+                }
+              }
+              
+              // Se chegou aqui, não foi possível recuperar via diagnóstico também
+              toast({
+                title: "Erro ao carregar templates da Meta API",
+                description: error.message,
+                variant: "destructive",
+              });
+            })
+            .catch(diagError => {
+              console.error("Falha no diagnóstico:", diagError);
+              toast({
+                title: "Erro ao carregar templates da Meta API",
+                description: error.message,
+                variant: "destructive",
+              });
+            });
         })
         .finally(() => {
+          console.log("Finalizando carregamento de templates da Meta API");
           setIsLoadingMetaTemplates(false);
         });
-    } else if (connectionType === "qrcode") {
-      // Se mudar para modo QR Code, limpar os templates Meta
-      setMetaTemplates([]);
-      
-      // Os templates normais serão carregados automaticamente pela query do React Query
     }
-  }, [form.watch("whatsappConnectionType"), toast, setUseTemplate]);
+  }, [form, toast]);
   
   // Função para lidar com o envio do formulário
   const onSubmit = (data) => {
@@ -676,16 +757,7 @@ const CreateSendingForm = () => {
                   <FormItem>
                     <FormLabel>Template de Mensagem</FormLabel>
                     <Select
-                      onValueChange={(value) => {
-                        console.log("Template selecionado, valor:", value);
-                        // Se for um valor numérico, converter para número
-                        if (value && !isNaN(Number(value))) {
-                          field.onChange(Number(value));
-                        } else {
-                          // Se não for numérico (ex: template da Meta API), usar como string
-                          field.onChange(value);
-                        }
-                      }}
+                      onValueChange={(value) => field.onChange(Number(value))}
                       value={field.value?.toString() || ""}
                     >
                       <FormControl>
@@ -695,94 +767,21 @@ const CreateSendingForm = () => {
                       </FormControl>
                       <SelectContent>
                         {form.watch("whatsappConnectionType") === "meta" ? (
-                          // Templates da Meta API 
+                          // Templates da Meta API
                           isLoadingMetaTemplates ? (
                             <SelectItem value="loading" disabled>
                               Carregando templates da Meta API...
                             </SelectItem>
                           ) : metaTemplates && metaTemplates.length > 0 ? (
-                            // Mostrar os templates Meta carregados
-                            <>
-                              {console.log("Renderizando templates Meta:", metaTemplates)}
-                              {metaTemplates.map((template) => {
-                                console.log("Template individual:", template);
-                                return (
-                                  <SelectItem 
-                                    key={template.id} 
-                                    value={template.id.toString()}
-                                  >
-                                    {template.name} {template.status ? `(${template.status})` : ''}
-                                  </SelectItem>
-                                );
-                              })}
-                              <SelectItem value="debug" onClick={() => {
-                                // Opção para recarregar templates manualmente
-                                fetch("/api/meta-direct-templates")
-                                  .then(res => res.json())
-                                  .then(data => {
-                                    console.log("Templates Meta recarregados:", data);
-                                    
-                                    // Extrair os templates da resposta, que pode ser um array ou um objeto com propriedade "templates"
-                                    let templates = [];
-                                    
-                                    if (Array.isArray(data)) {
-                                      templates = data;
-                                    } else if (data.templates && Array.isArray(data.templates)) {
-                                      templates = data.templates;
-                                    }
-                                    
-                                    console.log("Templates recarregados processados:", templates);
-                                    
-                                    if (templates.length > 0) {
-                                      setMetaTemplates(templates);
-                                      toast({
-                                        title: "Templates recarregados",
-                                        description: `${templates.length} templates encontrados`,
-                                        variant: "default",
-                                      });
-                                    }
-                                  })
-                                  .catch(err => console.error("Erro ao recarregar:", err));
-                              }}>
-                                🔄 Recarregar templates
+                            metaTemplates.map((template) => (
+                              <SelectItem key={template.id} value={template.id.toString()}>
+                                {template.name} ({template.status})
                               </SelectItem>
-                            </>
+                            ))
                           ) : (
-                            <>
-                              <SelectItem value="none" disabled>
-                                Nenhum template Meta API encontrado
-                              </SelectItem>
-                              <SelectItem value="reload" onClick={() => {
-                                fetch("/api/meta-direct-templates")
-                                  .then(res => res.json())
-                                  .then(data => {
-                                    console.log("Tentativa de recarregar templates:", data);
-                                    
-                                    // Extrair os templates da resposta, que pode ser um array ou um objeto com propriedade "templates"
-                                    let templates = [];
-                                    
-                                    if (Array.isArray(data)) {
-                                      templates = data;
-                                    } else if (data.templates && Array.isArray(data.templates)) {
-                                      templates = data.templates;
-                                    }
-                                    
-                                    console.log("Templates recarregados processados:", templates);
-                                    
-                                    if (templates.length > 0) {
-                                      setMetaTemplates(templates);
-                                      toast({
-                                        title: "Templates recarregados",
-                                        description: `${templates.length} templates encontrados`,
-                                        variant: "default",
-                                      });
-                                    }
-                                  })
-                                  .catch(err => console.error("Erro ao tentar recarregar:", err));
-                              }}>
-                                🔄 Recarregar templates
-                              </SelectItem>
-                            </>
+                            <SelectItem value="none" disabled>
+                              Nenhum template Meta API encontrado
+                            </SelectItem>
                           )
                         ) : (
                           // Templates normais (QR Code)
