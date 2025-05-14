@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle, Copy, RefreshCw } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle, Copy, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
