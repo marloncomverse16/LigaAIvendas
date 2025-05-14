@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle, Copy, RefreshCw } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowRight, Check, CheckCircle, Copy, RefreshCw, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 
@@ -55,6 +56,8 @@ export default function MetaDiagnosticPage() {
   const [loading, setLoading] = useState(false);
   const [diagnostic, setDiagnostic] = useState<MetaDiagnostic | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fixLoading, setFixLoading] = useState(false);
+  const [fixResult, setFixResult] = useState<any | null>(null);
 
   // Executar diagnóstico ao carregar a página
   useEffect(() => {
@@ -125,7 +128,7 @@ export default function MetaDiagnosticPage() {
       case 'running':
         return <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />;
       default:
-        return <Alert className="h-5 w-5 text-gray-400" />;
+        return <AlertCircle className="h-5 w-5 text-gray-400" />;
     }
   };
 
