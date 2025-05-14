@@ -489,7 +489,8 @@ const CreateSendingForm = () => {
       console.log("Carregando templates da Meta API (método direto simplificado)");
       
       // Buscar os templates diretamente, sem verificar conexão
-      fetch("/api/meta-templates")
+      // Usar o endpoint meta-direct-templates que foi específicamente otimizado para esta função
+      fetch("/api/meta-direct-templates")
         .then(response => {
           console.log("Resposta da API de templates:", {
             status: response.status,
@@ -502,10 +503,21 @@ const CreateSendingForm = () => {
           
           return response.json();
         })
-        .then(templates => {
-          console.log("Templates recebidos:", templates);
+        .then(data => {
+          console.log("Templates recebidos:", data);
           
-          if (Array.isArray(templates) && templates.length > 0) {
+          // Extrair os templates da resposta, que pode ser um array ou um objeto com propriedade "templates"
+          let templates = [];
+          
+          if (Array.isArray(data)) {
+            templates = data;
+          } else if (data.templates && Array.isArray(data.templates)) {
+            templates = data.templates;
+          }
+          
+          console.log("Templates processados:", templates);
+          
+          if (templates.length > 0) {
             setMetaTemplates(templates);
             
             // Selecionar o primeiro template automaticamente
@@ -705,15 +717,27 @@ const CreateSendingForm = () => {
                               })}
                               <SelectItem value="debug" onClick={() => {
                                 // Opção para recarregar templates manualmente
-                                fetch("/api/meta-templates")
+                                fetch("/api/meta-direct-templates")
                                   .then(res => res.json())
                                   .then(data => {
                                     console.log("Templates Meta recarregados:", data);
-                                    if (Array.isArray(data) && data.length > 0) {
-                                      setMetaTemplates(data);
+                                    
+                                    // Extrair os templates da resposta, que pode ser um array ou um objeto com propriedade "templates"
+                                    let templates = [];
+                                    
+                                    if (Array.isArray(data)) {
+                                      templates = data;
+                                    } else if (data.templates && Array.isArray(data.templates)) {
+                                      templates = data.templates;
+                                    }
+                                    
+                                    console.log("Templates recarregados processados:", templates);
+                                    
+                                    if (templates.length > 0) {
+                                      setMetaTemplates(templates);
                                       toast({
                                         title: "Templates recarregados",
-                                        description: `${data.length} templates encontrados`,
+                                        description: `${templates.length} templates encontrados`,
                                         variant: "default",
                                       });
                                     }
@@ -729,12 +753,29 @@ const CreateSendingForm = () => {
                                 Nenhum template Meta API encontrado
                               </SelectItem>
                               <SelectItem value="reload" onClick={() => {
-                                fetch("/api/meta-templates")
+                                fetch("/api/meta-direct-templates")
                                   .then(res => res.json())
                                   .then(data => {
                                     console.log("Tentativa de recarregar templates:", data);
-                                    if (Array.isArray(data) && data.length > 0) {
-                                      setMetaTemplates(data);
+                                    
+                                    // Extrair os templates da resposta, que pode ser um array ou um objeto com propriedade "templates"
+                                    let templates = [];
+                                    
+                                    if (Array.isArray(data)) {
+                                      templates = data;
+                                    } else if (data.templates && Array.isArray(data.templates)) {
+                                      templates = data.templates;
+                                    }
+                                    
+                                    console.log("Templates recarregados processados:", templates);
+                                    
+                                    if (templates.length > 0) {
+                                      setMetaTemplates(templates);
+                                      toast({
+                                        title: "Templates recarregados",
+                                        description: `${templates.length} templates encontrados`,
+                                        variant: "default",
+                                      });
                                     }
                                   })
                                   .catch(err => console.error("Erro ao tentar recarregar:", err));
