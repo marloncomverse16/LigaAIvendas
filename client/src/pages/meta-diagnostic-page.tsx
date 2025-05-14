@@ -98,6 +98,44 @@ export default function MetaDiagnosticPage() {
       setLoading(false);
     }
   };
+  
+  // Função para corrigir os campos da configuração Meta
+  const fixMetaConfigFields = async () => {
+    setFixLoading(true);
+    setFixResult(null);
+    
+    try {
+      const response = await axios.post('/api/meta-fix-fields');
+      setFixResult(response.data);
+      
+      if (response.data.success) {
+        toast({
+          title: "Correção aplicada",
+          description: response.data.message,
+        });
+        
+        // Após corrigir, recarregar diagnóstico
+        setTimeout(() => {
+          runDiagnostic();
+        }, 1000);
+      } else {
+        toast({
+          title: "Alerta na correção",
+          description: response.data.message || "Alguns campos não puderam ser corrigidos automaticamente",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      console.error("Erro ao corrigir campos:", err);
+      toast({
+        title: "Falha na correção",
+        description: err.message || "Ocorreu um erro ao tentar corrigir os campos",
+        variant: "destructive",
+      });
+    } finally {
+      setFixLoading(false);
+    }
+  };
 
   // Função para copiar valor para área de transferência
   const copyToClipboard = (text: string) => {
@@ -340,11 +378,78 @@ export default function MetaDiagnosticPage() {
           {/* Configurações detectadas */}
           <Card>
             <CardHeader>
-              <CardTitle>Configurações Encontradas</CardTitle>
-              <CardDescription>
-                Detalhes das configurações detectadas no sistema
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Configurações Encontradas</CardTitle>
+                  <CardDescription>
+                    Detalhes das configurações detectadas no sistema
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={fixMetaConfigFields}
+                  disabled={fixLoading || !diagnostic || diagnostic.configurations.length === 0}
+                  variant="default"
+                  className="flex items-center gap-2"
+                >
+                  {fixLoading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Corrigindo...
+                    </>
+                  ) : (
+                    <>
+                      <Wrench className="h-4 w-4" />
+                      Corrigir Campos
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardHeader>
+            
+            {fixResult && (
+              <div className="px-6 pb-2">
+                <Alert variant={fixResult.success ? "default" : "destructive"}>
+                  <div className="flex items-center">
+                    {fixResult.success ? 
+                      <CheckCircle className="h-4 w-4 mr-2" /> : 
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                    }
+                    <AlertTitle>{fixResult.success ? "Correção Aplicada" : "Erro na Correção"}</AlertTitle>
+                  </div>
+                  <AlertDescription className="mt-2">
+                    {fixResult.message}
+                    
+                    {fixResult.problemsFound && fixResult.problemsFound.length > 0 && (
+                      <div className="mt-2">
+                        <p className="font-medium">Problemas encontrados:</p>
+                        <ul className="list-disc list-inside text-sm">
+                          {fixResult.problemsFound.slice(0, 3).map((problem: string, i: number) => (
+                            <li key={i}>{problem}</li>
+                          ))}
+                          {fixResult.problemsFound.length > 3 && (
+                            <li>...e mais {fixResult.problemsFound.length - 3} problemas</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {fixResult.correctionsApplied && fixResult.correctionsApplied.length > 0 && (
+                      <div className="mt-2">
+                        <p className="font-medium">Correções aplicadas:</p>
+                        <ul className="list-disc list-inside text-sm">
+                          {fixResult.correctionsApplied.slice(0, 3).map((correction: string, i: number) => (
+                            <li key={i}>{correction}</li>
+                          ))}
+                          {fixResult.correctionsApplied.length > 3 && (
+                            <li>...e mais {fixResult.correctionsApplied.length - 3} correções</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
             <CardContent>
               {diagnostic.configurations.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
