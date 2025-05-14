@@ -512,7 +512,7 @@ const CreateSendingForm = () => {
           
           // Tentar a rota direta otimizada para templates
           console.log("Tentando buscar templates via rota direta");
-          return fetch("/api/meta-templates");
+          return fetch("/api/meta-direct-templates");
         })
         .then(res => {
           console.log("Resposta da API de templates:", {
@@ -526,7 +526,7 @@ const CreateSendingForm = () => {
             // Se a resposta não for OK, tentar a rota alternativa
             if (res.status === 404) {
               console.log("Rota direta não encontrada, tentando rota alternativa");
-              return fetch("/api/user/meta-templates");
+              return fetch("/api/meta-direct-templates");
             }
             
             return res.text().then(text => {
@@ -563,11 +563,27 @@ const CreateSendingForm = () => {
         .then(data => {
           console.log("Templates da Meta API carregados com sucesso:", data);
           
-          if (Array.isArray(data) && data.length > 0) {
-            setMetaTemplates(data);
+          // Verificar se a resposta é um array ou tem uma propriedade 'templates'
+          let templates = [];
+          if (Array.isArray(data)) {
+            templates = data;
+          } else if (data && data.templates && Array.isArray(data.templates)) {
+            templates = data.templates;
+          } else if (data && typeof data === 'object') {
+            // Em último caso, tentar extrair um array de alguma propriedade
+            const possibleTemplatesArray = Object.values(data).find(val => Array.isArray(val));
+            if (possibleTemplatesArray) {
+              templates = possibleTemplatesArray;
+            }
+          }
+          
+          console.log("Templates processados:", templates);
+          
+          if (templates.length > 0) {
+            setMetaTemplates(templates);
             toast({
               title: "Templates carregados",
-              description: `${data.length} templates encontrados.`,
+              description: `${templates.length} templates encontrados.`,
               variant: "default",
             });
           } else {
@@ -773,15 +789,113 @@ const CreateSendingForm = () => {
                               Carregando templates da Meta API...
                             </SelectItem>
                           ) : metaTemplates && metaTemplates.length > 0 ? (
-                            metaTemplates.map((template) => (
-                              <SelectItem key={template.id} value={template.id.toString()}>
-                                {template.name} ({template.status})
-                              </SelectItem>
-                            ))
+                            <>
+                              {metaTemplates.map((template) => (
+                                <SelectItem key={template.id} value={template.id.toString()}>
+                                  {template.name} {template.status ? `(${template.status})` : ''}
+                                </SelectItem>
+                              ))}
+                              <div className="px-2 py-1 border-t border-border mt-1">
+                                <button
+                                  type="button"
+                                  className="text-xs text-muted-foreground hover:text-foreground flex items-center w-full px-2 py-1"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    
+                                    setIsLoadingMetaTemplates(true);
+                                    fetch("/api/meta-direct-templates")
+                                      .then(res => res.json())
+                                      .then(data => {
+                                        // Processar a resposta corretamente
+                                        let templates = [];
+                                        if (Array.isArray(data)) {
+                                          templates = data;
+                                        } else if (data && data.templates && Array.isArray(data.templates)) {
+                                          templates = data.templates;
+                                        } else if (data && typeof data === 'object') {
+                                          const possibleTemplatesArray = Object.values(data).find(val => Array.isArray(val));
+                                          if (possibleTemplatesArray) {
+                                            templates = possibleTemplatesArray;
+                                          }
+                                        }
+                                        
+                                        setMetaTemplates(templates);
+                                        setIsLoadingMetaTemplates(false);
+                                        
+                                        toast({
+                                          title: "Templates atualizados",
+                                          description: `${templates.length} templates encontrados`,
+                                          variant: "default"
+                                        });
+                                      })
+                                      .catch(err => {
+                                        setIsLoadingMetaTemplates(false);
+                                        toast({
+                                          title: "Erro ao atualizar templates",
+                                          description: err.message,
+                                          variant: "destructive"
+                                        });
+                                      });
+                                  }}
+                                >
+                                  <RefreshCcw className="h-3 w-3 mr-1" /> Recarregar templates
+                                </button>
+                              </div>
+                            </>
                           ) : (
-                            <SelectItem value="none" disabled>
-                              Nenhum template Meta API encontrado
-                            </SelectItem>
+                            <>
+                              <SelectItem value="none" disabled>
+                                Nenhum template Meta API encontrado
+                              </SelectItem>
+                              <div className="px-2 py-1 border-t border-border mt-1">
+                                <button
+                                  type="button"
+                                  className="text-xs text-muted-foreground hover:text-foreground flex items-center w-full px-2 py-1"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    
+                                    setIsLoadingMetaTemplates(true);
+                                    fetch("/api/meta-direct-templates")
+                                      .then(res => res.json())
+                                      .then(data => {
+                                        // Processar a resposta corretamente
+                                        let templates = [];
+                                        if (Array.isArray(data)) {
+                                          templates = data;
+                                        } else if (data && data.templates && Array.isArray(data.templates)) {
+                                          templates = data.templates;
+                                        } else if (data && typeof data === 'object') {
+                                          const possibleTemplatesArray = Object.values(data).find(val => Array.isArray(val));
+                                          if (possibleTemplatesArray) {
+                                            templates = possibleTemplatesArray;
+                                          }
+                                        }
+                                        
+                                        setMetaTemplates(templates);
+                                        setIsLoadingMetaTemplates(false);
+                                        
+                                        toast({
+                                          title: "Templates atualizados",
+                                          description: `${templates.length} templates encontrados`,
+                                          variant: "default"
+                                        });
+                                      })
+                                      .catch(err => {
+                                        setIsLoadingMetaTemplates(false);
+                                        toast({
+                                          title: "Erro ao atualizar templates",
+                                          description: err.message,
+                                          variant: "destructive"
+                                        });
+                                      });
+                                  }}
+                                >
+                                  <RefreshCcw className="h-3 w-3 mr-1" /> Tentar carregar templates
+                                </button>
+                              </div>
+                            </>
                           )
                         ) : (
                           // Templates normais (QR Code)
