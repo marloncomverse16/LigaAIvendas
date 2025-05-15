@@ -9,7 +9,6 @@ import { Check, X, ArrowLeft, Loader2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { User } from "@shared/schema";
 import { useLocation, useRoute, Link } from "wouter";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
 
 export default function UserPermissionsPage() {
   const { toast } = useToast();
@@ -164,20 +163,19 @@ export default function UserPermissionsPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="container mx-auto py-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <Link href="/admin-users">
-              <Button variant="outline" className="gap-1">
-                <ArrowLeft className="h-4 w-4" />
-                Voltar
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold mt-4">Permissões de Acesso</h1>
-            <p className="text-muted-foreground mt-1">
-              Configure quais módulos o usuário <strong>{user.name || user.username}</strong> pode acessar no sistema.
-            </p>
+    <div className="container mx-auto py-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <Link href="/admin-users">
+            <Button variant="outline" className="gap-1">
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold mt-4">Permissões de Acesso</h1>
+          <p className="text-muted-foreground mt-1">
+            Configure quais módulos o usuário <strong>{user.name || user.username}</strong> pode acessar no sistema.
+          </p>
           </div>
           <div className="flex gap-2">
             <Button 
@@ -261,6 +259,6 @@ export default function UserPermissionsPage() {
           </Button>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

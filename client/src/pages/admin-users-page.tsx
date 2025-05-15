@@ -35,7 +35,6 @@ import { useToast } from "@/hooks/use-toast";
 import UserPermissionsDialog from "@/components/admin/user-permissions-dialog";
 import ModulePermissions from "@/components/admin/module-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { InsertUser, User as UserType } from "@shared/schema";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -802,17 +801,16 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Users className="h-8 w-8 text-primary" /> Gerenciamento de Usuários
-            </h1>
-            <p className="text-muted-foreground">
-              Gerencie todos os usuários do sistema e suas configurações
-            </p>
-          </div>
+    <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Users className="h-8 w-8 text-primary" /> Gerenciamento de Usuários
+          </h1>
+          <p className="text-muted-foreground">
+            Gerencie todos os usuários do sistema e suas configurações
+          </p>
+        </div>
           <Button onClick={() => setIsCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Novo Usuário
           </Button>
@@ -1679,6 +1677,5 @@ export default function AdminUsersPage() {
           onOpenChange={setIsPermissionsDialogOpen}
         />
       </div>
-    </DashboardLayout>
   );
 }
