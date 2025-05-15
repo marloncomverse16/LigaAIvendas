@@ -1504,9 +1504,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         
         // Identificar todos os índices de colunas
-        const nameColIdx = findColumnIndex('name');
-        const emailColIdx = findColumnIndex('email');
-        const phoneColIdx = findColumnIndex('phone');
+        const nameIdx = findColumnIndex('name');
+        const emailIdx = findColumnIndex('email');
+        const phoneIdx = findColumnIndex('phone');
         const addressIdx = findColumnIndex('address');
         const cidadeIdx = findColumnIndex('cidade');
         const estadoIdx = findColumnIndex('estado');
@@ -1525,9 +1525,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const lead: {[key: string]: string | null} = { searchId: search.id };
           
           // Adiciona campos usando os índices corrigidos (normais ou forçados)
-          if (nameColIdx !== -1 && values[nameColIdx]) lead.name = values[nameColIdx];
-          if (emailColIdx !== -1 && values[emailColIdx]) lead.email = values[emailColIdx];
-          if (phoneColIdx !== -1 && values[phoneColIdx]) lead.phone = values[phoneColIdx];
+          if (nameIdx !== -1 && values[nameIdx]) lead.name = values[nameIdx];
+          if (emailIdx !== -1 && values[emailIdx]) lead.email = values[emailIdx];
+          if (phoneIdx !== -1 && values[phoneIdx]) lead.phone = values[phoneIdx];
           if (addressIdx !== -1 && values[addressIdx]) lead.address = values[addressIdx];
           if (cidadeIdx !== -1 && values[cidadeIdx]) lead.cidade = values[cidadeIdx];
           if (estadoIdx !== -1 && values[estadoIdx]) lead.estado = values[estadoIdx];
