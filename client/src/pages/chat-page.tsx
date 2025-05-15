@@ -323,15 +323,15 @@ export default function ChatPage() {
   return (
     <DashboardLayout>
       <div className="flex flex-col h-screen w-full p-0 m-0 overflow-hidden">
-        <div className="p-0 pl-1 py-1 bg-background/95 backdrop-blur-sm z-10 sticky top-0 border-b border-border">
-          <h1 className="text-2xl font-bold">CHAT</h1>
-          <p className="text-muted-foreground text-sm">
-            Interface de conversas do WhatsApp
+        <div className="pl-1 py-1 bg-background/95 backdrop-blur-sm z-10 sticky top-0">
+          <h1 className="text-xl font-bold">Chat WhatsApp</h1>
+          <p className="text-muted-foreground text-xs">
+            Interface de conversas
           </p>
         </div>
         
         {/* Interface do Chat */}
-        <div className="h-[calc(100vh-4rem)] flex flex-1 overflow-hidden">
+        <div className="h-[calc(100vh-2.5rem)] flex flex-1 overflow-hidden">
           {/* Painel de contatos (Esquerda) - Com largura redimensionável */}
           <div
             ref={contactsPanelRef}
