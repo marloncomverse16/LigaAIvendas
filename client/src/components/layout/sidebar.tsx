@@ -20,17 +20,17 @@ import {
   MessagesSquare,
   Server
 } from "lucide-react";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSidebar } from "@/providers/sidebar-provider";
 
 export function Sidebar() {
   const { user, logoutMutation } = useAuth();
   const { logoUrl } = useTheme();
   const [location] = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggleCollapsed } = useSidebar();
   
   const getInitials = (name?: string | null) => {
     if (!name) return "U";
@@ -153,7 +153,7 @@ export function Sidebar() {
             variant="ghost" 
             size="icon" 
             className="absolute -right-3 top-6 h-6 w-6 rounded-full bg-sidebar-primary text-white border border-sidebar-border" 
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={toggleCollapsed}
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </Button>

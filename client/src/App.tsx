@@ -24,6 +24,7 @@ import MetaTestPage from "@/pages/meta-test-page";
 import MetaDiagnosticPage from "@/pages/meta-diagnostic-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { SidebarProvider } from "@/providers/sidebar-provider";
 
 function Router() {
   return (
@@ -56,10 +57,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <SidebarProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </SidebarProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
