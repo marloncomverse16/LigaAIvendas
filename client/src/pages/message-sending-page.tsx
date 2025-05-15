@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -387,6 +388,7 @@ const TemplateManager = () => {
 // Componente para criação de envio de mensagens
 const CreateSendingForm = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [useTemplate, setUseTemplate] = useState(true);
   
   // Buscando as pesquisas de prospecção existentes
@@ -845,9 +847,6 @@ const CreateSendingForm = () => {
         });
     }
   }, [form, toast]);
-  
-  // Obter o usuário autenticado da sessão 
-  const { user } = useAuth();
   
   // Função para lidar com o envio do formulário
   const onSubmit = (data) => {
