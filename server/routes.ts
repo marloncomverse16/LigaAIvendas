@@ -1241,7 +1241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const file = req.file;
       const segment = req.body.segment;
       const city = req.body.city || null;
-      const webhookUrl = req.body.webhookUrl || req.user.prospectingWebhookUrl || null;
+      const webhookUrl = req.body.webhookUrl || (req.user as Express.User).prospectingWebhookUrl || null;
       
       console.log("Processando arquivo:", file.originalname, "para o segmento:", segment);
       
@@ -1257,19 +1257,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Criar busca no banco
       const searchData = {
-        userId: req.user.id,
+        userId: (req.user as Express.User).id,
         segment,
         city,
         filters: `Importado via arquivo: ${file.originalname}`,
         webhookUrl,
-        status: "concluido", // Já marca como concluído
-        completedAt: new Date()
+        status: "processando" // Status inicial de processamento
       };
       
       const search = await storage.createProspectingSearch(searchData);
-      
-      // Ler dados do arquivo
-      let leads = [];
       
       // Processar CSV usando o módulo dedicado de importação
       if (file.mimetype.includes('csv') || file.originalname.endsWith('.csv')) {
