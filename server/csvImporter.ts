@@ -163,7 +163,7 @@ export async function importCSVContent(
       if (values.length < 1) continue;
       
       // Preparar objeto com a estrutura esperada pela interface InsertProspectingResult
-      const lead: Partial<{
+      const lead: {
         searchId: number;
         name?: string | null;
         email?: string | null;
@@ -173,7 +173,7 @@ export async function importCSVContent(
         estado?: string | null;
         site?: string | null;
         type?: string | null;
-      }> = { 
+      } = { 
         searchId: searchId 
       };
       
@@ -182,8 +182,38 @@ export async function importCSVContent(
       if (emailIdx !== -1 && values[emailIdx]) lead.email = values[emailIdx];
       if (phoneIdx !== -1 && values[phoneIdx]) lead.phone = values[phoneIdx];
       if (addressIdx !== -1 && values[addressIdx]) lead.address = values[addressIdx];
-      if (cidadeIdx !== -1 && values[cidadeIdx]) lead.cidade = values[cidadeIdx];
-      if (estadoIdx !== -1 && values[estadoIdx]) lead.estado = values[estadoIdx];
+      
+      // Tratamento especial para cidade e estado
+      // Se os dois índices são os mesmos, provavelmente é um campo combinado como "cidade:estado"
+      if (cidadeIdx !== -1 && estadoIdx !== -1 && cidadeIdx === estadoIdx) {
+        const combinedValue = values[cidadeIdx];
+        if (combinedValue) {
+          // Verifica se há separadores comuns como ':', '-', '/' entre cidade e estado
+          const separators = [':', '-', '/', '|', ','];
+          let cidadeValue = combinedValue;
+          let estadoValue = null;
+          
+          for (const sep of separators) {
+            if (combinedValue.includes(sep)) {
+              const parts = combinedValue.split(sep).map(p => p.trim());
+              if (parts.length >= 2) {
+                cidadeValue = parts[0];
+                estadoValue = parts[1];
+                console.log(`Campo combinado cidade/estado separado usando "${sep}": cidade="${cidadeValue}", estado="${estadoValue}"`);
+                break;
+              }
+            }
+          }
+          
+          lead.cidade = cidadeValue;
+          if (estadoValue) lead.estado = estadoValue;
+        }
+      } else {
+        // Processamento normal quando são campos separados
+        if (cidadeIdx !== -1 && values[cidadeIdx]) lead.cidade = values[cidadeIdx];
+        if (estadoIdx !== -1 && values[estadoIdx]) lead.estado = values[estadoIdx];
+      }
+      
       if (siteIdx !== -1 && values[siteIdx]) lead.site = values[siteIdx];
       if (typeIdx !== -1 && values[typeIdx]) lead.type = values[typeIdx];
       
