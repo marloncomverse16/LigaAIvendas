@@ -135,30 +135,26 @@ export default function UserPermissionsPage() {
 
   if (isLoadingUser) {
     return (
-      <DashboardLayout>
-        <div className="container mx-auto py-10 flex justify-center items-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
+      <div className="container mx-auto py-10 flex justify-center items-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (!user) {
     return (
-      <DashboardLayout>
-        <div className="container mx-auto py-10">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold">Usuário não encontrado</h2>
-            <p className="text-muted-foreground mt-2">O usuário solicitado não foi encontrado ou você não tem permissão para acessá-lo.</p>
-            <Button className="mt-4" asChild>
-              <Link href="/admin-users">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Voltar para lista de usuários
-              </Link>
-            </Button>
-          </div>
+      <div className="container mx-auto py-10">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold">Usuário não encontrado</h2>
+          <p className="text-muted-foreground mt-2">O usuário solicitado não foi encontrado ou você não tem permissão para acessá-lo.</p>
+          <Button className="mt-4" asChild>
+            <Link href="/admin-users">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar para lista de usuários
+            </Link>
+          </Button>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
@@ -176,73 +172,21 @@ export default function UserPermissionsPage() {
           <p className="text-muted-foreground mt-1">
             Configure quais módulos o usuário <strong>{user.name || user.username}</strong> pode acessar no sistema.
           </p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={enableAll}
-              className="flex items-center gap-1"
-            >
-              <Check className="h-4 w-4" /> Habilitar Todos
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={disableAll}
-              className="flex items-center gap-1"
-            >
-              <X className="h-4 w-4" /> Desabilitar Todos
-            </Button>
-            <Button 
-              onClick={handleSave}
-              disabled={updatePermissionsMutation.isPending}
-            >
-              {updatePermissionsMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                "Salvar Permissões"
-              )}
-            </Button>
-          </div>
         </div>
-
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {moduleItems.map((item) => (
-            <Card 
-              key={item.key} 
-              className={permissions[item.key] ? 'border-primary/40 bg-primary/5' : ''}
-            >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  {item.label}
-                  <Switch
-                    id={item.key}
-                    checked={permissions[item.key]}
-                    onCheckedChange={() => handleToggle(item.key)}
-                  />
-                </CardTitle>
-                <CardDescription>{item.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center text-sm font-medium">
-                  <div className={`h-3 w-3 rounded-full mr-2 ${permissions[item.key] ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <span>{permissions[item.key] ? 'Ativado' : 'Desativado'}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        
-        <div className="mt-6 flex justify-end">
+        <div className="flex gap-2">
           <Button 
             variant="outline" 
-            onClick={() => navigate("/admin-users")}
-            className="mr-2"
-            disabled={updatePermissionsMutation.isPending}
+            onClick={enableAll}
+            className="flex items-center gap-1"
           >
-            Cancelar
+            <Check className="h-4 w-4" /> Habilitar Todos
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={disableAll}
+            className="flex items-center gap-1"
+          >
+            <X className="h-4 w-4" /> Desabilitar Todos
           </Button>
           <Button 
             onClick={handleSave}
@@ -258,6 +202,57 @@ export default function UserPermissionsPage() {
             )}
           </Button>
         </div>
+      </div>
+
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        {moduleItems.map((item) => (
+          <Card 
+            key={item.key} 
+            className={permissions[item.key] ? 'border-primary/40 bg-primary/5' : ''}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center justify-between">
+                {item.label}
+                <Switch
+                  id={item.key}
+                  checked={permissions[item.key]}
+                  onCheckedChange={() => handleToggle(item.key)}
+                />
+              </CardTitle>
+              <CardDescription>{item.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center text-sm font-medium">
+                <div className={`h-3 w-3 rounded-full mr-2 ${permissions[item.key] ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                <span>{permissions[item.key] ? 'Ativado' : 'Desativado'}</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      <div className="mt-6 flex justify-end">
+        <Button 
+          variant="outline" 
+          onClick={() => navigate("/admin-users")}
+          className="mr-2"
+          disabled={updatePermissionsMutation.isPending}
+        >
+          Cancelar
+        </Button>
+        <Button 
+          onClick={handleSave}
+          disabled={updatePermissionsMutation.isPending}
+        >
+          {updatePermissionsMutation.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Salvando...
+            </>
+          ) : (
+            "Salvar Permissões"
+          )}
+        </Button>
       </div>
     </div>
   );
