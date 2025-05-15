@@ -442,6 +442,7 @@ export const messageSendings = pgTable("message_sendings", {
   status: text("status").default("agendado"), // agendado, enviado, erro, cancelado
   aiLearningEnabled: boolean("ai_learning_enabled").default(false),
   aiNotes: text("ai_notes"),
+  whatsappConnectionType: text("whatsapp_connection_type").default("qrcode"), // qrcode ou meta
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -489,6 +490,7 @@ export const insertMessageSendingSchema = createInsertSchema(messageSendings).pi
   status: true,
   aiLearningEnabled: true,
   aiNotes: true,
+  whatsappConnectionType: true,
 });
 
 // Schema para histórico de envios
