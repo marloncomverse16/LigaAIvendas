@@ -893,6 +893,171 @@ export default function ProspectingPage() {
                           </div>
                         </form>
                       </Form>
+                      ) : (
+                        <div className="space-y-6">
+                          <form onSubmit={handleImportSubmit} className="space-y-6">
+                            <div className="grid grid-cols-1 gap-6">
+                              <div>
+                                <Label htmlFor="segment">Segmento *</Label>
+                                <Input 
+                                  id="segment" 
+                                  placeholder="Ex: Restaurantes, Médicos, Advocacia" 
+                                  className="mt-1.5"
+                                  value={form.watch("segment") || ""}
+                                  onChange={(e) => form.setValue("segment", e.target.value)}
+                                  required
+                                />
+                                <p className="text-sm text-muted-foreground mt-1.5">
+                                  Informe o segmento ou nicho de mercado para a prospecção
+                                </p>
+                              </div>
+                              
+                              <div>
+                                <Label htmlFor="city">Cidade</Label>
+                                <Input 
+                                  id="city" 
+                                  placeholder="Ex: São Paulo, Rio de Janeiro" 
+                                  className="mt-1.5"
+                                  value={form.watch("city") || ""}
+                                  onChange={(e) => form.setValue("city", e.target.value)}
+                                />
+                                <p className="text-sm text-muted-foreground mt-1.5">
+                                  Opcional. Deixe em branco para todo o país
+                                </p>
+                              </div>
+                              
+                              <div className="mt-2 space-y-3">
+                                <Label htmlFor="file">Arquivo de Leads (CSV ou Excel)</Label>
+                                
+                                <div className="flex items-center justify-center w-full">
+                                  <label
+                                    htmlFor="dropzone-file"
+                                    className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted/20 border-muted-foreground/25 hover:bg-muted/40"
+                                  >
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                      {importFile ? (
+                                        <>
+                                          <FileSpreadsheet className="w-10 h-10 mb-3 text-primary" />
+                                          <p className="mb-2 text-sm text-foreground"><span className="font-semibold">{importFile.name}</span></p>
+                                          <p className="text-xs text-muted-foreground">{Math.round(importFile.size / 1024)} KB • Clique para trocar</p>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Upload className="w-10 h-10 mb-3 text-muted-foreground" />
+                                          <p className="mb-2 text-sm text-muted-foreground">Clique para selecionar ou arraste o arquivo</p>
+                                          <p className="text-xs text-muted-foreground">CSV ou XLS/XLSX (máx. 10MB)</p>
+                                        </>
+                                      )}
+                                    </div>
+                                    <input
+                                      id="dropzone-file"
+                                      type="file"
+                                      className="hidden"
+                                      accept=".csv,.xls,.xlsx"
+                                      onChange={handleFileChange}
+                                      ref={fileInputRef}
+                                    />
+                                  </label>
+                                </div>
+                                
+                                {importError && (
+                                  <Alert variant="destructive" className="mt-3">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <p>{importError}</p>
+                                  </Alert>
+                                )}
+                                
+                                {previewData.length > 0 && (
+                                  <div className="mt-4">
+                                    <h4 className="text-sm font-medium mb-2">Preview de Dados:</h4>
+                                    <div className="border rounded-md overflow-x-auto">
+                                      <table className="min-w-full divide-y divide-border">
+                                        <thead className="bg-muted">
+                                          <tr>
+                                            {Object.keys(previewData[0]).map((header) => (
+                                              <th key={header} className="px-4 py-2 text-xs font-medium text-muted-foreground text-left">
+                                                {header}
+                                              </th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody className="bg-popover divide-y divide-border">
+                                          {previewData.map((row, i) => (
+                                            <tr key={i}>
+                                              {Object.values(row).map((value, j) => (
+                                                <td key={j} className="px-4 py-2 text-xs whitespace-nowrap">
+                                                  {String(value)}
+                                                </td>
+                                              ))}
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-col space-y-2">
+                              <Alert className="bg-muted mb-4">
+                                <FileType className="h-4 w-4" />
+                                <AlertTitle>Formato do arquivo</AlertTitle>
+                                <AlertDescription>
+                                  <p className="mb-2">O arquivo deve estar no formato CSV ou Excel com as seguintes colunas:</p>
+                                  <ul className="list-disc list-inside space-y-1 text-xs">
+                                    <li><strong>nome/name</strong>: Nome da empresa ou contato</li>
+                                    <li><strong>email</strong>: Endereço de email</li>
+                                    <li><strong>telefone/phone</strong>: Número de telefone com DDD</li>
+                                    <li><strong>endereco/address</strong>: Endereço completo (opcional)</li>
+                                    <li><strong>cidade/city</strong>: Cidade (opcional)</li>
+                                    <li><strong>estado/state</strong>: Estado/UF (opcional)</li>
+                                    <li><strong>site</strong>: Site ou URL (opcional)</li>
+                                    <li><strong>tipo/type</strong>: Categoria ou tipo do lead (opcional)</li>
+                                  </ul>
+                                </AlertDescription>
+                              </Alert>
+                            </div>
+
+                            <div className="flex justify-center pt-4">
+                              <div className="flex flex-col md:flex-row gap-4 w-full md:w-3/4 mx-auto">
+                                <Button 
+                                  type="button"
+                                  variant="outline"
+                                  className="w-full"
+                                  onClick={() => {
+                                    setImportMethod("form");
+                                    setImportError(null);
+                                    setImportFile(null);
+                                  }}
+                                >
+                                  <ArrowLeft className="mr-2 h-4 w-4" />
+                                  Voltar para Formulário
+                                </Button>
+                                
+                                <Button 
+                                  type="submit" 
+                                  disabled={importListMutation.isPending || !importFile}
+                                  className="w-full"
+                                  size="lg"
+                                >
+                                  {importListMutation.isPending ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                      Importando...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <FileSpreadsheet className="mr-2 h-5 w-5" />
+                                      Importar Lista
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      )}
                     </CardContent>
                     <CardFooter className="flex flex-col space-y-2 text-center text-sm text-muted-foreground border-t py-4">
                       <p>Após iniciar a busca, o processamento pode levar até 24 horas.</p>
