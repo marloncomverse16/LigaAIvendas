@@ -322,8 +322,8 @@ export default function ChatPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-screen w-full p-0 m-0 overflow-hidden flex-1 bg-white dark:bg-black">
-        <div className="p-0 py-1 px-2 bg-background/95 backdrop-blur-sm z-10 sticky top-0 border-b border-border">
+      <div className="flex flex-col h-full w-full overflow-hidden bg-background">
+        <div className="py-1 px-2 bg-background/95 backdrop-blur-sm z-10 sticky top-0 border-b border-border">
           <div className="flex items-center space-x-3">
             <h1 className="text-lg font-semibold">CHAT</h1>
             <Badge variant="outline" className="text-xs">
@@ -333,7 +333,7 @@ export default function ChatPage() {
         </div>
         
         {/* Interface do Chat */}
-        <div className="h-[calc(100vh-2.5rem)] flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden">
           {/* Painel de contatos (Esquerda) - Com largura redimensionável */}
           <div
             ref={contactsPanelRef}

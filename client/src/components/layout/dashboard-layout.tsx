@@ -7,10 +7,10 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
+    <div className="flex h-screen w-full overflow-hidden">
       <Sidebar />
-      <div className="absolute inset-0 left-16 md:left-64 overflow-y-auto bg-background p-0 flex">
-        <main className="h-full w-full p-0 m-0 overflow-hidden flex">
+      <div className="w-full overflow-auto bg-background">
+        <main className="h-full w-full overflow-hidden flex">
           {children}
         </main>
       </div>
