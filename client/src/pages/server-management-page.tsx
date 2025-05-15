@@ -624,6 +624,8 @@ export default function ServerManagementPage() {
       contactsWebhookUrl: server.contactsWebhookUrl || "",
       schedulingWebhookUrl: server.schedulingWebhookUrl || "",
       crmWebhookUrl: server.crmWebhookUrl || "",
+      // Adicionado campo de webhook de envio de mensagens
+      messageSendingWebhookUrl: server.messageSendingWebhookUrl || "",
       instanceId: server.instanceId || "",
       // Garantir que active seja um boolean válido
       active: server.active === null ? false : Boolean(server.active),
