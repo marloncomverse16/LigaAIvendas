@@ -46,6 +46,7 @@ const serverFormSchema = z.object({
   contactsWebhookUrl: z.string().nullable().optional(),
   schedulingWebhookUrl: z.string().nullable().optional(),
   crmWebhookUrl: z.string().nullable().optional(),
+  messageSendingWebhookUrl: z.string().nullable().optional(), // Webhook para envio de mensagens
   instanceId: z.string().nullable().optional(),
   active: z.boolean().default(true),
 });
