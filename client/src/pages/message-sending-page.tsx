@@ -460,17 +460,39 @@ const CreateSendingForm = () => {
         throw new Error("Webhook de envio de mensagens não configurado para este servidor. Verifique a configuração em Gerenciamento de Servidores.");
       }
       
-      // Criar o registro de histórico de envio
-      const historyRes = await apiRequest("POST", "/api/message-sending-history", {
+      console.log("Enviando dados para histórico:", {
         userId: data.userId,
-        searchId: data.searchId,
-        templateId: null,
-        templateName: null,
+        searchId: parseInt(data.searchId.toString()),
+        // Campos obrigatórios do schema
+        sendingId: null, // Será gerado automaticamente
+        resultId: null,
+        status: "pendente",
+        errorMessage: null,
+        // Campos adicionais
+        templateId: data.templateId ? data.templateId.toString() : null,
+        templateName: data.templateId ? "Template selecionado" : null,
         messageText: data.customMessage || (data.templateId ? `Template ID: ${data.templateId}` : ""),
         connectionType: "whatsapp_qr",
-        totalRecipients: data.quantity || 0,
+        totalRecipients: parseInt(data.quantity?.toString() || "10"),
+        webhookUrl: webhookUrl
+      });
+      
+      // Criar o registro de histórico de envio
+      const historyRes = await apiRequest("POST", "/api/message-sending-history", {
+        // Campos obrigatórios do schema
+        sendingId: null, // Será preenchido pelo servidor
+        resultId: null, // Opcional
         status: "pendente",
-        webhookUrl
+        errorMessage: null,
+        // Campos adicionais
+        userId: data.userId,
+        searchId: parseInt(data.searchId.toString()),
+        templateId: data.templateId ? data.templateId.toString() : null,
+        templateName: data.templateId ? "Template selecionado" : null,
+        messageText: data.customMessage || (data.templateId ? `Template ID: ${data.templateId}` : ""),
+        connectionType: "whatsapp_qr",
+        totalRecipients: parseInt(data.quantity?.toString() || "10"),
+        webhookUrl: webhookUrl
       });
       
       // Obtém o ID do registro de envio criado
@@ -548,15 +570,38 @@ const CreateSendingForm = () => {
       }
       
       // Criar o registro de histórico de envio
-      const historyRes = await apiRequest("POST", "/api/message-sending-history", {
+      console.log("Enviando dados para histórico Meta API:", {
         userId: data.userId,
-        searchId: data.searchId,
-        templateId: selectedTemplate.id,
+        searchId: parseInt(data.searchId.toString()),
+        // Campos obrigatórios do schema
+        sendingId: null, // Será gerado automaticamente
+        resultId: null,
+        status: "pendente",
+        errorMessage: null,
+        // Campos adicionais
+        templateId: selectedTemplate.id.toString(),
         templateName: selectedTemplate.name,
         messageText: null,
         connectionType: "whatsapp_meta_api",
-        totalRecipients: data.quantity || 0,
+        totalRecipients: parseInt(data.quantity?.toString() || "10"),
+        webhookUrl: null
+      });
+      
+      // Criar o registro de histórico de envio
+      const historyRes = await apiRequest("POST", "/api/message-sending-history", {
+        // Campos obrigatórios do schema
+        sendingId: null, // Será preenchido pelo servidor
+        resultId: null, // Opcional
         status: "pendente",
+        errorMessage: null,
+        // Campos adicionais
+        userId: data.userId,
+        searchId: parseInt(data.searchId.toString()),
+        templateId: selectedTemplate.id.toString(),
+        templateName: selectedTemplate.name,
+        messageText: null,
+        connectionType: "whatsapp_meta_api",
+        totalRecipients: parseInt(data.quantity?.toString() || "10"),
         webhookUrl: null
       });
       
