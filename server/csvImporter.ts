@@ -5,6 +5,15 @@
 import { IStorage } from "./storage";
 import fs from "fs";
 
+// Exportando funções úteis para outros módulos
+export {
+  detectSeparator,
+  findColumnIndex,
+  normalizeString,
+  decodeSpecialChars,
+  formatPhoneNumber
+};
+
 /**
  * Detecta o melhor separador para um arquivo CSV (vírgula ou ponto e vírgula)
  * @param content Conteúdo do arquivo CSV
