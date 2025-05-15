@@ -2707,6 +2707,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/connections/status", checkConnectionStatusNew);
   app.post("/api/connections/disconnect", disconnectWhatsAppNew);
   
+  // Rotas para WhatsApp Chat
+  app.get("/api/whatsapp/contacts", listWhatsAppContacts);
+  app.get("/api/whatsapp/contacts/:contactId", getWhatsAppContact);
+  app.get("/api/whatsapp/messages/:contactId", listWhatsAppMessages);
+  app.post("/api/whatsapp/messages", sendWhatsAppMessage);
+  
   // Rotas para conexão direta com a Meta API (nível de servidor)
   app.post("/api/meta-connections/connect", connectWhatsAppMeta);
   app.get("/api/meta-connections/status", checkMetaConnectionStatus);
