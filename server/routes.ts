@@ -20,6 +20,8 @@ import { db } from "./db";
 import { checkConnectionStatus, disconnectWhatsApp } from "./connection";
 import { getWhatsAppQrCode } from "./direct-connection";
 import { setupWebSocketServer, sendMessage } from "./websocket";
+import multer from "multer";
+import fs from "fs";
 
 // Novas importações para o menu Conexões
 import { 
@@ -40,6 +42,27 @@ import {
 } from "./api/meta-connections";
 
 // Novas importações para conexões Meta API específicas do usuário
+
+// Configuração do multer para upload de arquivos
+const upload = multer({
+  dest: "uploads/",
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req: any, file: any, cb: any) => {
+    // Aceitar apenas CSV ou Excel
+    if (file.mimetype.includes('csv') || 
+        file.mimetype.includes('excel') || 
+        file.mimetype.includes('spreadsheet') ||
+        file.originalname.endsWith('.csv') ||
+        file.originalname.endsWith('.xls') ||
+        file.originalname.endsWith('.xlsx')) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
+  }
+});
 import {
   connectWhatsAppMeta as connectUserWhatsAppMeta,
   checkMetaConnectionStatus as checkUserMetaConnectionStatus,
@@ -1193,6 +1216,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar resultados:", error);
       res.status(500).json({ message: "Erro ao buscar resultados" });
+    }
+  });
+  
+  // Rota para importar arquivo de leads
+  app.post("/api/prospecting/import", upload.single('file'), async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Verificar arquivo
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhum arquivo enviado" });
+      }
+      
+      // Verificar dados obrigatórios
+      if (!req.body.segment) {
+        return res.status(400).json({ message: "Segmento é obrigatório" });
+      }
+      
+      // Processar arquivo
+      const file = req.file;
+      const segment = req.body.segment;
+      const city = req.body.city || null;
+      const webhookUrl = req.body.webhookUrl || req.user.prospectingWebhookUrl || null;
+      
+      console.log("Processando arquivo:", file.originalname, "para o segmento:", segment);
+      
+      // Validar tipo de arquivo
+      if (!file.mimetype.includes('csv') && 
+          !file.mimetype.includes('excel') && 
+          !file.mimetype.includes('spreadsheet') && 
+          !file.originalname.endsWith('.csv') && 
+          !file.originalname.endsWith('.xls') && 
+          !file.originalname.endsWith('.xlsx')) {
+        return res.status(400).json({ message: "Formato de arquivo inválido. Use CSV ou Excel." });
+      }
+      
+      // Criar busca no banco
+      const searchData = {
+        userId: req.user.id,
+        segment,
+        city,
+        filters: `Importado via arquivo: ${file.originalname}`,
+        webhookUrl,
+        status: "concluido", // Já marca como concluído
+        completedAt: new Date()
+      };
+      
+      const search = await storage.createProspectingSearch(searchData);
+      
+      // Ler dados do arquivo
+      let leads = [];
+      
+      // Processar CSV
+      if (file.mimetype.includes('csv') || file.originalname.endsWith('.csv')) {
+        // Ler conteúdo do arquivo
+        const fileContent = fs.readFileSync(file.path, 'utf8');
+        const lines = fileContent.split('\n');
+        
+        if (lines.length < 2) {
+          await storage.updateProspectingSearch(search.id, { status: "erro" });
+          return res.status(400).json({ message: "Arquivo vazio ou sem dados" });
+        }
+        
+        // Obter cabeçalhos
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        
+        // Verificar se existem os cabeçalhos necessários
+        const nameHeaderIndex = headers.findIndex(h => h === 'nome' || h === 'name');
+        
+        if (nameHeaderIndex === -1) {
+          await storage.updateProspectingSearch(search.id, { status: "erro" });
+          return res.status(400).json({ message: "Arquivo não contém coluna nome/name" });
+        }
+        
+        // Processar linhas
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          
+          const values = lines[i].split(',').map(v => v.trim());
+          
+          if (values.length < headers.length) continue;
+          
+          const lead: {[key: string]: string | null} = {};
+          
+          headers.forEach((header: string, index: number) => {
+            if (header === 'nome' || header === 'name') lead.name = values[index] || null;
+            else if (header === 'email') lead.email = values[index] || null;
+            else if (header === 'telefone' || header === 'phone') lead.phone = values[index] || null;
+            else if (header === 'endereco' || header === 'address') lead.address = values[index] || null;
+            else if (header === 'cidade' || header === 'city') lead.cidade = values[index] || null;
+            else if (header === 'estado' || header === 'state' || header === 'uf') lead.estado = values[index] || null;
+            else if (header === 'site' || header === 'website' || header === 'url') lead.site = values[index] || null;
+            else if (header === 'tipo' || header === 'type') lead.type = values[index] || null;
+          });
+          
+          leads.push(lead);
+        }
+      } else {
+        // Para arquivos Excel, você precisaria usar uma biblioteca como exceljs ou xlsx
+        // Por simplicidade, vamos retornar um erro por enquanto
+        await storage.updateProspectingSearch(search.id, { status: "erro" });
+        return res.status(400).json({ message: "Formato de arquivo Excel não suportado. Use CSV." });
+      }
+      
+      // Verificar se encontrou leads
+      if (leads.length === 0) {
+        await storage.updateProspectingSearch(search.id, { status: "erro" });
+        return res.status(400).json({ message: "Nenhum lead encontrado no arquivo" });
+      }
+      
+      // Atualizar busca com número de leads
+      await storage.updateProspectingSearch(search.id, {
+        leadsFound: leads.length,
+        dispatchesPending: leads.length
+      });
+      
+      // Salvar cada lead no banco
+      await Promise.all(leads.map(async (lead) => {
+        await storage.createProspectingResult({
+          searchId: search.id,
+          ...lead
+        });
+      }));
+      
+      // Limpar arquivo temporário
+      fs.unlinkSync(file.path);
+      
+      // Responder com sucesso
+      return res.status(201).json({
+        id: search.id,
+        segment,
+        leadsFound: leads.length,
+        message: `${leads.length} leads importados com sucesso`
+      });
+    } catch (error) {
+      console.error("Erro ao importar leads:", error);
+      return res.status(500).json({ 
+        message: "Erro interno ao importar leads", 
+        error: error.message 
+      });
     }
   });
   
