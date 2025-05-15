@@ -303,18 +303,44 @@ export default function ServerManagementPage() {
   const updateServerMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: ServerFormValues }) => {
       console.log("Fazendo requisição PUT para:", `/api/servers/${id}`);
-      console.log("Dados enviados:", data);
+      console.log("Dados enviados:", JSON.stringify(data, null, 2));
+      
       try {
-        const res = await apiRequest("PUT", `/api/servers/${id}`, data);
-        console.log("Resposta recebida:", res.status);
+        // Garantir que os campos numéricos sejam enviados como números
+        const processedData = {
+          ...data,
+          maxUsers: Number(data.maxUsers)
+        };
+        
+        const res = await apiRequest("PUT", `/api/servers/${id}`, processedData);
+        console.log("Resposta recebida com status:", res.status);
+        
+        if (!res.ok) {
+          // Se o servidor retornou um erro, tente extrair a mensagem de erro
+          const errorData = await res.json().catch(() => null);
+          console.error("Erro do servidor:", errorData);
+          
+          if (errorData && errorData.message) {
+            throw new Error(errorData.message);
+          } else {
+            throw new Error(`Erro do servidor: ${res.status}`);
+          }
+        }
+        
         return res.json();
       } catch (error) {
-        console.error("Erro na requisição:", error);
-        throw error;
+        console.error("Erro na requisição para atualizar servidor:", error);
+        
+        // Propagar o erro para ser tratado pelo onError
+        if (error instanceof Error) {
+          throw error;
+        } else {
+          throw new Error("Erro desconhecido ao atualizar servidor");
+        }
       }
     },
     onSuccess: (data) => {
-      console.log("Atualização bem-sucedida:", data);
+      console.log("Atualização bem-sucedida:", JSON.stringify(data, null, 2));
       toast({
         title: "Servidor atualizado com sucesso",
         description: "As informações do servidor foram atualizadas.",
@@ -325,7 +351,7 @@ export default function ServerManagementPage() {
       refetchServers();
     },
     onError: (error: Error) => {
-      console.error("Erro no callback de erro:", error);
+      console.error("Erro tratado na mutação:", error);
       toast({
         title: "Erro ao atualizar servidor",
         description: error.message || "Ocorreu um erro ao atualizar o servidor",
@@ -569,14 +595,17 @@ export default function ServerManagementPage() {
   const handleEditServer = (server: Server) => {
     setSelectedServer(server);
     
-    editForm.reset({
-      name: server.name,
-      ipAddress: server.ipAddress,
-      provider: server.provider,
-      apiUrl: server.apiUrl,
+    console.log("Configurando formulário com dados do servidor:", JSON.stringify(server, null, 2));
+    
+    // Garantir que todos os campos tenham valores válidos
+    const formData = {
+      name: server.name || "",
+      ipAddress: server.ipAddress || "",
+      provider: server.provider || "",
+      apiUrl: server.apiUrl || "",
       apiToken: server.apiToken || "",
       n8nApiUrl: server.n8nApiUrl || "",
-      maxUsers: server.maxUsers,
+      maxUsers: server.maxUsers || 10, // Valor padrão se for nulo
       whatsappWebhookUrl: server.whatsappWebhookUrl || "",
       aiAgentName: server.aiAgentName || "",
       aiAgentWebhookUrl: server.aiAgentWebhookUrl || "",
@@ -585,9 +614,17 @@ export default function ServerManagementPage() {
       schedulingWebhookUrl: server.schedulingWebhookUrl || "",
       crmWebhookUrl: server.crmWebhookUrl || "",
       instanceId: server.instanceId || "",
-      active: server.active || false,
-    });
+      // Garantir que active seja um boolean válido
+      active: server.active === null ? false : Boolean(server.active),
+      // Adicionar os campos Meta WhatsApp
+      whatsappMetaToken: server.whatsappMetaToken || "",
+      whatsappMetaBusinessId: server.whatsappMetaBusinessId || "",
+      whatsappMetaApiVersion: server.whatsappMetaApiVersion || "v18.0", // Valor padrão
+    };
     
+    console.log("Dados do formulário configurados:", JSON.stringify(formData, null, 2));
+    
+    editForm.reset(formData);
     setIsEditDialogOpen(true);
   };
   
@@ -608,8 +645,47 @@ export default function ServerManagementPage() {
   const onEditSubmit = (data: ServerFormValues) => {
     if (selectedServer) {
       console.log("Enviando atualização para o servidor:", selectedServer.id);
-      console.log("Dados do formulário:", data);
-      updateServerMutation.mutate({ id: selectedServer.id, data });
+      console.log("Dados do formulário:", JSON.stringify(data, null, 2));
+      
+      // Garantir que todos os campos obrigatórios estejam presentes
+      if (!data.name || !data.ipAddress || !data.provider || !data.apiUrl) {
+        toast({
+          title: "Dados incompletos",
+          description: "Por favor, preencha todos os campos obrigatórios",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Garantir que maxUsers seja um número
+      const processedData = {
+        ...data,
+        maxUsers: Number(data.maxUsers),
+        // Se active for null, defina como false
+        active: data.active === null ? false : data.active,
+      };
+      
+      console.log("Dados processados:", JSON.stringify(processedData, null, 2));
+      
+      try {
+        updateServerMutation.mutate({ 
+          id: selectedServer.id, 
+          data: processedData 
+        });
+      } catch (error) {
+        console.error("Erro ao enviar dados:", error);
+        toast({
+          title: "Erro ao atualizar servidor",
+          description: "Ocorreu um erro ao enviar os dados do servidor",
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: "Erro",
+        description: "Nenhum servidor selecionado para edição",
+        variant: "destructive",
+      });
     }
   };
   
