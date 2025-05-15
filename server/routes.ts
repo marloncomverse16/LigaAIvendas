@@ -1267,328 +1267,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const search = await storage.createProspectingSearch(searchData);
       
-      // Processar CSV usando o módulo dedicado de importação
-      if (file.mimetype.includes('csv') || file.originalname.endsWith('.csv')) {
-        // Ler conteúdo do arquivo
-        const fileContent = fs.readFileSync(file.path, 'utf8');
+      // Processar arquivo usando o módulo dedicado
+      try {
+        const importResult = await processProspectingFile(file, search.id, storage);
         
-        if (fileContent.trim().length < 10) {
-          await storage.updateProspectingSearch(search.id, { status: "erro" });
-          return res.status(400).json({ message: "Arquivo vazio ou sem dados suficientes" });
-        }
-        
-        try {
-          // Usar nosso módulo de importação otimizado
-          const importResult = await importCSVContent(
-            fileContent,
-            search.id,
-            storage
-          );
-          
-          // Atualizar a busca com os resultados
-          await storage.updateProspectingSearch(search.id, {
-            leadsFound: importResult.importedLeads,
-            dispatchesPending: importResult.importedLeads,
-            status: importResult.importedLeads > 0 ? "concluido" : "erro"
-          });
-          
-          return res.status(200).json({
-            message: importResult.message,
-            searchId: search.id,
-            importedLeads: importResult.importedLeads,
-            errors: importResult.errorLeads
-          });
-        } catch (error) {
-          console.error("Erro ao processar arquivo CSV:", error);
-          await storage.updateProspectingSearch(search.id, { status: "erro" });
-          return res.status(500).json({ 
-            message: "Erro ao processar arquivo CSV", 
-            error: String(error) 
-          });
-        }
-      } else if (file.mimetype.includes('excel') || 
-                file.mimetype.includes('spreadsheet') || 
-                file.originalname.endsWith('.xlsx') || 
-                file.originalname.endsWith('.xls')) {
-        // Implementação para processamento de arquivos Excel usando o módulo de importação
-        try {
-          // Ler conteúdo do arquivo Excel
-          console.log("Processando arquivo Excel:", file.originalname);
-          
-          // Converter Excel para formato CSV para usar nosso processador existente
-          const workbook = xlsx.readFile(file.path);
-          const sheetName = workbook.SheetNames[0];
-          const csvContent = xlsx.utils.sheet_to_csv(workbook.Sheets[sheetName]);
-          
-          if (!csvContent || csvContent.trim().length < 10) {
-            await storage.updateProspectingSearch(search.id, { status: "erro" });
-            return res.status(400).json({ message: "Arquivo Excel vazio ou sem dados" });
-          }
-          
-          // Usar o mesmo processador de CSV com o conteúdo convertido do Excel
-          const importResult = await importCSVContent(
-            csvContent,
-            search.id,
-            storage
-          );
-          
-          // Atualizar a busca com os resultados
-          await storage.updateProspectingSearch(search.id, {
-            leadsFound: importResult.importedLeads,
-            dispatchesPending: importResult.importedLeads,
-            status: importResult.importedLeads > 0 ? "concluido" : "erro"
-          });
-          
-          return res.status(200).json({
-            message: importResult.message,
-            searchId: search.id,
-            importedLeads: importResult.importedLeads,
-            errors: importResult.errorLeads
-          });
-        } catch (error) {
-          console.error("Erro ao processar arquivo Excel:", error);
-          await storage.updateProspectingSearch(search.id, { status: "erro" });
-          return res.status(500).json({ 
-            message: "Erro ao processar arquivo Excel", 
-            error: String(error) 
-          });
-        }
-        
-        // Mapeamento flexível de cabeçalhos - permite reconhecer vários formatos possíveis
-        const headerMap: {[key: string]: string[]} = {
-          name: ['nome', 'name', 'empresa', 'razão social', 'razao social', 'razaosocial', 'cliente', 'contato', 'lead'],
-          email: ['email', 'e-mail', 'correio eletrônico', 'correio eletronico', 'correio', 'mail'],
-          phone: ['telefone', 'phone', 'fone', 'celular', 'whatsapp', 'contato', 'tel', 'número', 'numero'],
-          address: ['endereço', 'endereco', 'address', 'logradouro', 'rua', 'avenida', 'local'],
-          cidade: ['cidade', 'city', 'municipio', 'município', 'localidade'],
-          estado: ['estado', 'state', 'uf', 'província', 'provincia'],
-          site: ['site', 'website', 'web', 'url', 'link', 'domínio', 'dominio'],
-          type: ['tipo', 'type', 'categoria', 'segmento', 'nicho', 'classificação', 'classificacao']
-        };
-        
-        // Identifica automaticamente qual coluna no arquivo corresponde a cada campo no banco
-        // Essa função retorna -1 se não encontrar nenhuma correspondência
-        const getColumnIndex = (fieldType: string) => {
-          const possibleNames = headerMap[fieldType];
-          
-          // Imprime todos os cabeçalhos do arquivo para debug
-          console.log("Cabeçalhos encontrados no arquivo:", headers);
-          
-          // Tenta encontrar correspondência exata primeiro
-          for (const possibleName of possibleNames) {
-            const index = headers.findIndex(h => h === possibleName);
-            if (index !== -1) {
-              console.log(`Campo ${fieldType} encontrado exatamente como "${possibleName}" no índice ${index}`);
-              return index;
-            }
-          }
-          
-          // Em seguida, tenta correspondência parcial
-          for (const possibleName of possibleNames) {
-            const index = headers.findIndex(h => 
-              h.includes(possibleName) || 
-              possibleName.includes(h));
-            if (index !== -1) {
-              console.log(`Campo ${fieldType} encontrado parcialmente como "${headers[index]}" usando "${possibleName}" no índice ${index}`);
-              return index;
-            }
-          }
-          
-          // Tenta uma abordagem mais genérica para encontrar strings similares
-          for (let i = 0; i < headers.length; i++) {
-            const header = headers[i];
-            for (const possibleName of possibleNames) {
-              // Verifica se alguma das strings contém partes da outra
-              if (possibleName.length > 2 && header.includes(possibleName.substring(0, 3))) {
-                console.log(`Campo ${fieldType} encontrado por similaridade usando "${possibleName}" no índice ${i} (cabeçalho: "${header}")`);
-                return i;
-              }
-            }
-          }
-          
-          console.log(`Campo ${fieldType} NÃO encontrado em nenhum cabeçalho`);
-          return -1;
-        };
-        
-        // Tentar encontrar ao menos um campo identificável
-        const nameIndex = getColumnIndex('name');
-        const emailIndex = getColumnIndex('email');
-        const phoneIndex = getColumnIndex('phone');
-        
-        // Estratégia para resolver problema de não conseguir identificar colunas:
-        // Se não encontrarmos nenhuma coluna automaticamente, vamos utilizar
-        // as primeiras colunas do arquivo como nome, email e telefone (se disponíveis)
-        
-        let nameIdx = nameIndex;
-        let emailIdx = emailIndex;
-        let phoneIdx = phoneIndex;
-        
-        // Se não temos nenhum campo detectado automaticamente, vamos usar um mapeamento forçado
-        const needsForceMapping = nameIndex === -1 && emailIndex === -1 && phoneIndex === -1;
-        
-        if (needsForceMapping) {
-          console.log("AVISO: Nenhuma coluna mapeada automaticamente. Tentando mapeamento forçado...");
-          
-          // Usa as primeiras colunas disponíveis assumindo uma ordem comum
-          if (headers.length > 0) nameIdx = 0;  // Primeira coluna como nome
-          if (headers.length > 1) emailIdx = 1; // Segunda coluna como email
-          if (headers.length > 2) phoneIdx = 2; // Terceira coluna como telefone
-          
-          console.log("Mapeamento forçado:", {
-            nome: headers[nameIdx] || "indisponível",
-            email: emailIdx >= 0 ? headers[emailIdx] : "indisponível",
-            telefone: phoneIdx >= 0 ? headers[phoneIdx] : "indisponível"
-          });
-        }
-        
-        // Obter índices de todas as colunas possíveis usando nosso mapeamento flexível
-        const addressIndex = getColumnIndex('address');
-        const cidadeIndex = getColumnIndex('cidade');
-        const estadoIndex = getColumnIndex('estado');
-        const siteIndex = getColumnIndex('site');
-        const typeIndex = getColumnIndex('type');
-        
-        console.log("Mapeamento de colunas do arquivo CSV:", {
-          nome: nameIndex !== -1 ? headers[nameIndex] : "não encontrado",
-          email: emailIndex !== -1 ? headers[emailIndex] : "não encontrado",
-          telefone: phoneIndex !== -1 ? headers[phoneIndex] : "não encontrado",
-          endereco: addressIndex !== -1 ? headers[addressIndex] : "não encontrado",
-          cidade: cidadeIndex !== -1 ? headers[cidadeIndex] : "não encontrado",
-          estado: estadoIndex !== -1 ? headers[estadoIndex] : "não encontrado",
-          site: siteIndex !== -1 ? headers[siteIndex] : "não encontrado",
-          tipo: typeIndex !== -1 ? headers[typeIndex] : "não encontrado"
+        // Atualizar a busca com os resultados
+        await storage.updateProspectingSearch(search.id, {
+          leadsFound: importResult.importedLeads,
+          dispatchesPending: importResult.importedLeads,
+          status: importResult.importedLeads > 0 ? "concluido" : "erro"
         });
         
-        // Detectar qual é o separador usado (vírgula ou ponto e vírgula)
-        // Analisa a primeira linha para ver qual separador provavelmente está sendo usado
-        let separator = ',';
-        const testLine = lines[1] || '';
-        
-        if (testLine.indexOf(';') > -1 && (testLine.indexOf(',') === -1 || testLine.split(';').length > testLine.split(',').length)) {
-          separator = ';';
-          console.log("Detectado separador de CSV como ponto e vírgula (;)");
-        } else {
-          console.log("Usando separador de CSV padrão como vírgula (,)");
-        }
-        
-        // Reprocessar os cabeçalhos com o separador correto se for diferente de vírgula
-        let processedHeaders = headers;
-        if (separator !== ',') {
-          processedHeaders = headers.join(',').split(separator).map(h => h.trim());
-        }
-        
-        // Reidentificar os índices usando os cabeçalhos processados
-        // Nova função para facilitar a detecção de colunas
-        const findColumnIndex = (type: string): number => {
-          // Mapear diferentes variações de nomes de colunas comumente usados
-          const nameMappings: {[key: string]: string[]} = {
-            'name': ['nome', 'name', 'cliente', 'razão social', 'razao social', 'razaosocial', 'empresa', 'contato', 'responsável', 'responsavel'],
-            'email': ['email', 'e-mail', 'correio', 'correio eletrônico', 'mail'],
-            'phone': ['telefone', 'phone', 'celular', 'tel', 'contato', 'whatsapp', 'telefone 1', 'tel1', 'fone'],
-            'address': ['endereco', 'endereço', 'address', 'logradouro', 'local'],
-            'cidade': ['cidade', 'city', 'município', 'municipio'],
-            'estado': ['estado', 'state', 'uf', 'província', 'provincia'],
-            'site': ['site', 'website', 'web', 'pagina', 'página', 'url', 'link'],
-            'type': ['tipo', 'type', 'category', 'categoria', 'segmento', 'ramo']
-          };
-          
-          // Procurar por correspondências nos cabeçalhos processados
-          const mappings = nameMappings[type] || [type];
-          return processedHeaders.findIndex(h => 
-            mappings.some(mapping => h.toLowerCase().includes(mapping.toLowerCase()))
-          );
-        };
-        
-        // Identificar todos os índices de colunas
-        const nameColIdx = findColumnIndex('name');
-        const emailColIdx = findColumnIndex('email');
-        const phoneColIdx = findColumnIndex('phone');
-        const addressIdx = findColumnIndex('address');
-        const cidadeIdx = findColumnIndex('cidade');
-        const estadoIdx = findColumnIndex('estado');
-        const siteIdx = findColumnIndex('site');
-        const typeIdx = findColumnIndex('type');
-        
-        // Processar linhas
-        for (let i = 1; i < lines.length; i++) {
-          if (!lines[i].trim()) continue;
-          
-          const values = lines[i].split(separator).map(v => v.trim());
-          
-          // Aceita linhas mesmo que não tenham todas as colunas
-          if (values.length < 1) continue;
-          
-          const lead: {[key: string]: string | null} = { searchId: search.id };
-          
-          // Adiciona campos usando os índices corrigidos (normais ou forçados)
-          if (nameColIdx !== -1 && values[nameColIdx]) lead.name = values[nameColIdx];
-          if (emailColIdx !== -1 && values[emailColIdx]) lead.email = values[emailColIdx];
-          if (phoneColIdx !== -1 && values[phoneColIdx]) lead.phone = values[phoneColIdx];
-          if (addressIdx !== -1 && values[addressIdx]) lead.address = values[addressIdx];
-          if (cidadeIdx !== -1 && values[cidadeIdx]) lead.cidade = values[cidadeIdx];
-          if (estadoIdx !== -1 && values[estadoIdx]) lead.estado = values[estadoIdx];
-          if (siteIdx !== -1 && values[siteIdx]) lead.site = values[siteIdx];
-          if (typeIdx !== -1 && values[typeIdx]) lead.type = values[typeIdx];
-          
-          // Modo de emergência: Se ainda não temos nada, use as primeiras colunas
-          if (!lead.name && !lead.email && !lead.phone && values.length > 0) {
-            console.log("MODO DE EMERGÊNCIA: usando primeiras colunas como dados");
-            if (values[0]) lead.name = values[0];
-            if (values.length > 1 && values[1]) lead.email = values[1]; 
-            if (values.length > 2 && values[2]) lead.phone = values[2];
-          }
-          
-          // Adiciona à lista apenas se tiver pelo menos um dado importante
-          if (lead.name || lead.email || lead.phone) {
-            leads.push(lead);
-          }
-        }
-      } else {
-        // Para arquivos Excel, você precisaria usar uma biblioteca como exceljs ou xlsx
-        // Por simplicidade, vamos retornar um erro por enquanto
-        await storage.updateProspectingSearch(search.id, { status: "erro" });
-        return res.status(400).json({ message: "Formato de arquivo Excel não suportado. Use CSV." });
-      }
-      
-      // Verificar se encontrou leads
-      if (leads.length === 0) {
-        console.log("Nenhum lead encontrado após processamento com modo de emergência. Arquivo pode estar vazio ou mal formatado.");
-        await storage.updateProspectingSearch(search.id, { status: "erro" });
-        return res.status(400).json({ 
-          message: "Nenhum lead foi encontrado no arquivo após tentativas de processamento automático",
-          suggestion: "Certifique-se de que o arquivo contém pelo menos uma linha com dados e que não está corrompido. O sistema tentou processar usando diversos métodos, incluindo mapeamento automático e modo de emergência."
-        });
-      }
-      
-      // Atualizar busca com número de leads
-      await storage.updateProspectingSearch(search.id, {
-        leadsFound: leads.length,
-        dispatchesPending: leads.length
-      });
-      
-      // Salvar cada lead no banco
-      await Promise.all(leads.map(async (lead) => {
-        await storage.createProspectingResult({
+        return res.status(200).json({
+          message: importResult.message,
           searchId: search.id,
-          ...lead
+          importedLeads: importResult.importedLeads,
+          errors: importResult.errorLeads
         });
-      }));
-      
-      // Limpar arquivo temporário
-      fs.unlinkSync(file.path);
-      
-      // Responder com sucesso
-      return res.status(201).json({
-        id: search.id,
-        segment,
-        leadsFound: leads.length,
-        message: `${leads.length} leads importados com sucesso`
-      });
+      } catch (error) {
+        console.error("Erro ao processar arquivo:", error);
+        await storage.updateProspectingSearch(search.id, { status: "erro" });
+        return res.status(500).json({ 
+          message: "Erro ao processar arquivo", 
+          error: String(error) 
+        });
+      }
     } catch (error) {
       console.error("Erro ao importar leads:", error);
       return res.status(500).json({ 
         message: "Erro interno ao importar leads", 
-        error: error.message 
+        error: String(error) 
       });
     }
   });
