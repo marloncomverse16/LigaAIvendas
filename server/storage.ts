@@ -109,7 +109,6 @@ export interface IStorage {
   // Prospecting Results methods
   getProspectingResults(searchId: number): Promise<ProspectingResult[]>;
   getProspectingResult(id: number): Promise<ProspectingResult | undefined>;
-  getLeadBySearchAndPhone(searchId: number, phone: string): Promise<ProspectingResult | undefined>;
   createProspectingResult(result: InsertProspectingResult & { searchId: number }): Promise<ProspectingResult>;
   updateProspectingResult(id: number, resultData: Partial<InsertProspectingResult>): Promise<ProspectingResult | undefined>;
   deleteProspectingResult(id: number): Promise<boolean>;
@@ -955,11 +954,6 @@ export class MemStorage implements IStorage {
   
   async getProspectingResult(id: number): Promise<ProspectingResult | undefined> {
     return this.prospectingResults.get(id);
-  }
-  
-  async getLeadBySearchAndPhone(searchId: number, phone: string): Promise<ProspectingResult | undefined> {
-    return Array.from(this.prospectingResults.values())
-      .find(result => result.searchId === searchId && result.phone === phone);
   }
   
   async createProspectingResult(resultData: InsertProspectingResult & { searchId: number }): Promise<ProspectingResult> {

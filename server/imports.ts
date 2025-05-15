@@ -38,24 +38,74 @@ export async function processProspectingFile(
            file.originalname.endsWith('.xls')) {
     
     try {
-      // Importar o módulo específico para Excel (para processar corretamente o formato)
-      const { importExcelFile } = await import('./excelImporter');
+      // Ler conteúdo do arquivo Excel
+      console.log("Processando arquivo Excel:", file.originalname);
       
-      // Usar o processador de Excel otimizado para lidar com campos especiais
-      console.log("Processando arquivo Excel com processador dedicado:", file.originalname);
+      // Converter Excel para formato CSV para usar nosso processador existente
+      const workbook = xlsx.readFile(file.path, { type: 'buffer', codepage: 65001 }); // UTF-8
+      const sheetName = workbook.SheetNames[0];
       
-      // Registrar objetos importantes para debug
-      console.log("Parâmetros da importação:", {
-        filePath: file.path,
-        searchId,
-        storageHasMethod: !!storage.getLeadBySearchAndPhone
+      // Extrair os dados como objeto JS direto, mantendo os caracteres especiais
+      const rawData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { 
+        raw: false, 
+        defval: "",
+        header: 1 // Usar cabeçalhos da primeira linha
       });
       
-      const result = await importExcelFile(file.path, searchId, storage);
-      console.log("Resultado da importação Excel:", result);
-      return result;
-    } catch (error: any) {
-      console.log("Erro detalhado na importação Excel:", error);
+      if (!Array.isArray(rawData) || rawData.length < 2) {
+        throw new Error("Arquivo Excel vazio ou sem dados suficientes");
+      }
+      
+      console.log("Dados Excel processados (primeiras linhas): ", 
+        JSON.stringify(rawData.slice(0, 3)).substring(0, 200) + "...");
+      
+      // Obter cabeçalhos (primeira linha)
+      const headers = rawData[0] as string[];
+      
+      // Construir CSV manualmente
+      const csvLines: string[] = [];
+      
+      // Adicionar cabeçalho
+      csvLines.push(headers.join(','));
+      
+      // Adicionar linhas de dados (pular a primeira linha que é o cabeçalho)
+      for (let i = 1; i < rawData.length; i++) {
+        const row = rawData[i] as any[];
+        
+        // Garantir que temos o mesmo número de colunas que os cabeçalhos
+        const values = headers.map((_, index) => {
+          const value = row[index] || "";
+          
+          // Tratar valor: escapar aspas e adicionar aspas se tiver vírgula
+          if (typeof value === 'string') {
+            // Corrigir caracteres especiais específicos que podem vir mal formatados do Excel
+            let cleanValue = value
+              .replace(/�/g, 'ç') // Corrigir ç
+              .replace(/[õóòô]/g, 'o') // Normalizar variações de 'o'
+              .replace(/[ãáà]/g, 'a') // Normalizar variações de 'a'
+              .replace(/[éèê]/g, 'e') // Normalizar variações de 'e'
+              .replace(/[íìî]/g, 'i') // Normalizar variações de 'i'
+              .replace(/[úùû]/g, 'u'); // Normalizar variações de 'u'
+              
+            const escaped = cleanValue.replace(/"/g, '""');
+            return escaped.includes(',') ? `"${escaped}"` : escaped;
+          }
+          return value;
+        });
+        
+        csvLines.push(values.join(','));
+      }
+      
+      const csvContent = csvLines.join('\n');
+      console.log("CSV gerado:", csvContent.substring(0, 200) + "...");
+      
+      if (!csvContent || csvContent.trim().length < 10) {
+        throw new Error("Arquivo Excel vazio ou sem dados");
+      }
+      
+      // Usar o mesmo processador de CSV com o conteúdo convertido do Excel
+      return await importCSVContent(csvContent, searchId, storage);
+    } catch (error) {
       console.error("Erro ao processar arquivo Excel:", error);
       throw new Error(`Erro ao processar arquivo Excel: ${error.message}`);
     }
