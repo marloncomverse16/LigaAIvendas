@@ -144,6 +144,9 @@ export default function ProspectingPage() {
         description: "Sua busca de prospecção foi criada com sucesso",
       });
       form.reset();
+      setImportFile(null);
+      setPreviewData([]);
+      setImportError(null);
       queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
     },
     onError: (error) => {
@@ -154,6 +157,123 @@ export default function ProspectingPage() {
       });
     }
   });
+
+  // Mutação para importar arquivo CSV/Excel
+  const importListMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const res = await fetch("/api/prospecting/import", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Falha ao importar lista");
+      }
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Lista importada",
+        description: `${data.leadsFound} leads importados com sucesso`,
+      });
+      setImportFile(null);
+      setPreviewData([]);
+      setImportError(null);
+      setImportMethod("form");
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
+      setActiveTab("searches");
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao importar lista",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Função para processar o arquivo selecionado
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setImportError(null);
+    
+    if (!file) {
+      setImportFile(null);
+      setPreviewData([]);
+      return;
+    }
+    
+    // Verificar o tipo de arquivo
+    const validTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    if (!validTypes.includes(file.type) && !file.name.endsWith('.csv')) {
+      setImportError("Formato de arquivo inválido. Use CSV ou Excel.");
+      setImportFile(null);
+      setPreviewData([]);
+      return;
+    }
+    
+    setImportFile(file);
+    
+    // Para CSV, tenta mostrar preview
+    if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string;
+          const lines = text.split('\n');
+          if (lines.length > 0) {
+            const headers = lines[0].split(',');
+            const previewLines = [];
+            
+            // Processar até 5 linhas para preview
+            for (let i = 1; i < Math.min(lines.length, 6); i++) {
+              if (lines[i].trim()) {
+                const values = lines[i].split(',');
+                const row: any = {};
+                headers.forEach((header, index) => {
+                  row[header.trim()] = values[index]?.trim() || '';
+                });
+                previewLines.push(row);
+              }
+            }
+            
+            setPreviewData(previewLines);
+          }
+        } catch (error) {
+          console.error("Erro ao processar preview do arquivo:", error);
+          setImportError("Erro ao processar o arquivo. Verifique o formato.");
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  // Função para importar a lista
+  const handleImportSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    if (!importFile) {
+      setImportError("Selecione um arquivo para importar");
+      return;
+    }
+    
+    const segment = form.getValues("segment");
+    const city = form.getValues("city");
+    
+    if (!segment) {
+      setImportError("Preencha o campo Segmento");
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append("file", importFile);
+    formData.append("segment", segment);
+    if (city) formData.append("city", city);
+    const webhookUrl = form.getValues("webhookUrl");
+    if (webhookUrl) formData.append("webhookUrl", webhookUrl);
+    
+    importListMutation.mutate(formData);
+  };
 
   // Mutação para excluir busca
   const deleteSearchMutation = useMutation({
@@ -647,10 +767,37 @@ export default function ProspectingPage() {
                       <CardDescription className="text-center">
                         Configure os parâmetros para encontrar leads qualificados
                       </CardDescription>
+                      <div className="flex justify-center mt-4">
+                        <div className="inline-flex items-center rounded-md bg-muted p-1 text-muted-foreground">
+                          <button
+                            type="button"
+                            className={`${
+                              importMethod === "form" 
+                                ? "bg-background text-foreground" 
+                                : ""
+                            } rounded-sm px-3 py-1.5 text-sm font-medium transition-all`}
+                            onClick={() => setImportMethod("form")}
+                          >
+                            Formulário Manual
+                          </button>
+                          <button
+                            type="button" 
+                            className={`${
+                              importMethod === "import" 
+                                ? "bg-background text-foreground" 
+                                : ""
+                            } rounded-sm px-3 py-1.5 text-sm font-medium transition-all`}
+                            onClick={() => setImportMethod("import")}
+                          >
+                            Importar Lista
+                          </button>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                      {importMethod === "form" ? (
+                        <Form {...form}>
+                          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                           <div className="grid grid-cols-1 gap-6">
                             <FormField
                               control={form.control}
