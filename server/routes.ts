@@ -2403,6 +2403,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para obter o servidor padrão do usuário atual
+  app.get("/api/user-servers/default", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      console.log(`Buscando servidor padrão para o usuário ${req.user.id}`);
+      
+      // Primeiro buscar as relações usuário-servidor
+      const relations = await storage.getUserServerRelationsByUserId(req.user.id);
+      console.log(`Encontradas ${relations?.length || 0} relações para o usuário ${req.user.id}`);
+      
+      if (!relations || relations.length === 0) {
+        return res.status(404).json({ message: "Nenhum servidor associado ao usuário" });
+      }
+      
+      // Procurar o servidor padrão
+      const defaultRelation = relations.find(r => r.isDefault === true);
+      
+      if (defaultRelation) {
+        console.log(`Encontrado servidor padrão: ${defaultRelation.serverId}`);
+        return res.json(defaultRelation);
+      }
+      
+      // Se não tiver padrão, pegar o primeiro da lista
+      console.log(`Nenhum servidor padrão encontrado, usando o primeiro: ${relations[0].serverId}`);
+      return res.json(relations[0]);
+    } catch (error) {
+      console.error("Erro ao buscar servidor padrão do usuário:", error);
+      res.status(500).json({ message: "Erro ao buscar servidor padrão" });
+    }
+  });
+  
   // Rota para buscar usuários associados a um servidor
   app.get("/api/user-servers/:serverId", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
