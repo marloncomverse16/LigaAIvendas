@@ -11,12 +11,18 @@ export async function createMessageSendingHistory(req: Request, res: Response) {
   
   try {
     // Validar os dados recebidos
+    console.log("Dados recebidos para validação:", {
+      ...req.body,
+      userId: req.user.id
+    });
+    
     const validationResult = insertMessageSendingHistorySchema.safeParse({
       ...req.body,
       userId: req.user.id
     });
     
     if (!validationResult.success) {
+      console.error("Erro de validação:", JSON.stringify(validationResult.error.errors, null, 2));
       return res.status(400).json({ 
         message: "Dados inválidos", 
         errors: validationResult.error.errors 

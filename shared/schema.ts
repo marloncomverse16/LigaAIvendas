@@ -450,7 +450,7 @@ export const messageSendings = pgTable("message_sendings", {
 // Tabela para histórico de envios de mensagens
 export const messageSendingHistory = pgTable("message_sending_history", {
   id: serial("id").primaryKey(),
-  sendingId: integer("sending_id").references(() => messageSendings.id).notNull(),
+  sendingId: integer("sending_id").references(() => messageSendings.id), // Removido .notNull()
   resultId: integer("result_id").references(() => prospectingResults.id),
   status: text("status").default("sucesso"), // sucesso, erro, pendente
   errorMessage: text("error_message"),
