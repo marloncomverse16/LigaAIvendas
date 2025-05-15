@@ -164,4 +164,4 @@ export async function importExcelFile(
     console.error("Erro ao processar arquivo Excel:", error);
     throw new Error(`Erro ao processar arquivo Excel: ${error.message}`);
   }
-}
+}console.log('Módulos importados em excelImporter.ts:', require.cache)

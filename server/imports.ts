@@ -44,8 +44,18 @@ export async function processProspectingFile(
       // Usar o processador de Excel otimizado para lidar com campos especiais
       console.log("Processando arquivo Excel com processador dedicado:", file.originalname);
       
-      return await importExcelFile(file.path, searchId, storage);
+      // Registrar objetos importantes para debug
+      console.log("Parâmetros da importação:", {
+        filePath: file.path,
+        searchId,
+        storageHasMethod: !!storage.getLeadBySearchAndPhone
+      });
+      
+      const result = await importExcelFile(file.path, searchId, storage);
+      console.log("Resultado da importação Excel:", result);
+      return result;
     } catch (error: any) {
+      console.log("Erro detalhado na importação Excel:", error);
       console.error("Erro ao processar arquivo Excel:", error);
       throw new Error(`Erro ao processar arquivo Excel: ${error.message}`);
     }
