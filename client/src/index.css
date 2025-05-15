@@ -147,4 +147,9 @@
   .sidebar-item:hover .sidebar-tooltip {
     @apply opacity-100 translate-x-0;
   }
+  
+  /* Remover margens laterais entre o menu e conteúdo */
+  .ml-16, .ml-64 {
+    margin-left: 0 !important;
+  }
 }
