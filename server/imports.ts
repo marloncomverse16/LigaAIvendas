@@ -41,60 +41,44 @@ export async function processProspectingFile(
       // Ler conteúdo do arquivo Excel
       console.log("Processando arquivo Excel:", file.originalname);
       
-      // Converter Excel para formato CSV para usar nosso processador existente
-      const workbook = xlsx.readFile(file.path, { type: 'buffer', codepage: 65001 }); // UTF-8
+      // Ler arquivo Excel diretamente como conteúdo binário
+      const fileContent = fs.readFileSync(file.path);
+      
+      // Converter para formato de planilha usando xlsx
+      const workbook = xlsx.read(fileContent, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       
-      // Extrair os dados diretamente como um array de objetos com nomes de colunas intactos
-      const rawData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { 
-        raw: false,
-        defval: ""
-      });
+      // Criar uma nova planilha para ter controle total sobre o processo
+      const newWorkbook = xlsx.utils.book_new();
+      const worksheet = workbook.Sheets[sheetName];
       
-      if (!Array.isArray(rawData) || rawData.length === 0) {
-        throw new Error("Arquivo Excel vazio ou sem dados suficientes");
-      }
+      // Extrair dados como uma matriz (formato mais bruto para melhor controle)
+      const data = xlsx.utils.sheet_to_json(worksheet, { header: 1, raw: false });
       
-      console.log("Dados Excel processados (primeiras linhas): ", 
-        JSON.stringify(rawData.slice(0, 2)).substring(0, 200) + "...");
-      
-      // Obter todas as chaves (nomes de colunas) do primeiro objeto
-      const headers = Object.keys(rawData[0] as Record<string, any>);
-      
-      // Construir CSV manualmente
-      const csvLines: string[] = [];
-      
-      // Adicionar cabeçalho
-      csvLines.push(headers.join(','));
-      
-      // Adicionar linhas de dados
-      for (const row of rawData as Record<string, any>[]) {
-        const values = headers.map(header => {
-          const value = row[header] || "";
-          
-          // Tratar valor: escapar aspas e adicionar aspas se tiver vírgula
-          if (typeof value === 'string') {
-            // Preservar o valor original sem substituição de caracteres especiais
-            // Para evitar problemas com formatação de endereços
-            const escaped = value.replace(/"/g, '""');
-            return escaped.includes(',') ? `"${escaped}"` : escaped;
-          }
-          
-          // Se for um número ou outro tipo, converter para string
-          return String(value);
-        });
-        
-        csvLines.push(values.join(','));
-      }
-      
-      const csvContent = csvLines.join('\n');
-      console.log("CSV gerado:", csvContent.substring(0, 200) + "...");
-      
-      if (!csvContent || csvContent.trim().length < 10) {
+      if (!data || data.length === 0) {
         throw new Error("Arquivo Excel vazio ou sem dados");
       }
       
-      // Usar o mesmo processador de CSV com o conteúdo convertido do Excel
+      // Criar um novo CSV manualmente, usando ponto e vírgula como separador
+      // para evitar problemas com vírgulas nos endereços
+      const lines = data.map((row: any[]) => {
+        return row.map((cell: any) => {
+          // Garantir que células são strings
+          let value = String(cell || "");
+          // Escapar as aspas duplicando-as
+          value = value.replace(/"/g, '""');
+          // Envolver em aspas se contiver ponto e vírgula
+          return value.includes(';') ? `"${value}"` : value;
+        }).join(';');
+      });
+      
+      // Criar o conteúdo CSV
+      const csvContent = lines.join('\n');
+      
+      console.log("CSV gerado do Excel (primeiras linhas):", 
+        csvContent.substring(0, 200) + "...");
+      
+      // Processar o CSV usando a função existente
       return await importCSVContent(csvContent, searchId, storage);
     } catch (error) {
       console.error("Erro ao processar arquivo Excel:", error);
