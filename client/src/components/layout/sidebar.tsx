@@ -38,84 +38,96 @@ export function Sidebar() {
   };
   
   const menuItems = [
+    // 1 - Dashboard
     { 
       path: "/dashboard", 
       label: "Dashboard", 
       icon: <LayoutDashboard size={collapsed ? 24 : 20} />,
       permissionKey: "accessDashboard"
     },
-    { 
-      path: "/ai-agent", 
-      label: "Agente de IA", 
-      icon: <Bot size={collapsed ? 24 : 20} />,
-      permissionKey: "accessAiAgent"
-    },
-    { 
-      path: "/leads", 
-      label: "Leads", 
-      icon: <Users size={collapsed ? 24 : 20} />, 
-      permissionKey: "accessLeads"
-    },
-    { 
-      path: "/appointments", 
-      label: "Agendamentos", 
-      icon: <Calendar size={collapsed ? 24 : 20} />, 
-      permissionKey: "accessScheduling"
-    },
-    { 
-      path: "/prospecting", 
-      label: "Prospecção", 
-      icon: <UserSearch size={collapsed ? 24 : 20} />, 
-      permissionKey: "accessProspecting"
-    },
-    { 
-      path: "/contatos", 
-      label: "Contatos", 
-      icon: <PhoneCall size={collapsed ? 24 : 20} />, 
-      permissionKey: "accessContacts"
-    },
+    // 2 - Conexões
     { 
       path: "/conexoes", 
       label: "Conexões", 
       icon: <MessageSquare size={collapsed ? 24 : 20} />, 
       permissionKey: "accessWhatsapp"
     },
+    // 3 - Prospecção
     { 
-      path: "/chat", 
-      label: "CHAT", 
-      icon: <MessagesSquare size={collapsed ? 24 : 20} />, 
-      permissionKey: "accessWhatsapp"
+      path: "/prospecting", 
+      label: "Prospecção", 
+      icon: <UserSearch size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessProspecting"
     },
+    // 4 - Envio de Mensagens
     { 
       path: "/message-sending", 
       label: "Envio de Mensagens", 
       icon: <Send size={collapsed ? 24 : 20} />, 
       permissionKey: "accessWhatsapp"
     },
+    // 5 - Agente de IA
+    { 
+      path: "/ai-agent", 
+      label: "Agente de IA", 
+      icon: <Bot size={collapsed ? 24 : 20} />,
+      permissionKey: "accessAiAgent"
+    },
+    // 6 - CHAT
+    { 
+      path: "/chat", 
+      label: "CHAT", 
+      icon: <MessagesSquare size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessWhatsapp"
+    },
+    // 7 - Contatos
+    { 
+      path: "/contatos", 
+      label: "Contatos", 
+      icon: <PhoneCall size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessContacts"
+    },
+    // 8 - Relatórios
     { 
       path: "/reports", 
       label: "Relatórios", 
       icon: <Users size={collapsed ? 24 : 20} />, 
       permissionKey: "accessReports"
     },
+    // 9 - Gerenciar Usuários
     { 
       path: "/admin-users", 
       label: "Gerenciar Usuários", 
       icon: <UsersRound size={collapsed ? 24 : 20} />, 
       permissionKey: "isAdmin"  // Somente administradores
     },
+    // 10 - Gerenciar Servidores
     { 
       path: "/servers", 
       label: "Gerenciar Servidores", 
       icon: <Server size={collapsed ? 24 : 20} />, 
       permissionKey: "isAdmin"  // Somente administradores
     },
+    // 11 - Configurações
     { 
       path: "/settings", 
       label: "Configurações", 
       icon: <Settings size={collapsed ? 24 : 20} />, 
       permissionKey: "accessSettings"
     },
+    // Removidos: Leads e Agendamentos
+    // { 
+    //   path: "/leads", 
+    //   label: "Leads", 
+    //   icon: <Users size={collapsed ? 24 : 20} />, 
+    //   permissionKey: "accessLeads"
+    // },
+    // { 
+    //   path: "/appointments", 
+    //   label: "Agendamentos", 
+    //   icon: <Calendar size={collapsed ? 24 : 20} />, 
+    //   permissionKey: "accessScheduling"
+    // },
   ];
   
   return (
