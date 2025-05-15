@@ -1645,69 +1645,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("Envio não encontrado");
       }
       
-      // Buscar usuário para obter webhook
-      const user = await storage.getUser(userId);
-      if (!user || !user.dispatchesWebhookUrl) {
-        throw new Error("Usuário ou webhook não configurado");
-      }
+      // Verificar o tipo de conexão WhatsApp escolhido (Meta API ou QR Code)
+      const whatsappConnectionType = sending.whatsappConnectionType || "qrcode";
       
-      // Buscar resultados da pesquisa
-      const results = await storage.getProspectingResults(sending.searchId);
-      if (results.length === 0) {
-        throw new Error("Não há resultados para enviar");
-      }
-      
-      // Limitar à quantidade configurada
-      const resultsToSend = results.slice(0, sending.quantity);
-      
-      // Buscar o modelo de mensagem se especificado
-      let messageContent = sending.customMessage || "";
-      if (sending.templateId) {
-        const template = await storage.getMessageTemplate(sending.templateId);
-        if (template) {
-          messageContent = template.content;
+      // Se for conexão Meta API, enviar diretamente através da API da Meta
+      if (whatsappConnectionType === "meta") {
+        console.log("Enviando mensagem via Meta API");
+        
+        // Verificar se há uma conexão Meta API configurada para o usuário
+        const metaUserServer = await storage.getUserMetaData(userId);
+        
+        if (!metaUserServer || !metaUserServer.phoneNumberId) {
+          throw new Error("Configuração da Meta API não encontrada. Configure nas Configurações > WhatsApp Cloud API (Meta)");
         }
-      }
-      
-      // Chamar webhook com os parâmetros necessários
-      await axios.post(user.dispatchesWebhookUrl, {
-        sendingId: sending.id,
-        searchId: sending.searchId,
-        message: messageContent,
-        results: resultsToSend,
-        aiLearningEnabled: sending.aiLearningEnabled,
-        userId,
-        username: user.username,
-        email: user.email,
-        name: user.name,
-        company: user.company,
-        phone: user.phone
-      });
-      
-      // Atualizar status do envio
-      await storage.updateMessageSending(sendingId, {
-        status: "enviado",
-        executedAt: new Date()
-      });
-      
-      // Registrar histórico de envio para cada resultado
-      for (const result of resultsToSend) {
-        await storage.createMessageSendingHistory({
-          sendingId,
-          resultId: result.id,
-          status: "sucesso"
+        
+        // Buscar resultados da pesquisa
+        const searchId = sending.searchId || 0;
+        const results = await storage.getProspectingResults(searchId);
+        if (results.length === 0) {
+          throw new Error("Não há resultados para enviar");
+        }
+        
+        // Limitar à quantidade configurada
+        const quantity = sending.quantity || 10;
+        const resultsToSend = results.slice(0, quantity);
+        
+        // Com Meta API só podemos usar templates, verificar
+        if (!sending.templateId) {
+          throw new Error("Para envios via Meta API é necessário utilizar um template aprovado");
+        }
+        
+        // Buscar o template para obter o nome
+        const template = await storage.getMessageTemplate(sending.templateId || 0);
+        if (!template) {
+          throw new Error("Template não encontrado");
+        }
+        
+        // Chamar a função que envia mensagens pela Meta API
+        // Esta chamada retorna imediatamente e o processamento continua em segundo plano
+        await sendMetaMessageDirectly({ 
+          body: {
+            searchId: sending.searchId,
+            templateId: sending.templateId,
+            templateName: template.title,
+            quantity: sending.quantity
+          },
+          user: { id: userId }
+        } as Request, {
+          status: () => ({ json: () => {} }),
+          json: () => {}
+        } as unknown as Response);
+        
+        return { success: true, count: resultsToSend.length };
+      } 
+      // Se for conexão QR Code, enviar através do webhook configurado
+      else {
+        console.log("Enviando mensagem via QR Code (webhook)");
+        
+        // Buscar servidor do usuário para obter webhook de envio de mensagens
+        const userServers = await storage.getUserServers(userId);
+        if (!userServers || userServers.length === 0) {
+          throw new Error("Nenhum servidor configurado para o usuário");
+        }
+        
+        // Procurar um servidor com webhook de envio configurado
+        const server = await storage.getServerById(userServers[0].serverId);
+        if (!server || !server.messageSendingWebhookUrl) {
+          throw new Error("Webhook de envio de mensagens não configurado no servidor");
+        }
+        
+        // Buscar usuário para informações adicionais
+        const user = await storage.getUser(userId);
+        if (!user) {
+          throw new Error("Usuário não encontrado");
+        }
+        
+        // Buscar resultados da pesquisa
+        const searchId = sending.searchId || 0;
+        const results = await storage.getProspectingResults(searchId);
+        if (results.length === 0) {
+          throw new Error("Não há resultados para enviar");
+        }
+        
+        // Limitar à quantidade configurada
+        const quantity = sending.quantity || 10;
+        const resultsToSend = results.slice(0, quantity);
+        
+        // Buscar o modelo de mensagem se especificado
+        let messageContent = sending.customMessage || "";
+        if (sending.templateId) {
+          const template = await storage.getMessageTemplate(sending.templateId || 0);
+          if (template) {
+            messageContent = template.content;
+          }
+        }
+        
+        // Chamar webhook com os parâmetros necessários
+        await axios.post(server.messageSendingWebhookUrl, {
+          sendingId: sending.id,
+          searchId: sending.searchId,
+          message: messageContent,
+          results: resultsToSend,
+          aiLearningEnabled: sending.aiLearningEnabled,
+          userId,
+          username: user.username,
+          email: user.email,
+          name: user.name,
+          company: user.company,
+          phone: user.phone
         });
+        
+        // Atualizar status do envio
+        await storage.updateMessageSending(sendingId, {
+          status: "enviado"
+        });
+        
+        // Registrar histórico de envio para cada resultado
+        for (const result of resultsToSend) {
+          await storage.createMessageSendingHistory({
+            sendingId,
+            resultId: result.id,
+            status: "sucesso"
+          });
+        }
+        
+        return { success: true, count: resultsToSend.length };
       }
-      
-      return { success: true, count: resultsToSend.length };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao processar envio:", error);
       
       // Atualizar status do envio para erro
       if (sendingId) {
         await storage.updateMessageSending(sendingId, {
-          status: "erro",
-          executedAt: new Date()
+          status: "erro"
         });
       }
       
