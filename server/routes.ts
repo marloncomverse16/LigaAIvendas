@@ -28,6 +28,10 @@ import {
   checkConnectionStatus as checkConnectionStatusNew,
   disconnectWhatsApp as disconnectWhatsAppNew
 } from "./api/connections";
+
+// Importação do controlador para envio direto via Meta API
+import { sendMetaMessageDirectly } from "./api/meta-direct-send";
+import { getUserServer } from "./api/meta-api-service";
 import {
   connectWhatsAppMeta,
   checkMetaConnectionStatus,
@@ -1653,7 +1657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Enviando mensagem via Meta API");
         
         // Verificar se há uma conexão Meta API configurada para o usuário
-        const metaUserServer = await storage.getUserMetaData(userId);
+        const metaUserServer = await getUserServer(userId);
         
         if (!metaUserServer || !metaUserServer.phoneNumberId) {
           throw new Error("Configuração da Meta API não encontrada. Configure nas Configurações > WhatsApp Cloud API (Meta)");
