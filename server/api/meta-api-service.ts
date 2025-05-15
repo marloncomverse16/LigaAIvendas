@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { userServers } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { userServers, servers } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 
 /**
  * Serviço para obter as configurações do servidor Meta da API do usuário
@@ -21,21 +21,28 @@ export interface UserServerMetaData {
  */
 export async function getUserServer(userId: number): Promise<UserServerMetaData> {
   try {
-    // Buscar dados do usuário_servidor com as configurações da Meta
-    const [userServer] = await db.select()
+    // Buscar dados do usuário e servidor com join para obter as configurações da Meta
+    const result = await db
+      .select({
+        userServer: userServers,
+        server: servers
+      })
       .from(userServers)
+      .innerJoin(servers, eq(userServers.serverId, servers.id))
       .where(eq(userServers.userId, userId))
       .limit(1);
     
-    if (!userServer) {
+    if (!result || result.length === 0) {
       return {
         success: false,
         error: "Usuário não possui configuração de servidor"
       };
     }
     
+    const { userServer, server } = result[0];
+    
     // Verificar se os campos da Meta estão configurados
-    if (!userServer.whatsappMetaToken || !userServer.whatsappMetaBusinessId) {
+    if (!server.whatsappMetaToken || !server.whatsappMetaBusinessId) {
       return {
         success: false,
         error: "Configuração da Meta API incompleta (token ou business ID faltando)"
@@ -45,10 +52,10 @@ export async function getUserServer(userId: number): Promise<UserServerMetaData>
     // Retornar os dados da Meta
     return {
       success: true,
-      token: userServer.whatsappMetaToken,
-      businessId: userServer.whatsappMetaBusinessId,
-      phoneNumberId: userServer.whatsappMetaPhoneNumberId || undefined,
-      apiVersion: userServer.whatsappMetaApiVersion || "v18.0" // Usa v18.0 como padrão se não estiver definido
+      token: server.whatsappMetaToken,
+      businessId: server.whatsappMetaBusinessId,
+      phoneNumberId: userServer.metaPhoneNumberId || undefined,
+      apiVersion: server.whatsappMetaApiVersion || "v18.0" // Usa v18.0 como padrão se não estiver definido
     };
   } catch (error) {
     console.error("Erro ao obter configuração Meta do usuário:", error);

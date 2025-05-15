@@ -3,7 +3,7 @@ import { db } from "../db";
 import { prospectingResults, prospectingSearches, messageSendingHistory } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { getUserServer } from "./meta-api-service";
-import { getMetaApiTemplates, sendMetaApiMessage } from "../meta-whatsapp-api";
+import { getMetaApiTemplates, sendMetaApiMessage, MetaMessageRequest } from "../meta-whatsapp-api";
 
 /**
  * Envia mensagens diretamente pela API da Meta
@@ -105,13 +105,20 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
           const phoneNumber = result.phone.replace(/\\D/g, "");
           
           // Enviar mensagem usando o template
-          const sendResult = await sendMetaApiMessage({
+          const messageRequest: MetaMessageRequest = {
             to: phoneNumber,
             templateId: templateId,
             templateName: templateName,
             language: "pt_BR",
             components: [] // Templates da Meta não usam componentes dinâmicos nesta implementação
-          });
+          };
+          
+          const sendResult = await sendMetaApiMessage(
+            messageRequest,
+            metaUserServer.token || "",
+            metaUserServer.phoneNumberId || "",
+            metaUserServer.apiVersion
+          );
           
           if (sendResult.success) {
             successCount++;
@@ -157,8 +164,8 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
       }
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao enviar mensagens via Meta API:", error);
-    return res.status(500).json({ message: "Erro ao enviar mensagens: " + error.message });
+    return res.status(500).json({ message: "Erro ao enviar mensagens: " + (error.message || "Erro desconhecido") });
   }
 }
