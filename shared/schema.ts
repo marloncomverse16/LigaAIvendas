@@ -587,6 +587,7 @@ export const servers = pgTable("servers", {
   contactsWebhookUrl: text("contacts_webhook_url"),
   schedulingWebhookUrl: text("scheduling_webhook_url"),
   crmWebhookUrl: text("crm_webhook_url"),
+  messageSendingWebhookUrl: text("message_sending_webhook_url"), // Webhook para envio de mensagens
   
   instanceId: text("instance_id"), // Para servidores Evolution API (configurado separadamente)
   maxUsers: integer("max_users").default(10), // Limite de usuários que podem ser associados ao servidor
