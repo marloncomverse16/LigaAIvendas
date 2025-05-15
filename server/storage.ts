@@ -2644,17 +2644,39 @@ export class DatabaseStorage implements IStorage {
 
   async updateServer(id: number, serverData: Partial<InsertServer>): Promise<Server | undefined> {
     try {
+      console.log(`[DatabaseStorage] Iniciando atualização do servidor ID: ${id}`);
+      console.log(`[DatabaseStorage] Dados recebidos:`, JSON.stringify(serverData, null, 2));
+      
+      // Verificar primeiro se o servidor existe
+      const existingServer = await db.select().from(servers).where(eq(servers.id, id)).limit(1);
+      
+      if (!existingServer || existingServer.length === 0) {
+        console.log(`[DatabaseStorage] Servidor ID ${id} não encontrado`);
+        return undefined;
+      }
+      
+      console.log(`[DatabaseStorage] Servidor encontrado, realizando update`);
+      
+      // Garantir que dados numéricos sejam convertidos corretamente
+      const processedData = {
+        ...serverData,
+        maxUsers: serverData.maxUsers ? Number(serverData.maxUsers) : undefined,
+        updatedAt: new Date()
+      };
+      
+      console.log(`[DatabaseStorage] Dados processados:`, JSON.stringify(processedData, null, 2));
+      
       const [server] = await db.update(servers)
-        .set({
-          ...serverData,
-          updatedAt: new Date()
-        })
+        .set(processedData)
         .where(eq(servers.id, id))
         .returning();
+      
+      console.log(`[DatabaseStorage] Servidor atualizado com sucesso:`, JSON.stringify(server, null, 2));
       return server;
     } catch (error) {
-      console.error("Erro ao atualizar servidor:", error);
-      return undefined;
+      console.error("[DatabaseStorage] Erro ao atualizar servidor:", error);
+      // Lançar o erro para poder ser tratado na rota
+      throw error;
     }
   }
 

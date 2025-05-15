@@ -2200,21 +2200,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const id = parseInt(req.params.id);
-      console.log(`Atualizando servidor ${id} com dados:`, req.body);
-      const serverData = req.body;
+      console.log(`[API] Atualizando servidor ${id} com dados:`, JSON.stringify(req.body, null, 2));
       
-      const updatedServer = await storage.updateServer(id, serverData);
-      
-      if (!updatedServer) {
-        console.log(`Servidor ${id} não encontrado`);
-        return res.status(404).json({ message: "Servidor não encontrado" });
+      if (isNaN(id)) {
+        console.error(`[API] ID do servidor inválido: ${req.params.id}`);
+        return res.status(400).json({ message: "ID do servidor inválido" });
       }
       
-      console.log(`Servidor ${id} atualizado com sucesso:`, updatedServer);
-      res.json(updatedServer);
+      const serverData = req.body;
+      
+      // Verificar se algum campo crítico está faltando
+      if (!serverData.name || !serverData.ipAddress || !serverData.provider || !serverData.apiUrl) {
+        console.error(`[API] Dados incompletos:`, JSON.stringify(serverData, null, 2));
+        return res.status(400).json({ 
+          message: "Dados incompletos. Verifique se todos os campos obrigatórios estão preenchidos." 
+        });
+      }
+      
+      try {
+        const updatedServer = await storage.updateServer(id, serverData);
+        
+        if (!updatedServer) {
+          console.log(`[API] Servidor ${id} não encontrado`);
+          return res.status(404).json({ message: "Servidor não encontrado" });
+        }
+        
+        console.log(`[API] Servidor ${id} atualizado com sucesso:`, JSON.stringify(updatedServer, null, 2));
+        res.json(updatedServer);
+      } catch (dbError) {
+        console.error(`[API] Erro de banco de dados ao atualizar servidor ${id}:`, dbError);
+        return res.status(500).json({ 
+          message: "Erro ao atualizar servidor no banco de dados",
+          error: dbError.message || String(dbError)
+        });
+      }
     } catch (error) {
-      console.error(`Erro ao atualizar servidor ${req.params.id}:`, error);
-      res.status(500).json({ message: "Erro ao atualizar servidor" });
+      console.error(`[API] Erro ao processar atualização do servidor ${req.params.id}:`, error);
+      res.status(500).json({ 
+        message: "Erro ao atualizar servidor",
+        error: error.message || String(error)
+      });
     }
   });
   
