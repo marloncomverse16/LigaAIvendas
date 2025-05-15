@@ -49,6 +49,7 @@ import { getMetaTemplatesDirectly } from "./api/meta-direct-templates";
 import { sendMetaMessageDirectly } from "./api/meta-direct-send";
 import { diagnoseMeta } from "./api/meta-diagnostic";
 import { fixMetaConfigFields } from "./api/meta-fix-fields";
+import { createMessageSendingHistory, listMessageSendingHistory, updateMessageSendingHistory } from "./api/message-sending-history";
 import userSettingsService from "./user-settings-service";
 import { checkMetaApiConnection } from "./meta-debug";
 import { db } from "./db";
@@ -2566,6 +2567,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Rota para envio direto via Meta API
+  app.post("/api/meta-direct-send", async (req, res) => {
+    console.log("Rota /api/meta-direct-send chamada - ENVIO DIRETO");
+    try {
+      await sendMetaMessageDirectly(req, res);
+    } catch (error) {
+      console.error("Erro ao enviar mensagens diretamente:", error);
+      res.status(500).json({ 
+        message: "Erro ao enviar mensagens diretamente",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Rotas para histórico de envio de mensagens
+  app.post("/api/message-sending-history", createMessageSendingHistory);
+  app.get("/api/message-sending-history", listMessageSendingHistory);
+  app.patch("/api/message-sending-history/:id", updateMessageSendingHistory);
   
   // Rota de diagnóstico avançado para Meta API
   app.get("/api/meta-diagnostic", async (req, res) => {
