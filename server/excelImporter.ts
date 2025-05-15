@@ -123,16 +123,18 @@ export async function importExcelFile(
             .trim();
         }
         
+        // Preparar o objeto no formato esperado por createProspectingResult
         const leadData = {
           searchId,
           name,
           email,
           phone,
           address,
+          type: "excel-import",
+          // Adicionar os campos extra como parte de um objeto com propriedades adicionais
           cidade,
           estado,
-          site,
-          type: "excel-import"
+          site
         };
         
         // Verificar por duplicação
@@ -143,7 +145,7 @@ export async function importExcelFile(
         }
         
         // Criar o lead
-        await storage.createProspectingLead(leadData);
+        await storage.createProspectingResult(leadData);
         validCount++;
         results.push(leadData);
       } catch (rowError: any) {
