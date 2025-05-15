@@ -13,7 +13,17 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
   if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
   
   try {
-    const { searchId, templateId, templateName, quantity } = req.body;
+    const { 
+      searchId, 
+      templateId, 
+      templateName, 
+      quantity,
+      // Informações adicionais do usuário
+      userId,
+      userName,
+      userEmail,
+      userCompany
+    } = req.body;
     
     if (!searchId) {
       return res.status(400).json({ message: "ID da pesquisa é obrigatório" });
@@ -22,6 +32,14 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
     if (!templateId) {
       return res.status(400).json({ message: "ID do template é obrigatório" });
     }
+    
+    // Registrar as informações do usuário para depuração
+    console.log("Informações do usuário recebidas:", {
+      userId,
+      userName,
+      userEmail,
+      userCompany
+    });
     
     // Verificar se a pesquisa existe e pertence ao usuário
     const [search] = await db.select()
@@ -84,7 +102,14 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
       message: "Envio iniciado", 
       totalRecipients: results.length,
       templateId,
-      templateName
+      templateName,
+      // Incluir informações do usuário na resposta
+      user: {
+        id: userId || req.user.id,
+        name: userName || req.user.name,
+        email: userEmail || req.user.email,
+        company: userCompany || req.user.company
+      }
     });
     
     // Continuar o processamento em segundo plano

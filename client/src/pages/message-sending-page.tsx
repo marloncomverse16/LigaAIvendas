@@ -460,6 +460,10 @@ const CreateSendingForm = () => {
         throw new Error("Webhook de envio de mensagens não configurado para este servidor. Verifique a configuração em Gerenciamento de Servidores.");
       }
       
+      // Obter detalhes do usuário para enviar no webhook
+      const userResponse = await apiRequest("GET", "/api/user");
+      const userData = await userResponse.json();
+      
       console.log("Enviando dados para histórico:", {
         userId: data.userId,
         searchId: parseInt(data.searchId.toString()),
@@ -507,7 +511,12 @@ const CreateSendingForm = () => {
         message: data.customMessage || "",
         templateId: data.templateId ? data.templateId.toString() : "",
         quantity: data.quantity ? data.quantity.toString() : "10",
-        apiUrl: window.location.origin
+        apiUrl: window.location.origin,
+        // Informações do usuário
+        userId: userData.id.toString(),
+        userName: userData.name || userData.username,
+        userEmail: userData.email,
+        userCompany: userData.company || ""
       });
       
       const webhookUrlWithParams = `${webhookUrl}?${params.toString()}`;
@@ -562,6 +571,10 @@ const CreateSendingForm = () => {
         throw new Error("Selecione um template da Meta API para enviar as mensagens");
       }
       
+      // Obter detalhes do usuário para enviar no webhook
+      const userResponse = await apiRequest("GET", "/api/user");
+      const userData = await userResponse.json();
+      
       // Primeiro identificar o template selecionado
       const selectedTemplate = metaTemplates.find(t => t.id.toString() === data.templateId.toString());
       
@@ -615,7 +628,12 @@ const CreateSendingForm = () => {
           searchId: data.searchId,
           templateId: selectedTemplate.id,
           templateName: selectedTemplate.name,
-          quantity: data.quantity
+          quantity: data.quantity,
+          // Informações do usuário
+          userId: userData.id,
+          userName: userData.name || userData.username,
+          userEmail: userData.email,
+          userCompany: userData.company || ""
         })
       });
       
