@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { db } from "../db";
 import { prospectingResults, prospectingSearches, messageSendingHistory } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
-import { getUserServer } from "./meta-api-service";
+import { getUserServer, UserServerMetaData } from "../api/meta-api-service";
 import { getMetaApiTemplates, sendMetaApiMessage, MetaMessageRequest } from "../meta-whatsapp-api";
 
 /**
@@ -102,7 +102,7 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
         
         try {
           // Formatar o número do telefone (remover caracteres não-numéricos)
-          const phoneNumber = result.phone.replace(/\\D/g, "");
+          const phoneNumber = result.phone.replace(/\D/g, "");
           
           // Enviar mensagem usando o template
           const messageRequest: MetaMessageRequest = {
@@ -126,7 +126,7 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
             errorCount++;
             lastError = sendResult.error || "Erro desconhecido ao enviar mensagem";
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Erro ao enviar mensagem para", result.phone, error);
           errorCount++;
           lastError = error.message || "Erro desconhecido ao enviar mensagem";
@@ -148,7 +148,7 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
       }
       
       console.log(`Envio concluído: ${successCount} enviados, ${errorCount} erros`);
-    })().catch(error => {
+    })().catch((error: any) => {
       console.error("Erro no processamento em segundo plano:", error);
       // Atualizar o registro de histórico com o erro
       if (historyRecord) {
