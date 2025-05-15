@@ -1430,8 +1430,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verificar se encontrou leads
       if (leads.length === 0) {
+        console.log("Nenhum lead encontrado após processamento com modo de emergência. Arquivo pode estar vazio ou mal formatado.");
         await storage.updateProspectingSearch(search.id, { status: "erro" });
-        return res.status(400).json({ message: "Nenhum lead encontrado no arquivo" });
+        return res.status(400).json({ 
+          message: "Nenhum lead foi encontrado no arquivo após tentativas de processamento automático",
+          suggestion: "Certifique-se de que o arquivo contém pelo menos uma linha com dados e que não está corrompido. O sistema tentou processar usando diversos métodos, incluindo mapeamento automático e modo de emergência."
+        });
       }
       
       // Atualizar busca com número de leads

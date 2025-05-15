@@ -963,6 +963,12 @@ export default function ProspectingPage() {
                                           <Upload className="w-10 h-10 mb-3 text-muted-foreground" />
                                           <p className="mb-2 text-sm text-muted-foreground">Clique para selecionar ou arraste o arquivo</p>
                                           <p className="text-xs text-muted-foreground">CSV ou XLS/XLSX (máx. 10MB)</p>
+                                          <p className="text-xs text-muted-foreground mt-1">
+                                            Formato: colunas com nome, email, telefone ou qualquer dados de contato
+                                          </p>
+                                          <p className="text-xs text-primary/70 mt-1">
+                                            O sistema detecta automaticamente as colunas
+                                          </p>
                                         </>
                                       )}
                                     </div>
@@ -980,7 +986,14 @@ export default function ProspectingPage() {
                                 {importError && (
                                   <Alert variant="destructive" className="mt-3">
                                     <AlertCircle className="h-4 w-4" />
-                                    <p>{importError}</p>
+                                    <div className="ml-2">
+                                      <p className="font-medium">{importError}</p>
+                                      <p className="text-xs mt-1">
+                                        Dica: O sistema detectará automaticamente as colunas com nomes como 
+                                        "nome", "name", "email", "telefone", "phone", etc. Mesmo se não puder  
+                                        identificar automaticamente, tentaremos usar as primeiras colunas.
+                                      </p>
+                                    </div>
                                   </Alert>
                                 )}
                                 
