@@ -322,22 +322,22 @@ export default function ChatPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-screen w-full p-0 m-0 overflow-hidden flex-1">
-        <div className="p-0 pl-2 py-1 bg-background/95 backdrop-blur-sm z-10 sticky top-0 border-b border-border">
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-bold">CHAT</h1>
-            <p className="text-muted-foreground text-xs">
-              Interface de conversas do WhatsApp
-            </p>
+      <div className="flex flex-col h-screen w-full p-0 m-0 overflow-hidden flex-1 bg-white dark:bg-black">
+        <div className="p-0 py-1 px-2 bg-background/95 backdrop-blur-sm z-10 sticky top-0 border-b border-border">
+          <div className="flex items-center space-x-3">
+            <h1 className="text-lg font-semibold">CHAT</h1>
+            <Badge variant="outline" className="text-xs">
+              {connectionStatus?.connected ? "CONECTADO ✅" : "DESCONECTADO ❌"}
+            </Badge>
           </div>
         </div>
         
         {/* Interface do Chat */}
-        <div className="h-[calc(100vh-2rem)] flex flex-1 overflow-hidden">
+        <div className="h-[calc(100vh-2.5rem)] flex flex-1 overflow-hidden">
           {/* Painel de contatos (Esquerda) - Com largura redimensionável */}
           <div
             ref={contactsPanelRef}
-            className="flex flex-col h-full relative group/contacts border-r border-border"
+            className="flex flex-col h-full relative group/contacts border-r border-border bg-card"
             style={{ width: `${contactsPanelWidth}px`, minWidth: '200px', maxWidth: '400px' }}
           >
             {/* Handle de redimensionamento */}
@@ -354,31 +354,31 @@ export default function ChatPage() {
               </div>
             </div>
             {/* Cabeçalho do painel de contatos */}
-            <div className="p-3 bg-card border-b border-border flex items-center justify-between">
+            <div className="p-2 bg-background border-b border-border flex items-center justify-between">
               <div className="flex items-center">
-                <Avatar className="h-10 w-10 mr-2">
+                <Avatar className="h-8 w-8 mr-2">
                   <AvatarImage src={user?.avatarUrl || undefined} />
                   <AvatarFallback className="bg-primary text-white">
                     {user?.name?.charAt(0) || user?.username?.charAt(0) || "U"}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="font-semibold">{user?.name || user?.username}</h2>
+                  <h2 className="text-sm font-medium">{user?.name || user?.username}</h2>
                   <p className="text-xs text-muted-foreground">WhatsApp conectado</p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon">
-                <MoreVertical className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <MoreVertical className="h-4 w-4" />
               </Button>
             </div>
             
             {/* Campo de busca */}
-            <div className="p-3 border-b border-border">
+            <div className="p-2 border-b border-border">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input 
                   placeholder="Buscar contatos" 
-                  className="pl-9"
+                  className="pl-7 h-8 text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
