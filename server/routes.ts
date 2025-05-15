@@ -45,6 +45,14 @@ import {
 } from "./api/meta-connections";
 
 // Novas importações para conexões Meta API específicas do usuário
+import {
+  listWhatsAppContacts,
+  getWhatsAppContact
+} from "./api/whatsapp-contacts";
+import {
+  listWhatsAppMessages,
+  sendWhatsAppMessage
+} from "./api/whatsapp-messages";
 
 // Configuração do multer para upload de arquivos
 const upload = multer({

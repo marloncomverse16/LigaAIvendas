@@ -732,6 +732,98 @@ export class EvolutionApiClient {
   }
 
   /**
+   * Obtém mensagens de um chat específico
+   * @param phone Número de telefone ou ID do contato (ex: 5511999998888 ou 5511999998888@c.us)
+   * @returns Mensagens do chat
+   */
+  async getMessages(phone: string): Promise<any> {
+    try {
+      console.log(`Buscando mensagens para contato ${phone} na instância: ${this.instance}`);
+      
+      // Garantir formato correto do número (alguns endpoints exigem @c.us)
+      const formattedPhone = phone.includes('@') ? phone : `${phone}@c.us`;
+      
+      // Lista de possíveis endpoints para buscar mensagens
+      const endpoints = [
+        `${this.baseUrl}/instance/fetchMessages/${this.instance}?number=${formattedPhone}`,
+        `${this.baseUrl}/messages/${this.instance}/${formattedPhone}`,
+        `${this.baseUrl}/instance/messages/${this.instance}/${formattedPhone}`,
+        `${this.baseUrl}/chat/messages/${this.instance}/${formattedPhone}`,
+        `${this.baseUrl}/chat/history/${this.instance}/${formattedPhone}`,
+        `${this.baseUrl}/instances/${this.instance}/messages/${formattedPhone}`
+      ];
+      
+      // Tentar cada endpoint
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Tentando buscar mensagens em: ${endpoint}`);
+          
+          const response = await axios.get(endpoint, {
+            headers: this.getHeaders()
+          });
+          
+          // Verificar se é uma resposta válida
+          if (response.status === 200) {
+            console.log(`Mensagens obtidas com sucesso de: ${endpoint}`);
+            
+            // Processar e normalizar a resposta
+            const messages = response.data?.messages || 
+                          response.data?.result?.messages ||
+                          response.data?.response?.messages ||
+                          response.data?.data?.messages ||
+                          response.data;
+            
+            return {
+              success: true,
+              messages: Array.isArray(messages) ? messages : [],
+              endpoint
+            };
+          }
+        } catch (endpointError) {
+          console.log(`Falha ao buscar mensagens em ${endpoint}: ${endpointError.message}`);
+        }
+      }
+      
+      // Se não obteve sucesso com nenhum endpoint, tenta um método alternativo
+      // usando o endpoint de envio com método GET (algumas APIs retornam histórico assim)
+      try {
+        const fallbackEndpoint = `${this.baseUrl}/message/text/${this.instance}/${formattedPhone}`;
+        console.log(`Tentando endpoint alternativo para histórico: ${fallbackEndpoint}`);
+        
+        const response = await axios.get(fallbackEndpoint, {
+          headers: this.getHeaders()
+        });
+        
+        if (response.status === 200 && response.data?.messages) {
+          console.log(`Mensagens obtidas com sucesso do endpoint alternativo`);
+          return {
+            success: true,
+            messages: response.data.messages,
+            endpoint: fallbackEndpoint
+          };
+        }
+      } catch (fallbackError) {
+        console.log(`Falha no endpoint alternativo: ${fallbackError.message}`);
+      }
+      
+      // Se chegou aqui, não conseguiu obter mensagens, mas não queremos falhar
+      console.log("Nenhum endpoint retornou mensagens. Retornando array vazio.");
+      return {
+        success: true,
+        messages: [],
+        endpoint: "none"
+      };
+    } catch (error: any) {
+      console.error(`Erro ao buscar mensagens:`, error);
+      return {
+        success: false,
+        error: error.message || "Erro desconhecido ao buscar mensagens",
+        messages: []
+      };
+    }
+  }
+
+  /**
    * Retorna os cabeçalhos HTTP padrão com token de autorização
    */
   private getHeaders() {
