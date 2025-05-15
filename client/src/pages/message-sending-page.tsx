@@ -471,13 +471,18 @@ const CreateSendingForm = () => {
         webhookUrl
       });
       
-      // Agora enviar para o webhook
+      // Obtém o ID do registro de envio criado
+      const historyData = await historyRes.json();
+      console.log("Registro de histórico criado:", historyData);
+      
+      // Agora enviar para o webhook incluindo o sendingId obrigatório
       const webhookRes = await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
+          sendingId: historyData.id, // Campo obrigatório para o webhook
           searchId: data.searchId,
           message: data.customMessage,
           templateId: data.templateId,
@@ -490,7 +495,7 @@ const CreateSendingForm = () => {
         throw new Error(`Erro ao enviar para webhook: ${webhookRes.statusText}`);
       }
       
-      return await historyRes.json();
+      return historyData;
     },
     onSuccess: () => {
       toast({
