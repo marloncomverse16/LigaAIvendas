@@ -45,22 +45,21 @@ export async function processProspectingFile(
       const workbook = xlsx.readFile(file.path, { type: 'buffer', codepage: 65001 }); // UTF-8
       const sheetName = workbook.SheetNames[0];
       
-      // Extrair os dados como objeto JS direto, mantendo os caracteres especiais
+      // Extrair os dados diretamente como um array de objetos com nomes de colunas intactos
       const rawData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { 
-        raw: false, 
-        defval: "",
-        header: 1 // Usar cabeçalhos da primeira linha
+        raw: false,
+        defval: ""
       });
       
-      if (!Array.isArray(rawData) || rawData.length < 2) {
+      if (!Array.isArray(rawData) || rawData.length === 0) {
         throw new Error("Arquivo Excel vazio ou sem dados suficientes");
       }
       
       console.log("Dados Excel processados (primeiras linhas): ", 
-        JSON.stringify(rawData.slice(0, 3)).substring(0, 200) + "...");
+        JSON.stringify(rawData.slice(0, 2)).substring(0, 200) + "...");
       
-      // Obter cabeçalhos (primeira linha)
-      const headers = rawData[0] as string[];
+      // Obter todas as chaves (nomes de colunas) do primeiro objeto
+      const headers = Object.keys(rawData[0] as Record<string, any>);
       
       // Construir CSV manualmente
       const csvLines: string[] = [];
@@ -68,29 +67,21 @@ export async function processProspectingFile(
       // Adicionar cabeçalho
       csvLines.push(headers.join(','));
       
-      // Adicionar linhas de dados (pular a primeira linha que é o cabeçalho)
-      for (let i = 1; i < rawData.length; i++) {
-        const row = rawData[i] as any[];
-        
-        // Garantir que temos o mesmo número de colunas que os cabeçalhos
-        const values = headers.map((_, index) => {
-          const value = row[index] || "";
+      // Adicionar linhas de dados
+      for (const row of rawData as Record<string, any>[]) {
+        const values = headers.map(header => {
+          const value = row[header] || "";
           
           // Tratar valor: escapar aspas e adicionar aspas se tiver vírgula
           if (typeof value === 'string') {
-            // Corrigir caracteres especiais específicos que podem vir mal formatados do Excel
-            let cleanValue = value
-              .replace(/�/g, 'ç') // Corrigir ç
-              .replace(/[õóòô]/g, 'o') // Normalizar variações de 'o'
-              .replace(/[ãáà]/g, 'a') // Normalizar variações de 'a'
-              .replace(/[éèê]/g, 'e') // Normalizar variações de 'e'
-              .replace(/[íìî]/g, 'i') // Normalizar variações de 'i'
-              .replace(/[úùû]/g, 'u'); // Normalizar variações de 'u'
-              
-            const escaped = cleanValue.replace(/"/g, '""');
+            // Preservar o valor original sem substituição de caracteres especiais
+            // Para evitar problemas com formatação de endereços
+            const escaped = value.replace(/"/g, '""');
             return escaped.includes(',') ? `"${escaped}"` : escaped;
           }
-          return value;
+          
+          // Se for um número ou outro tipo, converter para string
+          return String(value);
         });
         
         csvLines.push(values.join(','));
