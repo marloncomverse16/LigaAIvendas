@@ -35,53 +35,121 @@ function detectSeparator(content: string): string {
  */
 function findColumnIndex(headers: string[], fieldType: string): number {
   // Mapeia diferentes variações de nomes de colunas comumente usados
+  // Expandimos as opções para cada campo para melhorar a detecção
   const nameMappings: {[key: string]: string[]} = {
-    'name': ['nome', 'name', 'cliente', 'razão social', 'razao social', 'razaosocial', 'empresa', 'contato', 'responsável', 'responsavel'],
-    'email': ['email', 'e-mail', 'correio', 'correio eletrônico', 'mail'],
-    'phone': ['telefone', 'phone', 'celular', 'tel', 'contato', 'whatsapp', 'telefone 1', 'tel1', 'fone'],
-    'address': ['endereco', 'endereço', 'address', 'logradouro', 'local'],
-    'cidade': ['cidade', 'city', 'município', 'municipio'],
-    'estado': ['estado', 'state', 'uf', 'província', 'provincia'],
-    'site': ['site', 'website', 'web', 'pagina', 'página', 'url', 'link'],
-    'type': ['tipo', 'type', 'category', 'categoria', 'segmento', 'ramo']
+    'name': ['nome', 'name', 'cliente', 'razão social', 'razao social', 'razaosocial', 'empresa', 'contato', 'responsável', 'responsavel', 'cliente/client', 'company', 'person', 'nome completo', 'full name'],
+    'email': ['email', 'e-mail', 'correio', 'correio eletrônico', 'mail', 'electronic mail', 'e mail'],
+    'phone': ['telefone', 'phone', 'celular', 'tel', 'contato', 'whatsapp', 'telefone 1', 'tel1', 'fone', 'mobile', 'telephone', 'numero', 'número', 'telefone/phone', 'tel/phone', 'telephone number', 'cel', 'cel/phone'],
+    'address': ['endereco', 'endereço', 'address', 'logradouro', 'local', 'rua', 'avenida', 'av', 'local', 'localização', 'localizacao', 'location', 'street', 'end', 'end.'],
+    'cidade': ['cidade', 'city', 'município', 'municipio', 'town', 'loc', 'localidade', 'cidade/city'],
+    'estado': ['estado', 'state', 'uf', 'província', 'provincia', 'region', 'estado/state', 'state/uf', 'unidade federativa'],
+    'site': ['site', 'website', 'web', 'pagina', 'página', 'url', 'link', 'domínio', 'dominio', 'domain', 'homepage', 'home page', 'www', 'http'],
+    'type': ['tipo', 'type', 'category', 'categoria', 'segmento', 'ramo', 'tipo de negócio', 'tipo de negocio', 'tipo/type', 'business type', 'segmento', 'setor', 'sector', 'atividade', 'activity']
   };
   
   const possibleNames = nameMappings[fieldType] || [fieldType];
   
+  // Converter todos os cabeçalhos para minúsculas e remover acentos para melhorar a correspondência
+  const normalizedHeaders = headers.map(h => normalizeString(h));
+  const normalizedPossibleNames = possibleNames.map(p => normalizeString(p));
+  
+  // Debug
+  console.log(`Procurando por '${fieldType}'. Cabeçalhos normalizados:`, normalizedHeaders);
+  
   // Primeiro tenta encontrar uma correspondência exata
-  for (const possibleName of possibleNames) {
-    const index = headers.findIndex(h => h === possibleName);
+  for (let i = 0; i < normalizedPossibleNames.length; i++) {
+    const possibleName = normalizedPossibleNames[i];
+    const originalName = possibleNames[i];
+    
+    const index = normalizedHeaders.findIndex(h => h === possibleName);
     if (index !== -1) {
-      console.log(`Campo ${fieldType} encontrado exatamente como "${headers[index]}" no índice ${index}`);
+      console.log(`Campo ${fieldType} encontrado exatamente como "${headers[index]}" (normalizado: "${normalizedHeaders[index]}") usando "${originalName}" no índice ${index}`);
       return index;
     }
   }
   
-  // Em seguida, tenta correspondência parcial
-  for (const possibleName of possibleNames) {
-    const index = headers.findIndex(h => 
-      h.includes(possibleName) || 
-      possibleName.includes(h));
-    if (index !== -1) {
-      console.log(`Campo ${fieldType} encontrado parcialmente como "${headers[index]}" usando "${possibleName}" no índice ${index}`);
-      return index;
+  // Em seguida, tenta correspondência parcial (contém ou está contido)
+  for (let i = 0; i < normalizedPossibleNames.length; i++) {
+    const possibleName = normalizedPossibleNames[i];
+    const originalName = possibleNames[i];
+    
+    for (let j = 0; j < normalizedHeaders.length; j++) {
+      const header = normalizedHeaders[j];
+      
+      if (header.includes(possibleName) || possibleName.includes(header)) {
+        console.log(`Campo ${fieldType} encontrado parcialmente como "${headers[j]}" (normalizado: "${normalizedHeaders[j]}") usando "${originalName}" no índice ${j}`);
+        return j;
+      }
     }
   }
   
   // Tenta uma abordagem mais genérica para encontrar strings similares
-  for (let i = 0; i < headers.length; i++) {
-    const header = headers[i];
-    for (const possibleName of possibleNames) {
-      // Verifica se alguma das strings contém partes da outra
-      if (possibleName.length > 2 && header.includes(possibleName.substring(0, 3))) {
-        console.log(`Campo ${fieldType} encontrado por similaridade usando "${possibleName}" no índice ${i} (cabeçalho: "${header}")`);
+  for (let i = 0; i < normalizedHeaders.length; i++) {
+    const header = normalizedHeaders[i];
+    for (let j = 0; j < normalizedPossibleNames.length; j++) {
+      const possibleName = normalizedPossibleNames[j];
+      const originalName = possibleNames[j];
+      
+      // Verifica se cabeçalho contém ao menos os primeiros 3 caracteres do nome possível
+      // ou se o nome possível contém os primeiros 3 caracteres do cabeçalho
+      if ((possibleName.length > 2 && header.includes(possibleName.substring(0, 3))) ||
+          (header.length > 2 && possibleName.includes(header.substring(0, 3)))) {
+        console.log(`Campo ${fieldType} encontrado por similaridade como "${headers[i]}" (normalizado: "${normalizedHeaders[i]}") usando "${originalName}" no índice ${i}`);
         return i;
+      }
+    }
+  }
+  
+  // Verificar palavras compostas (para campos como 'tel/cel' ou 'endereco comercial')
+  for (let i = 0; i < normalizedHeaders.length; i++) {
+    const header = normalizedHeaders[i];
+    // Dividir por símbolos comuns que podem separar conceitos
+    const parts = header.split(/[\/\-_.,;:|&+\s]+/);
+    
+    if (parts.length > 1) {
+      for (const part of parts) {
+        if (part.length < 2) continue;  // Ignorar partes muito curtas
+        
+        for (let j = 0; j < normalizedPossibleNames.length; j++) {
+          const possibleName = normalizedPossibleNames[j];
+          const originalName = possibleNames[j];
+          
+          if (possibleName.includes(part) || 
+              (part.length > 2 && possibleName.includes(part.substring(0, 3)))) {
+            console.log(`Campo ${fieldType} encontrado em palavra composta "${headers[i]}" (parte: "${part}") usando "${originalName}" no índice ${i}`);
+            return i;
+          }
+        }
+      }
+    }
+  }
+  
+  // Última tentativa: verificar números nos nomes de campos (tel1, telefone2, etc)
+  if (fieldType === 'phone') {
+    const phonePatterns = [/tel[0-9]/, /phone[0-9]/, /fone[0-9]/, /celular[0-9]/, /cel[0-9]/];
+    for (let i = 0; i < normalizedHeaders.length; i++) {
+      const header = normalizedHeaders[i];
+      for (const pattern of phonePatterns) {
+        if (pattern.test(header)) {
+          console.log(`Campo ${fieldType} encontrado por padrão numérico "${headers[i]}" (${pattern}) no índice ${i}`);
+          return i;
+        }
       }
     }
   }
   
   console.log(`Campo ${fieldType} NÃO encontrado em nenhum cabeçalho`);
   return -1;
+}
+
+/**
+ * Normaliza uma string: converte para minúsculas e remove acentos
+ */
+function normalizeString(str: string): string {
+  return str.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 /**
