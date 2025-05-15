@@ -423,16 +423,79 @@ const CreateSendingForm = () => {
     },
   });
   
-  // Mutação para criar um novo envio
-  const createSendingMutation = useMutation({
+  // Função para obter o webhook de envio de mensagens do servidor
+  const getMessageSendingWebhook = async (searchId: number) => {
+    try {
+      // Primeiro obtemos o servidor associado à pesquisa
+      const searchRes = await fetch(`/api/prospecting/searches/${searchId}`);
+      if (!searchRes.ok) throw new Error("Falha ao obter informações da pesquisa");
+      const searchData = await searchRes.json();
+      
+      // Obtemos o servidor associado ao usuário
+      const userServersRes = await fetch("/api/user-servers/default");
+      if (!userServersRes.ok) throw new Error("Falha ao obter servidor padrão");
+      const userServerData = await userServersRes.json();
+      
+      // Obtemos os detalhes do servidor
+      const serverRes = await fetch(`/api/servers/${userServerData.serverId}`);
+      if (!serverRes.ok) throw new Error("Falha ao obter detalhes do servidor");
+      const serverData = await serverRes.json();
+      
+      return serverData.messageSendingWebhookUrl;
+    } catch (error) {
+      console.error("Erro ao obter webhook:", error);
+      return null;
+    }
+  };
+  
+  // Mutação para envio via WhatsApp QR Code (webhook)
+  const sendViaWebhookMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/message-sendings", data);
-      return res.json();
+      // Obter o webhook do servidor
+      const webhookUrl = await getMessageSendingWebhook(data.searchId);
+      
+      if (!webhookUrl) {
+        throw new Error("Webhook de envio de mensagens não configurado para este servidor. Verifique a configuração em Gerenciamento de Servidores.");
+      }
+      
+      // Criar o registro de histórico de envio
+      const historyRes = await apiRequest("POST", "/api/message-sending-history", {
+        userId: data.userId,
+        searchId: data.searchId,
+        templateId: null,
+        templateName: null,
+        messageText: data.customMessage || (data.templateId ? `Template ID: ${data.templateId}` : ""),
+        connectionType: "whatsapp_qr",
+        totalRecipients: data.quantity || 0,
+        status: "pendente",
+        webhookUrl
+      });
+      
+      // Agora enviar para o webhook
+      const webhookRes = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          searchId: data.searchId,
+          message: data.customMessage,
+          templateId: data.templateId,
+          quantity: data.quantity,
+          apiUrl: window.location.origin
+        })
+      });
+      
+      if (!webhookRes.ok) {
+        throw new Error(`Erro ao enviar para webhook: ${webhookRes.statusText}`);
+      }
+      
+      return await historyRes.json();
     },
     onSuccess: () => {
       toast({
-        title: "Envio criado com sucesso",
-        description: "O envio foi agendado e será processado no horário especificado",
+        title: "Envio via WhatsApp QR Code iniciado",
+        description: "O envio foi iniciado e será processado pelo webhook configurado",
         variant: "default",
       });
       form.reset({
@@ -446,6 +509,131 @@ const CreateSendingForm = () => {
         aiNotes: "",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/message-sendings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/message-sending-history"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao iniciar envio via WhatsApp QR Code",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutação para envio via WhatsApp Meta API (direto)
+  const sendViaMetaApiMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (!data.searchId) {
+        throw new Error("Selecione uma pesquisa de prospecção para enviar as mensagens");
+      }
+      
+      if (!data.templateId) {
+        throw new Error("Selecione um template da Meta API para enviar as mensagens");
+      }
+      
+      // Primeiro identificar o template selecionado
+      const selectedTemplate = metaTemplates.find(t => t.id.toString() === data.templateId.toString());
+      
+      if (!selectedTemplate) {
+        throw new Error("Template selecionado não encontrado");
+      }
+      
+      // Criar o registro de histórico de envio
+      const historyRes = await apiRequest("POST", "/api/message-sending-history", {
+        userId: data.userId,
+        searchId: data.searchId,
+        templateId: selectedTemplate.id,
+        templateName: selectedTemplate.name,
+        messageText: null,
+        connectionType: "whatsapp_meta_api",
+        totalRecipients: data.quantity || 0,
+        status: "pendente",
+        webhookUrl: null
+      });
+      
+      // Agora enviar diretamente via API
+      const sendRes = await fetch(`/api/meta-direct-send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          searchId: data.searchId,
+          templateId: selectedTemplate.id,
+          templateName: selectedTemplate.name,
+          quantity: data.quantity
+        })
+      });
+      
+      if (!sendRes.ok) {
+        const errorText = await sendRes.text();
+        throw new Error(`Erro ao enviar mensagens: ${errorText}`);
+      }
+      
+      return await historyRes.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Envio via WhatsApp Meta API iniciado",
+        description: "O envio direto via Meta API foi iniciado e será processado em segundo plano",
+        variant: "default",
+      });
+      form.reset({
+        whatsappConnectionType: "meta",
+        searchId: null,
+        templateId: null,
+        customMessage: "",
+        quantity: 10,
+        scheduledAt: null,
+        aiLearningEnabled: false,
+        aiNotes: "",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/message-sendings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/message-sending-history"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao iniciar envio via WhatsApp Meta API",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutação para criar um novo envio (usa as mutações específicas acima)
+  const createSendingMutation = useMutation({
+    mutationFn: async (data: any) => {
+      // Verificar se os campos obrigatórios estão preenchidos
+      if (!data.searchId) {
+        throw new Error("Selecione uma pesquisa de prospecção para enviar as mensagens");
+      }
+      
+      // Se for WhatsApp QR Code
+      if (data.whatsappConnectionType === "qrcode") {
+        // Verificar se está usando template ou mensagem customizada
+        if (useTemplate && !data.templateId) {
+          throw new Error("Selecione um template para enviar as mensagens");
+        } else if (!useTemplate && !data.customMessage) {
+          throw new Error("Digite uma mensagem personalizada para enviar");
+        }
+        
+        // Usar o webhook
+        return sendViaWebhookMutation.mutateAsync(data);
+      } 
+      // Se for WhatsApp Meta API
+      else if (data.whatsappConnectionType === "meta") {
+        if (!data.templateId) {
+          throw new Error("Selecione um template da Meta API para enviar as mensagens");
+        }
+        
+        // Usar a API direta
+        return sendViaMetaApiMutation.mutateAsync(data);
+      }
+      
+      throw new Error("Tipo de conexão inválido");
+    },
+    onSuccess: () => {
+      // Sucesso já tratado nas mutações específicas
     },
     onError: (error: Error) => {
       toast({
