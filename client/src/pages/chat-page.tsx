@@ -295,11 +295,18 @@ export default function ChatPage() {
 
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-4rem)] flex flex-col">
+      <div className="container py-6">
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold">CHAT</h1>
+          <p className="text-muted-foreground">
+            Interface de conversas do WhatsApp
+          </p>
+        </div>
+        
         {/* Interface do Chat */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="h-[calc(100vh-12rem)] flex flex-1 overflow-hidden border rounded-lg shadow-sm">
           {/* Painel de contatos (Esquerda) */}
-          <div className="w-1/3 border-r border-border flex flex-col h-full">
+          <div className="w-1/4 border-r border-border flex flex-col h-full">
             {/* Cabeçalho do painel de contatos */}
             <div className="p-3 bg-card border-b border-border flex items-center justify-between">
               <div className="flex items-center">
@@ -432,8 +439,11 @@ export default function ChatPage() {
                 {/* Área de mensagens */}
                 <div 
                   ref={chatContentRef}
-                  className="flex-1 p-4 overflow-y-auto bg-muted/20"
-                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z\' fill=\'%23e5e5e5\' fill-opacity=\'0.2\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")' }}
+                  className="flex-1 p-4 overflow-y-auto bg-muted/5"
+                  style={{ 
+                    backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z\' fill=\'%23e5e5e5\' fill-opacity=\'0.1\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")',
+                    padding: '16px',
+                  }}
                 >
                   {isLoadingMessages ? (
                     <div className="flex items-center justify-center h-full">
@@ -464,15 +474,21 @@ export default function ChatPage() {
                               </div>
                             )}
                             
-                            <div className={`flex ${message.isIncoming ? 'justify-start' : 'justify-end'}`}>
+                            <div className={`flex ${message.isIncoming ? 'justify-start' : 'justify-end'} mb-2`}>
                               <div 
-                                className={`relative max-w-[80%] rounded-lg p-3 ${
+                                className={`relative max-w-[80%] rounded-lg p-3 shadow-sm ${
                                   message.isIncoming 
                                     ? 'bg-background border border-border' 
-                                    : 'bg-primary/10 text-primary-foreground'
+                                    : 'bg-primary/20 text-primary-foreground'
                                 }`}
+                                style={{
+                                  borderTopLeftRadius: message.isIncoming ? '4px' : '16px',
+                                  borderTopRightRadius: message.isIncoming ? '16px' : '4px',
+                                  borderBottomLeftRadius: '16px',
+                                  borderBottomRightRadius: '16px',
+                                }}
                               >
-                                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                                <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
                                 <div className="text-xs text-muted-foreground flex items-center justify-end mt-1 space-x-1">
                                   <span>{format(message.timestamp, 'HH:mm')}</span>
                                   {!message.isIncoming && (
@@ -494,53 +510,58 @@ export default function ChatPage() {
                 </div>
                 
                 {/* Área de entrada de mensagem */}
-                <div className="p-3 bg-card border-t border-border flex items-end">
-                  <Button variant="ghost" size="icon" className="text-muted-foreground">
-                    <Smile className="h-5 w-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground">
-                    <Paperclip className="h-5 w-5" />
-                  </Button>
-                  <Textarea 
-                    ref={messageInputRef}
-                    placeholder="Digite uma mensagem"
-                    className="flex-1 mx-2 resize-none min-h-[40px] max-h-[120px]"
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    rows={1}
-                  />
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={handleSendMessage}
-                    disabled={!messageText.trim()}
-                  >
-                    <Send className="h-5 w-5" />
-                  </Button>
+                <div className="p-3 bg-card border-t border-border">
+                  <div className="flex items-end bg-background rounded-full px-4 py-2 shadow-sm">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground h-9 w-9 rounded-full">
+                      <Smile className="h-5 w-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground h-9 w-9 rounded-full">
+                      <Paperclip className="h-5 w-5" />
+                    </Button>
+                    <Textarea 
+                      ref={messageInputRef}
+                      placeholder="Digite uma mensagem"
+                      className="flex-1 mx-2 resize-none min-h-[40px] max-h-[120px] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      rows={1}
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 h-10 w-10 rounded-full"
+                      onClick={handleSendMessage}
+                      disabled={!messageText.trim()}
+                    >
+                      <Send className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
               </>
             ) : (
               // Tela de boas-vindas quando nenhum chat está selecionado
-              <div className="flex flex-col items-center justify-center h-full bg-muted/10">
+              <div className="flex flex-col items-center justify-center h-full bg-background">
                 <div className="text-center max-w-md p-6">
                   <div className="bg-primary/10 rounded-full p-6 mx-auto mb-6 w-24 h-24 flex items-center justify-center">
                     <MessagesSquare className="h-12 w-12 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold mb-2">WhatsApp Web</h2>
+                  <h2 className="text-2xl font-bold mb-2">Chat WhatsApp</h2>
                   <p className="text-muted-foreground mb-6">
-                    Selecione um contato para iniciar ou continuar uma conversa.
-                    As mensagens são sincronizadas com seu telefone.
+                    Selecione um contato na lista à esquerda para iniciar ou continuar uma conversa.
+                    Todas as mensagens são sincronizadas com seu WhatsApp.
                   </p>
-                  <Separator className="my-6" />
-                  <p className="text-sm text-muted-foreground">
-                    <span className="flex items-center justify-center mb-2">
-                      <CheckCheck className="h-4 w-4 mr-2 text-green-500" />
-                      Conexão estabelecida com sucesso
-                    </span>
-                    Mantenha seu telefone conectado e com acesso à internet
-                  </p>
+                  <Card className="mb-6 bg-muted/10 border-dashed">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-center mb-2">
+                        <CheckCheck className="h-5 w-5 mr-2 text-green-500" />
+                        <span className="font-medium">Conexão estabelecida com sucesso</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Mantenha seu telefone conectado e com acesso à internet para sincronização contínua
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             )}
