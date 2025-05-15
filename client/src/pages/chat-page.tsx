@@ -27,7 +27,8 @@ import {
   User,
   Search,
   MoreVertical,
-  ChevronLeft
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -295,8 +296,8 @@ export default function ChatPage() {
 
   return (
     <DashboardLayout>
-      <div className="container py-6">
-        <div className="mb-4">
+      <div className="px-0 py-4 w-full max-w-full">
+        <div className="px-4 mb-2">
           <h1 className="text-3xl font-bold">CHAT</h1>
           <p className="text-muted-foreground">
             Interface de conversas do WhatsApp
@@ -304,9 +305,18 @@ export default function ChatPage() {
         </div>
         
         {/* Interface do Chat */}
-        <div className="h-[calc(100vh-12rem)] flex flex-1 overflow-hidden border rounded-lg shadow-sm">
-          {/* Painel de contatos (Esquerda) */}
-          <div className="w-1/4 border-r border-border flex flex-col h-full">
+        <div className="h-[calc(100vh-10rem)] flex flex-1 overflow-hidden border rounded-lg shadow-sm mx-4">
+          {/* Painel de contatos (Esquerda) - Com largura ajustável */}
+          <div className="w-[300px] min-w-[280px] max-w-[400px] border-r border-border flex flex-col h-full relative resize-x overflow-hidden group/contacts">
+            {/* Indicador de redimensionamento */}
+            <div className="absolute right-0 top-0 w-1 h-full bg-primary/20 opacity-0 group-hover/contacts:opacity-100 cursor-ew-resize z-10 transition-opacity"></div>
+            {/* Dica de redimensionamento */}
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary/20 rounded-full p-1 opacity-0 group-hover/contacts:opacity-100 z-10 transition-opacity">
+              <div className="flex flex-col items-center justify-center gap-1">
+                <ChevronLeft className="h-3 w-3 text-primary-foreground" />
+                <ChevronRight className="h-3 w-3 text-primary-foreground" />
+              </div>
+            </div>
             {/* Cabeçalho do painel de contatos */}
             <div className="p-3 bg-card border-b border-border flex items-center justify-between">
               <div className="flex items-center">
