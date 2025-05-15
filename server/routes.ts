@@ -2200,14 +2200,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const id = parseInt(req.params.id);
+      console.log(`Atualizando servidor ${id} com dados:`, req.body);
       const serverData = req.body;
       
       const updatedServer = await storage.updateServer(id, serverData);
       
       if (!updatedServer) {
+        console.log(`Servidor ${id} não encontrado`);
         return res.status(404).json({ message: "Servidor não encontrado" });
       }
       
+      console.log(`Servidor ${id} atualizado com sucesso:`, updatedServer);
       res.json(updatedServer);
     } catch (error) {
       console.error(`Erro ao atualizar servidor ${req.params.id}:`, error);

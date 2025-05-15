@@ -302,10 +302,19 @@ export default function ServerManagementPage() {
   // Mutação para atualizar servidor
   const updateServerMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: ServerFormValues }) => {
-      const res = await apiRequest("PUT", `/api/servers/${id}`, data);
-      return res.json();
+      console.log("Fazendo requisição PUT para:", `/api/servers/${id}`);
+      console.log("Dados enviados:", data);
+      try {
+        const res = await apiRequest("PUT", `/api/servers/${id}`, data);
+        console.log("Resposta recebida:", res.status);
+        return res.json();
+      } catch (error) {
+        console.error("Erro na requisição:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Atualização bem-sucedida:", data);
       toast({
         title: "Servidor atualizado com sucesso",
         description: "As informações do servidor foram atualizadas.",
@@ -316,6 +325,7 @@ export default function ServerManagementPage() {
       refetchServers();
     },
     onError: (error: Error) => {
+      console.error("Erro no callback de erro:", error);
       toast({
         title: "Erro ao atualizar servidor",
         description: error.message || "Ocorreu um erro ao atualizar o servidor",
@@ -597,6 +607,8 @@ export default function ServerManagementPage() {
   
   const onEditSubmit = (data: ServerFormValues) => {
     if (selectedServer) {
+      console.log("Enviando atualização para o servidor:", selectedServer.id);
+      console.log("Dados do formulário:", data);
       updateServerMutation.mutate({ id: selectedServer.id, data });
     }
   };
