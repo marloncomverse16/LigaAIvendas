@@ -63,7 +63,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Switch } from "@/components/ui/switch";
 import { apiRequest, queryClient } from "../lib/queryClient";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Definição do esquema de validação para criação de templates
@@ -1644,52 +1643,50 @@ const SendingList = () => {
 // Componente principal da página
 export default function MessageSendingPage() {
   return (
-    <DashboardLayout>
-      <div className="container py-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Envio de Mensagens</h1>
-          <p className="text-muted-foreground">
-            Gerencie templates e configure envios automáticos de mensagens para seus prospectos
-          </p>
-        </div>
-        
-        <Tabs defaultValue="sending" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="sending">Criar Envio</TabsTrigger>
-            <TabsTrigger value="history">Histórico de Envios</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="sending" className="space-y-4">
-            <div className="grid gap-6 md:grid-cols-2">
-              <CreateSendingForm />
-              <Card>
-                <CardHeader>
-                  <CardTitle>Dicas para Envios</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="list-disc list-inside space-y-2">
-                    <li>Escolha uma pesquisa de prospecção para selecionar os destinatários</li>
-                    <li>Utilize templates predefinidos ou crie mensagens personalizadas</li>
-                    <li>Defina a quantidade de mensagens para controlar o volume de envios</li>
-                    <li>Agende envios para horários comerciais para melhores resultados</li>
-                    <li>Ative o aprendizado de IA para aprimorar campanhas futuras</li>
-                    <li>Monitore os resultados no histórico de envios</li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="history">
-            <SendingList />
-          </TabsContent>
-          
-          <TabsContent value="templates">
-            <TemplateManager />
-          </TabsContent>
-        </Tabs>
+    <div className="container py-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Envio de Mensagens</h1>
+        <p className="text-muted-foreground">
+          Gerencie templates e configure envios automáticos de mensagens para seus prospectos
+        </p>
       </div>
-    </DashboardLayout>
+      
+      <Tabs defaultValue="sending" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="sending">Criar Envio</TabsTrigger>
+          <TabsTrigger value="history">Histórico de Envios</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="sending" className="space-y-4">
+          <div className="grid gap-6 md:grid-cols-2">
+            <CreateSendingForm />
+            <Card>
+              <CardHeader>
+                <CardTitle>Dicas para Envios</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside space-y-2">
+                  <li>Escolha uma pesquisa de prospecção para selecionar os destinatários</li>
+                  <li>Utilize templates predefinidos ou crie mensagens personalizadas</li>
+                  <li>Defina a quantidade de mensagens para controlar o volume de envios</li>
+                  <li>Agende envios para horários comerciais para melhores resultados</li>
+                  <li>Ative o aprendizado de IA para aprimorar campanhas futuras</li>
+                  <li>Monitore os resultados no histórico de envios</li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="history">
+          <SendingList />
+        </TabsContent>
+        
+        <TabsContent value="templates">
+          <TemplateManager />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
