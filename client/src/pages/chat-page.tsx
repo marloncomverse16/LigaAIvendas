@@ -62,8 +62,34 @@ export default function ChatPage() {
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const chatContentRef = useRef<HTMLDivElement>(null);
+  const contactsPanelRef = useRef<HTMLDivElement>(null);
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
   const [messageText, setMessageText] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [contactsPanelWidth, setContactsPanelWidth] = useState(300);
+  
+  // Função para iniciar o redimensionamento da área de contatos
+  const startResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    const startWidth = contactsPanelWidth;
+    const startX = e.clientX;
+    
+    function onMouseMove(moveEvent: MouseEvent) {
+      const newWidth = startWidth + (moveEvent.clientX - startX);
+      if (newWidth >= 200 && newWidth <= 400) {
+        setContactsPanelWidth(newWidth);
+      }
+    }
+    
+    function onMouseUp() {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+    
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [contactsPanelWidth]);
   
   // Verificar status da conexão do WhatsApp
   const { data: connectionStatus, isLoading, error, refetch } = useQuery({
@@ -297,7 +323,7 @@ export default function ChatPage() {
   return (
     <DashboardLayout>
       <div className="flex flex-col h-screen w-full p-0 m-0">
-        <div className="px-2 py-2">
+        <div className="px-1 py-2">
           <h1 className="text-3xl font-bold">CHAT</h1>
           <p className="text-muted-foreground">
             Interface de conversas do WhatsApp
@@ -306,10 +332,25 @@ export default function ChatPage() {
         
         {/* Interface do Chat */}
         <div className="h-[calc(100vh-8rem)] flex flex-1 overflow-hidden border-t border-border">
-          {/* Painel de contatos (Esquerda) - Largura fixa de 300px */}
+          {/* Painel de contatos (Esquerda) - Com largura redimensionável */}
           <div
-            className="w-[300px] min-w-[280px] border-r border-border flex flex-col h-full relative"
+            ref={contactsPanelRef}
+            className="border-r border-border flex flex-col h-full relative group/contacts"
+            style={{ width: `${contactsPanelWidth}px`, minWidth: '200px', maxWidth: '400px' }}
           >
+            {/* Handle de redimensionamento */}
+            <div 
+              ref={resizeHandleRef}
+              className="absolute right-0 top-0 w-2 h-full bg-primary/20 opacity-0 group-hover/contacts:opacity-100 cursor-ew-resize z-10 transition-opacity"
+              onMouseDown={startResize}
+            ></div>
+            {/* Dica de redimensionamento visível */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 bg-primary/30 rounded-l-full p-1 opacity-0 group-hover/contacts:opacity-100 z-20 transition-opacity">
+              <div className="flex flex-col items-center justify-center gap-1">
+                <ChevronLeft className="h-3 w-3 text-primary-foreground" />
+                <ChevronRight className="h-3 w-3 text-primary-foreground" />
+              </div>
+            </div>
             {/* Cabeçalho do painel de contatos */}
             <div className="p-3 bg-card border-b border-border flex items-center justify-between">
               <div className="flex items-center">
