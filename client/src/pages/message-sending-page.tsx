@@ -477,20 +477,22 @@ const CreateSendingForm = () => {
       const historyData = await historyRes.json();
       console.log("Registro de histórico criado:", historyData);
       
-      // Agora enviar para o webhook incluindo o sendingId obrigatório
-      const webhookRes = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          sendingId: historyData.id, // Campo obrigatório para o webhook
-          searchId: data.searchId,
-          message: data.customMessage,
-          templateId: data.templateId,
-          quantity: data.quantity,
-          apiUrl: window.location.origin
-        })
+      // Agora enviar para o webhook incluindo o sendingId obrigatório como parâmetro GET
+      // Construir URL com parâmetros de query para o método GET
+      const params = new URLSearchParams({
+        sendingId: historyData.id.toString(), // Campo obrigatório para o webhook
+        searchId: data.searchId.toString(),
+        message: data.customMessage || "",
+        templateId: data.templateId ? data.templateId.toString() : "",
+        quantity: data.quantity ? data.quantity.toString() : "10",
+        apiUrl: window.location.origin
+      });
+      
+      const webhookUrlWithParams = `${webhookUrl}?${params.toString()}`;
+      console.log("Enviando webhook via GET:", webhookUrlWithParams);
+      
+      const webhookRes = await fetch(webhookUrlWithParams, {
+        method: "GET"
       });
       
       if (!webhookRes.ok) {
