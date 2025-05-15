@@ -306,11 +306,22 @@ export default function ServerManagementPage() {
       console.log("Dados enviados:", JSON.stringify(data, null, 2));
       
       try {
-        // Garantir que os campos numéricos sejam enviados como números
+        // Garantir que todos os campos importantes sejam tratados corretamente
         const processedData = {
           ...data,
-          maxUsers: Number(data.maxUsers)
+          maxUsers: Number(data.maxUsers),
+          // Garantir que os campos de webhook sejam incluídos mesmo que sejam null
+          messageSendingWebhookUrl: data.messageSendingWebhookUrl || null,
+          whatsappWebhookUrl: data.whatsappWebhookUrl || null,
+          aiAgentWebhookUrl: data.aiAgentWebhookUrl || null,
+          prospectingWebhookUrl: data.prospectingWebhookUrl || null,
+          contactsWebhookUrl: data.contactsWebhookUrl || null,
+          schedulingWebhookUrl: data.schedulingWebhookUrl || null,
+          crmWebhookUrl: data.crmWebhookUrl || null,
         };
+        
+        console.log("Dados processados (VERIFICAR WEBHOOK URL):", JSON.stringify(processedData, null, 2));
+        console.log("messageSendingWebhookUrl:", processedData.messageSendingWebhookUrl);
         
         const res = await apiRequest("PUT", `/api/servers/${id}`, processedData);
         console.log("Resposta recebida com status:", res.status);

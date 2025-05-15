@@ -12,12 +12,36 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const isServerUpdate = url.includes('/api/servers/') && method === 'PUT';
+  
+  if (isServerUpdate) {
+    console.log('API REQUEST (Atualização de Servidor):', { url, method });
+    console.log('DADOS COMPLETOS:', JSON.stringify(data, null, 2));
+    // Verificar especificamente o campo messageSendingWebhookUrl
+    if (data && typeof data === 'object') {
+      const dataObj = data as any;
+      console.log('CAMPO messageSendingWebhookUrl:', dataObj.messageSendingWebhookUrl);
+    }
+  }
+  
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
+
+  if (isServerUpdate) {
+    console.log('API RESPONSE STATUS (Atualização de Servidor):', res.status);
+    try {
+      // Clone para não consumir o corpo da resposta
+      const clonedRes = res.clone();
+      const responseData = await clonedRes.json();
+      console.log('API RESPONSE DATA (Atualização de Servidor):', JSON.stringify(responseData, null, 2));
+    } catch (e) {
+      console.error('Erro ao fazer parse da resposta JSON:', e);
+    }
+  }
 
   await throwIfResNotOk(res);
   return res;
