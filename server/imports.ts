@@ -5,7 +5,7 @@
 import { importCSVContent } from "./csvImporter";
 import { IStorage } from "./storage";
 import fs from "fs";
-import * as xlsx from "xlsx";
+import xlsx from "xlsx";
 
 /**
  * Processa a importação de um arquivo de prospecção
