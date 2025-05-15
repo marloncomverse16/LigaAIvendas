@@ -1282,13 +1282,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Obter cabeçalhos
         const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
         
-        // Verificar se existem os cabeçalhos necessários
-        const nameHeaderIndex = headers.findIndex(h => h === 'nome' || h === 'name');
+        // Mapeamento flexível de cabeçalhos - permite reconhecer vários formatos possíveis
+        const headerMap: {[key: string]: string[]} = {
+          name: ['nome', 'name', 'empresa', 'razão social', 'razao social', 'razaosocial', 'cliente', 'contato', 'lead'],
+          email: ['email', 'e-mail', 'correio eletrônico', 'correio eletronico', 'correio', 'mail'],
+          phone: ['telefone', 'phone', 'fone', 'celular', 'whatsapp', 'contato', 'tel', 'número', 'numero'],
+          address: ['endereço', 'endereco', 'address', 'logradouro', 'rua', 'avenida', 'local'],
+          cidade: ['cidade', 'city', 'municipio', 'município', 'localidade'],
+          estado: ['estado', 'state', 'uf', 'província', 'provincia'],
+          site: ['site', 'website', 'web', 'url', 'link', 'domínio', 'dominio'],
+          type: ['tipo', 'type', 'categoria', 'segmento', 'nicho', 'classificação', 'classificacao']
+        };
         
-        if (nameHeaderIndex === -1) {
+        // Identifica automaticamente qual coluna no arquivo corresponde a cada campo no banco
+        // Essa função retorna -1 se não encontrar nenhuma correspondência
+        const getColumnIndex = (fieldType: string) => {
+          const possibleNames = headerMap[fieldType];
+          for (const possibleName of possibleNames) {
+            const index = headers.findIndex(h => 
+              h === possibleName || 
+              h.includes(possibleName) || 
+              possibleName.includes(h));
+            if (index !== -1) return index;
+          }
+          return -1;
+        };
+        
+        // Tentar encontrar ao menos um campo identificável
+        const nameIndex = getColumnIndex('name');
+        const emailIndex = getColumnIndex('email');
+        const phoneIndex = getColumnIndex('phone');
+        
+        // Verifica se temos pelo menos um dado essencial (nome, email ou telefone)
+        if (nameIndex === -1 && emailIndex === -1 && phoneIndex === -1) {
+          console.error("Nenhuma coluna essencial encontrada no arquivo:", headers);
           await storage.updateProspectingSearch(search.id, { status: "erro" });
-          return res.status(400).json({ message: "Arquivo não contém coluna nome/name" });
+          return res.status(400).json({ 
+            message: "Não foi possível identificar colunas essenciais no arquivo (nome, email ou telefone)", 
+            suggestedFormat: "Use um dos seguintes nomes para as colunas: nome/name, email, telefone/phone",
+            columnsFound: headers
+          });
         }
+        
+        // Obter índices de todas as colunas possíveis usando nosso mapeamento flexível
+        const addressIndex = getColumnIndex('address');
+        const cidadeIndex = getColumnIndex('cidade');
+        const estadoIndex = getColumnIndex('estado');
+        const siteIndex = getColumnIndex('site');
+        const typeIndex = getColumnIndex('type');
+        
+        console.log("Mapeamento de colunas do arquivo CSV:", {
+          nome: nameIndex !== -1 ? headers[nameIndex] : "não encontrado",
+          email: emailIndex !== -1 ? headers[emailIndex] : "não encontrado",
+          telefone: phoneIndex !== -1 ? headers[phoneIndex] : "não encontrado",
+          endereco: addressIndex !== -1 ? headers[addressIndex] : "não encontrado",
+          cidade: cidadeIndex !== -1 ? headers[cidadeIndex] : "não encontrado",
+          estado: estadoIndex !== -1 ? headers[estadoIndex] : "não encontrado",
+          site: siteIndex !== -1 ? headers[siteIndex] : "não encontrado",
+          tipo: typeIndex !== -1 ? headers[typeIndex] : "não encontrado"
+        });
         
         // Processar linhas
         for (let i = 1; i < lines.length; i++) {
@@ -1296,22 +1348,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const values = lines[i].split(',').map(v => v.trim());
           
-          if (values.length < headers.length) continue;
+          // Aceita linhas mesmo que não tenham todas as colunas
+          if (values.length < 1) continue;
           
-          const lead: {[key: string]: string | null} = {};
+          const lead: {[key: string]: string | null} = { searchId: search.id };
           
-          headers.forEach((header: string, index: number) => {
-            if (header === 'nome' || header === 'name') lead.name = values[index] || null;
-            else if (header === 'email') lead.email = values[index] || null;
-            else if (header === 'telefone' || header === 'phone') lead.phone = values[index] || null;
-            else if (header === 'endereco' || header === 'address') lead.address = values[index] || null;
-            else if (header === 'cidade' || header === 'city') lead.cidade = values[index] || null;
-            else if (header === 'estado' || header === 'state' || header === 'uf') lead.estado = values[index] || null;
-            else if (header === 'site' || header === 'website' || header === 'url') lead.site = values[index] || null;
-            else if (header === 'tipo' || header === 'type') lead.type = values[index] || null;
-          });
+          // Adiciona campos apenas se tiver o índice da coluna
+          if (nameIndex !== -1 && values[nameIndex]) lead.name = values[nameIndex];
+          if (emailIndex !== -1 && values[emailIndex]) lead.email = values[emailIndex];
+          if (phoneIndex !== -1 && values[phoneIndex]) lead.phone = values[phoneIndex];
+          if (addressIndex !== -1 && values[addressIndex]) lead.address = values[addressIndex];
+          if (cidadeIndex !== -1 && values[cidadeIndex]) lead.cidade = values[cidadeIndex];
+          if (estadoIndex !== -1 && values[estadoIndex]) lead.estado = values[estadoIndex];
+          if (siteIndex !== -1 && values[siteIndex]) lead.site = values[siteIndex];
+          if (typeIndex !== -1 && values[typeIndex]) lead.type = values[typeIndex];
           
-          leads.push(lead);
+          // Adiciona à lista apenas se tiver pelo menos um dado importante
+          if (lead.name || lead.email || lead.phone) {
+            leads.push(lead);
+          }
         }
       } else {
         // Para arquivos Excel, você precisaria usar uma biblioteca como exceljs ou xlsx

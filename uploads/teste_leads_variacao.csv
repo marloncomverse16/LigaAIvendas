@@ -1,0 +1,4 @@
+nome_empresa,mail,numero,logradouro,cidade,uf,website,categoria
+Empresa ABC Ltda,contato@empresaabc.com.br,11999887766,Rua das Flores 123,São Paulo,SP,www.empresaabc.com.br,Varejo
+Consultoria XYZ,atendimento@consultoriaxyz.com,21988776655,Av. Principal 456,Rio de Janeiro,RJ,www.consultoriaxyz.com,Serviços
+Tech Solutions,contato@techsolutions.com.br,51977665544,Rua da Inovação 789,Porto Alegre,RS,www.techsolutions.com.br,Tecnologia
