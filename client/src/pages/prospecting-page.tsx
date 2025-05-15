@@ -177,7 +177,6 @@ export default function ProspectingPage() {
         description: `${data.leadsFound} leads importados com sucesso`,
       });
       setImportFile(null);
-      setPreviewData([]);
       setImportError(null);
       setImportMethod("form");
       queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
@@ -199,7 +198,6 @@ export default function ProspectingPage() {
     
     if (!file) {
       setImportFile(null);
-      setPreviewData([]);
       return;
     }
     
@@ -208,70 +206,10 @@ export default function ProspectingPage() {
     if (!validTypes.includes(file.type) && !file.name.endsWith('.csv')) {
       setImportError("Formato de arquivo inválido. Use CSV ou Excel.");
       setImportFile(null);
-      setPreviewData([]);
       return;
     }
     
     setImportFile(file);
-    
-    // Para CSV, tenta mostrar preview
-    if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const text = e.target?.result as string;
-          const lines = text.split('\n');
-          if (lines.length > 0) {
-            // Detectar separador (vírgula ou ponto e vírgula)
-            let separator = ',';
-            const testLine = lines[1] || '';
-            
-            if (testLine.indexOf(';') > -1 && (testLine.indexOf(',') === -1 || testLine.split(';').length > testLine.split(',').length)) {
-              separator = ';';
-              console.log("Preview: Detectado separador de CSV como ponto e vírgula (;)");
-            }
-            
-            const headers = lines[0].split(separator);
-            const previewLines = [];
-            
-            // Processar até 5 linhas para preview
-            for (let i = 1; i < Math.min(lines.length, 6); i++) {
-              if (lines[i].trim()) {
-                const values = lines[i].split(separator);
-                const row: any = {};
-                
-                // Cria um objeto com os dados para visualização
-                headers.forEach((header, index) => {
-                  row[header.trim()] = values[index]?.trim() || '';
-                });
-                
-                // Garantia de que haverá pelo menos nome, email, telefone no preview
-                const hasNameCol = headers.some(h => 
-                  h.toLowerCase().includes('nome') || 
-                  h.toLowerCase().includes('name') || 
-                  h.toLowerCase().includes('empresa') || 
-                  h.toLowerCase().includes('razao'));
-                
-                if (headers.length > 0 && !hasNameCol) {
-                  // Adiciona rótulos se não existirem
-                  if (headers.length > 0) row['Nome/Empresa'] = values[0] || '';
-                  if (headers.length > 1) row['Email/Contato'] = values[1] || '';
-                  if (headers.length > 2) row['Telefone'] = values[2] || '';
-                }
-                
-                previewLines.push(row);
-              }
-            }
-            
-            setPreviewData(previewLines);
-          }
-        } catch (error) {
-          console.error("Erro ao processar preview do arquivo:", error);
-          setImportError("Erro ao processar o arquivo. Verifique o formato.");
-        }
-      };
-      reader.readAsText(file);
-    }
   };
 
   // Função para importar a lista
@@ -1006,35 +944,7 @@ export default function ProspectingPage() {
                                   </Alert>
                                 )}
                                 
-                                {previewData.length > 0 && (
-                                  <div className="mt-4">
-                                    <h4 className="text-sm font-medium mb-2">Preview de Dados:</h4>
-                                    <div className="border rounded-md overflow-x-auto">
-                                      <table className="min-w-full divide-y divide-border">
-                                        <thead className="bg-muted">
-                                          <tr>
-                                            {Object.keys(previewData[0]).map((header) => (
-                                              <th key={header} className="px-4 py-2 text-xs font-medium text-muted-foreground text-left">
-                                                {header}
-                                              </th>
-                                            ))}
-                                          </tr>
-                                        </thead>
-                                        <tbody className="bg-popover divide-y divide-border">
-                                          {previewData.map((row, i) => (
-                                            <tr key={i}>
-                                              {Object.values(row).map((value, j) => (
-                                                <td key={j} className="px-4 py-2 text-xs whitespace-nowrap">
-                                                  {String(value)}
-                                                </td>
-                                              ))}
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </div>
-                                )}
+
                               </div>
                             </div>
                             
