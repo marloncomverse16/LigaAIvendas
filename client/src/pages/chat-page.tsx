@@ -62,8 +62,11 @@ export default function ChatPage() {
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const chatContentRef = useRef<HTMLDivElement>(null);
+  const contactsPanelRef = useRef<HTMLDivElement>(null);
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
   const [messageText, setMessageText] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [contactsPanelWidth, setContactsPanelWidth] = useState(300);
   
   // Verificar status da conexão do WhatsApp
   const { data: connectionStatus, isLoading, error, refetch } = useQuery({
@@ -296,8 +299,8 @@ export default function ChatPage() {
 
   return (
     <DashboardLayout>
-      <div className="px-0 py-4 w-full max-w-full">
-        <div className="px-4 mb-2">
+      <div className="p-0 w-full max-w-full">
+        <div className="px-2 mb-2">
           <h1 className="text-3xl font-bold">CHAT</h1>
           <p className="text-muted-foreground">
             Interface de conversas do WhatsApp
@@ -305,13 +308,16 @@ export default function ChatPage() {
         </div>
         
         {/* Interface do Chat */}
-        <div className="h-[calc(100vh-10rem)] flex flex-1 overflow-hidden border rounded-lg shadow-sm mx-4">
-          {/* Painel de contatos (Esquerda) - Com largura ajustável */}
-          <div className="w-[300px] min-w-[280px] max-w-[400px] border-r border-border flex flex-col h-full relative resize-x overflow-hidden group/contacts">
+        <div className="h-[calc(100vh-8rem)] flex flex-1 overflow-hidden border shadow-sm">
+          {/* Painel de contatos (Esquerda) - Com largura ajustável usando ResizablePanel */}
+          <div
+            className="w-[300px] min-w-[200px] max-w-[400px] border-r border-border flex flex-col h-full relative group/contacts"
+            style={{resize: "horizontal", overflow: "hidden"}}
+          >
             {/* Indicador de redimensionamento */}
-            <div className="absolute right-0 top-0 w-1 h-full bg-primary/20 opacity-0 group-hover/contacts:opacity-100 cursor-ew-resize z-10 transition-opacity"></div>
-            {/* Dica de redimensionamento */}
-            <div className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary/20 rounded-full p-1 opacity-0 group-hover/contacts:opacity-100 z-10 transition-opacity">
+            <div className="absolute right-0 top-0 w-2 h-full bg-primary/20 opacity-0 group-hover/contacts:opacity-100 cursor-ew-resize z-10 transition-opacity"></div>
+            {/* Dica de redimensionamento visível */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 bg-primary/30 rounded-l-full p-1 opacity-60 group-hover/contacts:opacity-100 z-20 transition-opacity">
               <div className="flex flex-col items-center justify-center gap-1">
                 <ChevronLeft className="h-3 w-3 text-primary-foreground" />
                 <ChevronRight className="h-3 w-3 text-primary-foreground" />
