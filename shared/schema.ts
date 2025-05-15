@@ -454,6 +454,22 @@ export const messageSendingHistory = pgTable("message_sending_history", {
   status: text("status").default("sucesso"), // sucesso, erro, pendente
   errorMessage: text("error_message"),
   sentAt: timestamp("sent_at").defaultNow(),
+  
+  // Campos adicionais para suporte ao envio direto pela Meta API
+  userId: integer("user_id").references(() => users.id),
+  searchId: integer("search_id").references(() => prospectingSearches.id),
+  templateId: text("template_id"), // ID do template (para Meta API)
+  templateName: text("template_name"), // Nome do template (para Meta API)
+  messageText: text("message_text"), // Texto da mensagem (para mensagens diretas)
+  connectionType: text("connection_type"), // whatsapp_qr ou whatsapp_meta_api
+  totalRecipients: integer("total_recipients"),
+  successCount: integer("success_count").default(0),
+  errorCount: integer("error_count").default(0),
+  webhookUrl: text("webhook_url"), // Para envios via webhook
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
 });
 
 // Schema para inserção de mensagens padrão
@@ -481,6 +497,16 @@ export const insertMessageSendingHistorySchema = createInsertSchema(messageSendi
   resultId: true,
   status: true,
   errorMessage: true,
+  
+  // Campos adicionais para o novo fluxo de envio
+  userId: true,
+  searchId: true,
+  templateId: true,
+  templateName: true,
+  messageText: true,
+  connectionType: true,
+  totalRecipients: true,
+  webhookUrl: true,
 });
 
 // Types
@@ -717,6 +743,10 @@ export const insertUserAiAgentSchema = createInsertSchema(userAiAgents).pick({
   agentId: true,
   isDefault: true,
 });
+
+// Tipos de conexão para envio de mensagens
+export const messageSendingConnectionTypes = ["whatsapp_qr", "whatsapp_meta_api"] as const;
+export type MessageSendingConnectionType = (typeof messageSendingConnectionTypes)[number];
 
 // Types
 export type Server = typeof servers.$inferSelect;
