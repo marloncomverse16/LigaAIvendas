@@ -230,9 +230,26 @@ export default function ProspectingPage() {
               if (lines[i].trim()) {
                 const values = lines[i].split(',');
                 const row: any = {};
+                
+                // Cria um objeto com os dados para visualização
                 headers.forEach((header, index) => {
                   row[header.trim()] = values[index]?.trim() || '';
                 });
+                
+                // Garantia de que haverá pelo menos nome, email, telefone no preview
+                const hasNameCol = headers.some(h => 
+                  h.toLowerCase().includes('nome') || 
+                  h.toLowerCase().includes('name') || 
+                  h.toLowerCase().includes('empresa') || 
+                  h.toLowerCase().includes('razao'));
+                
+                if (headers.length > 0 && !hasNameCol) {
+                  // Adiciona rótulos se não existirem
+                  if (headers.length > 0) row['Nome/Empresa'] = values[0] || '';
+                  if (headers.length > 1) row['Email/Contato'] = values[1] || '';
+                  if (headers.length > 2) row['Telefone'] = values[2] || '';
+                }
+                
                 previewLines.push(row);
               }
             }

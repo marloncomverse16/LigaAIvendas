@@ -1398,15 +1398,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const lead: {[key: string]: string | null} = { searchId: search.id };
           
-          // Adiciona campos apenas se tiver o índice da coluna
-          if (nameIndex !== -1 && values[nameIndex]) lead.name = values[nameIndex];
-          if (emailIndex !== -1 && values[emailIndex]) lead.email = values[emailIndex];
-          if (phoneIndex !== -1 && values[phoneIndex]) lead.phone = values[phoneIndex];
+          // Adiciona campos usando os índices corrigidos (normais ou forçados)
+          if (nameIdx !== -1 && values[nameIdx]) lead.name = values[nameIdx];
+          if (emailIdx !== -1 && values[emailIdx]) lead.email = values[emailIdx];
+          if (phoneIdx !== -1 && values[phoneIdx]) lead.phone = values[phoneIdx];
           if (addressIndex !== -1 && values[addressIndex]) lead.address = values[addressIndex];
           if (cidadeIndex !== -1 && values[cidadeIndex]) lead.cidade = values[cidadeIndex];
           if (estadoIndex !== -1 && values[estadoIndex]) lead.estado = values[estadoIndex];
           if (siteIndex !== -1 && values[siteIndex]) lead.site = values[siteIndex];
           if (typeIndex !== -1 && values[typeIndex]) lead.type = values[typeIndex];
+          
+          // Modo de emergência: Se ainda não temos nada, use as primeiras colunas
+          if (!lead.name && !lead.email && !lead.phone && values.length > 0) {
+            console.log("MODO DE EMERGÊNCIA: usando primeiras colunas como dados");
+            if (values[0]) lead.name = values[0];
+            if (values.length > 1 && values[1]) lead.email = values[1]; 
+            if (values.length > 2 && values[2]) lead.phone = values[2];
+          }
           
           // Adiciona à lista apenas se tiver pelo menos um dado importante
           if (lead.name || lead.email || lead.phone) {
