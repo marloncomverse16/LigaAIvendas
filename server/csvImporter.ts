@@ -153,6 +153,88 @@ function normalizeString(str: string): string {
 }
 
 /**
+ * Decodifica caracteres especiais que podem ter sido mal interpretados
+ * durante a leitura do arquivo CSV
+ */
+function decodeSpecialChars(str: string): string {
+  try {
+    // Tenta múltiplas abordagens para lidar com caracteres especiais
+    let decoded = str;
+    
+    // Substituir símbolos conhecidos por problema de encoding
+    const replacements: Record<string, string> = {
+      'Ã£': 'ã', 'Ã¡': 'á', 'Ã¢': 'â', 'Ã ': 'à', 'Ã©': 'é',
+      'Ãª': 'ê', 'Ã­': 'í', 'Ã³': 'ó', 'Ã´': 'ô', 'Ãµ': 'õ',
+      'Ãº': 'ú', 'Ã§': 'ç', 'Ã‡': 'Ç', 'Ã€': 'À', 'Ã': 'Á',
+      'Ã‚': 'Â', 'Ãƒ': 'Ã', 'Ã‰': 'É', 'ÃŠ': 'Ê', 'S�o': 'São',
+      'S�': 'Sã', '�o': 'ão', 'S\u00E3o': 'São'
+    };
+    
+    // Aplicar substituições específicas
+    Object.entries(replacements).forEach(([bad, good]) => {
+      decoded = decoded.replace(new RegExp(bad, 'g'), good);
+    });
+    
+    // Se o texto ainda parece ter problemas, tenta normalizar de outra forma
+    if (decoded.includes('�') || decoded.includes('?')) {
+      // Usa uma abordagem mais simples, removendo caracteres problemáticos
+      decoded = decoded
+        .replace(/[^\w\s.,;:()'"/\\-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    
+    return decoded;
+  } catch (e) {
+    // Em caso de erro, retorna a string original
+    return str;
+  }
+}
+
+/**
+ * Formata um número de telefone para o padrão WhatsApp
+ * Exemplo de entrada: "+55 (43) 99114-2751"
+ * Exemplo de saída: "5543991142751"
+ */
+function formatPhoneNumber(phone: string): string {
+  if (!phone) return '';
+  
+  // Se parece ser notação científica (como 5.54E+12), tenta converter corretamente
+  if (phone.includes('E+') || phone.includes('e+')) {
+    try {
+      // Converte para número e depois para string para remover a notação científica
+      const num = Number(phone);
+      if (!isNaN(num)) {
+        return String(num).replace(/\D/g, '');
+      }
+    } catch (e) {
+      // Se falhar, continua com o processamento normal
+    }
+  }
+  
+  // Remove todos os caracteres não numéricos
+  let cleaned = phone.replace(/\D/g, '');
+  
+  // Se começar com zero, remove-o
+  if (cleaned.startsWith('0')) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  // Se não tiver o código do país (55 para Brasil) e tiver pelo menos 10 dígitos (DDD + número)
+  // consideramos que é um número brasileiro e adicionamos o 55
+  if (!cleaned.startsWith('55') && cleaned.length >= 10) {
+    cleaned = '55' + cleaned;
+  }
+  
+  // Se for um número muito curto ou inválido, registra um aviso
+  if (cleaned.length < 10) {
+    console.warn(`Número de telefone possivelmente inválido após formatação: ${cleaned} (original: ${phone})`);
+  }
+  
+  return cleaned;
+}
+
+/**
  * Importa dados de um arquivo CSV para o sistema de prospecção
  * @param fileContent Conteúdo do arquivo CSV como string
  * @param searchId ID da busca de prospecção
@@ -245,11 +327,34 @@ export async function importCSVContent(
         searchId: searchId 
       };
       
-      // Adiciona campos usando os índices identificados
-      if (nameIdx !== -1 && values[nameIdx]) lead.name = values[nameIdx];
-      if (emailIdx !== -1 && values[emailIdx]) lead.email = values[emailIdx];
-      if (phoneIdx !== -1 && values[phoneIdx]) lead.phone = values[phoneIdx];
-      if (addressIdx !== -1 && values[addressIdx]) lead.address = values[addressIdx];
+      // Adiciona campos usando os índices identificados, com tratamento especial para certos campos
+      if (nameIdx !== -1 && values[nameIdx]) {
+        // Nome: mantém como está, mas garante que está decodificado corretamente
+        try {
+          lead.name = decodeSpecialChars(values[nameIdx]);
+        } catch (e) {
+          lead.name = values[nameIdx];
+        }
+      }
+      
+      if (emailIdx !== -1 && values[emailIdx]) {
+        // Email: remove espaços extras
+        lead.email = values[emailIdx].trim();
+      }
+      
+      if (phoneIdx !== -1 && values[phoneIdx]) {
+        // Telefone: formata no padrão 5543991142751
+        lead.phone = formatPhoneNumber(values[phoneIdx]);
+      }
+      
+      if (addressIdx !== -1 && values[addressIdx]) {
+        // Endereço: garante que está decodificado corretamente
+        try {
+          lead.address = decodeSpecialChars(values[addressIdx]);
+        } catch (e) {
+          lead.address = values[addressIdx];
+        }
+      }
       
       // Tratamento especial para cidade e estado
       // Se os dois índices são os mesmos, provavelmente é um campo combinado como "cidade:estado"
@@ -273,17 +378,51 @@ export async function importCSVContent(
             }
           }
           
-          lead.cidade = cidadeValue;
-          if (estadoValue) lead.estado = estadoValue;
+          // Decodifica caracteres especiais antes de atribuir
+          try {
+            lead.cidade = decodeSpecialChars(cidadeValue);
+          } catch (e) {
+            lead.cidade = cidadeValue;
+          }
+          
+          if (estadoValue) {
+            try {
+              lead.estado = decodeSpecialChars(estadoValue);
+            } catch (e) {
+              lead.estado = estadoValue;
+            }
+          }
         }
       } else {
         // Processamento normal quando são campos separados
-        if (cidadeIdx !== -1 && values[cidadeIdx]) lead.cidade = values[cidadeIdx];
-        if (estadoIdx !== -1 && values[estadoIdx]) lead.estado = values[estadoIdx];
+        if (cidadeIdx !== -1 && values[cidadeIdx]) {
+          try {
+            lead.cidade = decodeSpecialChars(values[cidadeIdx]);
+          } catch (e) {
+            lead.cidade = values[cidadeIdx];
+          }
+        }
+        
+        if (estadoIdx !== -1 && values[estadoIdx]) {
+          try {
+            lead.estado = decodeSpecialChars(values[estadoIdx]);
+          } catch (e) {
+            lead.estado = values[estadoIdx];
+          }
+        }
       }
       
-      if (siteIdx !== -1 && values[siteIdx]) lead.site = values[siteIdx];
-      if (typeIdx !== -1 && values[typeIdx]) lead.type = values[typeIdx];
+      if (siteIdx !== -1 && values[siteIdx]) {
+        lead.site = values[siteIdx].trim();
+      }
+      
+      if (typeIdx !== -1 && values[typeIdx]) {
+        try {
+          lead.type = decodeSpecialChars(values[typeIdx]);
+        } catch (e) {
+          lead.type = values[typeIdx];
+        }
+      }
       
       // Certifica que ao menos um dos campos principais tem valor
       if (!lead.name && !lead.email && !lead.phone) {
