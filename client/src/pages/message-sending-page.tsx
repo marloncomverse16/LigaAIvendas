@@ -846,6 +846,9 @@ const CreateSendingForm = () => {
     }
   }, [form, toast]);
   
+  // Obter o usuário autenticado da sessão 
+  const { user } = useAuth();
+  
   // Função para lidar com o envio do formulário
   const onSubmit = (data) => {
     // Verificar se pelo menos um método de mensagem foi selecionado
@@ -858,8 +861,20 @@ const CreateSendingForm = () => {
       return;
     }
     
-    // Realizar o envio
-    createSendingMutation.mutate(data);
+    // Adicionar o userId ao payload
+    const payload = {
+      ...data,
+      userId: user?.id
+    };
+    
+    // Determinar qual tipo de envio será feito com base na conexão selecionada
+    if (data.whatsappConnectionType === "qrcode") {
+      // Para QR Code, usar o webhook configurado no servidor
+      sendViaWebhookMutation.mutate(payload);
+    } else if (data.whatsappConnectionType === "meta") {
+      // Para Meta API, enviar diretamente via API
+      sendViaMetaApiMutation.mutate(payload);
+    }
   };
   
   return (
@@ -1263,9 +1278,9 @@ const CreateSendingForm = () => {
             <Button 
               type="submit" 
               className="w-full"
-              disabled={createSendingMutation.isPending}
+              disabled={sendViaWebhookMutation.isPending || sendViaMetaApiMutation.isPending}
             >
-              {createSendingMutation.isPending ? (
+              {sendViaWebhookMutation.isPending || sendViaMetaApiMutation.isPending ? (
                 <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Send className="mr-2 h-4 w-4" />
