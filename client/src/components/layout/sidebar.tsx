@@ -73,61 +73,59 @@ export function Sidebar() {
       icon: <Bot size={collapsed ? 24 : 20} />,
       permissionKey: "accessAiAgent"
     },
-    // 6 - CHAT
+    // 6-9 - Bloco CHAT, Leads, Agendamentos, Contatos
     { 
       path: "/chat", 
       label: "CHAT", 
       icon: <MessagesSquare size={collapsed ? 24 : 20} />, 
       permissionKey: "accessWhatsapp"
     },
-    // 7 - Contatos
+    { 
+      path: "/leads", 
+      label: "Leads", 
+      icon: <Users size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessLeads"
+    },
+    { 
+      path: "/appointments", 
+      label: "Agendamentos", 
+      icon: <Calendar size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessScheduling"
+    },
     { 
       path: "/contatos", 
       label: "Contatos", 
       icon: <PhoneCall size={collapsed ? 24 : 20} />, 
       permissionKey: "accessContacts"
     },
-    // 8 - Relatórios
+    // 10 - Relatórios
     { 
       path: "/reports", 
       label: "Relatórios", 
       icon: <Users size={collapsed ? 24 : 20} />, 
       permissionKey: "accessReports"
     },
-    // 9 - Gerenciar Usuários
+    // 11 - Gerenciar Usuários
     { 
       path: "/admin-users", 
       label: "Gerenciar Usuários", 
       icon: <UsersRound size={collapsed ? 24 : 20} />, 
       permissionKey: "isAdmin"  // Somente administradores
     },
-    // 10 - Gerenciar Servidores
+    // 12 - Gerenciar Servidores
     { 
       path: "/servers", 
       label: "Gerenciar Servidores", 
       icon: <Server size={collapsed ? 24 : 20} />, 
       permissionKey: "isAdmin"  // Somente administradores
     },
-    // 11 - Configurações
+    // 13 - Configurações
     { 
       path: "/settings", 
       label: "Configurações", 
       icon: <Settings size={collapsed ? 24 : 20} />, 
       permissionKey: "accessSettings"
     },
-    // Removidos: Leads e Agendamentos
-    // { 
-    //   path: "/leads", 
-    //   label: "Leads", 
-    //   icon: <Users size={collapsed ? 24 : 20} />, 
-    //   permissionKey: "accessLeads"
-    // },
-    // { 
-    //   path: "/appointments", 
-    //   label: "Agendamentos", 
-    //   icon: <Calendar size={collapsed ? 24 : 20} />, 
-    //   permissionKey: "accessScheduling"
-    // },
   ];
   
   return (
