@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Link } from "wouter";
 import { 
   MessagesSquare, 
   AlertCircle, 
@@ -28,7 +29,9 @@ import {
   Search,
   MoreVertical,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LayoutDashboard,
+  PhoneCall
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -321,8 +324,33 @@ export default function ChatPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="flex flex-col h-full w-full overflow-hidden bg-background">
+    <div className="flex h-screen">
+      {/* Adicionando a Sidebar diretamente */}
+      <div className="bg-sidebar h-full shadow-md flex flex-col text-white" style={{ width: '64px', minWidth: '64px', maxWidth: '64px' }}>
+        <Link href="/dashboard">
+          <div className="p-4 flex justify-center">
+            <LayoutDashboard className="h-5 w-5 text-white" />
+          </div>
+        </Link>
+        <Link href="/conexoes">
+          <div className="p-4 flex justify-center">
+            <PhoneCall className="h-5 w-5 text-white" />
+          </div>
+        </Link>
+        <Link href="/envio-mensagens">
+          <div className="p-4 flex justify-center">
+            <Send className="h-5 w-5 text-white" />
+          </div>
+        </Link>
+        <Link href="/chat">
+          <div className="p-4 flex justify-center bg-primary/30">
+            <MessagesSquare className="h-5 w-5 text-white" />
+          </div>
+        </Link>
+      </div>
+      
+      {/* Conteúdo principal */}
+      <div className="flex flex-col w-full h-full overflow-hidden bg-background">
         <div className="py-1 px-2 bg-background/95 backdrop-blur-sm z-10 sticky top-0 border-b border-border">
           <div className="flex items-center space-x-3">
             <h1 className="text-lg font-semibold">CHAT</h1>
@@ -614,6 +642,6 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
