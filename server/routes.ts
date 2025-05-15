@@ -1298,13 +1298,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Essa função retorna -1 se não encontrar nenhuma correspondência
         const getColumnIndex = (fieldType: string) => {
           const possibleNames = headerMap[fieldType];
+          
+          // Imprime todos os cabeçalhos do arquivo para debug
+          console.log("Cabeçalhos encontrados no arquivo:", headers);
+          
+          // Tenta encontrar correspondência exata primeiro
+          for (const possibleName of possibleNames) {
+            const index = headers.findIndex(h => h === possibleName);
+            if (index !== -1) {
+              console.log(`Campo ${fieldType} encontrado exatamente como "${possibleName}" no índice ${index}`);
+              return index;
+            }
+          }
+          
+          // Em seguida, tenta correspondência parcial
           for (const possibleName of possibleNames) {
             const index = headers.findIndex(h => 
-              h === possibleName || 
               h.includes(possibleName) || 
               possibleName.includes(h));
-            if (index !== -1) return index;
+            if (index !== -1) {
+              console.log(`Campo ${fieldType} encontrado parcialmente como "${headers[index]}" usando "${possibleName}" no índice ${index}`);
+              return index;
+            }
           }
+          
+          // Tenta uma abordagem mais genérica para encontrar strings similares
+          for (let i = 0; i < headers.length; i++) {
+            const header = headers[i];
+            for (const possibleName of possibleNames) {
+              // Verifica se alguma das strings contém partes da outra
+              if (possibleName.length > 2 && header.includes(possibleName.substring(0, 3))) {
+                console.log(`Campo ${fieldType} encontrado por similaridade usando "${possibleName}" no índice ${i} (cabeçalho: "${header}")`);
+                return i;
+              }
+            }
+          }
+          
+          console.log(`Campo ${fieldType} NÃO encontrado em nenhum cabeçalho`);
           return -1;
         };
         
@@ -1313,14 +1343,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const emailIndex = getColumnIndex('email');
         const phoneIndex = getColumnIndex('phone');
         
-        // Verifica se temos pelo menos um dado essencial (nome, email ou telefone)
-        if (nameIndex === -1 && emailIndex === -1 && phoneIndex === -1) {
-          console.error("Nenhuma coluna essencial encontrada no arquivo:", headers);
-          await storage.updateProspectingSearch(search.id, { status: "erro" });
-          return res.status(400).json({ 
-            message: "Não foi possível identificar colunas essenciais no arquivo (nome, email ou telefone)", 
-            suggestedFormat: "Use um dos seguintes nomes para as colunas: nome/name, email, telefone/phone",
-            columnsFound: headers
+        // Estratégia para resolver problema de não conseguir identificar colunas:
+        // Se não encontrarmos nenhuma coluna automaticamente, vamos utilizar
+        // as primeiras colunas do arquivo como nome, email e telefone (se disponíveis)
+        
+        let nameIdx = nameIndex;
+        let emailIdx = emailIndex;
+        let phoneIdx = phoneIndex;
+        
+        // Se não temos nenhum campo detectado automaticamente, vamos usar um mapeamento forçado
+        const needsForceMapping = nameIndex === -1 && emailIndex === -1 && phoneIndex === -1;
+        
+        if (needsForceMapping) {
+          console.log("AVISO: Nenhuma coluna mapeada automaticamente. Tentando mapeamento forçado...");
+          
+          // Usa as primeiras colunas disponíveis assumindo uma ordem comum
+          if (headers.length > 0) nameIdx = 0;  // Primeira coluna como nome
+          if (headers.length > 1) emailIdx = 1; // Segunda coluna como email
+          if (headers.length > 2) phoneIdx = 2; // Terceira coluna como telefone
+          
+          console.log("Mapeamento forçado:", {
+            nome: headers[nameIdx] || "indisponível",
+            email: emailIdx >= 0 ? headers[emailIdx] : "indisponível",
+            telefone: phoneIdx >= 0 ? headers[phoneIdx] : "indisponível"
           });
         }
         
