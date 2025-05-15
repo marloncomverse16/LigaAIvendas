@@ -222,13 +222,22 @@ export default function ProspectingPage() {
           const text = e.target?.result as string;
           const lines = text.split('\n');
           if (lines.length > 0) {
-            const headers = lines[0].split(',');
+            // Detectar separador (vírgula ou ponto e vírgula)
+            let separator = ',';
+            const testLine = lines[1] || '';
+            
+            if (testLine.indexOf(';') > -1 && (testLine.indexOf(',') === -1 || testLine.split(';').length > testLine.split(',').length)) {
+              separator = ';';
+              console.log("Preview: Detectado separador de CSV como ponto e vírgula (;)");
+            }
+            
+            const headers = lines[0].split(separator);
             const previewLines = [];
             
             // Processar até 5 linhas para preview
             for (let i = 1; i < Math.min(lines.length, 6); i++) {
               if (lines[i].trim()) {
-                const values = lines[i].split(',');
+                const values = lines[i].split(separator);
                 const row: any = {};
                 
                 // Cria um objeto com os dados para visualização

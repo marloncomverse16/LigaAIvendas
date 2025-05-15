@@ -3,6 +3,9 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { setupFileUpload } from "./uploads";
+import { importCSVContent } from "./csvImporter";
+import { processProspectingFile } from "./imports";
+import * as xlsx from "xlsx";
 import { 
   insertLeadSchema, insertProspectSchema, insertDispatchSchema, insertSettingsSchema, 
   insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema,
@@ -1268,19 +1271,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ler dados do arquivo
       let leads = [];
       
-      // Processar CSV
+      // Processar CSV usando o módulo dedicado de importação
       if (file.mimetype.includes('csv') || file.originalname.endsWith('.csv')) {
         // Ler conteúdo do arquivo
         const fileContent = fs.readFileSync(file.path, 'utf8');
-        const lines = fileContent.split('\n');
         
-        if (lines.length < 2) {
+        if (fileContent.trim().length < 10) {
           await storage.updateProspectingSearch(search.id, { status: "erro" });
-          return res.status(400).json({ message: "Arquivo vazio ou sem dados" });
+          return res.status(400).json({ message: "Arquivo vazio ou sem dados suficientes" });
         }
         
-        // Obter cabeçalhos
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        try {
+          // Usar nosso módulo de importação otimizado
+          const importResult = await importCSVContent(
+            fileContent,
+            search.id,
+            storage
+          );
+          
+          // Atualizar a busca com os resultados
+          await storage.updateProspectingSearch(search.id, {
+            leadsFound: importResult.importedLeads,
+            dispatchesPending: importResult.importedLeads,
+            status: importResult.importedLeads > 0 ? "concluido" : "erro"
+          });
+          
+          return res.status(200).json({
+            message: importResult.message,
+            searchId: search.id,
+            importedLeads: importResult.importedLeads,
+            errors: importResult.errorLeads
+          });
+        } catch (error) {
+          console.error("Erro ao processar arquivo CSV:", error);
+          await storage.updateProspectingSearch(search.id, { status: "erro" });
+          return res.status(500).json({ 
+            message: "Erro ao processar arquivo CSV", 
+            error: String(error) 
+          });
+        }
+      } else if (file.mimetype.includes('excel') || 
+                file.mimetype.includes('spreadsheet') || 
+                file.originalname.endsWith('.xlsx') || 
+                file.originalname.endsWith('.xls')) {
+        // Implementação para processamento de arquivos Excel usando o módulo de importação
+        try {
+          // Ler conteúdo do arquivo Excel
+          console.log("Processando arquivo Excel:", file.originalname);
+          
+          // Converter Excel para formato CSV para usar nosso processador existente
+          const workbook = xlsx.readFile(file.path);
+          const sheetName = workbook.SheetNames[0];
+          const csvContent = xlsx.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+          
+          if (!csvContent || csvContent.trim().length < 10) {
+            await storage.updateProspectingSearch(search.id, { status: "erro" });
+            return res.status(400).json({ message: "Arquivo Excel vazio ou sem dados" });
+          }
+          
+          // Usar o mesmo processador de CSV com o conteúdo convertido do Excel
+          const importResult = await importCSVContent(
+            csvContent,
+            search.id,
+            storage
+          );
+          
+          // Atualizar a busca com os resultados
+          await storage.updateProspectingSearch(search.id, {
+            leadsFound: importResult.importedLeads,
+            dispatchesPending: importResult.importedLeads,
+            status: importResult.importedLeads > 0 ? "concluido" : "erro"
+          });
+          
+          return res.status(200).json({
+            message: importResult.message,
+            searchId: search.id,
+            importedLeads: importResult.importedLeads,
+            errors: importResult.errorLeads
+          });
+        } catch (error) {
+          console.error("Erro ao processar arquivo Excel:", error);
+          await storage.updateProspectingSearch(search.id, { status: "erro" });
+          return res.status(500).json({ 
+            message: "Erro ao processar arquivo Excel", 
+            error: String(error) 
+          });
+        }
         
         // Mapeamento flexível de cabeçalhos - permite reconhecer vários formatos possíveis
         const headerMap: {[key: string]: string[]} = {
@@ -1387,11 +1463,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tipo: typeIndex !== -1 ? headers[typeIndex] : "não encontrado"
         });
         
+        // Detectar qual é o separador usado (vírgula ou ponto e vírgula)
+        // Analisa a primeira linha para ver qual separador provavelmente está sendo usado
+        let separator = ',';
+        const testLine = lines[1] || '';
+        
+        if (testLine.indexOf(';') > -1 && (testLine.indexOf(',') === -1 || testLine.split(';').length > testLine.split(',').length)) {
+          separator = ';';
+          console.log("Detectado separador de CSV como ponto e vírgula (;)");
+        } else {
+          console.log("Usando separador de CSV padrão como vírgula (,)");
+        }
+        
+        // Reprocessar os cabeçalhos com o separador correto se for diferente de vírgula
+        let processedHeaders = headers;
+        if (separator !== ',') {
+          processedHeaders = headers.join(',').split(separator).map(h => h.trim());
+        }
+        
+        // Reidentificar os índices usando os cabeçalhos processados
+        // Nova função para facilitar a detecção de colunas
+        const findColumnIndex = (type: string): number => {
+          // Mapear diferentes variações de nomes de colunas comumente usados
+          const nameMappings: {[key: string]: string[]} = {
+            'name': ['nome', 'name', 'cliente', 'razão social', 'razao social', 'razaosocial', 'empresa', 'contato', 'responsável', 'responsavel'],
+            'email': ['email', 'e-mail', 'correio', 'correio eletrônico', 'mail'],
+            'phone': ['telefone', 'phone', 'celular', 'tel', 'contato', 'whatsapp', 'telefone 1', 'tel1', 'fone'],
+            'address': ['endereco', 'endereço', 'address', 'logradouro', 'local'],
+            'cidade': ['cidade', 'city', 'município', 'municipio'],
+            'estado': ['estado', 'state', 'uf', 'província', 'provincia'],
+            'site': ['site', 'website', 'web', 'pagina', 'página', 'url', 'link'],
+            'type': ['tipo', 'type', 'category', 'categoria', 'segmento', 'ramo']
+          };
+          
+          // Procurar por correspondências nos cabeçalhos processados
+          const mappings = nameMappings[type] || [type];
+          return processedHeaders.findIndex(h => 
+            mappings.some(mapping => h.toLowerCase().includes(mapping.toLowerCase()))
+          );
+        };
+        
+        // Identificar todos os índices de colunas
+        const nameIdx = findColumnIndex('name');
+        const emailIdx = findColumnIndex('email');
+        const phoneIdx = findColumnIndex('phone');
+        const addressIdx = findColumnIndex('address');
+        const cidadeIdx = findColumnIndex('cidade');
+        const estadoIdx = findColumnIndex('estado');
+        const siteIdx = findColumnIndex('site');
+        const typeIdx = findColumnIndex('type');
+        
         // Processar linhas
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           
-          const values = lines[i].split(',').map(v => v.trim());
+          const values = lines[i].split(separator).map(v => v.trim());
           
           // Aceita linhas mesmo que não tenham todas as colunas
           if (values.length < 1) continue;
@@ -1402,11 +1528,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (nameIdx !== -1 && values[nameIdx]) lead.name = values[nameIdx];
           if (emailIdx !== -1 && values[emailIdx]) lead.email = values[emailIdx];
           if (phoneIdx !== -1 && values[phoneIdx]) lead.phone = values[phoneIdx];
-          if (addressIndex !== -1 && values[addressIndex]) lead.address = values[addressIndex];
-          if (cidadeIndex !== -1 && values[cidadeIndex]) lead.cidade = values[cidadeIndex];
-          if (estadoIndex !== -1 && values[estadoIndex]) lead.estado = values[estadoIndex];
-          if (siteIndex !== -1 && values[siteIndex]) lead.site = values[siteIndex];
-          if (typeIndex !== -1 && values[typeIndex]) lead.type = values[typeIndex];
+          if (addressIdx !== -1 && values[addressIdx]) lead.address = values[addressIdx];
+          if (cidadeIdx !== -1 && values[cidadeIdx]) lead.cidade = values[cidadeIdx];
+          if (estadoIdx !== -1 && values[estadoIdx]) lead.estado = values[estadoIdx];
+          if (siteIdx !== -1 && values[siteIdx]) lead.site = values[siteIdx];
+          if (typeIdx !== -1 && values[typeIdx]) lead.type = values[typeIdx];
           
           // Modo de emergência: Se ainda não temos nada, use as primeiras colunas
           if (!lead.name && !lead.email && !lead.phone && values.length > 0) {

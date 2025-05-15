@@ -1,0 +1,78 @@
+  // Rota para importar arquivo de leads
+  app.post("/api/prospecting/import", upload.single('file'), async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Verificar arquivo
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhum arquivo enviado" });
+      }
+      
+      // Verificar dados obrigatórios
+      if (!req.body.segment) {
+        return res.status(400).json({ message: "Segmento é obrigatório" });
+      }
+      
+      // Processar arquivo
+      const file = req.file;
+      const segment = req.body.segment;
+      const city = req.body.city || null;
+      const webhookUrl = req.body.webhookUrl || req.user.prospectingWebhookUrl || null;
+      
+      console.log("Processando arquivo:", file.originalname, "para o segmento:", segment);
+      
+      // Validar tipo de arquivo
+      if (!file.mimetype.includes('csv') && 
+          !file.mimetype.includes('excel') && 
+          !file.mimetype.includes('spreadsheet') && 
+          !file.originalname.endsWith('.csv') && 
+          !file.originalname.endsWith('.xls') && 
+          !file.originalname.endsWith('.xlsx')) {
+        return res.status(400).json({ message: "Formato de arquivo inválido. Use CSV ou Excel." });
+      }
+      
+      // Criar busca no banco
+      const searchData = {
+        userId: req.user.id,
+        segment,
+        city,
+        filters: req.body.filters || null,
+        webhookUrl,
+        status: "processando",
+      };
+      
+      const search = await storage.createProspectingSearch(searchData);
+      
+      // Processar arquivo usando o módulo dedicado
+      try {
+        const importResult = await processProspectingFile(file, search.id, storage);
+        
+        // Atualizar a busca com os resultados
+        await storage.updateProspectingSearch(search.id, {
+          leadsFound: importResult.importedLeads,
+          dispatchesPending: importResult.importedLeads,
+          status: importResult.importedLeads > 0 ? "concluido" : "erro"
+        });
+        
+        return res.status(200).json({
+          message: importResult.message,
+          searchId: search.id,
+          importedLeads: importResult.importedLeads,
+          errors: importResult.errorLeads
+        });
+      } catch (error) {
+        console.error("Erro ao processar arquivo:", error);
+        await storage.updateProspectingSearch(search.id, { status: "erro" });
+        return res.status(500).json({ 
+          message: "Erro ao processar arquivo", 
+          error: String(error) 
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao processar upload de arquivo:", error);
+      return res.status(500).json({ 
+        message: "Erro interno no processamento do arquivo", 
+        error: String(error) 
+      });
+    }
+  });
