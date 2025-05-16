@@ -18,9 +18,24 @@ export default function ChatWebView() {
   const { data: connectionStatus, isLoading, error } = useQuery({
     queryKey: ["/api/connections/status", refreshTrigger],
     queryFn: async () => {
-      const res = await fetch("/api/connections/status");
-      if (!res.ok) throw new Error("Falha ao verificar status da conexão");
-      return res.json();
+      try {
+        console.log("Verificando status da conexão...");
+        const res = await fetch("/api/connections/status");
+        if (!res.ok) throw new Error("Falha ao verificar status da conexão");
+        const data = await res.json();
+        console.log("Status de conexão recebido do servidor:", data);
+        
+        // Se conectado, atualizar o status na interface
+        if (data.connected) {
+          console.log("Estado de conexão:", "CONECTADO ✅");
+          console.log("Conexão estabelecida, removendo QR code");
+        }
+        
+        return data;
+      } catch (err) {
+        console.error("Erro ao verificar status:", err);
+        throw err;
+      }
     },
     refetchInterval: 10000, // Refetch a cada 10 segundos
   });
@@ -38,6 +53,7 @@ export default function ChatWebView() {
   // Função para conectar ao WhatsApp (iniciar QR Code)
   const handleConnect = async () => {
     try {
+      console.log("Solicitando conexão WhatsApp...");
       const res = await fetch("/api/connections/connect", {
         method: "POST",
       });
@@ -45,6 +61,9 @@ export default function ChatWebView() {
       if (!res.ok) {
         throw new Error("Falha ao solicitar conexão");
       }
+      
+      const data = await res.json();
+      console.log("Resposta da conexão:", data);
       
       toast({
         title: "QR Code gerado",
@@ -54,6 +73,7 @@ export default function ChatWebView() {
       
       setRefreshTrigger(prev => prev + 1);
     } catch (err) {
+      console.error("Erro ao conectar:", err);
       toast({
         title: "Erro",
         description: err instanceof Error ? err.message : "Falha ao solicitar conexão",
@@ -65,6 +85,7 @@ export default function ChatWebView() {
   // Função para desconectar do WhatsApp
   const handleDisconnect = async () => {
     try {
+      console.log("Solicitando desconexão do WhatsApp...");
       const res = await fetch("/api/connections/disconnect", {
         method: "POST",
       });
@@ -73,6 +94,9 @@ export default function ChatWebView() {
         throw new Error("Falha ao desconectar");
       }
       
+      const data = await res.json();
+      console.log("Resposta da desconexão:", data);
+      
       toast({
         title: "Desconectado",
         description: "WhatsApp foi desconectado com sucesso",
@@ -80,6 +104,7 @@ export default function ChatWebView() {
       
       setRefreshTrigger(prev => prev + 1);
     } catch (err) {
+      console.error("Erro ao desconectar:", err);
       toast({
         title: "Erro",
         description: err instanceof Error ? err.message : "Falha ao desconectar",
