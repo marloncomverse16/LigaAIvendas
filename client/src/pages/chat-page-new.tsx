@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import ChatInterface from "@/components/chat/chat-interface";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -139,42 +140,8 @@ export default function ChatWebView() {
           </AlertDescription>
         </Alert>
       ) : connectionStatus?.connected ? (
-        <Card className="border-0 shadow-none overflow-hidden h-[calc(100vh-200px)]">
-          <div className="h-full flex flex-col">
-            <div className="bg-[#128C7E] text-white px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center">
-                <MessagesSquare className="h-5 w-5 mr-2" />
-                <span className="font-medium">WhatsApp Conectado</span>
-              </div>
-              <div className="text-xs bg-white/20 px-2 py-1 rounded">
-                Conectado em tempo real
-              </div>
-            </div>
-            
-            {user?.whatsappInstanceWebhook ? (
-              <iframe 
-                src={user.whatsappInstanceWebhook}
-                className="w-full flex-1 border-0"
-                title="WhatsApp Web"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
-                allow="camera; microphone; geolocation; clipboard-read; clipboard-write"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center p-6">
-                  <AlertCircle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
-                  <h3 className="text-lg font-medium mb-2">URL do WhatsApp Web não configurada</h3>
-                  <p className="text-muted-foreground mb-4">
-                    O URL do WhatsApp Web não está definido nas suas configurações.
-                  </p>
-                  <Button onClick={() => window.location.href = "/connections"}>
-                    Configurar Conexão
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
+        // Se conectado, mostrar a interface de chat completa
+        <ChatInterface />
       ) : connectionStatus?.qrCode ? (
         <Card className="p-8">
           <div className="space-y-4 max-w-md mx-auto text-center">
