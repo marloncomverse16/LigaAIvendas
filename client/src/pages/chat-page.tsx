@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessagesSquare, AlertCircle, Loader2, RefreshCcw } from "lucide-react";
+import { MessagesSquare, AlertCircle, Loader2, RefreshCcw, ExternalLink } from "lucide-react";
 
 export default function ChatPage() {
   const { user } = useAuth();
@@ -104,14 +104,48 @@ export default function ChatPage() {
                       </Button>
                     </div>
                   </div>
-                ) : (
+                ) : connectionStatus?.connected ? (
                   /* Frame para exibir o WhatsApp Web via QR Code */
-                  <iframe 
-                    src={user?.whatsappInstanceWebhook ? user.whatsappInstanceWebhook : "about:blank"} 
-                    className="w-full h-full border-0"
-                    title="WhatsApp Web"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                  />
+                  <div className="w-full h-full flex flex-col">
+                    <div className="bg-whatsapp-light dark:bg-whatsapp-dark p-2 text-xs text-white">
+                      <div className="text-center">
+                        ⚠️ Este é um visualizador de WhatsApp Web embutido. Para uma experiência completa, use o botão abaixo para abrir em nova janela.
+                      </div>
+                      <div className="mt-1 text-center">
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          className="bg-white/20 hover:bg-white/30 text-white"
+                          onClick={() => {
+                            if (user?.whatsappInstanceWebhook) {
+                              window.open(user.whatsappInstanceWebhook, '_blank');
+                            }
+                          }}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Abrir em Nova Janela
+                        </Button>
+                      </div>
+                    </div>
+                    <iframe 
+                      src={user?.whatsappInstanceWebhook ? user.whatsappInstanceWebhook : "about:blank"} 
+                      className="w-full flex-1 border-0"
+                      title="WhatsApp Web"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center p-8 text-center">
+                    <div className="max-w-md">
+                      <h3 className="text-xl font-bold mb-4">WhatsApp Não Conectado</h3>
+                      <p className="text-muted-foreground mb-6">
+                        Para visualizar o chat do WhatsApp, conecte-se primeiro usando a página de Conexões.
+                      </p>
+                      <Button onClick={() => window.location.href = "/connections"}>
+                        Ir para Página de Conexões
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>

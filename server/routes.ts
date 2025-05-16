@@ -39,10 +39,12 @@ import { sendMetaMessageDirectly } from "./api/meta-direct-send";
 import { getUserServer } from "./api/meta-api-service";
 import {
   connectWhatsAppMeta,
-  checkMetaConnectionStatus,
   disconnectWhatsAppMeta,
   sendMetaWhatsAppMessage
 } from "./api/meta-connections";
+
+// Importação do novo controlador para verificar status da Meta API
+import { checkMetaConnectionStatus } from "./api/meta-status";
 
 // Novas importações para conexões Meta API específicas do usuário
 

@@ -3,6 +3,19 @@
 @tailwind utilities;
 
 :root {
+  --whatsapp-light: #128C7E;
+  --whatsapp-dark: #075E54;
+}
+
+.bg-whatsapp-light {
+  background-color: var(--whatsapp-light);
+}
+
+.bg-whatsapp-dark {
+  background-color: var(--whatsapp-dark);
+}
+
+:root {
   --background: 0 0% 100%;
   --foreground: 222 47% 11%;
   
