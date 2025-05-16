@@ -114,20 +114,123 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
     );
     
     // Buscar contatos
-    const contacts = await client.getContacts();
-    
-    // Formatação dos contatos (adicionar campos úteis para a UI)
-    const formattedContacts = contacts.map(contact => {
-      // Extrair número do formato JID (exemplo: 5511999999999@c.us)
-      const phone = contact.id?.replace(/(@.*$)/g, '') || '';
+    try {
+      console.log('Tentando obter contatos via Evolution API client...');
+      const response = await client.getContacts();
       
-      return {
-        ...contact,
-        phone,
-        pushname: contact.pushname || contact.name || phone,
-        lastMessageTime: contact.lastMessageTime || null,
-      };
-    });
+      console.log('Resposta de contatos bruta:', typeof response);
+      if (response) {
+        console.log('Detalhes da resposta:', JSON.stringify(response).substring(0, 500));
+      }
+      
+      // Verificar se a resposta é válida e contém contatos
+      if (response && response.success && Array.isArray(response.contacts) && response.contacts.length > 0) {
+        console.log(`Processando ${response.contacts.length} contatos obtidos com sucesso`);
+        
+        // Formatação dos contatos para a UI
+        const formattedContacts = response.contacts.map(contact => {
+          // Extrair número do formato JID (exemplo: 5511999999999@c.us)
+          const phone = contact.id?.replace(/(@.*$)/g, '') || 
+                       contact.number ||
+                       '';
+          
+          return {
+            id: contact.id || `${phone}@c.us`,
+            name: contact.name || contact.pushname || phone,
+            phone: phone,
+            pushname: contact.pushname || contact.name || phone,
+            lastMessageTime: contact.lastMessageTime || null,
+            isGroup: contact.isGroup || contact.id?.includes('@g.us') || false,
+            profilePicture: contact.profilePictureUrl || null
+          };
+        });
+        
+        return res.json({
+          success: true,
+          contacts: formattedContacts
+        });
+      }
+      
+      // Se não conseguimos obter contatos, tentar buscar diretamente na API
+      console.log('Tentando abordagem alternativa via API direta...');
+      
+      // Tentar buscar contatos via endpoint direto da API
+      try {
+        const directResponse = await axios.get(
+          `${server.apiurl}/manager/contacts/${server.instanceid}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${server.apitoken}`,
+              'apikey': server.apitoken
+            }
+          }
+        );
+        
+        if (directResponse.status === 200 && directResponse.data) {
+          console.log('Dados recebidos via API direta');
+          
+          // Processamento dos dados recebidos
+          let contactsData = directResponse.data;
+          let contactsArray = [];
+          
+          // Tentar encontrar a lista de contatos nos dados
+          if (Array.isArray(contactsData)) {
+            contactsArray = contactsData;
+          } else if (typeof contactsData === 'object') {
+            // Tentar localizar o array em propriedades comuns
+            const possibleArrayProps = ['contacts', 'data', 'result', 'list', 'items'];
+            for (const prop of possibleArrayProps) {
+              if (Array.isArray(contactsData[prop])) {
+                contactsArray = contactsData[prop];
+                break;
+              }
+            }
+          }
+          
+          // Se encontramos contatos, formatá-los
+          if (contactsArray.length > 0) {
+            const formattedContacts = contactsArray.map(contact => {
+              // Normalizar estrutura de contato
+              return {
+                id: contact.id || contact.jid || `${contact.number || ''}@c.us`,
+                name: contact.name || contact.pushname || contact.number || 'Contato',
+                phone: contact.number || contact.id?.replace(/(@.*$)/g, '') || '',
+                pushname: contact.pushname || contact.name || '',
+                lastMessageTime: contact.lastMessageTime || null,
+                isGroup: contact.isGroup || contact.id?.includes('@g.us') || false,
+                profilePicture: contact.profilePictureUrl || null
+              };
+            });
+            
+            return res.json({
+              success: true,
+              contacts: formattedContacts
+            });
+          }
+        }
+      } catch (directError) {
+        console.error('Erro na abordagem direta:', directError.message);
+      }
+      
+      // Se chegamos aqui, ambas as abordagens falharam
+      return res.status(500).json({
+        success: false,
+        message: 'Não foi possível obter a lista de contatos',
+        error: 'API não retornou dados válidos'
+      });
+      
+    } catch (contactError) {
+      console.error('Erro ao obter contatos:', contactError);
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar contatos',
+        error: contactError.message || 'Erro desconhecido'
+      });
+    }
+    
+    // Código não alcançável - removido
     
     return res.json({
       success: true,
