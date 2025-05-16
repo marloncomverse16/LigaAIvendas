@@ -16,7 +16,9 @@ import MessageSendingPage from "@/pages/message-sending-page";
 import AdminUsersPage from "@/pages/admin-users-page";
 import UserPermissionsPage from "@/pages/user-permissions-page";
 import ServerManagementPage from "@/pages/server-management-page";
-// Removemos a importação das páginas que foram excluídas
+import ConnectionsPage from "@/pages/connections";
+import WhatsAppQrCodePage from "@/pages/connections/whatsapp-qr-code";
+import WhatsAppMetaPage from "@/pages/connections/whatsapp-meta";
 import ContactsPage from "@/pages/contacts-page";
 import MetaTestPage from "@/pages/meta-test-page";
 import MetaDiagnosticPage from "@/pages/meta-diagnostic-page";
@@ -33,7 +35,10 @@ function Router() {
       <ProtectedRoute path="/settings" component={SettingsPage} />
       <ProtectedRoute path="/ai-agent" component={AiAgentPage} />
       <ProtectedRoute path="/prospecting" component={ProspectingPage} />
-      <ProtectedRoute path="/conexoes" component={ConnectionPage} />
+      <ProtectedRoute path="/conexoes" component={ConnectionsPage} />
+      <ProtectedRoute path="/conexoes/whatsapp-qr-code" component={WhatsAppQrCodePage} />
+      <ProtectedRoute path="/conexoes/whatsapp-meta" component={WhatsAppMetaPage} />
+      <ProtectedRoute path="/connection" component={ConnectionPage} />
       <ProtectedRoute path="/contatos" component={ContactsPage} />
       <ProtectedRoute path="/chat" component={ChatPage} />
       <ProtectedRoute path="/message-sending" component={MessageSendingPage} />
