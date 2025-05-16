@@ -11,7 +11,8 @@ import SettingsPage from "@/pages/settings-page";
 import AiAgentPage from "@/pages/ai-agent-page";
 import ProspectingPage from "@/pages/prospecting-page";
 import ConnectionPage from "@/pages/connection-page";
-import ChatPage from "@/pages/chat-page";
+// import ChatPage from "@/pages/chat-page";
+import ChatWebView from "@/pages/chat-page-new";
 import MessageSendingPage from "@/pages/message-sending-page";
 import AdminUsersPage from "@/pages/admin-users-page";
 import UserPermissionsPage from "@/pages/user-permissions-page";
@@ -40,7 +41,7 @@ function Router() {
       <ProtectedRoute path="/conexoes/whatsapp-meta" component={WhatsAppMetaPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
       <ProtectedRoute path="/contatos" component={ContactsPage} />
-      <ProtectedRoute path="/chat" component={ChatPage} />
+      <ProtectedRoute path="/chat" component={ChatWebView} />
       <ProtectedRoute path="/message-sending" component={MessageSendingPage} />
       <ProtectedRoute path="/admin-users" component={AdminUsersPage} />
       <ProtectedRoute path="/admin-users/permissions/:userId" component={UserPermissionsPage} />
