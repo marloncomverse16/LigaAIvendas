@@ -19,8 +19,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           collapsed ? "ml-16" : "ml-16 md:ml-64"
         )}
       >
-        <main className="h-full w-full">
-          {children}
+        <main className="h-full w-full flex justify-center">
+          <div className={cn(
+            "w-full transition-all duration-300",
+            collapsed ? "max-w-7xl px-6" : "max-w-6xl px-4"
+          )}>
+            {children}
+          </div>
         </main>
       </div>
     </div>
