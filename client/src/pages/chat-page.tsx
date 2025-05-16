@@ -14,9 +14,9 @@ export default function ChatPage() {
   
   // Verificar status da conexão do WhatsApp
   const { data: connectionStatus, isLoading, error } = useQuery({
-    queryKey: ["/api/connection/status", refreshTrigger],
+    queryKey: ["/api/connections/status", refreshTrigger],
     queryFn: async () => {
-      const res = await fetch("/api/connection/status");
+      const res = await fetch("/api/connections/status");
       if (!res.ok) throw new Error("Falha ao verificar status da conexão");
       return res.json();
     },
@@ -102,7 +102,7 @@ export default function ChatPage() {
                   </AlertDescription>
                 </Alert>
                 <div className="mt-4">
-                  <Button onClick={() => window.location.href = "/connection"}>
+                  <Button onClick={() => window.location.href = "/conexoes"}>
                     Ir para Página de Conexão
                   </Button>
                 </div>
