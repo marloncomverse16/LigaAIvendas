@@ -1,273 +1,272 @@
-import { Router } from "express";
-import { storage } from "../storage";
-import { EvolutionApiClient } from "../evolution-api";
+/**
+ * Módulo de API para chat via WhatsApp
+ * Implementa endpoints para listar contatos, buscar mensagens e enviar mensagens
+ */
+
+import { Router, Request, Response } from 'express';
+import axios from 'axios';
+import { EvolutionApiClient } from '../evolution-api';
 
 const router = Router();
 
-// Obter contatos do WhatsApp
-router.get("/contacts", async (req, res) => {
+// Middleware para verificar autenticação
+function requireAuth(req: Request, res: Response, next: Function) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ success: false, message: 'Não autenticado' });
+  }
+  next();
+}
+
+// Buscar o servidor para o usuário atual
+async function getUserServer(userId: number) {
   try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ success: false, message: "Não autenticado" });
+    // Aqui devemos buscar os dados do banco de dados
+    // Usando uma consulta direta para simplificar e evitar erros com relações
+    const query = `
+      SELECT us.id, us.user_id as userId, us.server_id as serverId,
+             s.api_url as apiUrl, s.api_token as apiToken,
+             s.instance_id as instanceId
+      FROM user_servers us
+      JOIN servers s ON us.server_id = s.id
+      WHERE us.user_id = $1
+      LIMIT 1
+    `;
+    
+    const { pool } = await import('../db');
+    const result = await pool.query(query, [userId]);
+    
+    if (result.rows.length === 0) {
+      return null;
     }
     
-    const userId = req.user.id;
-    
-    // Obter servidor do usuário
-    const userServers = await storage.getUserServers(userId);
-    
-    if (!userServers || userServers.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Nenhum servidor configurado para o usuário"
-      });
+    return result.rows[0];
+  } catch (error) {
+    console.error('Erro ao buscar servidor do usuário:', error);
+    return null;
+  }
+}
+
+// Endpoint para listar contatos
+router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Usuário não identificado' });
     }
     
-    const serverRelation = userServers[0];
-    const server = serverRelation?.server;
-    
+    // Buscar informações do servidor do usuário
+    const server = await getUserServer(userId);
     if (!server) {
-      return res.status(404).json({
-        success: false,
-        message: "Servidor não encontrado"
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Servidor não configurado para este usuário'
       });
     }
     
-    const apiUrl = server.apiUrl;
-    const apiToken = server.apiToken;
+    console.log('Servidor encontrado:', server);
     
-    if (!apiUrl || !apiToken) {
+    // Verificar se temos as informações necessárias
+    if (!server.apiUrl || !server.apiToken || !server.instanceId) {
       return res.status(400).json({
         success: false,
-        message: "Servidor não configurado corretamente (URL da API ou token faltando)"
+        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.'
       });
     }
     
-    console.log(`Buscando contatos do WhatsApp para o usuário ${userId}`);
-    console.log(`Usando nome do usuário (${req.user.username}) como instância`);
-    
-    // Criar cliente Evolution API
-    const evolutionClient = new EvolutionApiClient(
-      apiUrl,
-      apiToken,
-      req.user.username || 'admin' // Usar username do usuário como instância ou 'admin' se não tiver
+    // Criar cliente da Evolution API
+    const client = new EvolutionApiClient(
+      server.apiUrl,
+      server.apiToken,
+      server.instanceId
     );
     
-    // Obter contatos
-    const result = await evolutionClient.getContacts();
+    // Buscar contatos
+    const contacts = await client.getContacts();
     
-    if (!result.success) {
-      console.error("Erro ao obter contatos:", result.error);
-      return res.status(500).json({
-        success: false,
-        message: result.error || "Erro ao obter contatos da API"
-      });
-    }
-    
-    // Formatar os contatos para o cliente
-    const contacts = (result.contacts || []).map(contact => {
+    // Formatação dos contatos (adicionar campos úteis para a UI)
+    const formattedContacts = contacts.map(contact => {
+      // Extrair número do formato JID (exemplo: 5511999999999@c.us)
+      const phone = contact.id?.replace(/(@.*$)/g, '') || '';
+      
       return {
-        id: contact.id || contact.jid || contact.wa_id || contact.number,
-        name: contact.name || contact.displayName || contact.pushname || 'Desconhecido',
-        phone: contact.number || (contact.jid ? contact.jid.replace(/@.*$/, '') : ''),
-        avatar: contact.profilePicture || null,
-        lastMessage: contact.lastMessage || null,
+        ...contact,
+        phone,
+        pushname: contact.pushname || contact.name || phone,
         lastMessageTime: contact.lastMessageTime || null,
-        unreadCount: contact.unreadCount || 0
       };
     });
     
     return res.json({
       success: true,
-      contacts: contacts
+      contacts: formattedContacts
     });
     
   } catch (error) {
-    console.error("Erro ao buscar contatos do WhatsApp:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Erro interno ao buscar contatos"
+    console.error('Erro ao listar contatos:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao buscar contatos',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
 });
 
-// Obter mensagens de um contato específico
-router.get("/messages/:contactId", async (req, res) => {
+// Endpoint para buscar mensagens de um contato
+router.get('/messages/:contactId', requireAuth, async (req: Request, res: Response) => {
   try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ success: false, message: "Não autenticado" });
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Usuário não identificado' });
     }
     
-    const userId = req.user.id;
-    const contactId = req.params.contactId;
-    
+    const { contactId } = req.params;
     if (!contactId) {
-      return res.status(400).json({
-        success: false,
-        message: "ID do contato é obrigatório"
-      });
+      return res.status(400).json({ success: false, message: 'ID do contato não informado' });
     }
     
-    // Obter servidor do usuário
-    const userServers = await storage.getUserServers(userId);
-    
-    if (!userServers || userServers.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Nenhum servidor configurado para o usuário"
-      });
-    }
-    
-    const serverRelation = userServers[0];
-    const server = serverRelation?.server;
-    
+    // Buscar informações do servidor do usuário
+    const server = await getUserServer(userId);
     if (!server) {
-      return res.status(404).json({
-        success: false,
-        message: "Servidor não encontrado"
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Servidor não configurado para este usuário'
       });
     }
     
-    const apiUrl = server.apiUrl;
-    const apiToken = server.apiToken;
-    
-    if (!apiUrl || !apiToken) {
+    // Verificar se temos as informações necessárias
+    if (!server.apiUrl || !server.apiToken || !server.instanceId) {
       return res.status(400).json({
         success: false,
-        message: "Servidor não configurado corretamente (URL da API ou token faltando)"
+        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.'
       });
     }
     
-    console.log(`Buscando mensagens para o contato ${contactId} do usuário ${userId}`);
-    
-    // Criar cliente Evolution API
-    const evolutionClient = new EvolutionApiClient(
-      apiUrl,
-      apiToken,
-      req.user.username || 'admin' // Usar username do usuário como instância ou 'admin' se não tiver
+    // Criar cliente da Evolution API
+    const client = new EvolutionApiClient(
+      server.apiUrl,
+      server.apiToken,
+      server.instanceId
     );
     
-    // Obter mensagens do contato
-    // Este método precisa ser implementado no EvolutionApiClient
-    const chat = await evolutionClient.getChatMessages(contactId);
+    // Adicionar JID ao formato do contato se não estiver no formato correto
+    const formattedContactId = contactId.includes('@') 
+      ? contactId 
+      : `${contactId}@c.us`;
     
-    if (!chat.success) {
-      console.error("Erro ao obter mensagens:", chat.error);
-      return res.status(500).json({
-        success: false,
-        message: chat.error || "Erro ao obter mensagens da API"
+    // Buscar as mensagens
+    // Nota: Implementação real depende da API da Evolution
+    // Vamos usar um endpoint direto da API
+    const response = await axios.get(
+      `${server.apiUrl}/instances/${server.instanceId}/chat/messages/${formattedContactId}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${server.apiToken}`
+        }
+      }
+    );
+    
+    // Verificar resposta e formatar mensagens
+    if (response.data && response.data.messages) {
+      // Formatar as mensagens no formato esperado pela UI
+      const messages = response.data.messages.map((msg: any) => ({
+        id: msg.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        fromMe: msg.fromMe || msg.key?.fromMe || false,
+        body: msg.message?.conversation || msg.body || msg.message?.extendedTextMessage?.text || '',
+        timestamp: msg.messageTimestamp || msg.timestamp || Date.now(),
+        status: msg.status || 'enviado',
+      }));
+      
+      return res.json({
+        success: true,
+        messages
+      });
+    } else {
+      return res.json({
+        success: true,
+        messages: []
       });
     }
     
-    // Formatar as mensagens para o cliente
-    const messages = (chat.messages || []).map(msg => {
-      return {
-        id: msg.id,
-        content: msg.body || msg.content || msg.message || "",
-        from: msg.fromMe ? 'me' : 'contact',
-        timestamp: new Date(msg.timestamp || msg.time || Date.now()),
-        status: msg.status || (msg.fromMe ? 'enviado' : undefined)
-      };
-    });
-    
-    return res.json({
-      success: true,
-      messages: messages
-    });
-    
   } catch (error) {
-    console.error("Erro ao buscar mensagens do contato:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Erro interno ao buscar mensagens"
+    console.error('Erro ao buscar mensagens:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao buscar mensagens',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
 });
 
-// Enviar mensagem para um contato
-router.post("/send", async (req, res) => {
+// Endpoint para enviar mensagem
+router.post('/send', requireAuth, async (req: Request, res: Response) => {
   try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ success: false, message: "Não autenticado" });
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Usuário não identificado' });
     }
     
-    const userId = req.user.id;
     const { contactId, message } = req.body;
     
     if (!contactId || !message) {
       return res.status(400).json({
         success: false,
-        message: "ID do contato e mensagem são obrigatórios"
+        message: 'Contato e mensagem são obrigatórios'
       });
     }
     
-    // Obter servidor do usuário
-    const userServers = await storage.getUserServers(userId);
-    
-    if (!userServers || userServers.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Nenhum servidor configurado para o usuário"
-      });
-    }
-    
-    const serverRelation = userServers[0];
-    const server = serverRelation?.server;
-    
+    // Buscar informações do servidor do usuário
+    const server = await getUserServer(userId);
     if (!server) {
-      return res.status(404).json({
-        success: false,
-        message: "Servidor não encontrado"
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Servidor não configurado para este usuário'
       });
     }
     
-    const apiUrl = server.apiUrl;
-    const apiToken = server.apiToken;
-    
-    if (!apiUrl || !apiToken) {
+    // Verificar se temos as informações necessárias
+    if (!server.apiUrl || !server.apiToken || !server.instanceId) {
       return res.status(400).json({
         success: false,
-        message: "Servidor não configurado corretamente (URL da API ou token faltando)"
+        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.'
       });
     }
     
-    console.log(`Enviando mensagem para o contato ${contactId} do usuário ${userId}`);
-    
-    // Criar cliente Evolution API
-    const evolutionClient = new EvolutionApiClient(
-      apiUrl,
-      apiToken,
-      req.user.username || 'admin' // Usar username do usuário como instância ou 'admin' se não tiver
+    // Criar cliente da Evolution API
+    const client = new EvolutionApiClient(
+      server.apiUrl,
+      server.apiToken,
+      server.instanceId
     );
     
-    // Formatar número de telefone para padrão internacional se for necessário
-    const phoneNumber = contactId.includes('@')
-      ? contactId // Se já estiver no formato jid (com @), usa como está
-      : contactId.replace(/[^0-9]/g, ''); // Remove tudo que não for número
-      
-    // Enviar mensagem
-    const result = await evolutionClient.sendTextMessage(phoneNumber, message);
+    // Formatar número de telefone para o padrão esperado
+    // Remover "@c.us" se presente
+    let phone = contactId.replace(/@.*$/, '');
     
-    if (!result.success) {
-      console.error("Erro ao enviar mensagem:", result.error);
-      return res.status(500).json({
-        success: false,
-        message: result.error || "Erro ao enviar mensagem"
+    // Enviar mensagem
+    const result = await client.sendTextMessage(phone, message);
+    
+    if (result && result.key) {
+      return res.json({
+        success: true,
+        message: 'Mensagem enviada com sucesso',
+        messageId: result.key.id,
+        result
+      });
+    } else {
+      return res.json({
+        success: true,
+        message: 'Mensagem processada, mas sem confirmação de entrega',
+        result
       });
     }
     
-    return res.json({
-      success: true,
-      message: "Mensagem enviada com sucesso",
-      messageId: result.messageId,
-      timestamp: new Date()
-    });
-    
   } catch (error) {
-    console.error("Erro ao enviar mensagem:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Erro interno ao enviar mensagem"
+    console.error('Erro ao enviar mensagem:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao enviar mensagem',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
 });

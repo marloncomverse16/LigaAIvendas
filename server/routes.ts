@@ -138,6 +138,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API endpoints
   
+  // Registrar rotas de chat
+  app.use("/api/chat", chatRoutes);
+  
   // AI Agent routes - Versão temporária com dados mock
   app.get("/api/ai-agent", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });

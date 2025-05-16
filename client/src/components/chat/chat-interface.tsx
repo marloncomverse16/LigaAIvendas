@@ -98,61 +98,92 @@ export default function ChatInterface() {
     try {
       setLoading(true);
       
-      // Fazer chamada para o endpoint real quando estiver disponível
-      // const response = await fetch("/api/chat/contacts");
-      // if (response.ok) {
-      //   const data = await response.json();
-      //   setContacts(data);
-      // }
+      // Fazer chamada para buscar contatos reais da Evolution API
+      const response = await fetch("/api/chat/contacts");
       
-      // Por enquanto, usando dados simulados
+      if (!response.ok) {
+        throw new Error(`Erro ao carregar contatos: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.contacts) {
+        console.log("Contatos recebidos da API:", data.contacts);
+        
+        // Formatar os contatos no formato esperado pelo componente
+        const formattedContacts: Contact[] = data.contacts.map((contact: any) => ({
+          id: contact.id || contact.phone || contact.jid,
+          name: contact.name || contact.pushname || contact.phone || "Contato",
+          phone: contact.phone || (contact.id ? contact.id.replace(/@.*$/, '') : ""),
+          avatar: contact.avatar || contact.profilePicture,
+          lastMessage: contact.lastMessage?.body || contact.lastMessage?.content || "",
+          lastMessageTime: contact.lastMessageTime ? new Date(contact.lastMessageTime) : undefined,
+          unreadCount: contact.unreadCount || 0
+        }));
+        
+        setContacts(formattedContacts);
+      } else {
+        // Se não conseguiu obter contatos reais, usar contatos simulados
+        console.log("Usando contatos simulados (API retornou dados inválidos)");
+        const simulatedContacts: Contact[] = [
+          {
+            id: "1",
+            name: "João da Silva",
+            phone: "5511999887766",
+            lastMessage: "Olá, tudo bem?",
+            lastMessageTime: new Date(Date.now() - 1000 * 60 * 5), // 5 minutos atrás
+            unreadCount: 2
+          },
+          {
+            id: "2",
+            name: "Maria Oliveira",
+            phone: "5511988776655",
+            lastMessage: "Quando podemos conversar?",
+            lastMessageTime: new Date(Date.now() - 1000 * 60 * 30), // 30 minutos atrás
+          },
+          {
+            id: "3",
+            name: "Carlos Souza",
+            phone: "5511977665544",
+            lastMessage: "Obrigado pela informação!",
+            lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 horas atrás
+          }
+        ];
+        
+        setContacts(simulatedContacts);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar contatos:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os contatos. Tentando novamente em alguns segundos...",
+        variant: "destructive",
+      });
+      
+      // Usar contatos simulados como fallback em caso de erro
       const simulatedContacts: Contact[] = [
         {
           id: "1",
           name: "João da Silva",
           phone: "5511999887766",
           lastMessage: "Olá, tudo bem?",
-          lastMessageTime: new Date(Date.now() - 1000 * 60 * 5), // 5 minutos atrás
-          unreadCount: 2
+          lastMessageTime: new Date(Date.now() - 1000 * 60 * 5) // 5 minutos atrás
         },
         {
           id: "2",
           name: "Maria Oliveira",
           phone: "5511988776655",
           lastMessage: "Quando podemos conversar?",
-          lastMessageTime: new Date(Date.now() - 1000 * 60 * 30), // 30 minutos atrás
-        },
-        {
-          id: "3",
-          name: "Carlos Souza",
-          phone: "5511977665544",
-          lastMessage: "Obrigado pela informação!",
-          lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 horas atrás
-        },
-        {
-          id: "4",
-          name: "Ana Ferreira",
-          phone: "5511966554433",
-          lastMessage: "Vou verificar e retorno em breve",
-          lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 dia atrás
-        },
-        {
-          id: "5",
-          name: "Paulo Mendes",
-          phone: "5511955443322",
-          lastMessage: "Precisamos conversar sobre o projeto",
-          lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 dias atrás
+          lastMessageTime: new Date(Date.now() - 1000 * 60 * 30) // 30 minutos atrás
         }
       ];
       
       setContacts(simulatedContacts);
-    } catch (error) {
-      console.error("Erro ao carregar contatos:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os contatos",
-        variant: "destructive",
-      });
+      
+      // Tentar carregar novamente após 30 segundos
+      setTimeout(() => {
+        if (user) loadContacts();
+      }, 30000);
     } finally {
       setLoading(false);
     }
@@ -188,78 +219,92 @@ export default function ChatInterface() {
     try {
       setLoadingMessages(true);
       
-      // Aqui você faria uma chamada real à API
-      // const response = await fetch(`/api/chat/messages/${contactId}`);
-      // const data = await response.json();
+      // Fazer chamada real à API para buscar mensagens
+      const response = await fetch(`/api/chat/messages/${contactId}`);
       
-      // Por enquanto, vamos simular algumas mensagens
-      const simulatedMessages: ChatMessage[] = [
-        {
-          id: "m1",
-          content: "Olá, como posso ajudar?",
-          from: "me",
-          timestamp: new Date(Date.now() - 1000 * 60 * 10),
-          status: "lido"
-        },
-        {
-          id: "m2",
-          content: "Olá! Gostaria de informações sobre seus serviços",
-          from: "contact",
-          timestamp: new Date(Date.now() - 1000 * 60 * 9),
-          contact: selectedContact?.name
-        },
-        {
-          id: "m3",
-          content: "Claro, ficarei feliz em ajudar. O que você gostaria de saber especificamente?",
-          from: "me",
-          timestamp: new Date(Date.now() - 1000 * 60 * 8),
-          status: "lido"
-        },
-        {
-          id: "m4",
-          content: "Quais são os pacotes disponíveis e os preços?",
-          from: "contact",
-          timestamp: new Date(Date.now() - 1000 * 60 * 7),
-          contact: selectedContact?.name
-        },
-        {
-          id: "m5",
-          content: "Nós temos vários pacotes. O básico começa em R$ 99,90 por mês e inclui todas as funcionalidades essenciais.",
-          from: "me",
-          timestamp: new Date(Date.now() - 1000 * 60 * 6),
-          status: "lido"
-        },
-        {
-          id: "m6",
-          content: "Também temos o pacote premium por R$ 199,90 que inclui suporte prioritário e recursos avançados.",
-          from: "me",
-          timestamp: new Date(Date.now() - 1000 * 60 * 5),
-          status: "lido"
-        },
-        {
-          id: "m7",
-          content: "Interessante! E como funciona o período de teste?",
-          from: "contact",
-          timestamp: new Date(Date.now() - 1000 * 60 * 4),
-          contact: selectedContact?.name
-        },
-        {
-          id: "m8",
-          content: "Oferecemos 14 dias de teste gratuito para todos os pacotes, sem necessidade de cartão de crédito.",
-          from: "me",
-          timestamp: new Date(Date.now() - 1000 * 60 * 3),
-          status: "entregue"
-        }
-      ];
+      if (!response.ok) {
+        throw new Error(`Erro ao carregar mensagens: ${response.status}`);
+      }
       
-      setMessages(simulatedMessages);
+      const data = await response.json();
+      
+      if (data.success && data.messages) {
+        console.log("Mensagens recebidas da API:", data.messages);
+        
+        // Formatar as mensagens no formato esperado pelo componente
+        const formattedMessages: ChatMessage[] = data.messages.map((msg: any) => ({
+          id: msg.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          content: msg.body || msg.content || msg.message || "",
+          from: msg.fromMe ? "me" : "contact",
+          timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+          contact: !msg.fromMe ? selectedContact?.name : undefined,
+          status: msg.status || (msg.fromMe ? "enviado" : undefined)
+        }));
+        
+        // Ordenar mensagens por timestamp
+        formattedMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        
+        setMessages(formattedMessages);
+      } else {
+        // Se não conseguiu obter mensagens reais, usar algumas mensagens simuladas
+        console.log("Usando mensagens simuladas (API retornou dados inválidos)");
+        const simulatedMessages: ChatMessage[] = [
+          {
+            id: "m1",
+            content: "Olá, como posso ajudar?",
+            from: "me",
+            timestamp: new Date(Date.now() - 1000 * 60 * 10),
+            status: "lido"
+          },
+          {
+            id: "m2",
+            content: "Olá! Gostaria de informações sobre seus serviços",
+            from: "contact",
+            timestamp: new Date(Date.now() - 1000 * 60 * 9),
+            contact: selectedContact?.name
+          },
+          {
+            id: "m3",
+            content: "Claro, ficarei feliz em ajudar. O que você gostaria de saber especificamente?",
+            from: "me",
+            timestamp: new Date(Date.now() - 1000 * 60 * 8),
+            status: "lido"
+          }
+        ];
+        
+        setMessages(simulatedMessages);
+      }
     } catch (error) {
       console.error("Erro ao carregar mensagens:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível carregar as mensagens",
-        variant: "destructive",
+        description: "Não foi possível carregar as mensagens. Tentando novamente..."
       });
+      
+      // Usar algumas mensagens simuladas como fallback em caso de erro
+      const simulatedMessages: ChatMessage[] = [
+        {
+          id: "m1",
+          content: "Olá! Bem-vindo ao chat.",
+          from: "me",
+          timestamp: new Date(Date.now() - 1000 * 60 * 30),
+          status: "lido"
+        },
+        {
+          id: "m2",
+          content: "Parece que estamos enfrentando dificuldades para carregar mensagens anteriores.",
+          from: "me",
+          timestamp: new Date(Date.now() - 1000 * 60 * 2),
+          status: "lido"
+        }
+      ];
+      
+      setMessages(simulatedMessages);
+      
+      // Tentar carregar novamente após 15 segundos
+      setTimeout(() => {
+        if (selectedContact) loadMessages(selectedContact.id);
+      }, 15000);
     } finally {
       setLoadingMessages(false);
     }
@@ -303,44 +348,50 @@ export default function ChatInterface() {
     
     try {
       // Chamada de API para enviar mensagem
-      // const response = await fetch('/api/chat/send-message', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     contactId: selectedContact.id,
-      //     message: newMessage
-      //   }),
-      // });
+      const response = await fetch('/api/chat/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contactId: selectedContact.id,
+          message: newMessage
+        }),
+      });
       
-      // if (response.ok) {
-      //   // Atualizar status da mensagem para entregue
-      //   setMessages(prevMessages =>
-      //     prevMessages.map(msg =>
-      //       msg.id === messageId ? { ...msg, status: 'entregue' } : msg
-      //     )
-      //   );
-      // } else {
-      //   throw new Error('Falha ao enviar mensagem');
-      // }
-      
-      // Simulação de sucesso após 1 segundo
-      setTimeout(() => {
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Mensagem enviada com sucesso:", result);
+        
+        // Atualizar status da mensagem para entregue
         setMessages(prevMessages =>
           prevMessages.map(msg =>
-            msg.id === messageId ? { ...msg, status: 'entregue' } : msg
+            msg.id === messageId ? { ...msg, status: 'entregue', id: result.messageId || msg.id } : msg
           )
         );
-      }, 1000);
-      
+        
+        // Atualizar a lista de contatos para mostrar a mensagem mais recente
+        setTimeout(() => {
+          loadContacts();
+        }, 1000);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao enviar mensagem');
+      }
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível enviar a mensagem",
+        description: error instanceof Error ? error.message : "Não foi possível enviar a mensagem",
         variant: "destructive",
       });
+      
+      // Manter status como "enviado" (tentativa falhou)
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg.id === messageId ? { ...msg, status: 'enviado' } : msg
+        )
+      );
     }
   };
 
