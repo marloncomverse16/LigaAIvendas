@@ -20,26 +20,51 @@ function requireAuth(req: Request, res: Response, next: Function) {
 // Buscar o servidor para o usuário atual
 async function getUserServer(userId: number) {
   try {
-    // Aqui devemos buscar os dados do banco de dados
-    // Usando uma consulta direta para simplificar e evitar erros com relações
+    // Importar o pool diretamente para evitar problemas com o ORM
+    const { pool } = await import('../db');
+    
+    // Consulta direta para buscar as informações necessárias
     const query = `
-      SELECT us.id, us.user_id as userId, us.server_id as serverId,
-             s.api_url as apiUrl, s.api_token as apiToken,
-             s.instance_id as instanceId
-      FROM user_servers us
-      JOIN servers s ON us.server_id = s.id
-      WHERE us.user_id = $1
+      SELECT 
+        us.id, 
+        us.user_id as "userId", 
+        us.server_id as "serverId",
+        s.api_url as "apiUrl", 
+        s.api_token as "apiToken",
+        s.instance_id as "instanceId"
+      FROM 
+        user_servers us
+      JOIN 
+        servers s ON us.server_id = s.id
+      WHERE 
+        us.user_id = $1
       LIMIT 1
     `;
     
-    const { pool } = await import('../db');
     const result = await pool.query(query, [userId]);
     
     if (result.rows.length === 0) {
+      console.log('Nenhum servidor encontrado para o usuário:', userId);
       return null;
     }
     
-    return result.rows[0];
+    console.log('Servidor encontrado:', result.rows[0]);
+    
+    // Verificar se todos os campos necessários estão presentes
+    const server = result.rows[0];
+    
+    if (!server.apiUrl || !server.apiToken || !server.instanceId) {
+      console.log('Servidor encontrado mas com configuração incompleta:', 
+        JSON.stringify({
+          apiUrl: !!server.apiUrl,
+          apiToken: !!server.apiToken,
+          instanceId: !!server.instanceId
+        })
+      );
+    }
+    
+    return server;
+    
   } catch (error) {
     console.error('Erro ao buscar servidor do usuário:', error);
     return null;
@@ -66,18 +91,25 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
     console.log('Servidor encontrado:', server);
     
     // Verificar se temos as informações necessárias
-    if (!server.apiUrl || !server.apiToken || !server.instanceId) {
+    // Os nomes das colunas estão em minúsculas no resultado da consulta SQL
+    if (!server.apiurl || !server.apitoken || !server.instanceid) {
       return res.status(400).json({
         success: false,
-        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.'
+        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.',
+        details: {
+          has_apiurl: !!server.apiurl,
+          has_apitoken: !!server.apitoken,
+          has_instanceid: !!server.instanceid,
+          server_info: Object.keys(server)
+        }
       });
     }
     
     // Criar cliente da Evolution API
     const client = new EvolutionApiClient(
-      server.apiUrl,
-      server.apiToken,
-      server.instanceId
+      server.apiurl,
+      server.apitoken,
+      server.instanceid
     );
     
     // Buscar contatos
@@ -134,18 +166,24 @@ router.get('/messages/:contactId', requireAuth, async (req: Request, res: Respon
     }
     
     // Verificar se temos as informações necessárias
-    if (!server.apiUrl || !server.apiToken || !server.instanceId) {
+    if (!server.apiurl || !server.apitoken || !server.instanceid) {
       return res.status(400).json({
         success: false,
-        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.'
+        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.',
+        details: {
+          has_apiurl: !!server.apiurl,
+          has_apitoken: !!server.apitoken,
+          has_instanceid: !!server.instanceid,
+          server_info: Object.keys(server)
+        }
       });
     }
     
     // Criar cliente da Evolution API
     const client = new EvolutionApiClient(
-      server.apiUrl,
-      server.apiToken,
-      server.instanceId
+      server.apiurl,
+      server.apitoken,
+      server.instanceid
     );
     
     // Adicionar JID ao formato do contato se não estiver no formato correto
@@ -157,11 +195,11 @@ router.get('/messages/:contactId', requireAuth, async (req: Request, res: Respon
     // Nota: Implementação real depende da API da Evolution
     // Vamos usar um endpoint direto da API
     const response = await axios.get(
-      `${server.apiUrl}/instances/${server.instanceId}/chat/messages/${formattedContactId}`,
+      `${server.apiurl}/instances/${server.instanceid}/chat/messages/${formattedContactId}`,
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${server.apiToken}`
+          'Authorization': `Bearer ${server.apitoken}`
         }
       }
     );
@@ -225,18 +263,24 @@ router.post('/send', requireAuth, async (req: Request, res: Response) => {
     }
     
     // Verificar se temos as informações necessárias
-    if (!server.apiUrl || !server.apiToken || !server.instanceId) {
+    if (!server.apiurl || !server.apitoken || !server.instanceid) {
       return res.status(400).json({
         success: false,
-        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.'
+        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.',
+        details: {
+          has_apiurl: !!server.apiurl,
+          has_apitoken: !!server.apitoken,
+          has_instanceid: !!server.instanceid,
+          server_info: Object.keys(server)
+        }
       });
     }
     
     // Criar cliente da Evolution API
     const client = new EvolutionApiClient(
-      server.apiUrl,
-      server.apiToken,
-      server.instanceId
+      server.apiurl,
+      server.apitoken,
+      server.instanceid
     );
     
     // Formatar número de telefone para o padrão esperado
