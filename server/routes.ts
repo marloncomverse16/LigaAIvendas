@@ -90,6 +90,9 @@ import { settings } from "@shared/schema";
 import { EvolutionApiClient } from "./evolution-api";
 import { listContacts, syncContacts, exportContacts } from "./api/contacts";
 
+// Importação das rotas de chat
+import chatRoutes from "./api/chat";
+
 // Importações para os agentes IA de servidores
 import {
   getServerAiAgents,
