@@ -127,7 +127,7 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
           console.log(`Processando ${response.contacts.length} contatos obtidos com sucesso`);
           
           // Formatação dos contatos para a UI
-          const formattedContacts = response.contacts.map((contact: any) => {
+          const formattedContacts = response.contacts.map(contact => {
             // Extrair número do formato JID (exemplo: 5511999999999@c.us)
             const phone = contact.id?.replace(/(@.*$)/g, '') || 
                          contact.number ||
@@ -150,7 +150,7 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
           });
         }
       } catch (clientError) {
-        console.log('Erro ao usar cliente Evolution API:', clientError instanceof Error ? clientError.message : String(clientError));
+        console.log('Erro ao usar cliente Evolution API:', clientError.message);
       }
       
       // Se não conseguiu com o cliente, tentar diretamente com a API
@@ -182,7 +182,7 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
               break;
             }
           } catch (endpointError) {
-            console.log(`Erro no endpoint ${endpoint}:`, endpointError instanceof Error ? endpointError.message : String(endpointError));
+            console.log(`Erro no endpoint ${endpoint}:`, endpointError.message);
           }
         }
         
@@ -221,7 +221,7 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
           }
         }
       } catch (directError) {
-        console.log('Erro na abordagem direta:', directError instanceof Error ? directError.message : String(directError));
+        console.log('Erro na abordagem direta:', directError.message);
       }
       
       // Se chegamos aqui, nenhuma tentativa funcionou
@@ -273,17 +273,79 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
         isDemo: true,
         note: "Usando contatos de exemplo para desenvolvimento da interface"
       });
+        
+        if (directResponse.status === 200 && directResponse.data) {
+          console.log('Dados recebidos via API direta');
+          
+          // Processamento dos dados recebidos
+          let contactsData = directResponse.data;
+          let contactsArray = [];
+          
+          // Tentar encontrar a lista de contatos nos dados
+          if (Array.isArray(contactsData)) {
+            contactsArray = contactsData;
+          } else if (typeof contactsData === 'object') {
+            // Tentar localizar o array em propriedades comuns
+            const possibleArrayProps = ['contacts', 'data', 'result', 'list', 'items'];
+            for (const prop of possibleArrayProps) {
+              if (Array.isArray(contactsData[prop])) {
+                contactsArray = contactsData[prop];
+                break;
+              }
+            }
+          }
+          
+          // Se encontramos contatos, formatá-los
+          if (contactsArray.length > 0) {
+            const formattedContacts = contactsArray.map(contact => {
+              // Normalizar estrutura de contato
+              return {
+                id: contact.id || contact.jid || `${contact.number || ''}@c.us`,
+                name: contact.name || contact.pushname || contact.number || 'Contato',
+                phone: contact.number || contact.id?.replace(/(@.*$)/g, '') || '',
+                pushname: contact.pushname || contact.name || '',
+                lastMessageTime: contact.lastMessageTime || null,
+                isGroup: contact.isGroup || contact.id?.includes('@g.us') || false,
+                profilePicture: contact.profilePictureUrl || null
+              };
+            });
+            
+            return res.json({
+              success: true,
+              contacts: formattedContacts
+            });
+          }
+        }
+      } catch (directError) {
+        console.error('Erro na abordagem direta:', directError.message);
+      }
+      
+      // Se chegamos aqui, ambas as abordagens falharam
+      return res.status(500).json({
+        success: false,
+        message: 'Não foi possível obter a lista de contatos',
+        error: 'API não retornou dados válidos'
+      });
+      
     } catch (contactError) {
-      console.error('Erro ao obter contatos:', contactError instanceof Error ? contactError.message : String(contactError));
+      console.error('Erro ao obter contatos:', contactError);
       
       return res.status(500).json({
         success: false,
         message: 'Erro ao buscar contatos',
-        error: contactError instanceof Error ? contactError.message : 'Erro desconhecido'
+        error: contactError.message || 'Erro desconhecido'
       });
     }
+    
+    // Código não alcançável - removido
+    
+    return res.json({
+      success: true,
+      contacts: formattedContacts
+    });
+    
   } catch (error) {
-    console.error('Erro ao listar contatos:', error instanceof Error ? error.message : String(error));
+    console.error('Erro ao listar contatos:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Erro ao buscar contatos',
@@ -328,165 +390,55 @@ router.get('/messages/:contactId', requireAuth, async (req: Request, res: Respon
       });
     }
     
-    try {
-      // Adicionar JID ao formato do contato se não estiver no formato correto
-      const formattedContactId = contactId.includes('@') 
-        ? contactId 
-        : `${contactId}@c.us`;
-        
-      // Tentar obter mensagens da API
-      // Criar cliente da Evolution API
-      const client = new EvolutionApiClient(
-        server.apiurl,
-        server.apitoken,
-        server.instanceid
-      );
-      
-      try {
-        // Tentar diferentes endpoints para mensagens
-        const endpoints = [
-          `/instances/${server.instanceid}/chat/messages/${formattedContactId}`,
-          `/instance/messages/${server.instanceid}/${formattedContactId}`,
-          `/manager/messages/${server.instanceid}/${formattedContactId}`
-        ];
-          
-        let messagesData = null;
-        
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`Tentando endpoint para mensagens: ${server.apiurl}${endpoint}`);
-            const response = await axios.get(`${server.apiurl}${endpoint}`, {
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${server.apitoken}`,
-                'apikey': server.apitoken
-              }
-            });
-            
-            if (response.status === 200 && response.data) {
-              messagesData = response.data;
-              console.log(`Mensagens obtidas com sucesso do endpoint: ${endpoint}`);
-              break;
-            }
-          } catch (endpointError) {
-            console.log(`Erro no endpoint de mensagens ${endpoint}:`, endpointError instanceof Error ? endpointError.message : String(endpointError));
-          }
+    // Criar cliente da Evolution API
+    const client = new EvolutionApiClient(
+      server.apiurl,
+      server.apitoken,
+      server.instanceid
+    );
+    
+    // Adicionar JID ao formato do contato se não estiver no formato correto
+    const formattedContactId = contactId.includes('@') 
+      ? contactId 
+      : `${contactId}@c.us`;
+    
+    // Buscar as mensagens
+    // Nota: Implementação real depende da API da Evolution
+    // Vamos usar um endpoint direto da API
+    const response = await axios.get(
+      `${server.apiurl}/instances/${server.instanceid}/chat/messages/${formattedContactId}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${server.apitoken}`
         }
-        
-        if (messagesData) {
-          // Processar dados de mensagens
-          let messagesArray = [];
-          
-          if (Array.isArray(messagesData)) {
-            messagesArray = messagesData;
-          } else if (typeof messagesData === 'object') {
-            // Procurar em propriedades comuns
-            const possibleProps = ['messages', 'data', 'result'];
-            for (const prop of possibleProps) {
-              if (Array.isArray(messagesData[prop])) {
-                messagesArray = messagesData[prop];
-                break;
-              }
-            }
-          }
-          
-          if (messagesArray.length > 0) {
-            // Formatar mensagens para o frontend
-            const formattedMessages = messagesArray.map((msg: any) => ({
-              id: msg.id || msg._id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-              from: msg.from || msg.sender || formattedContactId,
-              to: msg.to || msg.recipient || req.user!.id.toString(),
-              fromMe: msg.fromMe || msg.isSent || false,
-              body: msg.body || msg.content || msg.text || msg.message?.conversation || msg.message?.extendedTextMessage?.text || '',
-              timestamp: msg.timestamp || msg.date || msg.createdAt || new Date().toISOString(),
-              type: msg.type || 'chat',
-              status: msg.status || 'sent'
-            }));
-            
-            return res.json({
-              success: true,
-              messages: formattedMessages
-            });
-          }
-        }
-      } catch (apiError) {
-        console.log('Erro ao buscar mensagens da API:', apiError instanceof Error ? apiError.message : String(apiError));
       }
-      
-      // Se todas as tentativas falharam, use dados de exemplo
-      console.log('Fornecendo mensagens de exemplo para desenvolvimento da interface');
-      
-      // Criar mensagens de exemplo
-      const now = Date.now();
-      const demoMessages = [
-        {
-          id: "msg1",
-          from: req.user!.id.toString(),
-          to: contactId,
-          fromMe: true,
-          body: "Olá, como posso ajudar?",
-          timestamp: new Date(now - 3600000).toISOString(),
-          type: "chat",
-          status: "read"
-        },
-        {
-          id: "msg2",
-          from: contactId,
-          to: req.user!.id.toString(),
-          fromMe: false,
-          body: "Estou com uma dúvida sobre o produto",
-          timestamp: new Date(now - 3300000).toISOString(),
-          type: "chat",
-          status: "received"
-        },
-        {
-          id: "msg3",
-          from: req.user!.id.toString(),
-          to: contactId,
-          fromMe: true,
-          body: "Claro, qual é a sua dúvida?",
-          timestamp: new Date(now - 3000000).toISOString(),
-          type: "chat",
-          status: "read"
-        },
-        {
-          id: "msg4",
-          from: contactId,
-          to: req.user!.id.toString(),
-          fromMe: false,
-          body: "O produto tem garantia?",
-          timestamp: new Date(now - 2700000).toISOString(),
-          type: "chat",
-          status: "received"
-        },
-        {
-          id: "msg5",
-          from: req.user!.id.toString(),
-          to: contactId,
-          fromMe: true,
-          body: "Sim, todos os nossos produtos têm garantia de 12 meses.",
-          timestamp: new Date(now - 2400000).toISOString(),
-          type: "chat",
-          status: "sent"
-        }
-      ];
+    );
+    
+    // Verificar resposta e formatar mensagens
+    if (response.data && response.data.messages) {
+      // Formatar as mensagens no formato esperado pela UI
+      const messages = response.data.messages.map((msg: any) => ({
+        id: msg.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        fromMe: msg.fromMe || msg.key?.fromMe || false,
+        body: msg.message?.conversation || msg.body || msg.message?.extendedTextMessage?.text || '',
+        timestamp: msg.messageTimestamp || msg.timestamp || Date.now(),
+        status: msg.status || 'enviado',
+      }));
       
       return res.json({
         success: true,
-        messages: demoMessages,
-        isDemo: true,
-        note: "Usando mensagens de exemplo para desenvolvimento da interface"
+        messages
       });
-    } catch (error) {
-      console.error('Erro ao buscar mensagens:', error instanceof Error ? error.message : String(error));
-      return res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar mensagens',
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
+    } else {
+      return res.json({
+        success: true,
+        messages: []
       });
     }
+    
   } catch (error) {
-    console.error('Erro ao buscar mensagens:', error instanceof Error ? error.message : String(error));
+    console.error('Erro ao buscar mensagens:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Erro ao buscar mensagens',
@@ -525,7 +477,13 @@ router.post('/send', requireAuth, async (req: Request, res: Response) => {
     if (!server.apiurl || !server.apitoken || !server.instanceid) {
       return res.status(400).json({
         success: false,
-        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.'
+        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.',
+        details: {
+          has_apiurl: !!server.apiurl,
+          has_apitoken: !!server.apitoken,
+          has_instanceid: !!server.instanceid,
+          server_info: Object.keys(server)
+        }
       });
     }
     
@@ -536,47 +494,32 @@ router.post('/send', requireAuth, async (req: Request, res: Response) => {
       server.instanceid
     );
     
-    // Adicionar @c.us ao número se não estiver no formato JID
-    const formattedContactId = contactId.includes('@') ? contactId : `${contactId}@c.us`;
+    // Formatar número de telefone para o padrão esperado
+    // Remover "@c.us" se presente
+    let phone = contactId.replace(/@.*$/, '');
     
-    // Remover @c.us para obter apenas o número
-    const phone = formattedContactId.replace('@c.us', '');
+    // Enviar mensagem
+    const result = await client.sendTextMessage(phone, message);
     
-    try {
-      // Tentar enviar a mensagem
-      const result = await client.sendTextMessage(phone, message);
-      
-      if (result && result.success) {
-        return res.json({
-          success: true,
-          messageId: result.messageId || result.id || 'unknown',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      // Se chegou aqui, retornar sucesso simulado
+    if (result && result.key) {
       return res.json({
         success: true,
-        messageId: `demo-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        note: "Mensagem simulada para desenvolvimento da interface"
+        message: 'Mensagem enviada com sucesso',
+        messageId: result.key.id,
+        result
       });
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error instanceof Error ? error.message : String(error));
-      
-      // Para não interromper o desenvolvimento da interface, retornar sucesso simulado
+    } else {
       return res.json({
         success: true,
-        messageId: `demo-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        isDemo: true,
-        note: "Mensagem simulada devido a erro na API: " + (error instanceof Error ? error.message : 'Erro desconhecido')
+        message: 'Mensagem processada, mas sem confirmação de entrega',
+        result
       });
     }
+    
   } catch (error) {
-    console.error('Erro ao enviar mensagem:', error instanceof Error ? error.message : String(error));
-    return res.status(500).json({
-      success: false,
+    console.error('Erro ao enviar mensagem:', error);
+    return res.status(500).json({ 
+      success: false, 
       message: 'Erro ao enviar mensagem',
       error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
