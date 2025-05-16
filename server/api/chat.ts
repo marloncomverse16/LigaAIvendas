@@ -24,14 +24,15 @@ async function getUserServer(userId: number) {
     const { pool } = await import('../db');
     
     // Consulta direta para buscar as informações necessárias
+    // IMPORTANTE: Os campos são retornados em minúsculas pelo PostgreSQL
     const query = `
       SELECT 
         us.id, 
-        us.user_id as "userId", 
-        us.server_id as "serverId",
-        s.api_url as "apiUrl", 
-        s.api_token as "apiToken",
-        s.instance_id as "instanceId"
+        us.user_id as userid, 
+        us.server_id as serverid,
+        s.api_url as apiurl, 
+        s.api_token as apitoken,
+        s.instance_id as instanceid
       FROM 
         user_servers us
       JOIN 
@@ -53,12 +54,12 @@ async function getUserServer(userId: number) {
     // Verificar se todos os campos necessários estão presentes
     const server = result.rows[0];
     
-    if (!server.apiUrl || !server.apiToken || !server.instanceId) {
+    if (!server.apiurl || !server.apitoken || !server.instanceid) {
       console.log('Servidor encontrado mas com configuração incompleta:', 
         JSON.stringify({
-          apiUrl: !!server.apiUrl,
-          apiToken: !!server.apiToken,
-          instanceId: !!server.instanceId
+          apiurl: !!server.apiurl,
+          apitoken: !!server.apitoken,
+          instanceid: !!server.instanceid
         })
       );
     }
