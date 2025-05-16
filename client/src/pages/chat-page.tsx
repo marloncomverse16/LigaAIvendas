@@ -107,32 +107,51 @@ export default function ChatPage() {
                 ) : connectionStatus?.connected ? (
                   /* Frame para exibir o WhatsApp Web via QR Code */
                   <div className="w-full h-full flex flex-col">
-                    <div className="bg-whatsapp-light dark:bg-whatsapp-dark p-2 text-xs text-white">
-                      <div className="text-center">
-                        ⚠️ Este é um visualizador de WhatsApp Web embutido. Para uma experiência completa, use o botão abaixo para abrir em nova janela.
+                    <div className="bg-whatsapp-light dark:bg-whatsapp-dark p-2 text-xs text-white flex justify-between items-center">
+                      <div className="flex-1">
+                        <div className="font-medium">WhatsApp Web Conectado</div>
+                        <div className="text-white/80 text-[10px]">Visualizador integrado</div>
                       </div>
-                      <div className="mt-1 text-center">
-                        <Button 
-                          size="sm" 
-                          variant="secondary" 
-                          className="bg-white/20 hover:bg-white/30 text-white"
-                          onClick={() => {
-                            if (user?.whatsappInstanceWebhook) {
-                              window.open(user.whatsappInstanceWebhook, '_blank');
-                            }
-                          }}
-                        >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          Abrir em Nova Janela
-                        </Button>
-                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        className="bg-white/20 hover:bg-white/30 text-white"
+                        onClick={() => {
+                          if (user?.whatsappInstanceWebhook) {
+                            window.open(user.whatsappInstanceWebhook, '_blank');
+                          }
+                        }}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Abrir em Nova Janela
+                      </Button>
                     </div>
-                    <iframe 
-                      src={user?.whatsappInstanceWebhook ? user.whatsappInstanceWebhook : "about:blank"} 
-                      className="w-full flex-1 border-0"
-                      title="WhatsApp Web"
-                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                    />
+                    
+                    {/* Usando iframe direto para o webhook configurado do usuário */}
+                    {user?.whatsappInstanceWebhook ? (
+                      <iframe 
+                        src={user.whatsappInstanceWebhook}
+                        className="w-full flex-1 border-0"
+                        title="WhatsApp Web"
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                        allow="camera; microphone; geolocation; clipboard-read; clipboard-write"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center p-6">
+                          <div className="mb-4 text-amber-500">
+                            <AlertCircle className="h-12 w-12 mx-auto" />
+                          </div>
+                          <h3 className="text-lg font-medium mb-2">URL do WhatsApp Web não configurada</h3>
+                          <p className="text-muted-foreground mb-4">
+                            O WebHook do WhatsApp Web não está definido corretamente para este usuário.
+                          </p>
+                          <Button onClick={() => window.location.href = "/connections"}>
+                            Configurar Conexão
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="h-full flex items-center justify-center p-8 text-center">
