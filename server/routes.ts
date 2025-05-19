@@ -3167,67 +3167,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/contacts/sync", syncContacts);
   app.get("/api/contacts/export", exportContacts);
   
-  // Endpoint para receber webhooks da Evolution API
-  app.post("/api/evolution-webhook/:instance", async (req, res) => {
-    try {
-      const instance = req.params.instance;
-      console.log(`Webhook recebido da instância: ${instance}`);
-      console.log(`Tipo de evento:`, req.body?.event || 'Desconhecido');
-      
-      // Processar diferentes tipos de eventos
-      const eventType = req.body?.event;
-      
-      // Registrar o evento recebido para debug
-      console.log(`Evolution API Webhook | Instância: ${instance} | Evento: ${eventType}`);
-      console.log(`Dados do evento:`, JSON.stringify(req.body).substring(0, 500) + "...");
-      
-      if (eventType === 'connection.update') {
-        // Atualizar o status de conexão no sistema
-        try {
-          // Usar o nome da instância para identificar o usuário
-          const { pool } = await import('./db');
-          const userQuery = `SELECT id FROM users WHERE username = $1`;
-          const userResult = await pool.query(userQuery, [instance]);
-          
-          if (userResult.rows.length > 0) {
-            const userId = userResult.rows[0].id;
-            
-            // Verificar o status de conexão
-            const connectionState = req.body?.data?.state;
-            const isConnected = connectionState === 'open' || connectionState === 'connected';
-            
-            // Atualizar o status de conexão
-            // Importar o objeto connectionStatus de connection.ts
-            const { connectionStatus } = await import('./connection');
-            
-            if (connectionStatus[userId]) {
-              connectionStatus[userId].connected = isConnected;
-              connectionStatus[userId].lastUpdated = new Date();
-              
-              console.log(`Status de conexão atualizado para usuário ${userId}: ${isConnected ? 'Conectado' : 'Desconectado'}`);
-            }
-          }
-        } catch (error) {
-          console.error(`Erro ao processar evento de conexão:`, error);
-        }
-      } else if (eventType === 'messages.upsert' || eventType === 'message') {
-        // Processar mensagens recebidas
-        try {
-          // Implementação para processar mensagens
-          console.log(`Mensagem recebida via webhook`);
-        } catch (error) {
-          console.error(`Erro ao processar mensagem:`, error);
-        }
-      }
-      
-      // Sempre retornar 200 para o webhook da Evolution API
-      return res.status(200).json({ success: true });
-    } catch (error) {
-      console.error(`Erro ao processar webhook:`, error);
-      return res.status(200).json({ success: false }); // Manter 200 para a Evolution API
-    }
-  });
-  
   // Configure HTTP server
   const httpServer = createServer(app);
   
