@@ -12,7 +12,7 @@ import http from 'http';
 import url from 'url';
 
 /**
- * Envia uma notificação GET para o webhook de contatos configurado no servidor
+ * Envia uma notificação GET para o webhook de configuração da instância Evolution configurado no servidor
  * @param serverId ID do servidor
  * @param userId ID do usuário
  * @param username Nome do usuário
@@ -28,7 +28,7 @@ export async function notifyContactsWebhook(
 ): Promise<boolean> {
   try {
     // Buscar as informações do servidor, incluindo a URL do webhook
-    console.log(`Buscando informações do servidor ${serverId} para webhook de contatos`);
+    console.log(`Buscando informações do servidor ${serverId} para Webhook de Configuração Instancia Evolution`);
     
     const [server] = await db
       .select()
@@ -40,10 +40,10 @@ export async function notifyContactsWebhook(
       return false;
     }
     
-    console.log(`Webhook de contatos configurado: ${server.contactsWebhookUrl}`);
+    console.log(`Webhook de Configuração Instancia Evolution configurado: ${server.contactsWebhookUrl}`);
     
     if (!server.contactsWebhookUrl) {
-      console.log(`Webhook de contatos não configurado para o servidor ${serverId}`);
+      console.log(`Webhook de Configuração Instancia Evolution não configurado para o servidor ${serverId}`);
       return false;
     }
     
@@ -72,7 +72,7 @@ export async function notifyContactsWebhook(
     const separator = webhookUrl.includes('?') ? '&' : '?';
     const fullUrl = `${webhookUrl}${separator}${params.toString()}`;
     
-    console.log(`Enviando requisição GET para webhook de contatos: ${fullUrl}`);
+    console.log(`Enviando requisição GET para Webhook de Configuração Instancia Evolution: ${fullUrl}`);
     
     // Fazer a requisição GET para o webhook usando módulos nativos
     // Isso contorna possíveis problemas com TLS/certificados que o Axios pode ter

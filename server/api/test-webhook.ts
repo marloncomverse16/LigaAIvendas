@@ -1,5 +1,5 @@
 /**
- * Rota para testar diretamente o envio para o webhook de contatos
+ * Rota para testar diretamente o envio para o Webhook de Configuração Instancia Evolution
  */
 
 import { Request, Response } from "express";
@@ -39,12 +39,12 @@ export async function testContactsWebhook(req: Request, res: Response) {
     if (result) {
       return res.status(200).json({ 
         success: true, 
-        message: "Webhook de contatos notificado com sucesso"
+        message: "Webhook de Configuração Instancia Evolution notificado com sucesso"
       });
     } else {
       return res.status(500).json({ 
         success: false, 
-        message: "Falha ao notificar webhook de contatos. Verifique os logs para mais detalhes."
+        message: "Falha ao notificar Webhook de Configuração Instancia Evolution. Verifique os logs para mais detalhes."
       });
     }
   } catch (error: any) {
