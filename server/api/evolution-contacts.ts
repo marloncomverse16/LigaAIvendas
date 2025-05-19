@@ -96,12 +96,13 @@ router.post('/sync', requireAuth, async (req: Request, res: Response) => {
     console.log('Sincronizando contatos da Evolution API usando POST request');
     
     try {
-      // Usar o endpoint correto com método POST
+      // Usar o endpoint correto com método POST - confirmamos que este endpoint funciona
       const endpoint = `${server.apiurl}/chat/findContacts/${server.instanceid}`;
       console.log(`Tentando buscar contatos via POST: ${endpoint}`);
       
       const response = await axios.post(endpoint, {
         // Não passar where para obter todos os contatos
+        // Se necessário, podemos adicionar filtros aqui posteriormente
       }, {
         headers: createAuthHeaders(server.apitoken),
         timeout: 15000
@@ -134,18 +135,18 @@ router.post('/sync', requireAuth, async (req: Request, res: Response) => {
         if (contacts.length > 0) {
           // Formatar contatos para o modelo da aplicação
           const formattedContacts = contacts.map((contact: any) => {
-            // Extrair número do formato JID (exemplo: 5511999999999@c.us)
-            const jid = contact.id || contact.jid || '';
-            const phone = jid.replace(/[@:].+$/, '') || contact.number || '';
+            // Extrair número do formato JID (exemplo: 5511999999999@c.us) ou remoteJid (5511999999999@s.whatsapp.net)
+            const jid = contact.remoteJid || contact.id || contact.jid || '';
+            const phone = jid.replace(/[@:].+$/, '').replace(/\D/g, '') || contact.number || '';
             
             return {
               id: jid,
-              name: contact.name || contact.pushname || phone || 'Contato',
+              name: contact.name || contact.pushName || phone || 'Contato',
               phone: phone,
-              pushname: contact.pushname || contact.name || '',
-              lastMessageTime: contact.lastMessageTime || new Date().toISOString(),
+              pushname: contact.pushName || contact.name || '',
+              lastMessageTime: contact.updatedAt || contact.createdAt || contact.lastMessageTime || new Date().toISOString(),
               isGroup: jid.includes('@g.us'),
-              profilePicture: contact.profilePictureUrl || null
+              profilePicture: contact.profilePicUrl || contact.profilePictureUrl || null
             };
           });
           
