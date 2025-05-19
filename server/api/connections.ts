@@ -528,6 +528,17 @@ export async function checkConnectionStatus(req: Request, res: Response) {
               lastUpdated: new Date(),
               method: 'qrcode'
             };
+            
+            // Se a conexão foi estabelecida, configurar webhook automaticamente
+            if (isConnected && server.whatsappWebhookUrl) {
+              console.log(`⚙️ Conexão estabelecida. Configurando webhook para ${server.whatsappWebhookUrl}`);
+              try {
+                await evolutionClient.configureWebhook(server.whatsappWebhookUrl);
+                console.log(`✅ Webhook configurado com sucesso para ${server.whatsappWebhookUrl}`);
+              } catch (webhookError) {
+                console.error(`❌ Erro ao configurar webhook após conexão: ${webhookError}`);
+              }
+            }
           }
         } catch (directError) {
           console.error("Erro ao verificar status direto:", directError);
@@ -548,6 +559,17 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         };
         
         console.log(`Status da conexão atualizado: ${isConnected ? 'Conectado' : 'Desconectado'}`);
+        
+        // Se a conexão foi estabelecida, configurar webhook automaticamente
+        if (isConnected && server.whatsappWebhookUrl) {
+          console.log(`⚙️ Conexão estabelecida. Configurando webhook para ${server.whatsappWebhookUrl}`);
+          try {
+            await evolutionClient.configureWebhook(server.whatsappWebhookUrl);
+            console.log(`✅ Webhook configurado com sucesso para ${server.whatsappWebhookUrl}`);
+          } catch (webhookError) {
+            console.error(`❌ Erro ao configurar webhook após conexão: ${webhookError}`);
+          }
+        }
       }
     } catch (statusError) {
       console.warn("Erro ao verificar status da conexão:", statusError);
