@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, RefreshCw, Search, Download, User, Users, Phone } from "lucide-react";
+import { SyncContactsButton } from "@/components/contacts/sync-button";
 
 // Tipo para contatos do WhatsApp
 interface WhatsAppContact {
@@ -112,16 +113,21 @@ export default function ContactsPage() {
             <Download className="mr-2 h-4 w-4" />
             Exportar
           </Button>
+          {/* Botão otimizado para Evolution API v3.7 */}
+          <SyncContactsButton />
+          
+          {/* Botão original para método legado */}
           <Button
             onClick={() => setShowSyncDialog(true)}
             disabled={syncMutation.isPending}
+            variant="outline"
           >
             {syncMutation.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <RefreshCw className="mr-2 h-4 w-4" />
             )}
-            Sincronizar
+            Sincronizar (Legado)
           </Button>
         </div>
       </div>
