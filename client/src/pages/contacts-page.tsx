@@ -56,17 +56,26 @@ export default function ContactsPage() {
     queryKey: ["/api/contacts"],
     refetchOnWindowFocus: false,
   });
+  
+  // Sincronizar contatos automaticamente ao carregar a página
+  useEffect(() => {
+    // Verificamos se não temos contatos já carregados, se não temos, sincronizamos
+    if (!isLoading && contactsData && (!contactsData.contacts || contactsData.contacts.length === 0)) {
+      console.log('Sem contatos encontrados. Iniciando sincronização automática...');
+      syncMutation.mutate();
+    }
+  }, [contactsData, isLoading]);
 
-  // Mutação para sincronizar contatos
+  // Mutação para sincronizar contatos usando o novo endpoint
   const syncMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", "/api/contacts/sync");
+      return await apiRequest("POST", "/api/chat/sync-contacts");
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
       toast({
         title: "Contatos sincronizados",
-        description: `${data.importResults?.created || 0} novos, ${data.importResults?.updated || 0} atualizados`,
+        description: `${data.contacts?.length || 0} contatos encontrados`,
       });
       setShowSyncDialog(false);
     },

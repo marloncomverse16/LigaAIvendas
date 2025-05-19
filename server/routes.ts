@@ -1991,6 +1991,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Novo endpoint usando a implementação correta conforme documentação oficial
   app.get("/api/chat/contacts-v2", getContactsV2);
   
+  // Endpoint de sincronização de contatos usando método POST conforme recomendação da Evolution API
+  app.post("/api/chat/sync-contacts", async (req, res) => {
+    try {
+      // Importar o módulo de sincronização apenas quando necessário
+      const { syncWhatsAppContacts } = await import('./api/evolution-contacts-sync');
+      await syncWhatsAppContacts(req, res);
+    } catch (error) {
+      console.error('Erro ao processar solicitação de sincronização:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro interno ao sincronizar contatos',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
   // Diagnóstico detalhado de contatos do WhatsApp
   app.get("/api/diagnostics/contacts", async (req, res) => {
     try {
