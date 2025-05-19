@@ -77,22 +77,40 @@ export class EvolutionApiClient {
       console.log("API Evolution online. Tentando criar a instância...");
       
       // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
+      // Obter a URL base para webhook - usamos a URL da aplicação, removendo http:// ou https://
+      const baseUrl = process.env.BASE_URL || 'localhost:5000';
+      const cleanBaseUrl = baseUrl.replace(/^https?:\/\//, '');
+      const webhookUrl = `https://${cleanBaseUrl}/api/evolution-webhook/${this.instance}`;
+      
+      console.log(`Configurando webhook URL: ${webhookUrl}`);
+      
       const createInstanceBody = {
         instanceName: this.instance,
         token: this.token,
-        webhook: null, // Podemos deixar webhook nulo por enquanto
-        webhookByEvents: false, // Podemos adicionar eventos específicos mais tarde
+        webhook: webhookUrl, // URL para o webhook
+        webhookByEvents: true, // Ativar eventos específicos
         integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
         language: "pt-BR",
         qrcode: true,
         qrcodeImage: true,
         // Parâmetros adicionais
         reject_call: false,
-        events_message: false,
+        events_message: true, // Ativar eventos de mensagem
         ignore_group: false,
         ignore_broadcast: false,
         save_message: true,
-        webhook_base64: true
+        webhook_base64: true,
+        // Configurações adicionais para webhooks
+        events_status: true, // Status de conexão
+        events_qrcode: true, // QR code
+        events_presence: true, // Presença dos contatos
+        events_media: true, // Mídia
+        events_reactions: true, // Reações
+        events_labels: true, // Etiquetas
+        events_call: true, // Chamadas
+        events_groups: true, // Grupos
+        event_group_interactions: true, // Interações em grupos
+        event_new_jwt: true // Notificações de novo JWT
       };
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
