@@ -20,6 +20,7 @@ import ServerManagementPage from "@/pages/server-management-page";
 import ConnectionsPage from "@/pages/connections";
 import WhatsAppQrCodePage from "@/pages/connections/whatsapp-qr-code";
 import WhatsAppMetaPage from "@/pages/connections/whatsapp-meta";
+import ConnectionsSettingsPage from "@/pages/connections-settings-page";
 import ContactsPage from "@/pages/contacts-page";
 import MetaTestPage from "@/pages/meta-test-page";
 import MetaDiagnosticPage from "@/pages/meta-diagnostic-page";
@@ -39,6 +40,7 @@ function Router() {
       <ProtectedRoute path="/conexoes" component={ConnectionsPage} />
       <ProtectedRoute path="/conexoes/whatsapp-qr-code" component={WhatsAppQrCodePage} />
       <ProtectedRoute path="/conexoes/whatsapp-meta" component={WhatsAppMetaPage} />
+      <ProtectedRoute path="/conexoes/configuracoes" component={ConnectionsSettingsPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
       <ProtectedRoute path="/contatos" component={ContactsPage} />
       <ProtectedRoute path="/chat" component={ChatWebView} />

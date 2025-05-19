@@ -8,7 +8,9 @@ import {
   MessageSquareWarning, 
   CheckCircle2, 
   AlertTriangle,
-  Smartphone
+  Smartphone,
+  Settings,
+  Webhook
 } from "lucide-react";
 import PageTitle from "@/components/ui/page-title";
 import { Button } from "@/components/ui/button";
@@ -174,6 +176,49 @@ const ConnectionsPage = () => {
             <Button asChild className="w-full" variant="outline">
               <Link to="/conexoes/whatsapp-meta">
                 {isMetaConnected ? "Gerenciar Conexão" : "Conectar com Meta API"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Webhook className="h-5 w-5 text-primary" />
+                <span>Configurações Webhook</span>
+              </CardTitle>
+            </div>
+            <CardDescription>
+              Configure webhooks para receber notificações e eventos do WhatsApp
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span>Ativar <strong>todas</strong> as opções de webhook</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span>Configurar URL personalizada para webhooks</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span>Receber mensagens e eventos em tempo real</span>
+              </p>
+              <Separator className="my-2" />
+              <p className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <span>A URL deve ser acessível pela internet para receber eventos</span>
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full" variant="secondary">
+              <Link to="/conexoes/configuracoes">
+                Configurar Webhook
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
