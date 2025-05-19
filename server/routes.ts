@@ -2007,6 +2007,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint para obter contatos sincronizados (para compatibilidade com o frontend)
+  app.get("/api/contacts", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Usamos o mesmo método de sincronização para buscar contatos
+      // Redirecionamos para o endpoint de contatos do WhatsApp
+      const { getContactsV2 } = await import('./api/evolution-contacts-v2');
+      await getContactsV2(req, res);
+    } catch (error) {
+      console.error('Erro ao obter contatos:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao obter contatos do WhatsApp',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Endpoints de webhook para integração com Evolution API
+  // Webhook para sincronização de contatos - GET /webhook/find/{instance}
+  app.get("/webhook/find/:instance", async (req, res) => {
+    try {
+      const { handleFindWebhook } = await import('./api/webhook-handler');
+      await handleFindWebhook(req, res);
+    } catch (error) {
+      console.error('Erro ao processar webhook:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro interno ao processar webhook',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Endpoint para sincronização de contatos via POST
+  // POST /chat/findContacts/{instance}
+  app.post("/chat/findContacts/:instance", async (req, res) => {
+    try {
+      // Verificar se temos o apikey no header
+      const apiKey = req.headers['apikey'] as string;
+      
+      if (!apiKey) {
+        return res.status(401).json({
+          success: false,
+          message: 'API key não fornecida no header'
+        });
+      }
+      
+      console.log(`[WEBHOOK] Recebida solicitação POST para sincronização de contatos: ${req.params.instance}`);
+      
+      // Usar o mesmo handler do webhook GET
+      const { handleFindWebhook } = await import('./api/webhook-handler');
+      await handleFindWebhook(req, res);
+    } catch (error) {
+      console.error('Erro ao processar webhook POST:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro interno ao processar webhook',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
   // Diagnóstico detalhado de contatos do WhatsApp
   app.get("/api/diagnostics/contacts", async (req, res) => {
     try {

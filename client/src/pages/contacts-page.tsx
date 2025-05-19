@@ -69,13 +69,18 @@ export default function ContactsPage() {
   // Mutação para sincronizar contatos usando o novo endpoint
   const syncMutation = useMutation({
     mutationFn: async () => {
+      // Usar o endpoint correto para sincronização
       return await apiRequest("POST", "/api/chat/sync-contacts");
     },
     onSuccess: (data) => {
+      // Atualizar a consulta de contatos após sincronização
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      
+      // Exibir informações sobre os contatos sincronizados
+      const contactsCount = data?.contacts?.length || 0;
       toast({
         title: "Contatos sincronizados",
-        description: `${data.contacts?.length || 0} contatos encontrados`,
+        description: `${contactsCount} contatos encontrados`,
       });
       setShowSyncDialog(false);
     },
