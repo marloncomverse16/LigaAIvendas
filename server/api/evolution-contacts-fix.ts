@@ -90,16 +90,62 @@ export async function getWhatsAppContactsFixed(req: Request, res: Response) {
     }
 
     // IMPORTANTE: Usar a URL correta da API e formato correto
-    // Esta URL foi testada e confirmada como funcionando
-    const contactsUrl = `${apiUrl}/instance/fetchContacts/${instanceId}`;
+    // Vamos tentar várias URLs diferentes para garantir que uma delas funcione
     
-    console.log(`🔄 Buscando contatos em: ${contactsUrl}`);
+    // Lista de formatos de URL para testar (começando com os mais prováveis)
+    const urlFormats = [
+      `${apiUrl}/instance/fetchContacts/${instanceId}`,
+      `${apiUrl}/api/fetchContacts/${instanceId}`,
+      `${apiUrl}/chat/findContacts/${instanceId}`,
+      `${apiUrl}/v1/instance/fetchContacts/${instanceId}`,
+      `${apiUrl}/fetchContacts/${instanceId}`,
+      `${apiUrl}/getAllContacts/${instanceId}`
+    ];
     
-    try {
-      const contactsResponse = await axios.get(contactsUrl, { 
-        headers,
-        timeout: 10000 // 10 segundos de timeout
-      });
+    // Tentar cada URL em sequência
+    let contactsResponse = null;
+    let successfulUrl = '';
+    
+    for (const url of urlFormats) {
+      try {
+        console.log(`🔄 Tentando buscar contatos em: ${url}`);
+        contactsResponse = await axios.get(url, { 
+          headers,
+          timeout: 7000 // 7 segundos de timeout
+        });
+        
+        if (contactsResponse.status === 200) {
+          successfulUrl = url;
+          console.log(`✅ URL funcionou: ${url}`);
+          break; // Sair do loop se encontrar uma URL que funciona
+        }
+      } catch (urlError) {
+        console.log(`❌ Falha na URL ${url}: ${urlError instanceof Error ? urlError.message : 'Erro desconhecido'}`);
+        // Continuar para a próxima URL
+      }
+    }
+    
+    // Se nenhuma URL GET funcionou, tentar método POST
+    if (!contactsResponse) {
+      try {
+        const postUrl = `${apiUrl}/chat/findContacts/${instanceId}`;
+        console.log(`🔄 Tentando com método POST: ${postUrl}`);
+        contactsResponse = await axios.post(postUrl, {}, { 
+          headers,
+          timeout: 10000
+        });
+        
+        if (contactsResponse.status === 200) {
+          successfulUrl = `POST ${postUrl}`;
+          console.log(`✅ Método POST funcionou: ${postUrl}`);
+        }
+      } catch (postError) {
+        console.log(`❌ Falha no método POST: ${postError instanceof Error ? postError.message : 'Erro desconhecido'}`);
+      }
+    }
+    
+    // Verificar se temos uma resposta
+    if (contactsResponse && contactsResponse.status === 200) {
 
       if (contactsResponse.status === 200) {
         // Processar contatos dependendo do formato retornado
