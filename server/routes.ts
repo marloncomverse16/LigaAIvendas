@@ -1991,6 +1991,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Novo endpoint usando a implementação correta conforme documentação oficial
   app.get("/api/chat/contacts-v2", getContactsV2);
   
+  // Endpoint CORRIGIDO para obter contatos com as URLs CORRETAS
+  app.get("/api/chat/contacts-v3", async (req, res) => {
+    try {
+      // Importar o módulo correto de forma dinâmica
+      const { getContactsV3 } = await import('./api/evolution-contacts-v3');
+      return await getContactsV3(req, res);
+    } catch (error) {
+      console.error('Erro ao processar solicitação de contatos V3:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro interno ao obter contatos V3',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
   // Diagnóstico detalhado de contatos do WhatsApp
   app.get("/api/diagnostics/contacts", async (req, res) => {
     try {
