@@ -1991,6 +1991,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Novo endpoint usando a implementação correta conforme documentação oficial
   app.get("/api/chat/contacts-v2", getContactsV2);
   
+  // Diagnóstico detalhado de contatos do WhatsApp
+  app.get("/api/diagnostics/contacts", async (req, res) => {
+    try {
+      // Importar o módulo de diagnóstico apenas quando necessário
+      const { runContactDiagnostics } = await import('./api/diagnostics/contacts');
+      await runContactDiagnostics(req, res);
+    } catch (error) {
+      console.error('Erro ao processar solicitação de diagnóstico:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro interno ao executar diagnóstico de contatos',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
   app.get("/api/whatsapp/contacts", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
