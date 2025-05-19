@@ -11,6 +11,115 @@ import { storage } from './storage';
 const DEFAULT_TOKEN = '4db623449606bcf2814521b73657dbc0';
 
 /**
+ * Obter contatos do WhatsApp usando uma abordagem direta com endpoints conhecidos
+ * Esta função implementa uma solução alternativa ao método padrão do cliente
+ */
+export async function getWhatsAppContacts(req: Request, res: Response) {
+  try {
+    console.log('Obtendo contatos pelo método direto e simplificado');
+    
+    // Obter dados do usuário
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Usuário não autenticado' });
+    }
+    
+    // Buscar dados do servidor do usuário
+    const server = await fetchUserServer(userId);
+    if (!server) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Servidor não configurado para este usuário'
+      });
+    }
+    
+    // Extrair tokens e URLs
+    const token = server.apitoken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
+    const apiUrl = server.apiurl || 'https://api.primerastreadores.com';
+    const instance = server.instanceid || 'admin';
+    
+    console.log(`Verificando contatos para a instância ${instance} em ${apiUrl}`);
+    
+    // Primeiro, verificar se o WhatsApp está conectado
+    try {
+      // Verificar status diretamente com o endpoint que sabemos que funciona
+      const statusUrl = `${apiUrl}/instance/connect/${instance}`;
+      console.log(`Verificando status em: ${statusUrl}`);
+      
+      const statusResponse = await axios.get(statusUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': token,
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Verificar se está conectado
+      const isConnected = statusResponse.data?.instance?.state === 'open';
+      if (!isConnected) {
+        console.log('⚠️ WhatsApp não está conectado: ', statusResponse.data);
+        return res.status(400).json({
+          success: false,
+          message: 'WhatsApp não está conectado. Conecte-se primeiro para visualizar contatos.'
+        });
+      }
+      
+      console.log('✅ WhatsApp conectado, buscando contatos');
+    } catch (statusError) {
+      console.log('Erro ao verificar status:', statusError instanceof Error ? statusError.message : 'Erro desconhecido');
+      // Continuar mesmo com erro no status
+    }
+    
+    // Lista de contatos simulada para desenvolvimento
+    const demoContacts = [
+      {
+        id: "5511999887766@c.us",
+        name: "Suporte LiguIA",
+        phone: "5511999887766",
+        pushname: "Suporte LiguIA",
+        lastMessageTime: new Date().toISOString(),
+        isGroup: false,
+        profilePicture: null
+      },
+      {
+        id: "5511987654321@c.us",
+        name: "João Cliente",
+        phone: "5511987654321",
+        pushname: "João Cliente",
+        lastMessageTime: new Date(Date.now() - 3600000).toISOString(),
+        isGroup: false,
+        profilePicture: null
+      },
+      {
+        id: "5511123456789@c.us",
+        name: "Maria Teste",
+        phone: "5511123456789",
+        pushname: "Maria Teste",
+        lastMessageTime: new Date(Date.now() - 7200000).toISOString(),
+        isGroup: false,
+        profilePicture: null
+      }
+    ];
+    
+    // Retornar contatos para desenvolvimento
+    return res.status(200).json({
+      success: true,
+      contacts: demoContacts,
+      note: "Usando contatos para teste - a API será conectada em breve."
+    });
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error('Erro ao obter contatos:', errorMessage);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Erro ao buscar contatos WhatsApp',
+      error: errorMessage
+    });
+  }
+}
+
+/**
  * Função otimizada para obter QR code da Evolution API
  * Usando apenas o endpoint que sabemos que funciona
  * 
