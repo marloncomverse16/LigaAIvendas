@@ -3119,7 +3119,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Endpoints para gerenciamento de contatos
-  app.get("/api/contacts", listContacts);
+  app.get("/api/contacts", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ success: false, message: "Não autenticado" });
+    }
+    
+    try {
+      // Obter o ID do usuário atual
+      const userId = req.user?.id;
+      
+      // Importar o pool para consultas diretas
+      const { pool } = await import('./db');
+      
+      // Consultar contatos no banco de dados
+      const query = `
+        SELECT 
+          id, contact_id as "contactId", name, number, profile_picture as "profilePicture",
+          is_group as "isGroup", last_activity as "lastActivity", 
+          last_message_content as "lastMessageContent", unread_count as "unreadCount",
+          created_at as "createdAt", updated_at as "updatedAt"
+        FROM 
+          contacts
+        WHERE 
+          user_id = $1
+        ORDER BY 
+          name ASC, number ASC
+      `;
+      
+      const result = await pool.query(query, [userId]);
+      
+      console.log(`Encontrados ${result.rows.length} contatos para o usuário ${userId}`);
+      
+      res.json({
+        success: true,
+        contacts: result.rows
+      });
+    } catch (error) {
+      console.error("Erro ao buscar contatos:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Erro ao buscar contatos",
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+  
   app.post("/api/contacts/sync", syncContacts);
   app.get("/api/contacts/export", exportContacts);
   
