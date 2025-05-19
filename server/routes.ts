@@ -46,6 +46,9 @@ import {
 // Importação do novo controlador para verificar status da Meta API
 import { checkMetaConnectionStatus } from "./api/meta-status";
 
+// Importação do chat otimizado para Evolution API v3.7
+import chatV37Router from "./api/chat-v3.7";
+
 // Novas importações para conexões Meta API específicas do usuário
 
 // Configuração do multer para upload de arquivos
