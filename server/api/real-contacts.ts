@@ -219,31 +219,24 @@ export async function getRealContacts(req: Request, res: Response) {
           profilePicture: null
         });
       }
-    
-    return res.json({
-      success: true,
-      contacts: contacts,
-      metadata: {
-        total: contacts.length,
-        connected: true,
-        instance: instance
-      }
-    });
-    
-  } catch (error) {
-    console.error("Erro ao processar dispositivos conectados:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Erro interno ao buscar contatos do WhatsApp"
-    });
-  }
-      metadata: {
-        total: contacts.length,
-        connected: true,
-        instance: instance
-      }
-    });
-    
+      
+      return res.json({
+        success: true,
+        contacts: contacts,
+        metadata: {
+          total: contacts.length,
+          connected: true,
+          instance: instance
+        }
+      });
+      
+    } catch (error) {
+      console.error("Erro ao processar dispositivos conectados:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erro interno ao buscar contatos do WhatsApp"
+      });
+    }
   } catch (error) {
     console.error("Erro ao obter contatos reais:", error);
     return res.status(500).json({

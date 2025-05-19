@@ -6,6 +6,7 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import { EvolutionApiClient } from '../evolution-api';
+import { getRealContacts } from './real-contacts';
 
 const router = Router();
 
@@ -775,6 +776,21 @@ router.post('/send', requireAuth, async (req: Request, res: Response) => {
       success: false,
       message: 'Erro ao enviar mensagem',
       error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+});
+
+// Rota otimizada para obter contatos reais
+router.get('/direct-contacts', requireAuth, async (req: Request, res: Response) => {
+  try {
+    // Delegar para o módulo especializado que implementa múltiplos métodos
+    // de obtenção de contatos com fallbacks para garantir que algum dado seja retornado
+    return getRealContacts(req, res);
+  } catch (error) {
+    console.error('Erro ao obter contatos diretos:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno ao buscar contatos do WhatsApp'
     });
   }
 });
