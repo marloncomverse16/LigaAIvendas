@@ -1,304 +1,257 @@
-import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { InfoIcon, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, AlertCircle, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-const ChatDiagnosticsPage = () => {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [diagnosticResults, setDiagnosticResults] = useState<any>(null);
+export default function ChatDiagnosticsPage() {
+  const [isLoadingNew, setIsLoadingNew] = useState(false);
+  const [contactsV2Result, setContactsV2Result] = useState<any>(null);
 
-  const runDiagnostics = async () => {
+  // Consulta principal para diagnósticos
+  const { 
+    data: diagnosticData, 
+    isLoading, 
+    error, 
+    refetch 
+  } = useQuery({
+    queryKey: ["/api/diagnostics/contacts"],
+    retry: false,
+  });
+
+  // Função para testar a nova implementação de contatos
+  const testContactsV2 = async () => {
+    setIsLoadingNew(true);
     try {
-      setLoading(true);
-      
-      const response = await apiRequest('GET', '/api/diagnostics/contacts');
+      const response = await fetch("/api/chat/contacts-v2");
       const data = await response.json();
-      
-      console.log("Resultados do diagnóstico:", data);
-      setDiagnosticResults(data);
-      
-      toast({
-        title: "Diagnóstico completo",
-        description: "A análise da Evolution API foi concluída."
-      });
-    } catch (error) {
-      console.error('Erro ao executar diagnóstico:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Falha ao executar diagnóstico. Tente novamente."
+      setContactsV2Result(data);
+    } catch (err) {
+      setContactsV2Result({
+        success: false,
+        error: err instanceof Error ? err.message : "Erro desconhecido"
       });
     } finally {
-      setLoading(false);
+      setIsLoadingNew(false);
     }
+  };
+
+  // Formatação para exibição JSON
+  const formatJson = (obj: any) => {
+    return JSON.stringify(obj, null, 2);
   };
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Diagnóstico da API de Contatos</h1>
-      
-      <div className="mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Executar Diagnóstico</CardTitle>
-            <CardDescription>
-              Esta ferramenta verificará todos os endpoints relevantes da Evolution API 
-              para determinar onde está o problema com a obtenção de contatos.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Diagnóstico de Contatos WhatsApp</h1>
+          <div className="flex gap-2">
             <Button 
-              onClick={runDiagnostics} 
-              disabled={loading}
-              className="w-full"
+              variant="outline" 
+              onClick={() => refetch()} 
+              disabled={isLoading}
             >
-              {loading ? "Executando diagnóstico..." : "Executar Diagnóstico Completo"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analisando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Executar diagnóstico
+                </>
+              )}
             </Button>
+            <Button 
+              variant="default" 
+              onClick={testContactsV2}
+              disabled={isLoadingNew}
+            >
+              {isLoadingNew ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Testar Nova API de Contatos
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
 
-            {diagnosticResults?.success === false && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Erro no diagnóstico</AlertTitle>
-                <AlertDescription>
-                  {diagnosticResults.message || "Ocorreu um erro ao executar o diagnóstico."}
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+        {/* Exibição de erro */}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Erro</AlertTitle>
+            <AlertDescription>
+              Ocorreu um erro ao executar o diagnóstico: {(error as Error).message}
+            </AlertDescription>
+          </Alert>
+        )}
 
-      {diagnosticResults?.success && diagnosticResults?.diagnostics && (
-        <Tabs defaultValue="summary" className="mb-6">
-          <TabsList className="mb-4">
-            <TabsTrigger value="summary">Resumo</TabsTrigger>
-            <TabsTrigger value="connection">Conexão</TabsTrigger>
-            <TabsTrigger value="endpoints">Endpoints</TabsTrigger>
-            <TabsTrigger value="details">Detalhes</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="summary">
-            <Card>
+        {/* Teste da nova implementação */}
+        {contactsV2Result && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                {contactsV2Result.success ? (
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-500 mr-2" />
+                )}
+                Resultado do Teste Nova API (v2)
+              </CardTitle>
+              <CardDescription>
+                {contactsV2Result.success 
+                  ? `Sucesso! Método: ${contactsV2Result.method || 'Direto'} - Total: ${contactsV2Result.total || '-'} contatos`
+                  : `Falha: ${contactsV2Result.message || 'Erro ao obter contatos'}`
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="single" collapsible>
+                <AccordionItem value="v2-details">
+                  <AccordionTrigger>Ver detalhes</AccordionTrigger>
+                  <AccordionContent>
+                    <pre className="bg-slate-100 dark:bg-slate-900 p-4 rounded-md overflow-auto text-xs">
+                      {formatJson(contactsV2Result)}
+                    </pre>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Resultados do diagnóstico */}
+        {diagnosticData && (
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            {/* Informações do servidor */}
+            <Card className="md:col-span-4">
               <CardHeader>
-                <CardTitle>Resumo do Diagnóstico</CardTitle>
-                <CardDescription>Visão geral dos resultados</CardDescription>
+                <CardTitle>Informações do Servidor</CardTitle>
+                <CardDescription>Configuração da Evolution API</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div>
+                    <span className="font-medium">URL da API:</span>{" "}
+                    <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-sm">
+                      {diagnosticData.diagnostics.server.apiUrl}
+                    </code>
+                  </div>
+                  <div>
+                    <span className="font-medium">ID da Instância:</span>{" "}
+                    <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-sm">
+                      {diagnosticData.diagnostics.server.instanceId}
+                    </code>
+                  </div>
+                  <div>
+                    <span className="font-medium">Tamanho do Token:</span>{" "}
+                    <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-sm">
+                      {diagnosticData.diagnostics.server.tokenLength} caracteres
+                    </code>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Status da conexão */}
+            <Card className="md:col-span-8">
+              <CardHeader>
+                <CardTitle>Status da Conexão</CardTitle>
+                <CardDescription>Testes de conectividade básica</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Informações do Servidor</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
-                        <Label>URL da API</Label>
-                        <p className="font-mono text-sm">{diagnosticResults.diagnostics.server.apiUrl}</p>
-                      </div>
-                      <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
-                        <Label>ID da Instância</Label>
-                        <p className="font-mono text-sm">{diagnosticResults.diagnostics.server.instanceId}</p>
-                      </div>
+                  <div className="flex items-center">
+                    <div className="mr-4">
+                      {diagnosticData.diagnostics.connection.baseConnection ? (
+                        <CheckCircle className="h-6 w-6 text-green-500" />
+                      ) : (
+                        <XCircle className="h-6 w-6 text-red-500" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Conexão Básica</h3>
+                      <p className="text-sm text-slate-500">
+                        {diagnosticData.diagnostics.connection.baseConnection
+                          ? `Conectado com sucesso (status ${diagnosticData.diagnostics.connection.baseConnectionDetails?.status})`
+                          : "Falha na conexão básica com o servidor"}
+                      </p>
                     </div>
                   </div>
 
-                  <Separator />
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Status da Conexão</h3>
-                    <div className="grid grid-cols-1 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={diagnosticResults.diagnostics.connection.baseConnection ? "success" : "destructive"}>
-                          {diagnosticResults.diagnostics.connection.baseConnection ? "Conectado" : "Falha"}
-                        </Badge>
-                        <span>Conexão básica com a API</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={diagnosticResults.diagnostics.connection.authTest ? "success" : "destructive"}>
-                          {diagnosticResults.diagnostics.connection.authTest ? "Sucesso" : "Falha"}
-                        </Badge>
-                        <span>Autenticação com token</span>
-                      </div>
+                  <div className="flex items-center">
+                    <div className="mr-4">
+                      {diagnosticData.diagnostics.connection.authTest ? (
+                        <CheckCircle className="h-6 w-6 text-green-500" />
+                      ) : (
+                        <XCircle className="h-6 w-6 text-red-500" />
+                      )}
                     </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Endpoints de Contato</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      {Object.entries(diagnosticResults.diagnostics.endpoints)
-                        .filter(([key]) => key.includes('contact'))
-                        .map(([key, value]: [string, any]) => (
-                          <div key={key} className="flex items-center space-x-2">
-                            {value.isSuccess ? (
-                              <CheckCircle className="h-5 w-5 text-green-500" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-red-500" />
-                            )}
-                            <span>{key}</span>
-                            <Badge variant={value.isSuccess ? "success" : "destructive"}>
-                              {value.status || 'N/A'}
-                            </Badge>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Recomendações</h3>
-                    <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-md">
-                      <div className="flex space-x-2">
-                        <InfoIcon className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                        <div>
-                          {Object.values(diagnosticResults.diagnostics.endpoints).some((endpoint: any) => endpoint.isSuccess) ? (
-                            <p>
-                              Alguns endpoints estão funcionando. Tente usar o endpoint que está 
-                              respondendo corretamente.
-                            </p>
-                          ) : (
-                            <p>
-                              Nenhum dos endpoints de contato está funcionando. Verifique o token de API,
-                              a URL do servidor e o ID da instância. Considere usar contatos simulados
-                              temporariamente.
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                    <div>
+                      <h3 className="font-medium">Autenticação</h3>
+                      <p className="text-sm text-slate-500">
+                        {diagnosticData.diagnostics.connection.authTest
+                          ? "Autenticação bem-sucedida com token"
+                          : `Falha na autenticação (status ${diagnosticData.diagnostics.connection.authTestDetails?.status || 'desconhecido'})`}
+                      </p>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-          
-          <TabsContent value="connection">
-            <Card>
+
+            {/* Testes de endpoints */}
+            <Card className="md:col-span-12">
               <CardHeader>
-                <CardTitle>Detalhes da Conexão</CardTitle>
-                <CardDescription>Informações sobre a conexão com a API</CardDescription>
+                <CardTitle>Teste de Endpoints</CardTitle>
+                <CardDescription>Verificação de múltiplos endpoints da API</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Teste de Conexão Básica</h3>
-                    <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Object.entries(diagnosticData.diagnostics.endpoints).map(([key, value]: [string, any]) => (
+                    <div 
+                      key={key}
+                      className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-900"
+                    >
                       <div className="flex items-center mb-2">
-                        <Badge variant={diagnosticResults.diagnostics.connection.baseConnection ? "success" : "destructive"}>
-                          {diagnosticResults.diagnostics.connection.baseConnection ? "Sucesso" : "Falha"}
-                        </Badge>
-                        <span className="ml-2">Status: {diagnosticResults.diagnostics.connection.baseConnectionDetails?.status || 'N/A'}</span>
-                      </div>
-                      <Label>Detalhes da Resposta:</Label>
-                      <pre className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-md text-xs overflow-auto max-h-[200px]">
-                        {JSON.stringify(diagnosticResults.diagnostics.connection.baseConnectionDetails, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Teste de Autenticação</h3>
-                    <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
-                      <div className="flex items-center mb-2">
-                        <Badge variant={diagnosticResults.diagnostics.connection.authTest ? "success" : "destructive"}>
-                          {diagnosticResults.diagnostics.connection.authTest ? "Sucesso" : "Falha"}
-                        </Badge>
-                        <span className="ml-2">Status: {diagnosticResults.diagnostics.connection.authTestDetails?.status || 'N/A'}</span>
-                      </div>
-                      <Label>Detalhes da Resposta:</Label>
-                      <pre className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-md text-xs overflow-auto max-h-[200px]">
-                        {JSON.stringify(diagnosticResults.diagnostics.connection.authTestDetails, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="endpoints">
-            <Card>
-              <CardHeader>
-                <CardTitle>Endpoints Testados</CardTitle>
-                <CardDescription>Status de cada endpoint testado</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(diagnosticResults.diagnostics.endpoints).map(([key, value]: [string, any]) => (
-                    <div key={key} className="mb-4">
-                      <div className="flex items-center space-x-2 mb-2">
                         {value.isSuccess ? (
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                          <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
                         ) : (
-                          <XCircle className="h-5 w-5 text-red-500" />
+                          <XCircle className="h-5 w-5 text-red-500 mr-2" />
                         )}
-                        <h3 className="text-lg font-semibold">{key}</h3>
-                        <Badge variant={value.isSuccess ? "success" : "destructive"}>
-                          {value.status || 'N/A'}
-                        </Badge>
+                        <h3 className="font-medium">{key}</h3>
                       </div>
-                      <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
-                        <Label>Tipo de dados: {value.dataType || 'N/A'}</Label>
-                        {value.error ? (
-                          <div className="mt-2">
-                            <Badge variant="destructive">Erro</Badge>
-                            <p className="text-sm mt-1">{value.error}</p>
-                          </div>
-                        ) : (
-                          <pre className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-md text-xs overflow-auto max-h-[150px]">
-                            {JSON.stringify(value.dataPreview, null, 2)}
-                          </pre>
-                        )}
-                      </div>
+                      <p className="text-sm text-slate-500 mb-2">
+                        Status: {value.status || 'N/A'} {value.statusText || ''}
+                      </p>
+                      
+                      <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value={`data-${key}`}>
+                          <AccordionTrigger className="text-xs py-1">Ver detalhes</AccordionTrigger>
+                          <AccordionContent>
+                            <pre className="bg-slate-100 dark:bg-slate-900 p-2 rounded-md overflow-auto text-xs max-h-40">
+                              {formatJson(value)}
+                            </pre>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-          
-          <TabsContent value="details">
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados Completos</CardTitle>
-                <CardDescription>Visualização completa dos dados do diagnóstico</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <pre className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-xs overflow-auto max-h-[500px]">
-                  {JSON.stringify(diagnosticResults.diagnostics, null, 2)}
-                </pre>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      )}
-
-      <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-md mb-4">
-        <div className="flex items-start">
-          <InfoIcon className="h-5 w-5 text-blue-500 flex-shrink-0 mt-1" />
-          <div className="ml-2">
-            <h3 className="font-semibold">Sobre esta ferramenta</h3>
-            <p className="text-sm mt-1">
-              Esta página de diagnóstico foi criada para identificar especificamente onde está 
-              o problema com a obtenção de contatos do WhatsApp via Evolution API. O diagnóstico testa 
-              múltiplos endpoints e configurações para determinar o que está funcionando e 
-              o que não está. Com base nesses resultados, podemos implementar uma solução 
-              apropriada.
-            </p>
           </div>
-        </div>
+        )}
       </div>
-    </div>
   );
-};
-
-export default ChatDiagnosticsPage;
+}
