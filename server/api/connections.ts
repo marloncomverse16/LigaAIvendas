@@ -11,6 +11,7 @@ import { EvolutionApiClient } from "../evolution-api";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
 import { userServers, servers, users } from "../../shared/schema";
+import { notifyContactsWebhook } from "./webhook-notifier";
 
 
 // Mantém o status da conexão por usuário
@@ -139,6 +140,31 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
           method: 'qrcode'
         };
         
+        // Notificar webhook de contatos sobre a geração do QR Code
+        try {
+          console.log(`Notificando webhook de contatos que o QR Code foi gerado para o usuário ${userId}`);
+          
+          // Notificar webhook de forma assíncrona (não aguardar resposta)
+          notifyContactsWebhook(
+            server.id, 
+            userId, 
+            req.user!.username,
+            'qrcode_generated',
+            {
+              instance: instanceId,
+              timestamp: new Date().toISOString(),
+              connected: false
+            }
+          ).then(success => {
+            console.log(`Notificação de webhook para QR Code ${success ? 'enviada com sucesso' : 'falhou'}`);
+          }).catch(err => {
+            console.error('Erro ao notificar webhook:', err);
+          });
+        } catch (webhookError) {
+          // Apenas registrar erro, não interromper o fluxo principal
+          console.error('Erro ao preparar notificação de webhook:', webhookError);
+        }
+        
         // Retorna QR code para o cliente
         return res.status(200).json({ 
           qrcode: qrResult.qrCode,
@@ -151,6 +177,31 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
           lastUpdated: new Date(),
           method: 'qrcode'
         };
+        
+        // Notificar webhook de contatos sobre a conexão já existente
+        try {
+          console.log(`Notificando webhook de contatos que o WhatsApp já está conectado para o usuário ${userId}`);
+          
+          // Notificar webhook de forma assíncrona (não aguardar resposta)
+          notifyContactsWebhook(
+            server.id, 
+            userId, 
+            req.user!.username,
+            'already_connected',
+            {
+              instance: instanceId,
+              timestamp: new Date().toISOString(),
+              connected: true
+            }
+          ).then(success => {
+            console.log(`Notificação de webhook para conexão existente ${success ? 'enviada com sucesso' : 'falhou'}`);
+          }).catch(err => {
+            console.error('Erro ao notificar webhook:', err);
+          });
+        } catch (webhookError) {
+          // Apenas registrar erro, não interromper o fluxo principal
+          console.error('Erro ao preparar notificação de webhook:', webhookError);
+        }
         
         return res.status(200).json({ 
           connected: true,
