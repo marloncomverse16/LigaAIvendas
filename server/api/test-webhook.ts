@@ -16,8 +16,8 @@ export async function testContactsWebhook(req: Request, res: Response) {
       return res.status(401).json({ message: "Não autenticado" });
     }
     
-    // Verificar papel de admin
-    if (req.user?.role !== 'admin') {
+    // Verificar se é admin
+    if (!req.user?.isAdmin) {
       return res.status(403).json({ message: "Acesso não autorizado" });
     }
     

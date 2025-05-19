@@ -3125,6 +3125,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/contacts/sync", syncContacts);
   app.get("/api/contacts/export", exportContacts);
   
+  // Rota para testar webhook de contatos
+  app.get("/api/servers/:serverId/test-webhook", testContactsWebhook);
+  
   // Configure HTTP server
   const httpServer = createServer(app);
   
