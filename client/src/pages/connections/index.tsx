@@ -88,26 +88,7 @@ const ConnectionsPage = () => {
         </div>
       )}
 
-      <div className="mb-6">
-        <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <Webhook className="h-6 w-6 text-blue-600 dark:text-blue-500 mt-0.5" />
-              <div>
-                <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-400">
-                  Configuração Automática de Webhook
-                </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Os webhooks são configurados automaticamente quando você conecta com QR Code. 
-                  O sistema detecta o endereço correto e configura todos os webhooks necessários 
-                  sem intervenção manual, garantindo o funcionamento adequado das notificações.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
+
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
