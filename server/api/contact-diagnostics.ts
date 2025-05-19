@@ -188,6 +188,8 @@ async function testEndpoints(server: any) {
     { name: 'connection_state_2', url: `${server.apiUrl}/manager/instance/connectionState/${instanceId}`, method: 'GET' },
     { name: 'status', url: `${server.apiUrl}/status`, method: 'GET' },
     { name: 'metadata', url: `${server.apiUrl}/instance/connectionState/${instanceId}/metadata`, method: 'GET' },
+    // Novo endpoint conforme documentação oficial
+    { name: 'find_contacts', url: `${server.apiUrl}/chat/findContacts/${instanceId}`, method: 'POST' },
   ];
 
   const results: Record<string, any> = {};

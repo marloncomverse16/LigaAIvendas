@@ -1,0 +1,54 @@
+Get Information
+curl --request GET \
+  --url https://{server-url}/
+
+{
+  "status": 200,
+  "message": "Welcome to the Evolution API, it is working!",
+  "version": "1.7.4",
+  "swagger": "http://example.evolution-api.com/docs",
+  "manager": "http://example.evolution-api.com/manager",
+  "documentation": "https://doc.evolution-api.com"
+}
+
+-----------------------------------------
+
+Find Contacts
+
+curl --request POST \
+  --url https://evolution-example/chat/findContacts/{instance} \
+  --header 'Content-Type: application/json' \
+  --header 'apikey: <api-key>' \
+  --data '{
+  "where": {
+    "id": "<string>"
+  }
+}'
+
+--------------------------
+
+curl --request POST \
+  --url https://{server-url}/chat/fetchProfile/{instance} \
+  --header 'Content-Type: application/json' \
+  --header 'apikey: <api-key>' \
+  --data '{
+  "number": "<string>"
+}'
+
+curl --request POST \
+  --url https://{server-url}/chat/updateProfileName/{instance} \
+  --header 'Content-Type: application/json' \
+  --header 'apikey: <api-key>' \
+  --data '{
+  "name": "<string>"
+}'
+
+curl --request POST \
+  --url https://{server-url}/chat/updateProfileStatus/{instance} \
+  --header 'Content-Type: application/json' \
+  --header 'apikey: <api-key>' \
+  --data '{
+  "status": "<string>"
+}'
+
+

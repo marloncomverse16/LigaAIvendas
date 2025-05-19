@@ -26,6 +26,7 @@ import { setupWebSocketServer, sendMessage } from "./websocket";
 import multer from "multer";
 import fs from "fs";
 import { runContactDiagnostics } from "./api/contact-diagnostics";
+import { getContactsV2 } from "./api/evolution-contacts-v2";
 
 // Novas importações para o menu Conexões
 import { 
@@ -1986,6 +1987,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WhatsApp API Routes
   // Endpoint direto para obter contatos do WhatsApp (alternativa robusta)
   app.get("/api/chat/direct-contacts", getWhatsAppContacts);
+  
+  // Novo endpoint usando a implementação correta conforme documentação oficial
+  app.get("/api/chat/contacts-v2", getContactsV2);
   
   app.get("/api/whatsapp/contacts", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
