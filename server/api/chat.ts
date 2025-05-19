@@ -1,7 +1,6 @@
 /**
  * Módulo de API para chat via WhatsApp
  * Implementa endpoints para listar contatos, buscar mensagens e enviar mensagens
- * Versão melhorada para funcionar com Evolution API v3.7
  */
 
 import { Router, Request, Response } from 'express';
@@ -16,16 +15,6 @@ function requireAuth(req: Request, res: Response, next: Function) {
     return res.status(401).json({ success: false, message: 'Não autenticado' });
   }
   next();
-}
-
-// Função para criar headers de autenticação com todos os possíveis formatos
-function createAuthHeaders(token: string) {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-    'apikey': token,
-    'AUTHENTICATION_API_KEY': token
-  };
 }
 
 // Buscar o servidor para o usuário atual
@@ -166,7 +155,7 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
       
       // Se não conseguiu com o cliente, tentar diretamente com a API
       try {
-        // Tentar diferentes endpoints conhecidos para Evolution API v3.7
+        // Tentar diferentes endpoints conhecidos
         const endpoints = [
           `/instance/fetchContacts/${server.instanceid}`,
           `/api/instances/${server.instanceid}/contacts`,
@@ -174,8 +163,7 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
           `/instance/getAllContacts/${server.instanceid}`,
           `/instance/contacts/${server.instanceid}`,
           `/manager/contacts/${server.instanceid}`,
-          `/chat/contacts/${server.instanceid}`,
-          `/api/v1/contacts/${server.instanceid}`
+          `/chat/contacts/${server.instanceid}`
         ];
         
         let contactsData = null;
@@ -184,8 +172,11 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
           try {
             console.log(`Tentando endpoint: ${server.apiurl}${endpoint}`);
             const response = await axios.get(`${server.apiurl}${endpoint}`, {
-              headers: createAuthHeaders(server.apitoken),
-              timeout: 12000 // Timeout de 12 segundos
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${server.apitoken}`,
+                'apikey': server.apitoken
+              }
             });
             
             if (response.status === 200 && response.data) {
@@ -355,7 +346,7 @@ router.get('/messages/:contactId', requireAuth, async (req: Request, res: Respon
       );
       
       try {
-        // Tentar diferentes endpoints para mensagens - otimizados para Evolution API v3.7
+        // Tentar diferentes endpoints para mensagens
         const endpoints = [
           `/api/messages/fetch/${server.instanceid}?phone=${formattedContactId}`,
           `/api/instances/${server.instanceid}/messages?phone=${formattedContactId}`,
@@ -372,8 +363,11 @@ router.get('/messages/:contactId', requireAuth, async (req: Request, res: Respon
           try {
             console.log(`Tentando endpoint para mensagens: ${server.apiurl}${endpoint}`);
             const response = await axios.get(`${server.apiurl}${endpoint}`, {
-              headers: createAuthHeaders(server.apitoken),
-              timeout: 12000
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${server.apitoken}`,
+                'apikey': server.apitoken
+              }
             });
             
             if (response.status === 200 && response.data) {
@@ -567,71 +561,13 @@ router.post('/send', requireAuth, async (req: Request, res: Response) => {
         });
       }
       
-      // Se falhou, tentar diretamente com os endpoints conhecidos
-      try {
-        // Tentar os endpoints conhecidos para enviar mensagem na Evolution API v3.7
-        const sendEndpoints = [
-          `/api/messages/send/${server.instanceid}`,
-          `/api/instances/${server.instanceid}/messages/text`,
-          `/instance/sendText/${server.instanceid}`,
-          `/api/v1/messages/text/${server.instanceid}`
-        ];
-        
-        let sent = false;
-        
-        for (const endpoint of sendEndpoints) {
-          try {
-            console.log(`Tentando enviar mensagem via endpoint: ${server.apiurl}${endpoint}`);
-            
-            const response = await axios.post(`${server.apiurl}${endpoint}`, {
-              phone: phone,
-              message: message,
-              chatId: formattedContactId,
-              text: message // algumas versões usam 'text' em vez de 'message'
-            }, {
-              headers: createAuthHeaders(server.apitoken),
-              timeout: 12000
-            });
-            
-            if (response.status >= 200 && response.status < 300 && response.data) {
-              console.log(`Mensagem enviada com sucesso via ${endpoint}:`, response.data);
-              sent = true;
-              
-              return res.json({
-                success: true,
-                messageId: response.data.id || response.data.messageId || `sent-${Date.now()}`,
-                timestamp: new Date().toISOString(),
-                endpoint: endpoint
-              });
-            }
-          } catch (endpointError) {
-            console.log(`Erro ao enviar mensagem via ${endpoint}:`, 
-              endpointError instanceof Error ? endpointError.message : String(endpointError));
-          }
-        }
-        
-        if (!sent) {
-          console.log("Nenhum endpoint funcionou para envio. Fornecendo resposta simulada.");
-          // Se chegou aqui, retornar sucesso simulado
-          return res.json({
-            success: true,
-            messageId: `demo-${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            note: "Mensagem simulada para desenvolvimento da interface"
-          });
-        }
-      } catch (directError) {
-        console.error('Erro ao tentar endpoints diretos:', directError instanceof Error ? directError.message : String(directError));
-        
-        // Para não interromper o desenvolvimento da interface, retornar sucesso simulado
-        return res.json({
-          success: true,
-          messageId: `demo-${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          isDemo: true,
-          note: "Mensagem simulada devido a erro nos endpoints da API"
-        });
-      }
+      // Se chegou aqui, retornar sucesso simulado
+      return res.json({
+        success: true,
+        messageId: `demo-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        note: "Mensagem simulada para desenvolvimento da interface"
+      });
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error instanceof Error ? error.message : String(error));
       

@@ -109,35 +109,10 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
 
     console.log(`Criando nova instância do WhatsApp: ${instanceId}`);
     
-    // Obter a URL para o webhook da configuração do servidor
-    let webhookUrl = server.whatsappWebhookUrl;
-    
-    // Se não estiver configurado, tentar usar a URL do aplicativo
-    if (!webhookUrl && process.env.APP_URL) {
-      webhookUrl = `${process.env.APP_URL}/api/webhook/evolution`;
-      console.log(`URL do webhook não configurada, usando URL padrão: ${webhookUrl}`);
-    } else if (webhookUrl) {
-      console.log(`Usando URL do webhook configurada no servidor: ${webhookUrl}`);
-    } else {
-      console.log('Nenhuma URL de webhook disponível. O webhook não será configurado automaticamente.');
-    }
-    
-    // Cria uma nova instância com a URL do webhook
+    // Cria uma nova instância
     try {
-      const createResult = await evolutionClient.createInstance(webhookUrl);
+      const createResult = await evolutionClient.createInstance();
       console.log("Instância criada com sucesso:", createResult);
-      
-      // Configurar explicitamente o webhook independentemente do resultado anterior
-      if (webhookUrl) {
-        try {
-          console.log(`Configurando webhook explicitamente para a instância ${instanceId} com URL ${webhookUrl}`);
-          await evolutionClient.configureWebhook(webhookUrl);
-          console.log("Webhook configurado com sucesso após a criação da instância");
-        } catch (webhookError: any) {
-          console.error(`Erro ao configurar webhook após criação da instância: ${webhookError.message}`);
-          // Continuamos mesmo com erro no webhook
-        }
-      }
     } catch (createError) {
       console.error("Erro ao criar instância:", createError);
       return res.status(500).json({ 
@@ -528,17 +503,6 @@ export async function checkConnectionStatus(req: Request, res: Response) {
               lastUpdated: new Date(),
               method: 'qrcode'
             };
-            
-            // Se a conexão foi estabelecida, configurar webhook automaticamente
-            if (isConnected && server.whatsappWebhookUrl) {
-              console.log(`⚙️ Conexão estabelecida. Configurando webhook para ${server.whatsappWebhookUrl}`);
-              try {
-                await evolutionClient.configureWebhook(server.whatsappWebhookUrl);
-                console.log(`✅ Webhook configurado com sucesso para ${server.whatsappWebhookUrl}`);
-              } catch (webhookError) {
-                console.error(`❌ Erro ao configurar webhook após conexão: ${webhookError}`);
-              }
-            }
           }
         } catch (directError) {
           console.error("Erro ao verificar status direto:", directError);
@@ -559,17 +523,6 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         };
         
         console.log(`Status da conexão atualizado: ${isConnected ? 'Conectado' : 'Desconectado'}`);
-        
-        // Se a conexão foi estabelecida, configurar webhook automaticamente
-        if (isConnected && server.whatsappWebhookUrl) {
-          console.log(`⚙️ Conexão estabelecida. Configurando webhook para ${server.whatsappWebhookUrl}`);
-          try {
-            await evolutionClient.configureWebhook(server.whatsappWebhookUrl);
-            console.log(`✅ Webhook configurado com sucesso para ${server.whatsappWebhookUrl}`);
-          } catch (webhookError) {
-            console.error(`❌ Erro ao configurar webhook após conexão: ${webhookError}`);
-          }
-        }
       }
     } catch (statusError) {
       console.warn("Erro ao verificar status da conexão:", statusError);
