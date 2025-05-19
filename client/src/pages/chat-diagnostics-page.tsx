@@ -25,8 +25,7 @@ export default function ChatDiagnosticsPage() {
   const testContactsV2 = async () => {
     setIsLoadingNew(true);
     try {
-      // Usar a versão corrigida com as URLs ajustadas
-      const response = await fetch("/api/chat/contacts-fix");
+      const response = await fetch("/api/chat/contacts-v2");
       const data = await response.json();
       setContactsV2Result(data);
     } catch (err) {

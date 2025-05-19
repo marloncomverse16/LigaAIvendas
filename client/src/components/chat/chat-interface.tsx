@@ -98,15 +98,15 @@ export default function ChatInterface() {
     try {
       setLoading(true);
       
-      // Tentar primeiro a nova rota CORRIGIDA para buscar contatos
-      console.log("Tentando obter contatos através da rota corrigida...");
-      const response = await fetch("/api/chat/contacts-fix");
+      // Tentar primeiro a nova rota otimizada para buscar contatos
+      console.log("Tentando obter contatos através da rota otimizada...");
+      const response = await fetch("/api/chat/direct-contacts");
       
       if (!response.ok) {
-        console.warn(`Rota corrigida falhou: ${response.status}. Tentando rota alternativa...`);
+        console.warn(`Rota otimizada falhou: ${response.status}. Tentando rota alternativa...`);
         
-        // Se a rota corrigida falhar, tentar a rota direta
-        const fallbackResponse = await fetch("/api/chat/direct-contacts");
+        // Se a rota otimizada falhar, tentar a rota padrão
+        const fallbackResponse = await fetch("/api/chat/contacts");
         
         if (!fallbackResponse.ok) {
           throw new Error(`Erro ao carregar contatos: ${fallbackResponse.status}`);
