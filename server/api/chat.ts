@@ -482,36 +482,127 @@ router.get('/messages/:contactId', requireAuth, async (req: Request, res: Respon
           // Processar dados de mensagens
           let messagesArray = [];
           
+          console.log('Analisando estrutura da resposta de mensagens...');
+          
           if (Array.isArray(messagesData)) {
             messagesArray = messagesData;
+            console.log(`Dados obtidos diretamente como array com ${messagesArray.length} mensagens`);
           } else if (typeof messagesData === 'object') {
-            // Procurar em propriedades comuns
-            const possibleProps = ['messages', 'data', 'result'];
+            // Procurar em propriedades comuns onde podem estar as mensagens
+            const possibleProps = ['messages', 'data', 'result', 'response', 'chats', 'conversation', 'history'];
+            
             for (const prop of possibleProps) {
               if (Array.isArray(messagesData[prop])) {
                 messagesArray = messagesData[prop];
+                console.log(`Mensagens encontradas em propriedade "${prop}" (${messagesArray.length} itens)`);
                 break;
+              }
+            }
+            
+            // Se não encontramos em nenhuma propriedade conhecida, procurar recursivamente
+            if (messagesArray.length === 0) {
+              console.log('Tentando busca recursiva por arrays de mensagens...');
+              
+              const findMessagesDeep = (obj: any, path = 'root'): any[] => {
+                if (!obj) return [];
+                
+                if (Array.isArray(obj) && obj.length > 0) {
+                  // Verificar se elementos parecem ser mensagens
+                  const firstItem = obj[0];
+                  if (typeof firstItem === 'object' && 
+                     (firstItem.body || firstItem.content || firstItem.text || 
+                      firstItem.message || firstItem.msg || firstItem.fromMe !== undefined)) {
+                    console.log(`Possível array de mensagens encontrado em ${path}, ${obj.length} itens`);
+                    return obj;
+                  }
+                }
+                
+                if (typeof obj === 'object') {
+                  for (const key in obj) {
+                    const result = findMessagesDeep(obj[key], `${path}.${key}`);
+                    if (result && result.length > 0) {
+                      return result;
+                    }
+                  }
+                }
+                
+                return [];
+              };
+              
+              const deepMessages = findMessagesDeep(messagesData);
+              if (deepMessages.length > 0) {
+                messagesArray = deepMessages;
+                console.log(`Encontradas ${messagesArray.length} mensagens em busca profunda`);
               }
             }
           }
           
           if (messagesArray.length > 0) {
-            // Formatar mensagens para o frontend
-            const formattedMessages = messagesArray.map((msg: any) => ({
-              id: msg.id || msg._id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-              from: msg.from || msg.sender || formattedContactId,
-              to: msg.to || msg.recipient || req.user!.id.toString(),
-              fromMe: msg.fromMe || msg.isSent || false,
-              body: msg.body || msg.content || msg.text || msg.message?.conversation || msg.message?.extendedTextMessage?.text || '',
-              timestamp: msg.timestamp || msg.date || msg.createdAt || new Date().toISOString(),
-              type: msg.type || 'chat',
-              status: msg.status || 'sent'
-            }));
+            console.log(`Processando ${messagesArray.length} mensagens`);
+            
+            // Formatar mensagens para o frontend com tratamento robusto de propriedades
+            const formattedMessages = messagesArray.map((msg: any) => {
+              // Verificar todas as propriedades possíveis para cada campo
+              const messageId = msg.id || msg._id || msg.messageId || 
+                              `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+              
+              const fromValue = msg.from || msg.sender || msg.author || formattedContactId;
+              const toValue = msg.to || msg.recipient || req.user!.id.toString();
+              
+              // Determinar se a mensagem é do usuário atual
+              const isFromMe = msg.fromMe || msg.isSent || msg.from === 'me' || 
+                              msg.sender === 'me' || msg.author === 'me' || false;
+              
+              // Extrair o conteúdo da mensagem de vários formatos possíveis
+              const bodyContent = msg.body || msg.content || msg.text || 
+                                 (msg.message?.conversation) || 
+                                 (msg.message?.extendedTextMessage?.text) || 
+                                 (typeof msg.message === 'string' ? msg.message : '') || 
+                                 '';
+              
+              // Obter timestamp em vários formatos
+              const timestampValue = msg.timestamp || msg.date || msg.createdAt || 
+                                    msg.t || msg.time || Date.now();
+              
+              // Converter timestamp para ISO string se for número
+              const formattedTimestamp = typeof timestampValue === 'number' 
+                ? new Date(timestampValue).toISOString() 
+                : (timestampValue instanceof Date 
+                    ? timestampValue.toISOString() 
+                    : timestampValue || new Date().toISOString());
+              
+              const messageType = msg.type || msg.messageType || 'chat';
+              const messageStatus = msg.status || msg.state || 'sent';
+              
+              return {
+                id: messageId,
+                from: fromValue,
+                to: toValue,
+                fromMe: isFromMe,
+                body: bodyContent,
+                timestamp: formattedTimestamp,
+                type: messageType,
+                status: messageStatus
+              };
+            });
+            
+            // Ordenar mensagens por timestamp
+            formattedMessages.sort((a: any, b: any) => {
+              const timeA = new Date(a.timestamp).getTime();
+              const timeB = new Date(b.timestamp).getTime();
+              return timeA - timeB;
+            });
+            
+            console.log(`Retornando ${formattedMessages.length} mensagens formatadas`);
             
             return res.json({
               success: true,
-              messages: formattedMessages
+              messages: formattedMessages,
+              source: 'api',
+              endpoint: successEndpoint || 'unknown'
             });
+          } else {
+            console.log('Dados de mensagens obtidos, mas nenhum array de mensagens encontrado');
           }
         }
       } catch (apiError) {

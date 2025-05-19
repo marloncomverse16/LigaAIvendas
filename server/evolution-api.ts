@@ -630,11 +630,37 @@ export class EvolutionApiClient {
    * @returns Lista de contatos
    */
   async getContacts(): Promise<any> {
+    let lastError: any = { message: "Nenhuma tentativa foi feita" };
+    let statusChecked = false;
+    
     try {
-      console.log(`Buscando contatos para a instância: ${this.instance}`);
+      console.log(`===== Iniciando busca de contatos para instância: ${this.instance} =====`);
       
-      // Lista de possíveis endpoints para buscar contatos
+      // PASSO 1: Verificar status da conexão antes de tentar buscar contatos
+      try {
+        console.log("Verificando status da conexão...");
+        const connectionStatus = await this.checkConnectionStatus();
+        statusChecked = true;
+        
+        if (!connectionStatus.success || !connectionStatus.connected) {
+          console.log(`⚠️ WhatsApp não está conectado: ${JSON.stringify(connectionStatus)}`);
+          return {
+            success: false,
+            error: "WhatsApp não está conectado. Por favor, conecte o WhatsApp primeiro.",
+            connectionStatus,
+            contacts: []
+          };
+        }
+        
+        console.log("✅ WhatsApp conectado, prosseguindo com busca de contatos");
+      } catch (statusError) {
+        console.log(`⚠️ Erro ao verificar status da conexão: ${String(statusError)}`);
+        // Continuar mesmo com erro - vamos tentar buscar contatos de qualquer forma
+      }
+      
+      // PASSO 2: Lista ampliada de endpoints para buscar contatos
       const endpoints = [
+        // Endpoints padrão com instância específica
         `${this.baseUrl}/instance/fetchContacts/${this.instance}`,
         `${this.baseUrl}/contacts/${this.instance}`,
         `${this.baseUrl}/instance/contacts/${this.instance}`,
@@ -644,75 +670,101 @@ export class EvolutionApiClient {
         `${this.baseUrl}/api/instances/${this.instance}/contacts`,
         `${this.baseUrl}/manager/contacts/${this.instance}`,
         `${this.baseUrl}/api/contacts/${this.instance}`,
-        `${this.baseUrl}/api/chats/${this.instance}`
+        `${this.baseUrl}/api/chats/${this.instance}`,
+        
+        // Endpoints com prefixos v1
+        `${this.baseUrl}/v1/contacts/${this.instance}`,
+        `${this.baseUrl}/v1/chats/${this.instance}`,
+        
+        // Endpoints com instância "admin" (caso o usuário tenha configurado incorretamente)
+        `${this.baseUrl}/instance/fetchContacts/admin`,
+        `${this.baseUrl}/instance/contacts/admin`,
+        `${this.baseUrl}/contacts/admin`,
+        
+        // Endpoints sem especificar instância
+        `${this.baseUrl}/contacts`,
+        `${this.baseUrl}/chats`,
+        `${this.baseUrl}/fetch-contacts`
       ];
       
-      // Tentar cada endpoint
+      // PASSO 3: Tentar cada endpoint com tratamento de erro e resposta expandido
       for (const endpoint of endpoints) {
         try {
-          console.log(`Tentando buscar contatos em: ${endpoint}`);
+          console.log(`🔍 Tentando buscar contatos em: ${endpoint}`);
           
-          const response = await axios.get(endpoint, {
-            headers: this.getHeaders()
-          });
+          // Headers completos para autenticação
+          const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token}`,
+            'apikey': this.token,
+            'AUTHENTICATION_API_KEY': this.token
+          };
+          
+          const response = await axios.get(endpoint, { headers });
           
           if (response.status === 200) {
-            console.log(`Contatos obtidos com sucesso do endpoint: ${endpoint}`);
-            console.log(`Resposta completa: ${JSON.stringify(response.data).substring(0, 200)}...`);
-            console.log(`Tipo de resposta: ${typeof response.data}`);
+            console.log(`✅ Contatos potencialmente obtidos do endpoint: ${endpoint}`);
             
-            // Analisa a estrutura da resposta
-            const isArray = Array.isArray(response.data);
-            const hasContacts = response.data && typeof response.data === 'object' && response.data.contacts;
-            const hasData = response.data && typeof response.data === 'object' && response.data.data;
-            const hasResult = response.data && typeof response.data === 'object' && response.data.result;
-            const hasResponse = response.data && typeof response.data === 'object' && response.data.response;
+            // Extrair os arrays potenciais de contatos
+            const contactArrays = this.findContactArrays(response.data);
             
-            console.log(`Estrutura detectada: isArray=${isArray}, hasContacts=${hasContacts}, hasData=${hasData}, hasResult=${hasResult}, hasResponse=${hasResponse}`);
-            
-            let contacts = [];
-            
-            // Processando diferentes formatos de resposta
-            if (isArray) {
-              contacts = response.data;
-              console.log(`Processando como array direto: ${contacts.length} contatos`);
-            } else if (hasContacts) {
-              contacts = response.data.contacts;
-              console.log(`Processando via response.data.contacts: ${contacts.length} contatos`);
-            } else if (hasData) {
-              contacts = response.data.data;
-              console.log(`Processando via response.data.data: ${contacts.length} contatos`);
-            } else if (hasResult) {
-              contacts = response.data.result;
-              console.log(`Processando via response.data.result: ${contacts.length} contatos`);
-            } else if (hasResponse) {
-              contacts = response.data.response;
-              console.log(`Processando via response.data.response: ${contacts.length} contatos`);
-            } else if (typeof response.data === 'object') {
-              // Tentar localizar qualquer array na estrutura
-              for (const key in response.data) {
-                if (Array.isArray(response.data[key]) && response.data[key].length > 0) {
-                  console.log(`Encontrado array em response.data.${key}: ${response.data[key].length} itens`);
-                  contacts = response.data[key];
-                  break;
-                }
-              }
-            }
-            
-            // Verificar se obtivemos contatos válidos
-            if (contacts && contacts.length > 0) {
+            if (contactArrays.length > 0) {
+              // Usar o maior array encontrado (provavelmente são os contatos)
+              const sortedArrays = contactArrays.sort((a, b) => b.length - a.length);
+              const contacts = sortedArrays[0]; // Maior array encontrado
+              
+              console.log(`✅ Encontrados ${contacts.length} contatos no endpoint ${endpoint}`);
+              
               return {
                 success: true,
-                contacts: contacts,
-                endpoint
+                contacts,
+                endpoint,
+                allArrays: contactArrays.length, // Incluir quantidade de arrays para debug
+                structureInfo: {
+                  isArray: Array.isArray(response.data),
+                  hasContactsProp: !!response.data?.contacts,
+                  hasDataProp: !!response.data?.data,
+                  totalArraysFound: contactArrays.length
+                }
               };
             } else {
-              console.log(`Endpoint ${endpoint} retornou resposta 200, mas não foi possível extrair contatos.`);
+              console.log(`⚠️ Endpoint ${endpoint} retornou resposta 200 mas sem dados de contatos identificáveis`);
             }
+          } else {
+            console.log(`⚠️ Endpoint ${endpoint} retornou status ${response.status}`);
           }
         } catch (error) {
-          console.log(`Erro ao buscar contatos em ${endpoint}: ${error.message}`);
+          lastError = error;
+          console.log(`❌ Erro ao buscar contatos em ${endpoint}: ${String(error)}`);
+          // Continuar para o próximo endpoint
         }
+      }
+      
+      // PASSO 4: Tentar listar instâncias como último recurso
+      try {
+        console.log("🔍 Tentando listar instâncias para encontrar alternativa...");
+        const listInstancesEndpoint = `${this.baseUrl}/instance/list`;
+        
+        const listResponse = await axios.get(listInstancesEndpoint, {
+          headers: this.getHeaders()
+        });
+        
+        if (listResponse.status === 200 && listResponse.data) {
+          console.log("ℹ️ Lista de instâncias obtida:", 
+            typeof listResponse.data === 'object' 
+              ? JSON.stringify(listResponse.data).substring(0, 200) + '...'
+              : listResponse.data
+          );
+          
+          // Verificar se existem instâncias com dados
+          if (Array.isArray(listResponse.data)) {
+            console.log(`ℹ️ Encontradas ${listResponse.data.length} instâncias`);
+          } else if (listResponse.data.instances && Array.isArray(listResponse.data.instances)) {
+            console.log(`ℹ️ Encontradas ${listResponse.data.instances.length} instâncias`);
+          }
+        }
+      } catch (listError) {
+        console.log("⚠️ Erro ao listar instâncias:", String(listError));
       }
       
       // Se nenhum endpoint funcionou, verificar status de conexão
