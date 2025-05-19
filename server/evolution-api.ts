@@ -76,23 +76,33 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando criar a instância...");
       
+      // Determinar a URL base do sistema
+      let webhookBaseUrl = process.env.PUBLIC_URL || 'https://liguia.replit.app';
+      if (webhookBaseUrl.endsWith('/')) {
+        webhookBaseUrl = webhookBaseUrl.slice(0, -1);
+      }
+
+      // URL do webhook para essa instância específica
+      const webhookUrl = `${webhookBaseUrl}/api/evolution-webhook/${this.instance}`;
+      console.log(`Configurando webhook automático para: ${webhookUrl}`);
+
       // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
       const createInstanceBody = {
         instanceName: this.instance,
         token: this.token,
-        webhook: null, // Podemos deixar webhook nulo por enquanto
-        webhookByEvents: false, // Podemos adicionar eventos específicos mais tarde
+        webhook: webhookUrl, // URL de webhook para essa instância
+        webhookByEvents: true, // Ativar webhooks por eventos
         integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
         language: "pt-BR",
         qrcode: true,
         qrcodeImage: true,
         // Parâmetros adicionais
         reject_call: false,
-        events_message: false,
+        events_message: true, // Ativar eventos de mensagem
         ignore_group: false,
         ignore_broadcast: false,
         save_message: true,
-        webhook_base64: true
+        webhook_base64: true // Importante para receber mídia como base64
       };
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
