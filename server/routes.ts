@@ -51,6 +51,9 @@ import evolutionWebhookRoutes from "./api/evolution-webhook";
 // Importação do receptor de webhook da Evolution API
 import evolutionWebhookReceiver from "./api/evolution-webhook-receiver";
 
+// Importação do testador de webhook de contatos
+import { testContactsWebhook } from "./api/test-webhook";
+
 // Novas importações para conexões Meta API específicas do usuário
 
 // Configuração do multer para upload de arquivos

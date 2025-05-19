@@ -25,12 +25,21 @@ export async function notifyContactsWebhook(
 ): Promise<boolean> {
   try {
     // Buscar as informações do servidor, incluindo a URL do webhook
+    console.log(`Buscando informações do servidor ${serverId} para webhook de contatos`);
+    
     const [server] = await db
       .select()
       .from(servers)
       .where(eq(servers.id, serverId));
     
-    if (!server || !server.contactsWebhookUrl) {
+    if (!server) {
+      console.log(`Servidor ${serverId} não encontrado`);
+      return false;
+    }
+    
+    console.log(`Webhook de contatos configurado: ${server.contactsWebhookUrl}`);
+    
+    if (!server.contactsWebhookUrl) {
       console.log(`Webhook de contatos não configurado para o servidor ${serverId}`);
       return false;
     }
@@ -48,21 +57,56 @@ export async function notifyContactsWebhook(
       ...(details ? { details: JSON.stringify(details) } : {})
     });
     
-    // Construir a URL com os parâmetros
-    const webhookUrl = `${server.contactsWebhookUrl}?${params.toString()}`;
+    // Formatar a URL do webhook corretamente
+    let webhookUrl = server.contactsWebhookUrl;
     
-    console.log(`Notificando webhook de contatos: ${webhookUrl}`);
+    // Certificar que a URL tem um protocolo
+    if (!webhookUrl.startsWith('http://') && !webhookUrl.startsWith('https://')) {
+      webhookUrl = 'https://' + webhookUrl;
+    }
+    
+    // Adicionar os parâmetros de consulta
+    const separator = webhookUrl.includes('?') ? '&' : '?';
+    const fullUrl = `${webhookUrl}${separator}${params.toString()}`;
+    
+    console.log(`Enviando requisição GET para webhook de contatos: ${fullUrl}`);
     
     // Fazer a requisição GET para o webhook
-    const response = await axios.get(webhookUrl, {
-      timeout: 5000 // 5 segundos de timeout
-    });
-    
-    console.log(`Resposta do webhook de contatos: ${response.status}`, response.data);
-    
-    return response.status >= 200 && response.status < 300;
-  } catch (error) {
-    console.error('Erro ao notificar webhook de contatos:', error);
+    try {
+      const response = await axios.get(fullUrl, {
+        timeout: 8000, // 8 segundos de timeout
+        headers: {
+          'User-Agent': 'LiguIA-Webhook-Notifier/1.0',
+          'Accept': 'application/json, text/plain, */*'
+        }
+      });
+      
+      console.log(`Resposta do webhook de contatos (${response.status}):`, 
+                  typeof response.data === 'object' ? JSON.stringify(response.data).substring(0, 200) : String(response.data).substring(0, 200));
+      
+      return response.status >= 200 && response.status < 300;
+    } catch (requestError: any) {
+      // Log mais detalhado do erro da requisição
+      console.error('Erro ao fazer requisição para o webhook:', {
+        error: requestError.message,
+        status: requestError.response?.status,
+        data: requestError.response?.data,
+        url: fullUrl
+      });
+      
+      // Verificar possíveis erros de certificado ou conexão
+      if (requestError.code === 'ENOTFOUND') {
+        console.log(`Domínio não encontrado: ${webhookUrl}`);
+      } else if (requestError.code === 'ECONNREFUSED') {
+        console.log(`Conexão recusada pelo servidor: ${webhookUrl}`);
+      } else if (requestError.code === 'CERT_HAS_EXPIRED') {
+        console.log(`Certificado expirado no servidor: ${webhookUrl}`);
+      }
+      
+      return false;
+    }
+  } catch (error: any) {
+    console.error('Erro ao preparar notificação de webhook:', error.message);
     return false;
   }
 }
