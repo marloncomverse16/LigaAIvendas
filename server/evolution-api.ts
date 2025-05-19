@@ -12,7 +12,6 @@ export class EvolutionApiClient {
   private baseUrl: string;
   private token: string;
   private instance: string;
-  private webhookUrl: string | null = null;
 
   /**
    * Cria um novo cliente para a Evolution API
@@ -77,25 +76,12 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando criar a instância...");
       
-      // Determinar a URL base do sistema
-      let webhookBaseUrl = process.env.PUBLIC_URL || 'https://liguia.replit.app';
-      if (webhookBaseUrl.endsWith('/')) {
-        webhookBaseUrl = webhookBaseUrl.slice(0, -1);
-      }
-
-      // URL do webhook para essa instância específica
-      // Usando o endpoint "evolution-webhook-receiver" que não requer autenticação
-      const webhookUrl = `${webhookBaseUrl}/api/evolution-webhook-receiver/${this.instance}`;
-      console.log(`Configurando webhook automático para: ${webhookUrl}`);
-
       // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
-      // Voltando para a configuração anterior que funcionava, mas armazenando a URL do webhook
-      // para configuração posterior quando a instância estiver criada
       const createInstanceBody = {
         instanceName: this.instance,
         token: this.token,
-        webhook: null, // Inicialmente sem webhook, vamos configurar depois que a instância estiver criada
-        webhookByEvents: false,
+        webhook: null, // Podemos deixar webhook nulo por enquanto
+        webhookByEvents: false, // Podemos adicionar eventos específicos mais tarde
         integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
         language: "pt-BR",
         qrcode: true,
@@ -108,9 +94,6 @@ export class EvolutionApiClient {
         save_message: true,
         webhook_base64: true
       };
-      
-      // Salvamos a URL do webhook para configuração posterior
-      this.webhookUrl = webhookUrl;
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
       // ou /instance/create/instance_name
