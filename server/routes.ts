@@ -146,10 +146,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Registrar rotas de chat
   app.use("/api/chat", chatRoutes);
   
-  // Registrar rotas para configuração de webhook da Evolution API
-  app.use("/api/evolution-webhook", evolutionWebhookRoutes);
-  // Registrar o receptor de webhook da Evolution API (sem autenticação)
-  app.use("/api/evolution-webhook-receiver", evolutionWebhookReceiver);
+  // Temporariamente desativado para evitar problemas de conexão
+  // app.use("/api/evolution-webhook", evolutionWebhookRoutes);
+  // app.use("/api/evolution-webhook-receiver", evolutionWebhookReceiver);
   
   // AI Agent routes - Versão temporária com dados mock
   app.get("/api/ai-agent", async (req, res) => {
