@@ -11,6 +11,7 @@ import { EvolutionApiClient } from "../evolution-api";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
 import { userServers, servers, users } from "../../shared/schema";
+import { configureEvolutionWebhook } from "./configure-webhook";
 
 // Mantém o status da conexão por usuário
 interface ConnectionStatus {

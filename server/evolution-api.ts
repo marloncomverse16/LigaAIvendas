@@ -12,6 +12,7 @@ export class EvolutionApiClient {
   private baseUrl: string;
   private token: string;
   private instance: string;
+  private webhookUrl: string | null = null;
 
   /**
    * Cria um novo cliente para a Evolution API
@@ -88,23 +89,28 @@ export class EvolutionApiClient {
       console.log(`Configurando webhook automático para: ${webhookUrl}`);
 
       // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
+      // Voltando para a configuração anterior que funcionava, mas armazenando a URL do webhook
+      // para configuração posterior quando a instância estiver criada
       const createInstanceBody = {
         instanceName: this.instance,
         token: this.token,
-        webhook: webhookUrl, // URL de webhook para essa instância
-        webhookByEvents: true, // Ativar webhooks por eventos
+        webhook: null, // Inicialmente sem webhook, vamos configurar depois que a instância estiver criada
+        webhookByEvents: false,
         integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
         language: "pt-BR",
         qrcode: true,
         qrcodeImage: true,
         // Parâmetros adicionais
         reject_call: false,
-        events_message: true, // Ativar eventos de mensagem
+        events_message: false,
         ignore_group: false,
         ignore_broadcast: false,
         save_message: true,
-        webhook_base64: true // Importante para receber mídia como base64
+        webhook_base64: true
       };
+      
+      // Salvamos a URL do webhook para configuração posterior
+      this.webhookUrl = webhookUrl;
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
       // ou /instance/create/instance_name
