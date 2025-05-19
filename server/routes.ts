@@ -2007,21 +2007,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Endpoint FINAL corrigido para obter contatos (com URLs verificadas)
-  app.get("/api/chat/contacts-fix", async (req, res) => {
-    try {
-      // Importar o módulo correto de forma dinâmica
-      const { getWhatsAppContactsFixed } = await import('./api/evolution-contacts-fix');
-      return await getWhatsAppContactsFixed(req, res);
-    } catch (error) {
-      console.error('Erro ao processar solicitação de contatos (versão corrigida):', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erro interno ao obter contatos (versão corrigida)',
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
-      });
-    }
-  });
+  // Endpoint FINAL corrigido para obter contatos (com URLs verificadas - tenta múltiplos formatos)
   app.get("/api/chat/contacts-fix", async (req, res) => {
     try {
       // Importar o módulo correto de forma dinâmica
