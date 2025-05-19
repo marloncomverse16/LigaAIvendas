@@ -77,10 +77,22 @@ export class EvolutionApiClient {
       console.log("API Evolution online. Tentando criar a instância...");
       
       // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
-      // Obter a URL base para webhook - usamos a URL da aplicação, removendo http:// ou https://
-      const baseUrl = process.env.BASE_URL || 'localhost:5000';
-      const cleanBaseUrl = baseUrl.replace(/^https?:\/\//, '');
-      const webhookUrl = `https://${cleanBaseUrl}/api/evolution-webhook/${this.instance}`;
+      // Obter a URL base para webhook usando a URL do Replit
+      // Se estamos no Replit, usamos o domínio automático do Replit
+      // Se não, usamos o BASE_URL ou um fallback
+      const replitSlug = process.env.REPL_SLUG;
+      const replitOwner = process.env.REPL_OWNER;
+      let webhookUrl;
+      
+      if (replitSlug && replitOwner) {
+        // Estamos no Replit, usar o domínio .replit.dev
+        webhookUrl = `https://${replitSlug}.${replitOwner}.repl.co/api/evolution-webhook/${this.instance}`;
+      } else {
+        // Não estamos no Replit, tentar outras opções
+        const baseUrl = process.env.BASE_URL || 'example.com';
+        const cleanBaseUrl = baseUrl.replace(/^https?:\/\//, '');
+        webhookUrl = `https://${cleanBaseUrl}/api/evolution-webhook/${this.instance}`;
+      }
       
       console.log(`Configurando webhook URL: ${webhookUrl}`);
       

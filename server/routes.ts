@@ -3197,6 +3197,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const isConnected = connectionState === 'open' || connectionState === 'connected';
             
             // Atualizar o status de conexão
+            // Importar o objeto connectionStatus de connection.ts
+            const { connectionStatus } = await import('./connection');
+            
             if (connectionStatus[userId]) {
               connectionStatus[userId].connected = isConnected;
               connectionStatus[userId].lastUpdated = new Date();
