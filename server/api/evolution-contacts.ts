@@ -212,61 +212,74 @@ async function saveContactsToDatabase(contacts: any[], userId: number) {
     // Importar o pool para operações diretas no banco de dados
     const { pool } = await import('../db');
     
+    let created = 0;
+    let updated = 0;
+    
     // Para cada contato, inserir ou atualizar no banco de dados
     for (const contact of contacts) {
       try {
         // Verificar se o contato já existe
         const checkQuery = `
           SELECT id FROM contacts 
-          WHERE phone = $1 AND user_id = $2
+          WHERE number = $1
         `;
         
-        const checkResult = await pool.query(checkQuery, [contact.phone, userId]);
+        const checkResult = await pool.query(checkQuery, [contact.phone]);
         
         if (checkResult.rows.length === 0) {
           // Inserir novo contato
           const insertQuery = `
             INSERT INTO contacts 
-            (user_id, name, phone, pushname, last_message_time, is_group, profile_picture, whatsapp_id)
+            (contact_id, name, number, profile_picture, is_group, 
+             last_activity, user_id, last_message_content)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           `;
           
           await pool.query(insertQuery, [
-            userId,
-            contact.name,
+            contact.id || contact.phone,
+            contact.name || null,
             contact.phone,
-            contact.pushname,
-            contact.lastMessageTime,
-            contact.isGroup,
-            contact.profilePicture,
-            contact.id
+            contact.profilePicture || null,
+            contact.isGroup || false,
+            new Date(),
+            userId,
+            'Sincronizado'
           ]);
+          
+          console.log(`Contato salvo: ${contact.phone}`);
+          created++;
         } else {
           // Atualizar contato existente
           const updateQuery = `
             UPDATE contacts
-            SET name = $1, pushname = $2, last_message_time = $3, 
-                is_group = $4, profile_picture = $5, whatsapp_id = $6
-            WHERE phone = $7 AND user_id = $8
+            SET name = $2, profile_picture = $3, is_group = $4, 
+                last_activity = $5, user_id = $6, last_message_content = $7,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE number = $1
           `;
           
           await pool.query(updateQuery, [
-            contact.name,
-            contact.pushname,
-            contact.lastMessageTime,
-            contact.isGroup,
-            contact.profilePicture,
-            contact.id,
             contact.phone,
-            userId
+            contact.name || null,
+            contact.profilePicture || null,
+            contact.isGroup || false,
+            new Date(),
+            userId,
+            'Atualizado'
           ]);
+          
+          console.log(`Contato atualizado: ${contact.phone}`);
+          updated++;
         }
       } catch (contactError) {
         console.error(`Erro ao salvar contato ${contact.phone}:`, contactError);
       }
     }
+    
+    return { created, updated };
   } catch (dbError) {
     console.error('Erro no banco de dados:', dbError);
+    throw dbError;
   }
 }
 
