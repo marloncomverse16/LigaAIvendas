@@ -62,7 +62,7 @@ export class EvolutionApiClient {
    * CRÍTICO: Esta etapa é necessária antes de qualquer operação com a instância
    * @returns Resultado da criação da instância
    */
-  async createInstance(): Promise<any> {
+  async createInstance(webhookUrl?: string): Promise<any> {
     try {
       // Primeiro, verificamos se a API está online
       const apiStatus = await this.checkApiStatus();
@@ -76,23 +76,33 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando criar a instância...");
       
+      // Obter a URL do dashboard para webhook, se não for fornecida
+      const appWebhookUrl = webhookUrl || (process.env.APP_URL ? `${process.env.APP_URL}/api/webhook/evolution` : null);
+      const enableWebhook = !!appWebhookUrl;
+      
+      if (enableWebhook) {
+        console.log(`Webhook será configurado com a URL: ${appWebhookUrl}`);
+      } else {
+        console.log('Nenhuma URL de webhook fornecida. O webhook não será configurado automaticamente.');
+      }
+      
       // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
       const createInstanceBody = {
         instanceName: this.instance,
         token: this.token,
-        webhook: null, // Podemos deixar webhook nulo por enquanto
-        webhookByEvents: false, // Podemos adicionar eventos específicos mais tarde
+        webhook: enableWebhook ? appWebhookUrl : null, // Configurar webhook se URL fornecida
+        webhookByEvents: enableWebhook, // Ativar eventos se webhook configurado
         integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
         language: "pt-BR",
         qrcode: true,
         qrcodeImage: true,
         // Parâmetros adicionais
         reject_call: false,
-        events_message: false,
+        events_message: enableWebhook, // Ativar se webhook habilitado
         ignore_group: false,
         ignore_broadcast: false,
         save_message: true,
-        webhook_base64: true
+        webhook_base64: true // Sempre ativar base64 para mídia
       };
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
@@ -110,6 +120,18 @@ export class EvolutionApiClient {
         console.log(`Resposta da criação de instância:`, response.data);
         
         if (response.status === 201 || response.status === 200) {
+          // Configurar webhook se necessário
+          if (enableWebhook && appWebhookUrl) {
+            try {
+              console.log(`Configurando webhook para a instância ${this.instance}`);
+              await this.configureWebhook(appWebhookUrl);
+              console.log(`Webhook configurado com sucesso para ${appWebhookUrl}`);
+            } catch (webhookError) {
+              console.error(`Erro ao configurar webhook: ${webhookError.message}`);
+              // Continuar mesmo com erro no webhook
+            }
+          }
+          
           return {
             success: true,
             data: response.data
@@ -131,6 +153,18 @@ export class EvolutionApiClient {
           console.log(`Resposta da criação de instância (alternativo):`, response.data);
           
           if (response.status === 201 || response.status === 200) {
+            // Configurar webhook se necessário
+            if (enableWebhook && appWebhookUrl) {
+              try {
+                console.log(`Configurando webhook para a instância ${this.instance}`);
+                await this.configureWebhook(appWebhookUrl);
+                console.log(`Webhook configurado com sucesso para ${appWebhookUrl}`);
+              } catch (webhookErr) {
+                console.error(`Erro ao configurar webhook (endpoint alternativo): ${webhookErr.message}`);
+                // Continuar mesmo com erro no webhook
+              }
+            }
+            
             return {
               success: true,
               data: response.data
