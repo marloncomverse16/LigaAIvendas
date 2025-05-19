@@ -1983,6 +1983,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // WhatsApp API Routes
+  // Endpoint direto para obter contatos do WhatsApp (alternativa robusta)
+  app.get("/api/chat/direct-contacts", getWhatsAppContacts);
+  
   app.get("/api/whatsapp/contacts", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
