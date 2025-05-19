@@ -32,8 +32,19 @@ async function getUserServer(userId: number) {
     // Importar o pool diretamente para evitar problemas com o ORM
     const { pool } = await import('../db');
     
-    // Consulta direta para buscar as informações necessárias
-    // IMPORTANTE: Os campos são retornados em minúsculas pelo PostgreSQL
+    // Primeira consulta para obter o username do usuário
+    const userQuery = `SELECT username FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      console.log('Usuário não encontrado:', userId);
+      return null;
+    }
+    
+    const username = userResult.rows[0].username;
+    console.log(`Nome do usuário encontrado: ${username}`);
+    
+    // Consulta para buscar informações do servidor
     const query = `
       SELECT 
         us.id, 
@@ -41,17 +52,17 @@ async function getUserServer(userId: number) {
         us.server_id as serverid,
         s.api_url as apiurl, 
         s.api_token as apitoken,
-        s.instance_id as instanceid
+        $1 as instancename
       FROM 
         user_servers us
       JOIN 
         servers s ON us.server_id = s.id
       WHERE 
-        us.user_id = $1
+        us.user_id = $2
       LIMIT 1
     `;
     
-    const result = await pool.query(query, [userId]);
+    const result = await pool.query(query, [username, userId]);
     
     if (result.rows.length === 0) {
       console.log('Nenhum servidor encontrado para o usuário:', userId);
@@ -86,19 +97,19 @@ router.post('/sync', requireAuth, async (req: Request, res: Response) => {
     }
     
     // Verificar se temos as informações necessárias
-    if (!server.apiurl || !server.apitoken || !server.instanceid) {
+    if (!server.apiurl || !server.apitoken || !server.instancename) {
       return res.status(400).json({
         success: false,
-        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e ID da instância.'
+        message: 'Configuração de servidor incompleta. Verifique a URL da API, token e nome de usuário.'
       });
     }
     
     console.log('Sincronizando contatos da Evolution API usando POST request');
     
     try {
-      // Usar o endpoint correto com método POST - confirmamos que este endpoint funciona
-      const endpoint = `${server.apiurl}/chat/findContacts/${server.instanceid}`;
-      console.log(`Tentando buscar contatos via POST: ${endpoint}`);
+      // Usar o endpoint correto com método POST - usando nome de usuário como instância
+      const endpoint = `${server.apiurl}/chat/findContacts/${server.instancename}`;
+      console.log(`Tentando buscar contatos via POST: ${endpoint} (Instância: ${server.instancename})`);
       
       const response = await axios.post(endpoint, {
         // Não passar where para obter todos os contatos
