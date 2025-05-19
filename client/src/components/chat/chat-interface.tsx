@@ -91,90 +91,67 @@ export default function ChatInterface() {
         ws.close();
       }
     };
-  }, []);
+  }, [selectedContact]);
 
   // Carregar contatos
   const loadContacts = async () => {
     try {
       setLoading(true);
       
-      // Fazer chamada para buscar contatos reais da Evolution API
-      const response = await fetch("/api/chat/contacts");
+      // Tentar primeiro a nova rota otimizada para buscar contatos
+      console.log("Tentando obter contatos através da rota otimizada...");
+      const response = await fetch("/api/chat/direct-contacts");
       
       if (!response.ok) {
-        throw new Error(`Erro ao carregar contatos: ${response.status}`);
+        console.warn(`Rota otimizada falhou: ${response.status}. Tentando rota alternativa...`);
+        
+        // Se a rota otimizada falhar, tentar a rota padrão
+        const fallbackResponse = await fetch("/api/chat/contacts");
+        
+        if (!fallbackResponse.ok) {
+          throw new Error(`Erro ao carregar contatos: ${fallbackResponse.status}`);
+        }
+        
+        const fallbackData = await fallbackResponse.json();
+        if (fallbackData.success && fallbackData.contacts) {
+          processContactData(fallbackData.contacts);
+          return;
+        }
+        throw new Error("Dados de contatos inválidos");
       }
       
       const data = await response.json();
       
       if (data.success && data.contacts) {
         console.log("Contatos recebidos da API:", data.contacts);
-        
-        // Formatar os contatos no formato esperado pelo componente
-        const formattedContacts: Contact[] = data.contacts.map((contact: any) => ({
-          id: contact.id || contact.phone || contact.jid,
-          name: contact.name || contact.pushname || contact.phone || "Contato",
-          phone: contact.phone || (contact.id ? contact.id.replace(/@.*$/, '') : ""),
-          avatar: contact.avatar || contact.profilePicture,
-          lastMessage: contact.lastMessage?.body || contact.lastMessage?.content || "",
-          lastMessageTime: contact.lastMessageTime ? new Date(contact.lastMessageTime) : undefined,
-          unreadCount: contact.unreadCount || 0
-        }));
-        
-        setContacts(formattedContacts);
+        processContactData(data.contacts);
       } else {
-        // Se não conseguiu obter contatos reais, usar contatos simulados
-        console.log("Usando contatos simulados (API retornou dados inválidos)");
-        const simulatedContacts: Contact[] = [
-          {
-            id: "1",
-            name: "João da Silva",
-            phone: "5511999887766",
-            lastMessage: "Olá, tudo bem?",
-            lastMessageTime: new Date(Date.now() - 1000 * 60 * 5), // 5 minutos atrás
-            unreadCount: 2
-          },
-          {
-            id: "2",
-            name: "Maria Oliveira",
-            phone: "5511988776655",
-            lastMessage: "Quando podemos conversar?",
-            lastMessageTime: new Date(Date.now() - 1000 * 60 * 30), // 30 minutos atrás
-          },
-          {
-            id: "3",
-            name: "Carlos Souza",
-            phone: "5511977665544",
-            lastMessage: "Obrigado pela informação!",
-            lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 horas atrás
-          }
-        ];
-        
-        setContacts(simulatedContacts);
+        throw new Error("Dados de contatos inválidos");
       }
     } catch (error) {
       console.error("Erro ao carregar contatos:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os contatos. Tentando novamente em alguns segundos...",
+        description: "Não foi possível carregar os contatos. Verifique a conexão com o WhatsApp.",
         variant: "destructive",
       });
       
-      // Usar contatos simulados como fallback em caso de erro
+      // Usar contatos simulados como fallback em caso de erro apenas para desenvolvimento
       const simulatedContacts: Contact[] = [
         {
           id: "1",
           name: "João da Silva",
           phone: "5511999887766",
           lastMessage: "Olá, tudo bem?",
-          lastMessageTime: new Date(Date.now() - 1000 * 60 * 5) // 5 minutos atrás
+          lastMessageTime: new Date(Date.now() - 1000 * 60 * 5), // 5 minutos atrás
+          unreadCount: 2
         },
         {
           id: "2",
           name: "Maria Oliveira",
           phone: "5511988776655",
           lastMessage: "Quando podemos conversar?",
-          lastMessageTime: new Date(Date.now() - 1000 * 60 * 30) // 30 minutos atrás
+          lastMessageTime: new Date(Date.now() - 1000 * 60 * 30), // 30 minutos atrás
         }
       ];
       
@@ -188,6 +165,22 @@ export default function ChatInterface() {
       setLoading(false);
     }
   };
+  
+  // Função para processar os dados de contatos recebidos
+  const processContactData = (contacts: any[]) => {
+    // Formatar os contatos no formato esperado pelo componente
+    const formattedContacts: Contact[] = contacts.map((contact: any) => ({
+      id: contact.id || contact.phone || contact.jid || String(Math.random()),
+      name: contact.name || contact.pushname || contact.phone || "Contato",
+      phone: contact.phone || (contact.id ? contact.id.replace(/@.*$/, '') : ""),
+      avatar: contact.avatar || contact.profilePicture,
+      lastMessage: contact.lastMessage?.body || contact.lastMessage?.content || "",
+      lastMessageTime: contact.lastMessageTime ? new Date(contact.lastMessageTime) : undefined,
+      unreadCount: contact.unreadCount || 0
+    }));
+    
+    setContacts(formattedContacts);
+  };
 
   // Carregar contatos ao iniciar
   useEffect(() => {
@@ -197,29 +190,26 @@ export default function ChatInterface() {
     }
   }, [user]);
   
-  // Fix TypeScript error
-  const loadContatos = () => {
-    loadContacts();
-  };
-
-  // Carregar mensagens ao selecionar contato
+  // Carregar mensagens quando selecionar um contato
   useEffect(() => {
     if (selectedContact) {
       loadMessages(selectedContact.id);
     }
   }, [selectedContact]);
-
-  // Rolar para a última mensagem quando as mensagens são atualizadas
+  
+  // Função para rolar para a última mensagem
   useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messageEndRef.current && messages.length > 0) {
+      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
-
-  // Carregar mensagens do contato selecionado
+  
+  // Função para carregar mensagens do contato selecionado
   const loadMessages = async (contactId: string) => {
     try {
       setLoadingMessages(true);
       
-      // Fazer chamada real à API para buscar mensagens
+      // Tentar buscar mensagens reais
       const response = await fetch(`/api/chat/messages/${contactId}`);
       
       if (!response.ok) {
@@ -233,372 +223,349 @@ export default function ChatInterface() {
         
         // Formatar as mensagens no formato esperado pelo componente
         const formattedMessages: ChatMessage[] = data.messages.map((msg: any) => ({
-          id: msg.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-          content: msg.body || msg.content || msg.message || "",
-          from: msg.fromMe ? "me" : "contact",
+          id: msg.id || `msg_${Math.random()}`,
+          content: msg.content || msg.body || msg.text || "",
+          from: msg.from === 'me' || msg.fromMe ? 'me' : 'contact',
           timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
-          contact: !msg.fromMe ? selectedContact?.name : undefined,
-          status: msg.status || (msg.fromMe ? "enviado" : undefined)
+          status: msg.status || 'enviado'
         }));
-        
-        // Ordenar mensagens por timestamp
-        formattedMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
         
         setMessages(formattedMessages);
       } else {
-        // Se não conseguiu obter mensagens reais, usar algumas mensagens simuladas
+        // Se não conseguiu obter mensagens reais, usar mensagens simuladas
         console.log("Usando mensagens simuladas (API retornou dados inválidos)");
-        const simulatedMessages: ChatMessage[] = [
+        const mockMessages: ChatMessage[] = [
           {
-            id: "m1",
-            content: "Olá, como posso ajudar?",
-            from: "me",
-            timestamp: new Date(Date.now() - 1000 * 60 * 10),
-            status: "lido"
-          },
-          {
-            id: "m2",
-            content: "Olá! Gostaria de informações sobre seus serviços",
+            id: "1",
+            content: "Bom dia! Tudo bem com você?",
             from: "contact",
-            timestamp: new Date(Date.now() - 1000 * 60 * 9),
-            contact: selectedContact?.name
+            timestamp: new Date(Date.now() - 1000 * 60 * 30)
           },
           {
-            id: "m3",
-            content: "Claro, ficarei feliz em ajudar. O que você gostaria de saber especificamente?",
+            id: "2",
+            content: "Olá! Tudo ótimo, e você?",
             from: "me",
-            timestamp: new Date(Date.now() - 1000 * 60 * 8),
+            timestamp: new Date(Date.now() - 1000 * 60 * 25),
             status: "lido"
+          },
+          {
+            id: "3",
+            content: "Estou bem! Podemos conversar sobre o projeto hoje?",
+            from: "contact",
+            timestamp: new Date(Date.now() - 1000 * 60 * 20)
           }
         ];
         
-        setMessages(simulatedMessages);
+        setMessages(mockMessages);
       }
     } catch (error) {
       console.error("Erro ao carregar mensagens:", error);
+      
       toast({
         title: "Erro",
-        description: "Não foi possível carregar as mensagens. Tentando novamente..."
+        description: "Não foi possível carregar as mensagens. Tente novamente mais tarde.",
+        variant: "destructive",
       });
       
-      // Usar algumas mensagens simuladas como fallback em caso de erro
-      const simulatedMessages: ChatMessage[] = [
+      // Mesmo com erro, usar mensagens simuladas para demonstração
+      const mockMessages: ChatMessage[] = [
         {
-          id: "m1",
-          content: "Olá! Bem-vindo ao chat.",
-          from: "me",
-          timestamp: new Date(Date.now() - 1000 * 60 * 30),
-          status: "lido"
+          id: "1",
+          content: "Bom dia! Tudo bem com você?",
+          from: "contact",
+          timestamp: new Date(Date.now() - 1000 * 60 * 30)
         },
         {
-          id: "m2",
-          content: "Parece que estamos enfrentando dificuldades para carregar mensagens anteriores.",
+          id: "2",
+          content: "Olá! Tudo ótimo, e você?",
           from: "me",
-          timestamp: new Date(Date.now() - 1000 * 60 * 2),
+          timestamp: new Date(Date.now() - 1000 * 60 * 25),
           status: "lido"
         }
       ];
       
-      setMessages(simulatedMessages);
-      
-      // Tentar carregar novamente após 15 segundos
-      setTimeout(() => {
-        if (selectedContact) loadMessages(selectedContact.id);
-      }, 15000);
+      setMessages(mockMessages);
     } finally {
       setLoadingMessages(false);
     }
   };
-
-  // Função para formatar timestamp
-  const formatTimeAgo = (date: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.round(diffMs / 60000);
-    
-    if (diffMins < 1) {
-      return "agora";
-    } else if (diffMins < 60) {
-      return `${diffMins}m`;
-    } else if (diffMins < 24 * 60) {
-      return `${Math.round(diffMins / 60)}h`;
-    } else {
-      return `${Math.round(diffMins / (60 * 24))}d`;
-    }
-  };
-
-  // Enviar nova mensagem
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  
+  // Função para enviar mensagem
+  const sendMessage = async () => {
+    // Verificar se há conteúdo
     if (!newMessage.trim() || !selectedContact) return;
     
-    // Adicionar mensagem local imediatamente
-    const messageId = `msg_${Date.now()}`;
-    const newMessageObj: ChatMessage = {
-      id: messageId,
-      content: newMessage,
-      from: "me",
-      timestamp: new Date(),
-      status: "enviado"
-    };
-    
-    setMessages(prevMessages => [...prevMessages, newMessageObj]);
-    setNewMessage("");
-    
     try {
-      // Chamada de API para enviar mensagem
-      const response = await fetch('/api/chat/send', {
-        method: 'POST',
+      // Adicionar mensagem localmente enquanto envia
+      const messageId = `msg_${Date.now()}`;
+      
+      setMessages(prevMessages => [...prevMessages, {
+        id: messageId,
+        content: newMessage,
+        from: 'me',
+        timestamp: new Date(),
+        status: 'enviado'
+      }]);
+      
+      setNewMessage(""); // Limpar campo
+      
+      // Enviar mensagem para a API
+      const response = await fetch("/api/chat/send-message", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           contactId: selectedContact.id,
           message: newMessage
-        }),
+        })
       });
       
-      if (response.ok) {
-        const result = await response.json();
-        console.log("Mensagem enviada com sucesso:", result);
-        
-        // Atualizar status da mensagem para entregue
-        setMessages(prevMessages =>
-          prevMessages.map(msg =>
-            msg.id === messageId ? { ...msg, status: 'entregue', id: result.messageId || msg.id } : msg
-          )
-        );
-        
-        // Atualizar a lista de contatos para mostrar a mensagem mais recente
-        setTimeout(() => {
-          loadContacts();
-        }, 1000);
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao enviar mensagem');
+      if (!response.ok) {
+        throw new Error("Falha ao enviar mensagem");
       }
+      
+      // Atualizar status da mensagem para entregue
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.id === messageId ? { ...msg, status: 'entregue' } : msg
+        )
+      );
+      
+      // Recarregar contatos para atualizar informações de last message
+      loadContacts();
+      
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
+      
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Não foi possível enviar a mensagem",
+        description: "Não foi possível enviar a mensagem. Verifique sua conexão.",
         variant: "destructive",
       });
       
-      // Manter status como "enviado" (tentativa falhou)
-      setMessages(prevMessages =>
-        prevMessages.map(msg =>
-          msg.id === messageId ? { ...msg, status: 'enviado' } : msg
+      // Atualizar status da mensagem para erro
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.id === `msg_${Date.now()}` ? { ...msg, status: 'erro' } : msg
         )
       );
     }
   };
-
-  // Componente de status de mensagem
-  const MessageStatus = ({ status }: { status?: string }) => {
-    if (!status) return null;
-    
-    return (
-      <span className="text-xs text-muted-foreground ml-1">
-        {status === 'enviado' && (
-          <span className="text-gray-400">✓</span>
-        )}
-        {status === 'entregue' && (
-          <span className="text-blue-400">✓✓</span>
-        )}
-        {status === 'lido' && (
-          <span className="text-green-500">✓✓</span>
-        )}
-      </span>
-    );
-  };
-
+  
+  // Renderizar componente
   return (
-    <Card className="flex h-[calc(100vh-180px)] overflow-hidden border-0 shadow-none">
-      {/* Lista de contatos (esquerda) */}
-      <div className="w-1/3 border-r flex flex-col">
-        <div className="p-3 border-b bg-secondary/20">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-sm">Conversas</h3>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </div>
-          <Input 
-            placeholder="Pesquisar contatos..." 
-            className="h-8 text-sm" 
-          />
-        </div>
-        
-        <ScrollArea className="flex-1">
-          <div className="divide-y">
-            {loading ? (
-              <div className="py-8 text-center text-muted-foreground">
-                Carregando contatos...
-              </div>
-            ) : contacts.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground">
-                Nenhum contato encontrado
-              </div>
-            ) : (
-              contacts.map(contact => (
-                <div 
-                  key={contact.id}
-                  className={`flex items-start p-3 gap-3 cursor-pointer hover:bg-secondary/20 ${
-                    selectedContact?.id === contact.id ? 'bg-secondary/30' : ''
-                  }`}
-                  onClick={() => setSelectedContact(contact)}
-                >
-                  <Avatar className="h-10 w-10">
-                    {contact.avatar ? (
-                      <AvatarImage src={contact.avatar} alt={contact.name} />
-                    ) : (
-                      <AvatarFallback>
-                        {contact.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-sm truncate">{contact.name}</span>
-                      {contact.lastMessageTime && (
-                        <span className="text-xs text-muted-foreground">
-                          {formatTimeAgo(contact.lastMessageTime)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-xs text-muted-foreground truncate">
-                        {contact.lastMessage || contact.phone}
-                      </span>
-                      {contact.unreadCount && contact.unreadCount > 0 && (
-                        <span className="bg-primary text-primary-foreground text-xs rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
-                          {contact.unreadCount}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </ScrollArea>
-      </div>
-      
-      {/* Área de conversa (direita) */}
-      <div className="flex-1 flex flex-col">
-        {selectedContact ? (
-          <>
-            {/* Cabeçalho do chat */}
-            <div className="p-3 border-b flex items-center justify-between bg-secondary/10">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback>
-                    {selectedContact.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-medium text-sm">{selectedContact.name}</h3>
-                  <p className="text-xs text-muted-foreground">{selectedContact.phone}</p>
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Video className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </div>
+    <div className="h-full flex flex-col">
+      {/* Área principal com lista de contatos e chat */}
+      <Card className="flex-1 border shadow-sm overflow-hidden">
+        <div className="grid h-full sm:grid-cols-12">
+          {/* Lista de contatos (sidebar) */}
+          <div className="sm:col-span-4 md:col-span-3 lg:col-span-3 border-r dark:border-slate-700">
+            <div className="p-4 border-b dark:border-slate-700">
+              <h3 className="font-medium flex items-center">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Contatos
+              </h3>
             </div>
             
-            {/* Mensagens */}
-            <ScrollArea className="flex-1 p-4 bg-secondary/5">
-              {loadingMessages ? (
-                <div className="h-full flex items-center justify-center">
-                  <p className="text-muted-foreground">Carregando mensagens...</p>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-50" />
-                    <p className="text-muted-foreground">Nenhuma mensagem ainda</p>
-                    <p className="text-xs text-muted-foreground mt-1">Envie uma mensagem para iniciar a conversa</p>
+            {loading ? (
+              <div className="p-4 space-y-3">
+                {Array(5).fill(0).map((_, i) => (
+                  <div key={i} className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
+                    <div className="space-y-1 flex-1">
+                      <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
+                      <div className="h-3 bg-muted rounded animate-pulse w-1/2" />
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map(message => (
-                    <div 
-                      key={message.id}
-                      className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`}
+                ))}
+              </div>
+            ) : contacts.length > 0 ? (
+              <ScrollArea className="h-[calc(100vh-15rem)]">
+                <div className="p-2">
+                  {contacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      className={`flex items-start p-2 rounded-md cursor-pointer transition-colors relative mb-1 hover:bg-muted 
+                        ${selectedContact?.id === contact.id ? 'bg-muted' : ''}`}
+                      onClick={() => setSelectedContact(contact)}
                     >
-                      <div 
-                        className={`max-w-[80%] px-3 py-2 rounded-lg ${
-                          message.from === 'me' 
-                            ? 'bg-primary text-primary-foreground rounded-br-none' 
-                            : 'bg-muted rounded-bl-none'
-                        }`}
-                      >
-                        <div className="text-sm whitespace-pre-wrap break-words">
-                          {message.content}
-                        </div>
-                        <div className="text-xs opacity-70 mt-1 flex justify-end">
-                          {message.timestamp.toLocaleTimeString('pt-BR', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                          {message.from === 'me' && (
-                            <MessageStatus status={message.status} />
+                      <Avatar className="h-10 w-10 mr-3 mt-1">
+                        {contact.avatar ? (
+                          <AvatarImage src={contact.avatar} alt={contact.name} />
+                        ) : (
+                          <AvatarFallback>
+                            {contact.name.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div className="flex-1 overflow-hidden">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-medium text-sm">{contact.name}</h4>
+                          {contact.lastMessageTime && (
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(contact.lastMessageTime).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
                           )}
                         </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {contact.lastMessage || "Sem mensagens"}
+                        </p>
                       </div>
+                      {contact.unreadCount && contact.unreadCount > 0 && (
+                        <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                          {contact.unreadCount}
+                        </div>
+                      )}
                     </div>
                   ))}
-                  <div ref={messageEndRef} />
                 </div>
-              )}
-            </ScrollArea>
-            
-            {/* Formulário de envio */}
-            <form onSubmit={handleSendMessage} className="p-3 border-t flex items-center gap-2">
-              <Button variant="ghost" size="icon" type="button">
-                <Smile className="h-5 w-5 text-muted-foreground" />
-              </Button>
-              <Button variant="ghost" size="icon" type="button">
-                <Paperclip className="h-5 w-5 text-muted-foreground" />
-              </Button>
-              <Input
-                type="text"
-                placeholder="Digite uma mensagem"
-                className="h-10"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-              />
-              <Button type="submit" size="icon" disabled={!newMessage.trim()}>
-                <Send className="h-5 w-5" />
-              </Button>
-            </form>
-          </>
-        ) : (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center max-w-md px-4">
-              <MessageCircle className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-30" />
-              <h3 className="text-xl font-semibold mb-2">WhatsApp Web</h3>
-              <p className="text-muted-foreground mb-6">
-                Selecione um contato à esquerda para iniciar ou continuar uma conversa.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Todas as mensagens são enviadas e recebidas usando o WhatsApp conectado.
-              </p>
-            </div>
+              </ScrollArea>
+            ) : (
+              <div className="p-6 text-center">
+                <MessageCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhum contato encontrado. Conecte seu WhatsApp para ver os contatos.
+                </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-    </Card>
+          
+          {/* Área de chat */}
+          <div className="sm:col-span-8 md:col-span-9 lg:col-span-9 flex flex-col h-full">
+            {selectedContact ? (
+              <>
+                {/* Cabeçalho do chat */}
+                <div className="flex items-center justify-between p-4 border-b dark:border-slate-700">
+                  <div className="flex items-center">
+                    <Avatar className="h-8 w-8 mr-2">
+                      {selectedContact.avatar ? (
+                        <AvatarImage src={selectedContact.avatar} alt={selectedContact.name} />
+                      ) : (
+                        <AvatarFallback>
+                          {selectedContact.name.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div>
+                      <h3 className="font-medium text-sm">{selectedContact.name}</h3>
+                      <p className="text-xs text-muted-foreground">{selectedContact.phone}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Button variant="ghost" size="icon">
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                      <Video className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Área de mensagens */}
+                <ScrollArea className="flex-1 p-4">
+                  {loadingMessages ? (
+                    <div className="space-y-4">
+                      {Array(3).fill(0).map((_, i) => (
+                        <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+                          <div className={`rounded-lg p-3 max-w-[80%] ${i % 2 === 0 ? 'bg-muted' : 'bg-primary/10'} animate-pulse h-12`}></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : messages.length > 0 ? (
+                    <div className="space-y-3">
+                      {messages.map((message) => (
+                        <div 
+                          key={message.id} 
+                          className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div 
+                            className={`rounded-lg p-3 max-w-[80%] space-y-1 relative ${
+                              message.from === 'me' 
+                                ? 'bg-primary text-primary-foreground' 
+                                : 'bg-muted dark:bg-slate-700'
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                            <div className="flex justify-end items-center space-x-1 opacity-70">
+                              <span className="text-[10px]">
+                                {message.timestamp.toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                              {message.from === 'me' && message.status && (
+                                <span className="text-[10px]">
+                                  {message.status === 'lido' ? '✓✓' : message.status === 'entregue' ? '✓✓' : '✓'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={messageEndRef} />
+                    </div>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center p-4">
+                        <MessageCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                        <p className="text-sm text-muted-foreground">Sem mensagens. Envie uma mensagem para iniciar a conversa.</p>
+                      </div>
+                    </div>
+                  )}
+                </ScrollArea>
+                
+                {/* Área de digitação e envio */}
+                <div className="p-3 border-t dark:border-slate-700 flex items-center">
+                  <div className="flex items-center space-x-1 mr-2">
+                    <Button variant="ghost" size="icon">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                      <Image className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                      <Smile className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input 
+                    className="flex-1"
+                    placeholder="Digite uma mensagem"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="ml-2"
+                    onClick={sendMessage}
+                    disabled={!newMessage.trim()}
+                  >
+                    <Send className={`h-4 w-4 ${newMessage.trim() ? 'text-primary' : ''}`} />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="h-full flex items-center justify-center p-8">
+                <div className="text-center max-w-md">
+                  <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-30" />
+                  <h3 className="text-xl font-semibold mb-2">WhatsApp Web</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Selecione um contato para iniciar uma conversa ou manter conversa ativa.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 }
