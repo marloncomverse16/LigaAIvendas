@@ -81,6 +81,12 @@ export function Sidebar() {
       permissionKey: "accessWhatsapp"
     },
     { 
+      path: "/chat-diagnostics", 
+      label: "Diagnóstico de Contatos", 
+      icon: <MessageSquare size={collapsed ? 24 : 20} />, 
+      permissionKey: "accessWhatsapp"
+    },
+    { 
       path: "/leads", 
       label: "Leads", 
       icon: <Users size={collapsed ? 24 : 20} />, 
