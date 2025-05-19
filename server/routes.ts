@@ -46,6 +46,9 @@ import {
 // Importação do novo controlador para verificar status da Meta API
 import { checkMetaConnectionStatus } from "./api/meta-status";
 
+// Importação do controlador para configuração de webhook da Evolution API
+import evolutionWebhookRoutes from "./api/evolution-webhook";
+
 // Novas importações para conexões Meta API específicas do usuário
 
 // Configuração do multer para upload de arquivos
@@ -140,6 +143,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registrar rotas de chat
   app.use("/api/chat", chatRoutes);
+  
+  // Registrar rotas para configuração de webhook da Evolution API
+  app.use("/api/evolution-webhook", evolutionWebhookRoutes);
   
   // AI Agent routes - Versão temporária com dados mock
   app.get("/api/ai-agent", async (req, res) => {
