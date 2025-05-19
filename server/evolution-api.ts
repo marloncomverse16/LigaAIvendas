@@ -641,7 +641,10 @@ export class EvolutionApiClient {
         `${this.baseUrl}/instance/getAllContacts/${this.instance}`,
         `${this.baseUrl}/chat/contacts/${this.instance}`,
         `${this.baseUrl}/instances/${this.instance}/contacts`,
-        `${this.baseUrl}/manager/contacts/${this.instance}`
+        `${this.baseUrl}/api/instances/${this.instance}/contacts`,
+        `${this.baseUrl}/manager/contacts/${this.instance}`,
+        `${this.baseUrl}/api/contacts/${this.instance}`,
+        `${this.baseUrl}/api/chats/${this.instance}`
       ];
       
       // Tentar cada endpoint
@@ -655,28 +658,124 @@ export class EvolutionApiClient {
           
           if (response.status === 200) {
             console.log(`Contatos obtidos com sucesso do endpoint: ${endpoint}`);
-            console.log(`Quantidade de contatos: ${
-              Array.isArray(response.data) ? response.data.length : 
-              response.data.contacts ? response.data.contacts.length : 
-              response.data.data ? response.data.data.length :
-              response.data.result ? response.data.result.length :
-              'Desconhecido'
-            }`);
+            console.log(`Resposta completa: ${JSON.stringify(response.data).substring(0, 200)}...`);
+            console.log(`Tipo de resposta: ${typeof response.data}`);
+            
+            // Analisa a estrutura da resposta
+            const isArray = Array.isArray(response.data);
+            const hasContacts = response.data && typeof response.data === 'object' && response.data.contacts;
+            const hasData = response.data && typeof response.data === 'object' && response.data.data;
+            const hasResult = response.data && typeof response.data === 'object' && response.data.result;
+            const hasResponse = response.data && typeof response.data === 'object' && response.data.response;
+            
+            console.log(`Estrutura detectada: isArray=${isArray}, hasContacts=${hasContacts}, hasData=${hasData}, hasResult=${hasResult}, hasResponse=${hasResponse}`);
+            
+            let contacts = [];
             
             // Processando diferentes formatos de resposta
-            const contacts = Array.isArray(response.data) 
-              ? response.data 
-              : response.data.contacts || response.data.data || response.data.result || [];
+            if (isArray) {
+              contacts = response.data;
+              console.log(`Processando como array direto: ${contacts.length} contatos`);
+            } else if (hasContacts) {
+              contacts = response.data.contacts;
+              console.log(`Processando via response.data.contacts: ${contacts.length} contatos`);
+            } else if (hasData) {
+              contacts = response.data.data;
+              console.log(`Processando via response.data.data: ${contacts.length} contatos`);
+            } else if (hasResult) {
+              contacts = response.data.result;
+              console.log(`Processando via response.data.result: ${contacts.length} contatos`);
+            } else if (hasResponse) {
+              contacts = response.data.response;
+              console.log(`Processando via response.data.response: ${contacts.length} contatos`);
+            } else if (typeof response.data === 'object') {
+              // Tentar localizar qualquer array na estrutura
+              for (const key in response.data) {
+                if (Array.isArray(response.data[key]) && response.data[key].length > 0) {
+                  console.log(`Encontrado array em response.data.${key}: ${response.data[key].length} itens`);
+                  contacts = response.data[key];
+                  break;
+                }
+              }
+            }
             
-            return {
-              success: true,
-              contacts: contacts,
-              endpoint
-            };
+            // Verificar se obtivemos contatos válidos
+            if (contacts && contacts.length > 0) {
+              return {
+                success: true,
+                contacts: contacts,
+                endpoint
+              };
+            } else {
+              console.log(`Endpoint ${endpoint} retornou resposta 200, mas não foi possível extrair contatos.`);
+            }
           }
         } catch (error) {
           console.log(`Erro ao buscar contatos em ${endpoint}: ${error.message}`);
         }
+      }
+      
+      // Se nenhum endpoint funcionou, verificar status de conexão
+      try {
+        const connectionStatus = await this.checkConnectionStatus();
+        console.log("Verificando status da conexão para determinar o problema:", connectionStatus);
+        
+        if (connectionStatus.success && connectionStatus.connected) {
+          console.log("WhatsApp está conectado, mas nenhum endpoint retornou contatos. Tentando endpoint genérico.");
+          
+          try {
+            // Tenta um último endpoint mais genérico que possa funcionar
+            const lastChanceEndpoint = `${this.baseUrl}/api/all`;
+            const response = await axios.get(lastChanceEndpoint, {
+              headers: this.getHeaders()
+            });
+            
+            if (response.status === 200 && response.data) {
+              console.log("Obtido dado genérico da API. Tentando extrair contatos de alguma forma.");
+              
+              // Procura recursivamente por arrays na resposta que podem conter contatos
+              const findContactArrays = (obj, path = 'root') => {
+                if (!obj) return [];
+                
+                if (Array.isArray(obj) && obj.length > 0) {
+                  // Verificar se elementos têm propriedades que parecem ser de contatos
+                  const firstItem = obj[0];
+                  if (typeof firstItem === 'object' && 
+                     (firstItem.name || firstItem.displayName || firstItem.id || firstItem.number || firstItem.jid)) {
+                    console.log(`Possível array de contatos encontrado em ${path}, ${obj.length} itens`);
+                    return obj;
+                  }
+                }
+                
+                if (typeof obj === 'object') {
+                  for (const key in obj) {
+                    const result = findContactArrays(obj[key], `${path}.${key}`);
+                    if (result && result.length > 0) {
+                      return result;
+                    }
+                  }
+                }
+                
+                return [];
+              };
+              
+              const possibleContacts = findContactArrays(response.data);
+              
+              if (possibleContacts && possibleContacts.length > 0) {
+                console.log(`Encontrado possível array de contatos com ${possibleContacts.length} itens`);
+                return {
+                  success: true,
+                  contacts: possibleContacts,
+                  endpoint: lastChanceEndpoint
+                };
+              }
+            }
+          } catch (lastError) {
+            console.log("Erro no último endpoint alternativo:", lastError.message);
+          }
+        }
+      } catch (statusError) {
+        console.log("Erro ao verificar status da conexão:", statusError.message);
       }
       
       // Se nenhum endpoint funcionou, criar contatos de exemplo para teste
