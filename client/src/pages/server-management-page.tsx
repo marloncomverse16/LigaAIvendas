@@ -1461,9 +1461,9 @@ export default function ServerManagementPage() {
                     name="contactsWebhookUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Webhook de Contatos</FormLabel>
+                        <FormLabel>Webhook de Configuração Instancia Evolution</FormLabel>
                         <FormControl>
-                          <Input placeholder="URL do webhook para sincronização de contatos" {...field} value={field.value || ""} />
+                          <Input placeholder="URL do webhook para configuração da instância Evolution" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
