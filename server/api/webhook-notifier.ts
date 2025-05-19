@@ -7,6 +7,9 @@ import axios from 'axios';
 import { db } from "../db";
 import { servers } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import https from 'https';
+import http from 'http';
+import url from 'url';
 
 /**
  * Envia uma notificação GET para o webhook de contatos configurado no servidor
@@ -71,40 +74,82 @@ export async function notifyContactsWebhook(
     
     console.log(`Enviando requisição GET para webhook de contatos: ${fullUrl}`);
     
-    // Fazer a requisição GET para o webhook
-    try {
-      const response = await axios.get(fullUrl, {
-        timeout: 8000, // 8 segundos de timeout
-        headers: {
-          'User-Agent': 'LiguIA-Webhook-Notifier/1.0',
-          'Accept': 'application/json, text/plain, */*'
-        }
-      });
-      
-      console.log(`Resposta do webhook de contatos (${response.status}):`, 
-                  typeof response.data === 'object' ? JSON.stringify(response.data).substring(0, 200) : String(response.data).substring(0, 200));
-      
-      return response.status >= 200 && response.status < 300;
-    } catch (requestError: any) {
-      // Log mais detalhado do erro da requisição
-      console.error('Erro ao fazer requisição para o webhook:', {
-        error: requestError.message,
-        status: requestError.response?.status,
-        data: requestError.response?.data,
-        url: fullUrl
-      });
-      
-      // Verificar possíveis erros de certificado ou conexão
-      if (requestError.code === 'ENOTFOUND') {
-        console.log(`Domínio não encontrado: ${webhookUrl}`);
-      } else if (requestError.code === 'ECONNREFUSED') {
-        console.log(`Conexão recusada pelo servidor: ${webhookUrl}`);
-      } else if (requestError.code === 'CERT_HAS_EXPIRED') {
-        console.log(`Certificado expirado no servidor: ${webhookUrl}`);
+    // Fazer a requisição GET para o webhook usando módulos nativos
+    // Isso contorna possíveis problemas com TLS/certificados que o Axios pode ter
+    return new Promise((resolve) => {
+      try {
+        console.log(`Tentando notificar webhook usando módulo nativo: ${fullUrl}`);
+        
+        // Parsear a URL para determinar o protocolo
+        const parsedUrl = url.parse(fullUrl);
+        const isHttps = parsedUrl.protocol === 'https:';
+        const httpModule = isHttps ? https : http;
+        
+        // Configurar a requisição
+        const options = {
+          hostname: parsedUrl.hostname,
+          port: parsedUrl.port || (isHttps ? 443 : 80),
+          path: parsedUrl.path,
+          method: 'GET',
+          headers: {
+            'User-Agent': 'LiguIA-Webhook-Notifier/1.0',
+            'Accept': 'application/json, text/plain, */*'
+          },
+          timeout: 10000, // 10 segundos de timeout
+          rejectUnauthorized: false // Ignora erros de certificado (importante para testes)
+        };
+        
+        // Criar e enviar a requisição
+        const req = httpModule.request(options, (res) => {
+          let responseData = '';
+          
+          // Coletar dados da resposta
+          res.on('data', (chunk) => {
+            responseData += chunk;
+          });
+          
+          // Processar resposta completa
+          res.on('end', () => {
+            console.log(`Webhook notificado com sucesso! Status: ${res.statusCode}`);
+            console.log(`Resposta do webhook: ${responseData.substring(0, 200)}`);
+            
+            // Se a resposta foi bem-sucedida (2xx)
+            resolve(res.statusCode! >= 200 && res.statusCode! < 300);
+          });
+        });
+        
+        // Configurar timeout
+        req.setTimeout(10000, () => {
+          console.error('Timeout ao enviar webhook');
+          req.destroy(new Error('Timeout'));
+          resolve(false);
+        });
+        
+        // Tratar erros
+        req.on('error', (err) => {
+          console.error('Erro ao enviar webhook:', err.message);
+          
+          if (err.message.includes('ENOTFOUND')) {
+            console.log(`Domínio não encontrado: ${webhookUrl}`);
+          } else if (err.message.includes('ECONNREFUSED')) {
+            console.log(`Conexão recusada pelo servidor: ${webhookUrl}`);
+          } else if (err.message.includes('CERT_HAS_EXPIRED')) {
+            console.log(`Certificado expirado no servidor: ${webhookUrl}`);
+          } else if (err.message.includes('UNABLE_TO_VERIFY_LEAF_SIGNATURE')) {
+            console.log(`Problemas com certificado: ${webhookUrl}`);
+          }
+          
+          resolve(false);
+        });
+        
+        // Finalizar a requisição
+        req.end();
+        
+      } catch (nativeError: any) {
+        console.error('Erro durante criação da requisição nativa:', nativeError.message);
+        resolve(false);
       }
-      
-      return false;
-    }
+    });
   } catch (error: any) {
     console.error('Erro ao preparar notificação de webhook:', error.message);
     return false;
