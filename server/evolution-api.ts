@@ -83,7 +83,8 @@ export class EvolutionApiClient {
       }
 
       // URL do webhook para essa instância específica
-      const webhookUrl = `${webhookBaseUrl}/api/evolution-webhook/${this.instance}`;
+      // Usando o endpoint "evolution-webhook-receiver" que não requer autenticação
+      const webhookUrl = `${webhookBaseUrl}/api/evolution-webhook-receiver/${this.instance}`;
       console.log(`Configurando webhook automático para: ${webhookUrl}`);
 
       // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API

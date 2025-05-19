@@ -88,6 +88,26 @@ const ConnectionsPage = () => {
         </div>
       )}
 
+      <div className="mb-6">
+        <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <Webhook className="h-6 w-6 text-blue-600 dark:text-blue-500 mt-0.5" />
+              <div>
+                <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-400">
+                  Configuração Automática de Webhook
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Os webhooks são configurados automaticamente quando você conecta com QR Code. 
+                  O sistema detecta o endereço correto e configura todos os webhooks necessários 
+                  sem intervenção manual, garantindo o funcionamento adequado das notificações.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
@@ -182,48 +202,7 @@ const ConnectionsPage = () => {
           </CardFooter>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Webhook className="h-5 w-5 text-primary" />
-                <span>Configurações Webhook</span>
-              </CardTitle>
-            </div>
-            <CardDescription>
-              Configure webhooks para receber notificações e eventos do WhatsApp
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Ativar <strong>todas</strong> as opções de webhook</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Configurar URL personalizada para webhooks</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Receber mensagens e eventos em tempo real</span>
-              </p>
-              <Separator className="my-2" />
-              <p className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <span>A URL deve ser acessível pela internet para receber eventos</span>
-              </p>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button asChild className="w-full" variant="secondary">
-              <Link to="/conexoes/configuracoes">
-                Configurar Webhook
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
+
       </div>
     </div>
   );
