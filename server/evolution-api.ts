@@ -764,6 +764,113 @@ export class EvolutionApiClient {
       };
     }
   }
+  
+  /**
+   * Configura o webhook para a instância
+   * 
+   * Baseado na tela mostrada da Evolution API, onde é necessário:
+   * 1. Ativar a opção de webhook
+   * 2. Definir a URL do webhook
+   * 3. Ativar todas as opções de eventos
+   * 4. Ativar o Base64 para as mídias
+   * 
+   * @param webhookUrl URL para receber os eventos
+   */
+  async configureWebhook(webhookUrl: string): Promise<any> {
+    try {
+      console.log(`Configurando webhook para instância ${this.instance} com URL ${webhookUrl}`);
+      
+      // 1. Ativar webhook principal
+      try {
+        const enableResponse = await axios.post(
+          `${this.baseUrl}/webhook/set/${this.instance}`,
+          {
+            enabled: true,
+            url: webhookUrl
+          },
+          { headers: this.getHeaders() }
+        );
+        
+        console.log('Webhook principal ativado com sucesso:', enableResponse.data);
+      } catch (error: any) {
+        console.error('Erro ao ativar webhook principal:', error.message);
+        
+        // Tentar endpoint alternativo da v3.7
+        try {
+          await axios.post(
+            `${this.baseUrl}/instance/webhook/${this.instance}`,
+            {
+              enabled: true,
+              url: webhookUrl
+            },
+            { headers: this.getHeaders() }
+          );
+          console.log('Webhook ativado com sucesso (endpoint alternativo)');
+        } catch (altError: any) {
+          console.error('Erro ao ativar webhook (endpoint alternativo):', altError.message);
+        }
+      }
+      
+      // 2. Ativar webhook por eventos (separados por rotas)
+      try {
+        await axios.post(
+          `${this.baseUrl}/webhook/set-events/${this.instance}`,
+          { 
+            enabled: true
+          },
+          { headers: this.getHeaders() }
+        );
+        console.log('Webhook por eventos ativado com sucesso');
+      } catch (eventError: any) {
+        console.error('Erro ao ativar webhook por eventos:', eventError.message);
+      }
+      
+      // 3. Ativar Base64 para mídia
+      try {
+        await axios.post(
+          `${this.baseUrl}/webhook/set-webhook-base64/${this.instance}`,
+          { 
+            enabled: true 
+          },
+          { headers: this.getHeaders() }
+        );
+        console.log('Base64 para mídia ativado com sucesso');
+      } catch (base64Error: any) {
+        console.error('Erro ao ativar Base64 para mídia:', base64Error.message);
+      }
+      
+      // 4. Ativar todos os eventos
+      const events = [
+        'APPLICATION_STARTUP', 'CALL', 'CHATS_DELETE', 'CHATS_SET',
+        'CHATS_UPDATE', 'CHATS_UPSERT', 'CONNECTION_UPDATE', 'CONTACTS_SET',
+        'CONTACTS_UPDATE', 'CONTACTS_UPSERT', 'GROUPS_SET', 'GROUPS_UPDATE',
+        'GROUPS_UPSERT', 'GROUP_PARTICIPANTS_UPDATE', 'MESSAGES_DELETE',
+        'MESSAGES_MEDIA', 'MESSAGES_NEW', 'MESSAGES_REACTION', 'MESSAGES_SET',
+        'MESSAGES_UPDATE', 'MESSAGES_UPSERT', 'PRESENCE_UPDATE', 'QR_UPDATED'
+      ];
+      
+      for (const event of events) {
+        try {
+          await axios.post(
+            `${this.baseUrl}/webhook/set-webhook-event/${this.instance}`,
+            { 
+              event, 
+              enabled: true 
+            },
+            { headers: this.getHeaders() }
+          );
+          console.log(`Evento ${event} ativado com sucesso`);
+        } catch (eventError: any) {
+          console.error(`Erro ao ativar evento ${event}:`, eventError.message);
+        }
+      }
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Erro ao configurar webhook:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
 
   /**
    * Retorna os cabeçalhos HTTP padrão com token de autorização
