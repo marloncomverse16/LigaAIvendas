@@ -157,10 +157,13 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
       try {
         // Tentar diferentes endpoints conhecidos
         const endpoints = [
-          `/manager/contacts/${server.instanceid}`,
           `/instance/fetchContacts/${server.instanceid}`,
+          `/api/instances/${server.instanceid}/contacts`,
+          `/instances/${server.instanceid}/contacts`,
           `/instance/getAllContacts/${server.instanceid}`,
-          `/instance/contacts/${server.instanceid}`
+          `/instance/contacts/${server.instanceid}`,
+          `/manager/contacts/${server.instanceid}`,
+          `/chat/contacts/${server.instanceid}`
         ];
         
         let contactsData = null;
@@ -345,9 +348,13 @@ router.get('/messages/:contactId', requireAuth, async (req: Request, res: Respon
       try {
         // Tentar diferentes endpoints para mensagens
         const endpoints = [
-          `/instances/${server.instanceid}/chat/messages/${formattedContactId}`,
+          `/api/messages/fetch/${server.instanceid}?phone=${formattedContactId}`,
+          `/api/instances/${server.instanceid}/messages?phone=${formattedContactId}`,
+          `/api/instances/${server.instanceid}/chats/${formattedContactId}/messages`,
           `/instance/messages/${server.instanceid}/${formattedContactId}`,
-          `/manager/messages/${server.instanceid}/${formattedContactId}`
+          `/instance/fetchMessages/${server.instanceid}/${formattedContactId}`,
+          `/manager/messages/${server.instanceid}/${formattedContactId}`,
+          `/api/v1/messages/${server.instanceid}/${formattedContactId}`
         ];
           
         let messagesData = null;
