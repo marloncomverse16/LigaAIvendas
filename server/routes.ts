@@ -25,6 +25,7 @@ import { getWhatsAppQrCode, getWhatsAppContacts } from "./direct-connection";
 import { setupWebSocketServer, sendMessage } from "./websocket";
 import multer from "multer";
 import fs from "fs";
+import { runContactDiagnostics } from "./api/contact-diagnostics";
 
 // Novas importações para o menu Conexões
 import { 
@@ -3127,6 +3128,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/contacts", listContacts);
   app.post("/api/contacts/sync", syncContacts);
   app.get("/api/contacts/export", exportContacts);
+  
+  // Rota para diagnóstico de problemas com API Evolution
+  app.get("/api/diagnostics/contacts", runContactDiagnostics);
   
   // Rota para testar webhook de contatos
   app.get("/api/servers/:serverId/test-webhook", testContactsWebhook);
