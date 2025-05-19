@@ -87,23 +87,17 @@ export class EvolutionApiClient {
       }
       
       // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
+      // Removendo parâmetros problemáticos e simplificando
       const createInstanceBody = {
         instanceName: this.instance,
-        token: this.token,
-        webhook: enableWebhook ? appWebhookUrl : null, // Configurar webhook se URL fornecida
-        webhookByEvents: enableWebhook, // Ativar eventos se webhook configurado
-        integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
-        language: "pt-BR",
+        webhook: enableWebhook,
+        webhookUrl: appWebhookUrl || "",
         qrcode: true,
-        qrcodeImage: true,
-        // Parâmetros adicionais
-        reject_call: false,
-        events_message: enableWebhook, // Ativar se webhook habilitado
-        ignore_group: false,
-        ignore_broadcast: false,
-        save_message: true,
-        webhook_base64: true // Sempre ativar base64 para mídia
+        events_message: enableWebhook,
+        webhook_base64: true
       };
+      
+      console.log("Corpo da requisição simplificado para compatibilidade com Evolution API v2.2.3");
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
       // ou /instance/create/instance_name
