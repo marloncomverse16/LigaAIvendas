@@ -76,57 +76,20 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando criar a instância...");
       
-      // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
-      // Obter a URL base para webhook usando a URL do Replit
-      // Se estamos no Replit, usamos o domínio automático do Replit
-      // Se não, usamos o BASE_URL ou um fallback
-      const replitSlug = process.env.REPL_SLUG;
-      const replitOwner = process.env.REPL_OWNER;
-      let webhookUrl;
-      
-      if (replitSlug && replitOwner) {
-        // Estamos no Replit, usar o domínio .replit.dev
-        webhookUrl = `https://${replitSlug}.${replitOwner}.repl.co/api/evolution-webhook/${this.instance}`;
-      } else {
-        // Não estamos no Replit, tentar outras opções
-        const baseUrl = process.env.BASE_URL || 'example.com';
-        const cleanBaseUrl = baseUrl.replace(/^https?:\/\//, '');
-        webhookUrl = `https://${cleanBaseUrl}/api/evolution-webhook/${this.instance}`;
-      }
-      
-      console.log(`Configurando webhook URL: ${webhookUrl}`);
-      
+      // Formatar o corpo da requisição na forma mais simples possível
+      // APENAS com os dados essenciais para criar a instância
       const createInstanceBody = {
-        instanceName: this.instance,
-        token: this.token,
-        webhook: webhookUrl, // URL para o webhook
-        webhookByEvents: true, // Ativar eventos específicos
-        integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
-        language: "pt-BR",
-        qrcode: true,
-        qrcodeImage: true,
-        // Parâmetros adicionais
-        reject_call: false,
-        events_message: true, // Ativar eventos de mensagem
-        ignore_group: false,
-        ignore_broadcast: false,
-        save_message: true,
-        webhook_base64: true,
-        // Configurações adicionais para webhooks
-        events_status: true, // Status de conexão
-        events_qrcode: true, // QR code
-        events_presence: true, // Presença dos contatos
-        events_media: true, // Mídia
-        events_reactions: true, // Reações
-        events_labels: true, // Etiquetas
-        events_call: true, // Chamadas
-        events_groups: true, // Grupos
-        event_group_interactions: true, // Interações em grupos
-        event_new_jwt: true // Notificações de novo JWT
+        instanceName: this.instance
       };
       
-      // Na versão 2.x, o endpoint para criar instância é /instance/create
-      // ou /instance/create/instance_name
+      // Log para debug
+      console.log(`Configurando criação de instância com parâmetros mínimos`);
+      
+      // Primeiro tentar criar a instância
+      let instanceCreated = false;
+      let createResponse = null;
+      
+      // Primeiro endpoint
       try {
         console.log(`Tentando criar instância no endpoint: ${this.baseUrl}/instance/create`);
         console.log(`Dados enviados:`, JSON.stringify(createInstanceBody));
@@ -140,10 +103,8 @@ export class EvolutionApiClient {
         console.log(`Resposta da criação de instância:`, response.data);
         
         if (response.status === 201 || response.status === 200) {
-          return {
-            success: true,
-            data: response.data
-          };
+          instanceCreated = true;
+          createResponse = response.data;
         }
       } catch (error) {
         console.error(`Erro ao criar instância:`, error.message);
@@ -161,14 +122,40 @@ export class EvolutionApiClient {
           console.log(`Resposta da criação de instância (alternativo):`, response.data);
           
           if (response.status === 201 || response.status === 200) {
-            return {
-              success: true,
-              data: response.data
-            };
+            instanceCreated = true;
+            createResponse = response.data;
           }
         } catch (altError) {
           console.error(`Erro no endpoint alternativo:`, altError.message);
         }
+      }
+      
+      // Verificar se conseguimos criar a instância ou se ela já existe
+      if (!instanceCreated) {
+        try {
+          console.log(`Verificando se a instância já existe...`);
+          
+          const statusResponse = await this.checkConnectionStatus();
+          if (statusResponse.success) {
+            console.log(`Instância ${this.instance} já existe!`);
+            instanceCreated = true;
+          }
+        } catch (error) {
+          console.error(`Erro ao verificar se a instância existe:`, error.message);
+        }
+      }
+      
+      // Se conseguimos criar a instância ou ela já existe, configurar o webhook
+      if (instanceCreated) {
+        console.log(`Instância criada ou já existente. Configurando webhook...`);
+        
+        // Tentar configurar o webhook
+        await this.configureWebhook();
+        
+        return {
+          success: true,
+          data: createResponse || { message: "Instância já existia" }
+        };
       }
       
       return {
@@ -177,6 +164,102 @@ export class EvolutionApiClient {
       };
     } catch (error) {
       console.error(`Erro geral ao criar instância:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+  
+  /**
+   * Configura o webhook para a instância
+   * Este método é chamado automaticamente após a criação bem-sucedida da instância
+   */
+  async configureWebhook(): Promise<any> {
+    try {
+      console.log(`Configurando webhook para a instância ${this.instance}`);
+      
+      // Determinar a URL do webhook baseado no ambiente
+      let webhookUrl = '';
+      
+      // Se estamos no Replit, usar a URL do Replit
+      if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+        webhookUrl = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/api/evolution-webhook/${this.instance}`;
+      } else {
+        // URL padrão para desenvolvimento local ou outros ambientes
+        webhookUrl = `https://localhost:5000/api/evolution-webhook/${this.instance}`;
+      }
+      
+      console.log(`URL do webhook configurada: ${webhookUrl}`);
+      
+      // Configuração do webhook usando endpoint específico para webhooks
+      try {
+        const webhookEndpoint = `${this.baseUrl}/webhook/set/${this.instance}`;
+        console.log(`Configurando webhook via endpoint: ${webhookEndpoint}`);
+        
+        const webhookConfig = {
+          webhook: webhookUrl,
+          webhookEvents: true,
+          webhook_by_events: true
+        };
+        
+        const response = await axios.post(
+          webhookEndpoint,
+          webhookConfig,
+          { headers: this.getHeaders() }
+        );
+        
+        console.log(`Resposta da configuração do webhook:`, response.data);
+        
+        if (response.status === 200 || response.status === 201) {
+          return {
+            success: true,
+            data: response.data
+          };
+        }
+      } catch (error) {
+        console.error(`Erro ao configurar webhook:`, error.message);
+        
+        // Tentar endpoint alternativo para configuração
+        try {
+          const webhookAltEndpoint = `${this.baseUrl}/instance/settings/${this.instance}`;
+          console.log(`Tentando endpoint alternativo: ${webhookAltEndpoint}`);
+          
+          const webhookSettings = {
+            webhook: webhookUrl,
+            webhookByEvents: true,
+            events_message: true,
+            events_status: true,
+            events_presence: true,
+            webhook_base64: true
+          };
+          
+          const altResponse = await axios.post(
+            webhookAltEndpoint,
+            webhookSettings,
+            { headers: this.getHeaders() }
+          );
+          
+          console.log(`Resposta do endpoint alternativo:`, altResponse.data);
+          
+          if (altResponse.status === 200 || altResponse.status === 201) {
+            return {
+              success: true,
+              data: altResponse.data
+            };
+          }
+        } catch (altError) {
+          console.error(`Erro no endpoint alternativo:`, altError.message);
+        }
+      }
+      
+      console.log(`Não foi possível configurar o webhook, mas isso não impede o uso da instância`);
+      return {
+        success: false,
+        error: "Não foi possível configurar o webhook"
+      };
+    } catch (error) {
+      console.error(`Erro geral ao configurar webhook:`, error.message);
       return {
         success: false,
         error: error.message
