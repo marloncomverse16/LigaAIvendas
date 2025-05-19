@@ -21,7 +21,7 @@ import { promisify } from "util";
 import { eq, and } from "drizzle-orm";
 import { db } from "./db";
 import { checkConnectionStatus, disconnectWhatsApp } from "./connection";
-import { getWhatsAppQrCode } from "./direct-connection";
+import { getWhatsAppQrCode, getWhatsAppContacts } from "./direct-connection";
 import { setupWebSocketServer, sendMessage } from "./websocket";
 import multer from "multer";
 import fs from "fs";
