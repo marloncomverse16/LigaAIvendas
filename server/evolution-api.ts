@@ -62,7 +62,7 @@ export class EvolutionApiClient {
    * CRÍTICO: Esta etapa é necessária antes de qualquer operação com a instância
    * @returns Resultado da criação da instância
    */
-  async createInstance(webhookUrl?: string): Promise<any> {
+  async createInstance(): Promise<any> {
     try {
       // Primeiro, verificamos se a API está online
       const apiStatus = await this.checkApiStatus();
@@ -76,28 +76,24 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando criar a instância...");
       
-      // Obter a URL do dashboard para webhook, se não for fornecida
-      const appWebhookUrl = webhookUrl || (process.env.APP_URL ? `${process.env.APP_URL}/api/webhook/evolution` : null);
-      const enableWebhook = !!appWebhookUrl;
-      
-      if (enableWebhook) {
-        console.log(`Webhook será configurado com a URL: ${appWebhookUrl}`);
-      } else {
-        console.log('Nenhuma URL de webhook fornecida. O webhook não será configurado automaticamente.');
-      }
-      
       // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
-      // Removendo parâmetros problemáticos e simplificando
       const createInstanceBody = {
         instanceName: this.instance,
-        webhook: enableWebhook,
-        webhookUrl: appWebhookUrl || "",
+        token: this.token,
+        webhook: null, // Podemos deixar webhook nulo por enquanto
+        webhookByEvents: false, // Podemos adicionar eventos específicos mais tarde
+        integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
+        language: "pt-BR",
         qrcode: true,
-        events_message: enableWebhook,
+        qrcodeImage: true,
+        // Parâmetros adicionais
+        reject_call: false,
+        events_message: false,
+        ignore_group: false,
+        ignore_broadcast: false,
+        save_message: true,
         webhook_base64: true
       };
-      
-      console.log("Corpo da requisição simplificado para compatibilidade com Evolution API v2.2.3");
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
       // ou /instance/create/instance_name
@@ -114,18 +110,6 @@ export class EvolutionApiClient {
         console.log(`Resposta da criação de instância:`, response.data);
         
         if (response.status === 201 || response.status === 200) {
-          // Configurar webhook se necessário
-          if (enableWebhook && appWebhookUrl) {
-            try {
-              console.log(`Configurando webhook para a instância ${this.instance}`);
-              await this.configureWebhook(appWebhookUrl);
-              console.log(`Webhook configurado com sucesso para ${appWebhookUrl}`);
-            } catch (webhookError) {
-              console.error(`Erro ao configurar webhook: ${webhookError.message}`);
-              // Continuar mesmo com erro no webhook
-            }
-          }
-          
           return {
             success: true,
             data: response.data
@@ -147,18 +131,6 @@ export class EvolutionApiClient {
           console.log(`Resposta da criação de instância (alternativo):`, response.data);
           
           if (response.status === 201 || response.status === 200) {
-            // Configurar webhook se necessário
-            if (enableWebhook && appWebhookUrl) {
-              try {
-                console.log(`Configurando webhook para a instância ${this.instance}`);
-                await this.configureWebhook(appWebhookUrl);
-                console.log(`Webhook configurado com sucesso para ${appWebhookUrl}`);
-              } catch (webhookErr) {
-                console.error(`Erro ao configurar webhook (endpoint alternativo): ${webhookErr.message}`);
-                // Continuar mesmo com erro no webhook
-              }
-            }
-            
             return {
               success: true,
               data: response.data
@@ -756,113 +728,6 @@ export class EvolutionApiClient {
         contacts: mockContacts,
         endpoint: "mock"
       };
-    }
-  }
-  
-  /**
-   * Configura o webhook para a instância
-   * 
-   * Baseado na tela mostrada da Evolution API, onde é necessário:
-   * 1. Ativar a opção de webhook
-   * 2. Definir a URL do webhook
-   * 3. Ativar todas as opções de eventos
-   * 4. Ativar o Base64 para as mídias
-   * 
-   * @param webhookUrl URL para receber os eventos
-   */
-  async configureWebhook(webhookUrl: string): Promise<any> {
-    try {
-      console.log(`Configurando webhook para instância ${this.instance} com URL ${webhookUrl}`);
-      
-      // 1. Ativar webhook principal
-      try {
-        const enableResponse = await axios.post(
-          `${this.baseUrl}/webhook/set/${this.instance}`,
-          {
-            enabled: true,
-            url: webhookUrl
-          },
-          { headers: this.getHeaders() }
-        );
-        
-        console.log('Webhook principal ativado com sucesso:', enableResponse.data);
-      } catch (error: any) {
-        console.error('Erro ao ativar webhook principal:', error.message);
-        
-        // Tentar endpoint alternativo da v3.7
-        try {
-          await axios.post(
-            `${this.baseUrl}/instance/webhook/${this.instance}`,
-            {
-              enabled: true,
-              url: webhookUrl
-            },
-            { headers: this.getHeaders() }
-          );
-          console.log('Webhook ativado com sucesso (endpoint alternativo)');
-        } catch (altError: any) {
-          console.error('Erro ao ativar webhook (endpoint alternativo):', altError.message);
-        }
-      }
-      
-      // 2. Ativar webhook por eventos (separados por rotas)
-      try {
-        await axios.post(
-          `${this.baseUrl}/webhook/set-events/${this.instance}`,
-          { 
-            enabled: true
-          },
-          { headers: this.getHeaders() }
-        );
-        console.log('Webhook por eventos ativado com sucesso');
-      } catch (eventError: any) {
-        console.error('Erro ao ativar webhook por eventos:', eventError.message);
-      }
-      
-      // 3. Ativar Base64 para mídia
-      try {
-        await axios.post(
-          `${this.baseUrl}/webhook/set-webhook-base64/${this.instance}`,
-          { 
-            enabled: true 
-          },
-          { headers: this.getHeaders() }
-        );
-        console.log('Base64 para mídia ativado com sucesso');
-      } catch (base64Error: any) {
-        console.error('Erro ao ativar Base64 para mídia:', base64Error.message);
-      }
-      
-      // 4. Ativar todos os eventos
-      const events = [
-        'APPLICATION_STARTUP', 'CALL', 'CHATS_DELETE', 'CHATS_SET',
-        'CHATS_UPDATE', 'CHATS_UPSERT', 'CONNECTION_UPDATE', 'CONTACTS_SET',
-        'CONTACTS_UPDATE', 'CONTACTS_UPSERT', 'GROUPS_SET', 'GROUPS_UPDATE',
-        'GROUPS_UPSERT', 'GROUP_PARTICIPANTS_UPDATE', 'MESSAGES_DELETE',
-        'MESSAGES_MEDIA', 'MESSAGES_NEW', 'MESSAGES_REACTION', 'MESSAGES_SET',
-        'MESSAGES_UPDATE', 'MESSAGES_UPSERT', 'PRESENCE_UPDATE', 'QR_UPDATED'
-      ];
-      
-      for (const event of events) {
-        try {
-          await axios.post(
-            `${this.baseUrl}/webhook/set-webhook-event/${this.instance}`,
-            { 
-              event, 
-              enabled: true 
-            },
-            { headers: this.getHeaders() }
-          );
-          console.log(`Evento ${event} ativado com sucesso`);
-        } catch (eventError: any) {
-          console.error(`Erro ao ativar evento ${event}:`, eventError.message);
-        }
-      }
-      
-      return { success: true };
-    } catch (error: any) {
-      console.error('Erro ao configurar webhook:', error.message);
-      return { success: false, error: error.message };
     }
   }
 
