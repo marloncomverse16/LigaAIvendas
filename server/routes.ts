@@ -49,6 +49,9 @@ import { checkMetaConnectionStatus } from "./api/meta-status";
 // Importação do chat otimizado para Evolution API v3.7
 import chatV37Router from "./api/chat-v3.7";
 
+// Importação do controlador de sincronização de contatos da Evolution API
+import evolutionContactsRouter from "./api/evolution-contacts";
+
 // Novas importações para conexões Meta API específicas do usuário
 
 // Configuração do multer para upload de arquivos
@@ -144,6 +147,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Registrar rotas de chat
   // Substituindo o roteador de chat pelo otimizado para Evolution API v3.7
   app.use("/api/chat", chatV37Router);
+  
+  // Registrar o roteador para sincronização de contatos da Evolution API
+  app.use("/api/evolution-contacts", evolutionContactsRouter);
   
   // AI Agent routes - Versão temporária com dados mock
   app.get("/api/ai-agent", async (req, res) => {
