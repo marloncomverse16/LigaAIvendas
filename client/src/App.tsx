@@ -13,6 +13,7 @@ import ProspectingPage from "@/pages/prospecting-page";
 import ConnectionPage from "@/pages/connection-page";
 // import ChatPage from "@/pages/chat-page";
 import ChatWebView from "@/pages/chat-page-new";
+import ChatTestPage from "@/pages/chat-test-page";
 import MessageSendingPage from "@/pages/message-sending-page";
 import AdminUsersPage from "@/pages/admin-users-page";
 import UserPermissionsPage from "@/pages/user-permissions-page";
@@ -49,6 +50,7 @@ function Router() {
       <ProtectedRoute path="/servers" component={ServerManagementPage} />
       <Route path="/meta-test" component={MetaTestPage} />
       <Route path="/meta-diagnostic" component={MetaDiagnosticPage} />
+      <Route path="/chat-test" component={ChatTestPage} />
       <Route component={NotFound} />
     </Switch>
   );
