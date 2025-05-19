@@ -113,18 +113,38 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
       server.instanceid
     );
     
-    // Buscar contatos - abordagem melhorada para a Evolution API
+    // Buscar contatos - abordagem robusta para a Evolution API
     try {
-      console.log('Tentando obter contatos com abordagem melhorada...');
+      console.log('Iniciando busca de contatos com abordagem robusta...');
       
-      // Tentar diferentes endpoints para buscar contatos
-      // Vamos começar tentando pelo cliente configurado
+      // PASSO 1: Verificar status da conexão
       try {
+        console.log('Verificando status da conexão antes de buscar contatos...');
+        const connectionStatus = await client.checkConnectionStatus();
+        
+        if (!connectionStatus.success || !connectionStatus.connected) {
+          console.log('WhatsApp não está conectado:', connectionStatus);
+          return res.status(400).json({
+            success: false,
+            message: 'WhatsApp não está conectado. Conecte-se primeiro para visualizar contatos.',
+            connectionStatus
+          });
+        }
+        
+        console.log('Status da conexão: CONECTADO ✅');
+      } catch (statusError) {
+        console.log('Erro ao verificar status da conexão:', statusError instanceof Error ? statusError.message : String(statusError));
+        // Não interromper - vamos tentar obter contatos mesmo assim
+      }
+      
+      // PASSO 2: Tentar obter contatos com o cliente configurado
+      try {
+        console.log('Tentando obter contatos via cliente configurado...');
         const response = await client.getContacts();
-        console.log('Resposta de getContacts:', typeof response);
+        console.log('Resposta de getContacts:', typeof response, response.success ? 'sucesso' : 'falha');
         
         if (response && response.success && Array.isArray(response.contacts) && response.contacts.length > 0) {
-          console.log(`Processando ${response.contacts.length} contatos obtidos com sucesso`);
+          console.log(`Processando ${response.contacts.length} contatos obtidos com sucesso via cliente`);
           
           // Formatação dos contatos para a UI
           const formattedContacts = response.contacts.map((contact: any) => {
@@ -140,52 +160,84 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
               pushname: contact.pushname || contact.name || phone,
               lastMessageTime: contact.lastMessageTime || null,
               isGroup: contact.isGroup || contact.id?.includes('@g.us') || false,
-              profilePicture: contact.profilePictureUrl || null
+              profilePicture: contact.profilePictureUrl || contact.profilePicture || null
             };
           });
           
           return res.json({
             success: true,
-            contacts: formattedContacts
+            contacts: formattedContacts,
+            source: 'client',
+            endpoint: response.endpoint || 'unknown'
           });
+        } else {
+          console.log('Cliente retornou resposta sem contatos ou inválida:', response);
         }
       } catch (clientError) {
         console.log('Erro ao usar cliente Evolution API:', clientError instanceof Error ? clientError.message : String(clientError));
       }
       
-      // Se não conseguiu com o cliente, tentar diretamente com a API
+      // PASSO 3: Tentar com vários endpoints (incluindo mais alternativas)
+      console.log('Tentando endpoints diretos para obter contatos...');
+      
       try {
-        // Tentar diferentes endpoints conhecidos
+        // Lista ampliada de endpoints possíveis
         const endpoints = [
+          // Endpoints padrão
           `/instance/fetchContacts/${server.instanceid}`,
           `/api/instances/${server.instanceid}/contacts`,
           `/instances/${server.instanceid}/contacts`,
           `/instance/getAllContacts/${server.instanceid}`,
           `/instance/contacts/${server.instanceid}`,
           `/manager/contacts/${server.instanceid}`,
-          `/chat/contacts/${server.instanceid}`
+          `/chat/contacts/${server.instanceid}`,
+          
+          // Endpoints alternativos (outros formatos)
+          `/api/contacts/${server.instanceid}`,
+          `/api/chats/${server.instanceid}`,
+          `/api/all`,
+          `/api/getContacts`,
+          `/v1/contacts/${server.instanceid}`,
+          `/v1/chats/${server.instanceid}`,
+          
+          // Testes com "admin" como instância alternativa 
+          `/instance/fetchContacts/admin`,
+          `/instance/contacts/admin`,
+          `/api/instances/admin/contacts`,
+          
+          // Tentativas sem instância específica
+          `/contacts`,
+          `/chats`,
+          `/getAllContacts`
         ];
         
         let contactsData = null;
+        let successEndpoint = null;
+        
+        // Headers completos para autenticação
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${server.apitoken}`,
+          'apikey': server.apitoken,
+          'AUTHENTICATION_API_KEY': server.apitoken
+        };
         
         for (const endpoint of endpoints) {
           try {
-            console.log(`Tentando endpoint: ${server.apiurl}${endpoint}`);
-            const response = await axios.get(`${server.apiurl}${endpoint}`, {
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${server.apitoken}`,
-                'apikey': server.apitoken
-              }
-            });
+            const url = `${server.apiurl}${endpoint}`;
+            console.log(`Tentando endpoint: ${url}`);
+            
+            const response = await axios.get(url, { headers });
             
             if (response.status === 200 && response.data) {
               contactsData = response.data;
+              successEndpoint = endpoint;
               console.log(`Contatos obtidos com sucesso do endpoint: ${endpoint}`);
               break;
             }
           } catch (endpointError) {
-            console.log(`Erro no endpoint ${endpoint}:`, endpointError instanceof Error ? endpointError.message : String(endpointError));
+            // Log resumido para evitar poluição do console
+            console.log(`Erro no endpoint ${endpoint}: ${endpointError instanceof Error ? endpointError.message : 'Erro desconhecido'}`);
           }
         }
         
@@ -195,9 +247,10 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
           
           if (Array.isArray(contactsData)) {
             contactsArray = contactsData;
+            console.log('Dados de contatos obtidos como array direto');
           } else if (typeof contactsData === 'object') {
-            // Procurar em propriedades comuns
-            const possibleProps = ['contacts', 'data', 'result', 'list', 'items'];
+            // Procurar em propriedades comuns onde podem estar os contatos
+            const possibleProps = ['contacts', 'data', 'result', 'list', 'items', 'response', 'chats'];
             for (const prop of possibleProps) {
               if (Array.isArray(contactsData[prop])) {
                 contactsArray = contactsData[prop];
@@ -346,37 +399,82 @@ router.get('/messages/:contactId', requireAuth, async (req: Request, res: Respon
       );
       
       try {
-        // Tentar diferentes endpoints para mensagens
+        // PASSO 1: Verificar status da conexão
+        try {
+          console.log('Verificando status da conexão antes de buscar mensagens...');
+          const connectionStatus = await client.checkConnectionStatus();
+          
+          if (!connectionStatus.success || !connectionStatus.connected) {
+            console.log('WhatsApp não está conectado:', connectionStatus);
+            return res.status(400).json({
+              success: false,
+              message: 'WhatsApp não está conectado. Conecte-se primeiro para visualizar mensagens.',
+              connectionStatus
+            });
+          }
+          
+          console.log('Status da conexão: CONECTADO ✅');
+        } catch (statusError) {
+          console.log('Erro ao verificar status da conexão (mensagens):', 
+                      statusError instanceof Error ? statusError.message : String(statusError));
+          // Não interromper - vamos tentar obter mensagens mesmo assim
+        }
+        
+        // Lista ampliada de endpoints possíveis
         const endpoints = [
+          // Endpoints padrão
           `/api/messages/fetch/${server.instanceid}?phone=${formattedContactId}`,
           `/api/instances/${server.instanceid}/messages?phone=${formattedContactId}`,
           `/api/instances/${server.instanceid}/chats/${formattedContactId}/messages`,
           `/instance/messages/${server.instanceid}/${formattedContactId}`,
           `/instance/fetchMessages/${server.instanceid}/${formattedContactId}`,
           `/manager/messages/${server.instanceid}/${formattedContactId}`,
-          `/api/v1/messages/${server.instanceid}/${formattedContactId}`
+          `/api/v1/messages/${server.instanceid}/${formattedContactId}`,
+          
+          // Endpoints alternativos
+          `/api/chats/${formattedContactId}/messages`,
+          `/api/chat/${formattedContactId}/messages`,
+          `/api/chat/history/${formattedContactId}`,
+          `/instance/getMessages/${server.instanceid}/${formattedContactId}`,
+          
+          // Endpoints para "admin" como instância alternativa
+          `/instance/fetchMessages/admin/${formattedContactId}`,
+          `/instance/messages/admin/${formattedContactId}`,
+          
+          // Endpoints para formato sem @c.us
+          `/instance/messages/${server.instanceid}/${contactId}`,
+          `/api/messages/fetch/${server.instanceid}?phone=${contactId}`
         ];
           
         let messagesData = null;
+        let successEndpoint = null;
+        
+        // Headers completos para autenticação
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${server.apitoken}`,
+          'apikey': server.apitoken,
+          'AUTHENTICATION_API_KEY': server.apitoken
+        };
         
         for (const endpoint of endpoints) {
           try {
-            console.log(`Tentando endpoint para mensagens: ${server.apiurl}${endpoint}`);
-            const response = await axios.get(`${server.apiurl}${endpoint}`, {
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${server.apitoken}`,
-                'apikey': server.apitoken
-              }
-            });
+            const url = `${server.apiurl}${endpoint}`;
+            console.log(`Tentando endpoint para mensagens: ${url}`);
+            
+            const response = await axios.get(url, { headers });
             
             if (response.status === 200 && response.data) {
               messagesData = response.data;
+              successEndpoint = endpoint;
               console.log(`Mensagens obtidas com sucesso do endpoint: ${endpoint}`);
               break;
             }
           } catch (endpointError) {
-            console.log(`Erro no endpoint de mensagens ${endpoint}:`, endpointError instanceof Error ? endpointError.message : String(endpointError));
+            // Log resumido para evitar poluição do console
+            console.log(`Erro no endpoint de mensagens ${endpoint}: ${
+              endpointError instanceof Error ? endpointError.message : 'Erro desconhecido'
+            }`);
           }
         }
         
