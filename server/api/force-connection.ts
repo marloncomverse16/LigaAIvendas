@@ -21,9 +21,10 @@ export async function forceConnectionCheck(req: Request, res: Response) {
     }
     
     // Verificar se temos configurações de servidor para Evolution API
-    const userServer = await storage.getUserServer(userId);
+    const userServer = await storage.getUserServers(userId);
+    const userServerData = userServer?.[0];
     
-    if (!userServer || !userServer.server || !userServer.server.apiUrl) {
+    if (!userServerData || !userServerData.server || !userServerData.server.apiUrl) {
       return res.status(400).json({ 
         success: false, 
         message: "Servidor Evolution API não configurado" 
