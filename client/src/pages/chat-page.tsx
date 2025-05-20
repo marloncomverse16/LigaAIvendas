@@ -35,8 +35,32 @@ export default function ChatPage() {
   });
 
   // Função para forçar atualização
-  const handleRefresh = () => {
-    setRefreshTrigger(prev => prev + 1);
+  const handleRefresh = async () => {
+    // Tenta chamar a API diretamente para verificar a conexão
+    try {
+      console.log("Verificando conexão manualmente...");
+      
+      // Chamar a rota padrão para verificar status
+      const response = await fetch("/api/connections/status", {
+        method: "GET",
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Status atual:", data);
+        
+        // Forçar atualização do componente
+        setRefreshTrigger(prev => prev + 1);
+      } else {
+        console.error("Erro ao verificar status:", await response.text());
+      }
+    } catch (error) {
+      console.error("Erro ao verificar conexão:", error);
+    }
   };
 
   return (
