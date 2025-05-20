@@ -372,9 +372,14 @@ export class EvolutionApiClient {
             console.log(`Status obtido com sucesso: ${JSON.stringify(response.data)}`);
             
             // Determinar se está conectado com base nos campos retornados
-            const isConnected = response.data.state === 'open' || 
+            // Formato pode variar conforme a versão da API
+            const isConnected = 
+                                response.data.state === 'open' || 
+                                response.data.state === 'CONNECTED' ||
                                 response.data.state === 'connected' ||
-                                response.data.connected === true;
+                                response.data.state === 'CONNECTION' ||
+                                response.data.connected === true ||
+                                (response.data.status && response.data.status.includes('connect'));
             
             return {
               success: true,
