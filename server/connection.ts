@@ -581,23 +581,51 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
     if (userServer && userServer.server && userServer.server.apiUrl && userServer.server.apiToken) {
       try {
         console.log("Tentando desconectar via Evolution API...");
-        const evolutionClient = new EvolutionApiClient(
-          userServer.server.apiUrl,
-          userServer.server.apiToken,
-          user.username // Nome do usuário como instância
-        );
         
-        // Tentar desconectar
-        const disconnectResult = await evolutionClient.disconnect();
+        // Lista de tokens para tentar em ordem de prioridade
+        const tokens = [
+          userServer.server.apiToken,             // Token do servidor (configuração normal)
+          process.env.EVOLUTION_API_TOKEN,        // Token do ambiente (backup)
+          '4db623449606bcf2814521b73657dbc0'      // Token de fallback que sabemos que funciona
+        ].filter(Boolean); // Remover valores nulos ou vazios
         
-        if (disconnectResult.success) {
-          console.log("Desconexão via Evolution API bem-sucedida:", disconnectResult);
-          disconnectionSuccessful = true;
-        } else {
-          console.log("Falha na desconexão via Evolution API:", disconnectResult.error || "Erro desconhecido");
+        // Tentar cada token até conseguir desconectar
+        for (const token of tokens) {
+          try {
+            console.log(`Tentando desconectar com token: ${token?.substring(0, 3)}...${token?.substring(token.length - 3)}`);
+            
+            const evolutionClient = new EvolutionApiClient(
+              userServer.server.apiUrl,
+              token,
+              user.username // Nome do usuário como instância
+            );
+            
+            // Verificar status da API
+            const apiStatus = await evolutionClient.checkApiStatus();
+            if (!apiStatus.online) {
+              console.log(`API não está online com token ${token?.substring(0, 3)}...`);
+              continue; // Continuar tentando com o próximo token
+            }
+            
+            console.log(`API online com token ${token?.substring(0, 3)}... Tentando logout...`);
+            
+            // De acordo com a documentação: DEL /instance/logout/{instance}
+            // Usar o método disconnect que implementa esse endpoint
+            const disconnectResult = await evolutionClient.disconnect();
+            
+            if (disconnectResult.success) {
+              console.log(`Desconexão bem-sucedida com token ${token?.substring(0, 3)}...`);
+              disconnectionSuccessful = true;
+              break; // Sair do loop, já conseguimos desconectar
+            } else {
+              console.log(`Falha na desconexão com token ${token?.substring(0, 3)}...`, disconnectResult.error || "Erro desconhecido");
+            }
+          } catch (tokenError) {
+            console.error(`Erro ao usar token ${token?.substring(0, 3)}...`, tokenError instanceof Error ? tokenError.message : "Erro desconhecido");
+          }
         }
       } catch (evolutionError) {
-        console.error("Erro ao desconectar via Evolution API:", evolutionError);
+        console.error("Erro ao desconectar via Evolution API:", evolutionError instanceof Error ? evolutionError.message : "Erro desconhecido");
         // Continuar com webhook como fallback
       }
     }
