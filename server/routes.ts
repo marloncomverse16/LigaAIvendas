@@ -2012,15 +2012,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Usamos o mesmo método de sincronização para buscar contatos
-      // Redirecionamos para o endpoint de contatos do WhatsApp
-      const { getContactsV2 } = await import('./api/evolution-contacts-v2');
-      await getContactsV2(req, res);
+      // Usar a nova implementação baseada na documentação oficial
+      const { findContacts } = await import('./api/evolution-chat');
+      await findContacts(req, res);
     } catch (error) {
       console.error('Erro ao obter contatos:', error);
       res.status(500).json({
         success: false,
         message: 'Erro ao obter contatos do WhatsApp',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Novas rotas compatíveis com a documentação da Evolution API - Aba Chat
+  
+  // Rota para verificar se números estão no WhatsApp
+  app.post("/api/chat/whatsapp-numbers", async (req, res) => {
+    try {
+      const { checkWhatsAppNumbers } = await import('./api/evolution-chat');
+      await checkWhatsAppNumbers(req, res);
+    } catch (error) {
+      console.error('Erro ao verificar números no WhatsApp:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao verificar números no WhatsApp',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Rota para buscar mensagens
+  app.post("/api/chat/messages", async (req, res) => {
+    try {
+      const { findMessages } = await import('./api/evolution-chat');
+      await findMessages(req, res);
+    } catch (error) {
+      console.error('Erro ao buscar mensagens:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar mensagens do WhatsApp',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Rota para buscar chats
+  app.post("/api/chat/chats", async (req, res) => {
+    try {
+      const { findChats } = await import('./api/evolution-chat');
+      await findChats(req, res);
+    } catch (error) {
+      console.error('Erro ao buscar chats:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar chats do WhatsApp',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Rota para marcar mensagem como lida
+  app.post("/api/chat/mark-read", async (req, res) => {
+    try {
+      const { markMessageAsRead } = await import('./api/evolution-chat');
+      await markMessageAsRead(req, res);
+    } catch (error) {
+      console.error('Erro ao marcar mensagem como lida:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao marcar mensagem como lida',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Rota para obter foto de perfil
+  app.post("/api/chat/profile-picture", async (req, res) => {
+    try {
+      const { fetchProfilePictureUrl } = await import('./api/evolution-chat');
+      await fetchProfilePictureUrl(req, res);
+    } catch (error) {
+      console.error('Erro ao obter foto de perfil:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao obter foto de perfil',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Rotas para envio de mensagens via Evolution API
+  
+  // Enviar mensagem de texto
+  app.post("/api/message/text", async (req, res) => {
+    try {
+      const { sendText } = await import('./api/evolution-message');
+      await sendText(req, res);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem de texto:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao enviar mensagem de texto',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Enviar mídia (imagem, vídeo, áudio, documento)
+  app.post("/api/message/media", async (req, res) => {
+    try {
+      const { sendMedia } = await import('./api/evolution-message');
+      await sendMedia(req, res);
+    } catch (error) {
+      console.error('Erro ao enviar mídia:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao enviar mídia',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Enviar áudio no formato WhatsApp
+  app.post("/api/message/whatsapp-audio", async (req, res) => {
+    try {
+      const { sendWhatsAppAudio } = await import('./api/evolution-message');
+      await sendWhatsAppAudio(req, res);
+    } catch (error) {
+      console.error('Erro ao enviar áudio WhatsApp:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao enviar áudio WhatsApp',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Enviar botões interativos
+  app.post("/api/message/buttons", async (req, res) => {
+    try {
+      const { sendButtons } = await import('./api/evolution-message');
+      await sendButtons(req, res);
+    } catch (error) {
+      console.error('Erro ao enviar botões:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao enviar botões',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Enviar lista de opções
+  app.post("/api/message/list", async (req, res) => {
+    try {
+      const { sendList } = await import('./api/evolution-message');
+      await sendList(req, res);
+    } catch (error) {
+      console.error('Erro ao enviar lista:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao enviar lista',
         error: error instanceof Error ? error.message : 'Erro desconhecido'
       });
     }

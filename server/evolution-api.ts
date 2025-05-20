@@ -156,8 +156,8 @@ export class EvolutionApiClient {
 
   /**
    * Obtém o QR Code para conexão da instância
-   * MÉTODO SIMPLIFICADO: Usa apenas o endpoint GET de /instance/connect/
-   * que demonstramos funcionar nos testes
+   * Implementação baseada na documentação da Evolution API:
+   * GET /instance/connect/{instance}
    * @returns QR code ou objeto de erro
    */
   async getQrCode(): Promise<any> {
@@ -172,76 +172,96 @@ export class EvolutionApiClient {
         };
       }
 
-      console.log("API Evolution online. Tentando obter QR code diretamente...");
+      console.log("API Evolution online. Verificando status da conexão...");
       
-      // MODO SIMPLIFICADO: Usar apenas o endpoint que sabemos que funciona
-      // Nossos testes confirmaram que este endpoint funciona com GET:
-      // GET /instance/connect/{nome_da_instancia}
-      const connectEndpoint = `${this.baseUrl}/instance/connect/${this.instance}`;
-      console.log(`Usando exclusivamente o endpoint: ${connectEndpoint}`);
+      // Verificar se a instância já está conectada
+      const connectionState = await this.checkConnectionStatus();
+      if (connectionState.success && connectionState.connected) {
+        console.log("Instância já está conectada!");
+        return {
+          success: true,
+          connected: true,
+          qrCode: null,
+          message: "Instância já conectada ao WhatsApp"
+        };
+      }
       
-      try {
-        // Fazer a requisição GET para o endpoint que confirmamos funcionar
-        const response = await axios.get(connectEndpoint, {
-          headers: this.getHeaders(),
-          timeout: 10000 // Timeout adequado de 10 segundos
-        });
+      // Verificar se é necessário criar a instância
+      if (!connectionState.success || 
+          (connectionState.error && 
+           (connectionState.error.includes("not found") || 
+            connectionState.error.includes("not exist") || 
+            connectionState.error.includes("não existe")))) {
         
-        console.log(`Resposta do endpoint: Status ${response.status}`);
-        console.log(`Resposta completa: ${typeof response.data === 'string' ? response.data.substring(0, 100) + '...' : JSON.stringify(response.data).substring(0, 100) + '...'}`);
+        console.log("Instância não encontrada. Tentando criar a instância primeiro...");
         
-        // Imprimir todas as chaves da resposta para depuração
-        if (typeof response.data === 'object' && response.data !== null) {
-          console.log('Chaves disponíveis na resposta:', Object.keys(response.data));
-          
-          // Se tivermos a chave 'qrcode' dentro de outra chave
-          if (response.data.result) {
-            console.log('Chaves em result:', Object.keys(response.data.result));
-          }
+        const createResult = await this.createInstance();
+        if (!createResult.success) {
+          return {
+            success: false,
+            error: 'Não foi possível criar a instância',
+            details: createResult
+          };
         }
         
-        if (response.status === 200 || response.status === 201) {
-          // Verificar se a resposta contém HTML (erro comum)
-          const responseStr = typeof response.data === 'string' 
-            ? response.data 
-            : JSON.stringify(response.data);
-            
-          if (responseStr.includes('<!DOCTYPE html>') || 
-              responseStr.includes('<html') || 
-              responseStr.includes('<body')) {
-            console.log("Resposta contém HTML, isso indica um erro de autenticação ou permissão");
-            return {
-              success: false,
-              error: 'A API Evolution está retornando HTML em vez de um QR code válido. Verifique as credenciais e permissões.'
-            };
-          }
-          
-          // Extrair o QR code da resposta (como string ou em um campo específico)
-          // Verificamos em diversos lugares possíveis com base nas diferentes versões da API
-          const qrCode = response.data?.qrcode || 
-                      response.data?.qrCode || 
-                      response.data?.base64 || 
-                      response.data?.code ||
-                      response.data?.result?.qrcode ||
-                      response.data?.result?.qrCode ||
-                      response.data?.result?.base64 ||
-                      response.data?.data?.qrcode ||
-                      response.data?.response?.qrcode ||
-                      (typeof response.data === 'string' ? response.data : null);
-          
+        // Aguardar um momento para a criação ser processada
+        console.log("Instância criada. Aguardando processamento...");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      // Obter QR Code usando o endpoint documentado
+      const connectEndpoint = `${this.baseUrl}/instance/connect/${this.instance}`;
+      console.log(`Obtendo QR code em: ${connectEndpoint}`);
+      
+      const response = await axios.get(connectEndpoint, {
+        headers: this.getHeaders(),
+        timeout: 15000 // Timeout maior para operação de QR code
+      });
+      
+      console.log(`Resposta do endpoint: Status ${response.status}`);
+      
+      // Verificar o formato da resposta para depuração
+      if (typeof response.data === 'object' && response.data !== null) {
+        console.log('Estrutura da resposta:', Object.keys(response.data));
+      }
+      
+      if (response.status === 200 || response.status === 201) {
+        // Verificar se a resposta contém um QR code válido
+        // A documentação menciona que o QR code está na propriedade 'qrcode'
+        if (response.data && response.data.qrcode) {
+          console.log("QR Code obtido com sucesso!");
+          return {
+            success: true,
+            qrCode: response.data.qrcode,
+            endpoint: connectEndpoint,
+            method: 'GET'
+          };
+        } 
+        // Verificar formatos alternativos com base em testes
+        else {
+          // Tentar encontrar o QR code em diferentes formatos de resposta
+          const qrCode = response.data?.qrCode || 
+                       response.data?.base64 || 
+                       response.data?.code ||
+                       response.data?.result?.qrcode ||
+                       response.data?.data?.qrcode ||
+                       response.data?.response?.qrcode;
+                       
           if (qrCode) {
-            console.log("QR Code obtido com sucesso!");
+            console.log("QR Code obtido com formato alternativo!");
             return {
               success: true,
               qrCode: qrCode,
               endpoint: connectEndpoint,
               method: 'GET'
             };
-          } else if (response.data?.state === 'open' || 
-                    response.data?.state === 'connected' ||
-                    response.data?.connected === true) {
-            // Já está conectado
-            console.log("Instância já está conectada!");
+          }
+          
+          // Verificar se a mensagem indica que já está conectado
+          if ((response.data?.state === 'open' || response.data?.state === 'connected') ||
+              (response.data?.connected === true) ||
+              (response.data?.message && response.data.message.includes("connected"))) {
+            console.log("Instância já está conectada (detectado na resposta)!");
             return {
               success: true,
               connected: true,
@@ -250,48 +270,59 @@ export class EvolutionApiClient {
             };
           }
           
-          // Resposta sem QR code reconhecível
-          console.log("Resposta não contém QR code reconhecível");
+          // Não foi possível identificar um QR code na resposta
+          console.log("Resposta não contém QR code reconhecível:", response.data);
           return {
             success: false,
-            error: 'Não foi possível identificar um QR code na resposta da API'
+            error: 'Não foi possível identificar um QR code na resposta da API',
+            responseData: response.data
           };
         }
-        
-        // Status inesperado
-        return {
-          success: false,
-          error: `Resposta com status inesperado: ${response.status}`
-        };
-      } catch (error) {
-        console.error(`Erro ao tentar obter QR code: ${error.message}`);
-        
-        // Em caso de erro, podemos tentar verificar o estado da conexão
-        console.log("Verificando status da conexão como alternativa...");
-        try {
-          const connectionState = await this.checkConnectionStatus();
-          if (connectionState.success && connectionState.connected) {
-            return {
-              success: true,
-              connected: true,
-              qrCode: null,
-              data: connectionState.data
-            };
-          }
-        } catch (stateError) {
-          console.log(`Erro ao verificar estado da conexão: ${stateError.message}`);
-        }
-        
-        return {
-          success: false,
-          error: `Falha ao obter QR code: ${error.message}`
-        };
       }
-    } catch (error) {
-      console.error("Erro geral ao obter QR code:", error);
+      
+      // Status HTTP inesperado
       return {
         success: false,
-        error: error.message
+        error: `Resposta com status HTTP inesperado: ${response.status}`,
+        data: response.data
+      };
+    } catch (error) {
+      console.error("Erro ao obter QR code:", error);
+      
+      // Verificar se o erro indica que a instância não existe (404)
+      if (axios.isAxiosError(error) && error.response && error.response.status === 404) {
+        console.log("Recebeu erro 404. Tentando criar a instância e obter QR code novamente...");
+        
+        try {
+          // Criar a instância
+          const createResult = await this.createInstance();
+          if (!createResult.success) {
+            return {
+              success: false,
+              error: 'Falha ao criar a instância',
+              details: createResult
+            };
+          }
+          
+          // Aguardar a criação
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Tentar obter QR code novamente (recursivamente)
+          return this.getQrCode();
+        } catch (createError) {
+          console.error("Erro ao criar instância:", createError);
+          return {
+            success: false,
+            error: 'Falha ao criar instância e obter QR code',
+            message: error instanceof Error ? error.message : 'Erro desconhecido'
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+        details: axios.isAxiosError(error) && error.response ? error.response.data : null
       };
     }
   }
