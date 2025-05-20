@@ -950,8 +950,9 @@ export class EvolutionApiClient {
 
   /**
    * Retorna os cabeçalhos HTTP padrão com token de autorização
+   * Este método é público para permitir acesso em outras partes da aplicação
    */
-  private getHeaders() {
+  getHeaders() {
     // Priorizar token do ambiente, depois o token do construtor
     const token = process.env.EVOLUTION_API_TOKEN || 
       this.token || 
