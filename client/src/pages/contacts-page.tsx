@@ -100,8 +100,12 @@ export default function ContactsPage() {
   };
 
   // Filtrar contatos com base no termo de busca
-  const filteredContacts = contactsData?.contacts?.filter((contact: WhatsAppContact) => {
+  const contacts = contactsData?.contacts || [];
+  const filteredContacts = contacts.filter((contact: WhatsAppContact) => {
     if (!contact) return false;
+    
+    // Se não tem termo de busca, incluir o contato
+    if (!searchTerm) return true;
     
     const searchLower = searchTerm.toLowerCase();
     // Verificar se as propriedades existem antes de chamar toLowerCase
@@ -109,7 +113,7 @@ export default function ContactsPage() {
     const numberMatch = contact.number ? contact.number.toLowerCase().includes(searchLower) : false;
     
     return nameMatch || numberMatch;
-  }) || [];
+  });
 
   // Função para formatar número de telefone
   const formatPhone = (phone: string) => {

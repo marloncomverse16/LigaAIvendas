@@ -57,7 +57,7 @@ export async function checkConnectionStatus(req: Request, res: Response) {
   try {
     const userId = (req.user as Express.User).id;
     
-    // Se não tiver status, retorna desconectado
+    // Se não tiver status, inicializa como desconectado
     if (!connectionStatus[userId]) {
       connectionStatus[userId] = {
         connected: false,
@@ -65,11 +65,73 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       };
     }
     
-    // Tentar obter status atualizado do webhook, se o usuário tiver configurado
+    // Buscar informações do usuário
     const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+    
+    // Verificar se temos configurações de servidor para Evolution API
+    const userServer = await fetchUserServer(userId);
+    
+    // VERIFICAÇÃO DIRETA VIA EVOLUTION API
+    if (userServer && userServer.server && userServer.server.apiUrl) {
+      try {
+        console.log("Verificando status da conexão via Evolution API...");
+        
+        // Lista de tokens para tentar em ordem de prioridade
+        const tokens = [
+          userServer.server.apiToken,             // Token do servidor
+          process.env.EVOLUTION_API_TOKEN,        // Token do ambiente
+          '4db623449606bcf2814521b73657dbc0'      // Token de fallback 
+        ].filter(Boolean);
+        
+        // Verificar status usando os tokens disponíveis
+        for (const token of tokens) {
+          try {
+            console.log(`Tentando verificar status com token: ${token?.substring(0, 3)}...`);
+            
+            const evolutionClient = new EvolutionApiClient(
+              userServer.server.apiUrl,
+              token,
+              user.username // Nome do usuário como instância
+            );
+            
+            // Verificar status da conexão com a Evolution API
+            const connectionResult = await evolutionClient.checkConnectionStatus();
+            console.log("Resultado da verificação:", connectionResult);
+            
+            if (connectionResult.success) {
+              // Atualizar status no objeto em memória
+              connectionStatus[userId] = {
+                ...connectionStatus[userId],
+                connected: connectionResult.connected === true,
+                apiStatus: connectionResult.status || "unknown",
+                lastCheckedWith: "evolution",
+                lastUpdated: new Date()
+              };
+              
+              console.log("Status atualizado via Evolution API:", connectionStatus[userId]);
+              
+              // Se verificamos com sucesso via Evolution API, podemos retornar aqui
+              return res.json(connectionStatus[userId]);
+            }
+          } catch (tokenError) {
+            console.error(`Erro ao verificar status com token: ${token?.substring(0, 3)}...`);
+          }
+        }
+        
+        // Se chegou aqui, nenhum token funcionou para verificar via Evolution API
+        console.log("Nenhum token funcionou para verificação via Evolution API");
+      } catch (evolutionError) {
+        console.error("Erro ao verificar status via Evolution API:", evolutionError);
+      }
+    }
+    
+    // FALLBACK: VERIFICAÇÃO VIA WEBHOOK (se Evolution API não funcionou)
     if (user?.whatsappWebhookUrl && connectionStatus[userId].connected) {
       try {
-        // Verificar status real da conexão via webhook - usando GET conforme solicitado
+        console.log("Tentando verificar status via webhook...");
         const statusResponse = await axios.get(user.whatsappWebhookUrl, {
           params: {
             action: "status",
@@ -86,6 +148,7 @@ export async function checkConnectionStatus(req: Request, res: Response) {
           connectionStatus[userId] = {
             ...connectionStatus[userId],
             connected: statusResponse.data.connected,
+            lastCheckedWith: "webhook",
             lastUpdated: new Date()
           };
           
@@ -93,12 +156,15 @@ export async function checkConnectionStatus(req: Request, res: Response) {
             connectionStatus[userId].name = statusResponse.data.name || connectionStatus[userId].name;
             connectionStatus[userId].phone = statusResponse.data.phone || connectionStatus[userId].phone;
           }
+          
+          console.log("Status atualizado via webhook:", connectionStatus[userId]);
         }
-      } catch (error) {
-        console.error("Erro ao verificar status via webhook:", error);
+      } catch (webhookError) {
+        console.error("Erro ao verificar status via webhook:", webhookError);
       }
     }
     
+    // Retornar o status atual, seja ele atualizado ou não
     res.json(connectionStatus[userId]);
   } catch (error) {
     console.error("Erro ao verificar status da conexão:", error);
