@@ -101,11 +101,14 @@ export default function ContactsPage() {
 
   // Filtrar contatos com base no termo de busca
   const filteredContacts = contactsData?.contacts?.filter((contact: WhatsAppContact) => {
+    if (!contact) return false;
+    
     const searchLower = searchTerm.toLowerCase();
-    return (
-      (contact.name?.toLowerCase().includes(searchLower) || "") ||
-      contact.number.toLowerCase().includes(searchLower)
-    );
+    // Verificar se as propriedades existem antes de chamar toLowerCase
+    const nameMatch = contact.name ? contact.name.toLowerCase().includes(searchLower) : false;
+    const numberMatch = contact.number ? contact.number.toLowerCase().includes(searchLower) : false;
+    
+    return nameMatch || numberMatch;
   }) || [];
 
   // Função para formatar número de telefone
