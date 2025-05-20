@@ -478,21 +478,23 @@ export class EvolutionApiClient {
   }
 
   /**
-   * Desconecta a instância
+   * Desconecta a instância do WhatsApp
+   * Implementação baseada na documentação da Evolution API:
+   * DEL /instance/logout/{instance}
    * @returns Resultado da operação
    */
   async disconnect(): Promise<any> {
     try {
       console.log(`Tentando desconectar instância: ${this.instance}`);
       
-      // Método simplificado: tentar diretamente o endpoint que sabemos que funciona
+      // Endpoint oficial conforme documentação da Evolution API
+      const logoutEndpoint = `${this.baseUrl}/instance/logout/${this.instance}`;
+      console.log(`Usando endpoint de logout: ${logoutEndpoint}`);
+      
       try {
-        // Endpoint direto para desconexão
-        const disconnectEndpoint = `${this.baseUrl}/instance/logout/${this.instance}`;
-        console.log(`Tentando desconectar em: ${disconnectEndpoint}`);
-        
-        const response = await fetch(disconnectEndpoint, {
-          method: 'DELETE', // Alguns endpoints usam DELETE em vez de POST
+        // Usando método DELETE conforme documentação
+        const response = await fetch(logoutEndpoint, {
+          method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
             'apikey': this.token,
@@ -501,32 +503,44 @@ export class EvolutionApiClient {
         });
         
         console.log(`Resposta da desconexão: Status ${response.status}`);
-        // Consideramos bem-sucedido mesmo sem analisar a resposta
-        const success = response.ok;
         
-        // Tentar excluir a instância também
-        try {
-          const deleteEndpoint = `${this.baseUrl}/instance/delete/${this.instance}`;
-          console.log(`Tentando excluir instância em: ${deleteEndpoint}`);
+        // Verificar status HTTP da resposta
+        if (response.ok) {
+          console.log("Desconexão bem-sucedida");
           
-          const deleteResponse = await fetch(deleteEndpoint, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': this.token,
-              'Authorization': `Bearer ${this.token}`
-            }
-          });
-          
-          console.log(`Resposta da exclusão: Status ${deleteResponse.status}`);
-        } catch (deleteError) {
-          console.log(`Erro ao excluir instância: ${deleteError.message}`);
+          try {
+            const responseData = await response.json();
+            return {
+              success: true,
+              message: "Instância desconectada com sucesso",
+              data: responseData
+            };
+          } catch (jsonError) {
+            // Se não foi possível analisar JSON, mas a resposta foi OK, consideramos sucesso
+            return {
+              success: true,
+              message: "Instância desconectada com sucesso"
+            };
+          }
+        } else {
+          // Se status não for 2xx, tentar ler o corpo da resposta para mais detalhes
+          try {
+            const errorData = await response.json();
+            console.log("Detalhes do erro:", errorData);
+            return {
+              success: false,
+              message: "Falha ao desconectar instância",
+              status: response.status,
+              error: errorData
+            };
+          } catch (jsonError) {
+            return {
+              success: false,
+              message: "Falha ao desconectar instância",
+              status: response.status
+            };
+          }
         }
-        
-        return {
-          success: success,
-          message: "Instância desconectada e/ou excluída",
-        };
       } catch (directError) {
         console.error(`Erro na desconexão direta: ${directError.message}`);
         
