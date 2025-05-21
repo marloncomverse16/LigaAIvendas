@@ -1310,49 +1310,73 @@ export default function ChatOtimizado() {
                         )}
                         {msg.message?.imageMessage ? (
                           <div className="mb-1 relative">
-                            <div className="rounded-md overflow-hidden flex flex-col items-center">
-                              <div className="w-full max-w-[240px] rounded-md overflow-hidden">
-                                <div className="bg-gray-100 dark:bg-gray-700 p-4 flex flex-col items-center justify-center">
-                                  <ImageIcon size={48} className="text-gray-400 mb-2" />
-                                  <div className="text-sm text-gray-600 dark:text-gray-300 text-center mb-2">
-                                    {msg.message.imageMessage.caption ? 
-                                      msg.message.imageMessage.caption : 
-                                      'Imagem'}
-                                  </div>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      if (msg.message?.imageMessage?.url) {
-                                        window.open(msg.message.imageMessage.url, '_blank');
-                                      }
-                                    }}
-                                    className="bg-white hover:bg-gray-100 text-green-600 border-green-200 dark:bg-gray-600 dark:text-green-300 dark:border-gray-500 dark:hover:bg-gray-500"
-                                  >
-                                    <ExternalLink size={14} className="mr-1" />
-                                    Ver imagem
-                                  </Button>
+                            <div className="flex items-center justify-between p-2 border rounded-md bg-green-50 dark:bg-gray-700/50 border-green-200 dark:border-gray-600 w-[240px]">
+                              <div className="flex items-center">
+                                <div className="bg-green-100 dark:bg-gray-700 p-2 rounded-md">
+                                  <ImageIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                </div>
+                                <div className="ml-2">
+                                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                    {msg.message.imageMessage.caption || 'Imagem'}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Imagem compartilhada
+                                  </p>
                                 </div>
                               </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-green-600 dark:text-green-400"
+                                onClick={() => {
+                                  try {
+                                    if (msg.message?.imageMessage?.url) {
+                                      window.open(msg.message.imageMessage.url, '_blank');
+                                    }
+                                  } catch (error) {
+                                    console.error("Erro ao abrir imagem:", error);
+                                  }
+                                }}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                                <span className="sr-only">Abrir imagem</span>
+                              </Button>
                             </div>
                           </div>
                         ) : msg.message?.videoMessage ? (
-                          <div className="mb-1">
-                            <video 
-                              src={msg.message.videoMessage.url} 
-                              controls 
-                              className="rounded-md max-h-64 w-auto"
-                              onError={(e) => {
-                                (e.target as HTMLVideoElement).style.display = 'none';
-                                (e.target as HTMLVideoElement).nextSibling!.textContent = '[Vídeo indisponível]';
-                              }}
-                            />
-                            <span className="hidden"></span>
-                            {msg.message.videoMessage.caption && (
-                              <div className="mt-1 text-sm">
-                                {msg.message.videoMessage.caption}
+                          <div className="mb-1 relative">
+                            <div className="flex items-center justify-between p-2 border rounded-md bg-blue-50 dark:bg-gray-700/50 border-blue-200 dark:border-gray-600 w-[240px]">
+                              <div className="flex items-center">
+                                <div className="bg-blue-100 dark:bg-gray-700 p-2 rounded-md">
+                                  <Video className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="ml-2">
+                                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                    {msg.message.videoMessage.caption || 'Vídeo'}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Vídeo compartilhado
+                                  </p>
+                                </div>
                               </div>
-                            )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-blue-600 dark:text-blue-400"
+                                onClick={() => {
+                                  try {
+                                    if (msg.message?.videoMessage?.url) {
+                                      window.open(msg.message.videoMessage.url, '_blank');
+                                    }
+                                  } catch (error) {
+                                    console.error("Erro ao abrir vídeo:", error);
+                                  }
+                                }}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                                <span className="sr-only">Abrir vídeo</span>
+                              </Button>
+                            </div>
                           </div>
                         ) : (
                           <div className="text-sm whitespace-pre-wrap break-words">
