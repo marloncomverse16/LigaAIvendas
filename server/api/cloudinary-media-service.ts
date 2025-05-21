@@ -8,6 +8,7 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as crypto from 'crypto';
 import { 
   cloudinary, 
   mediaCache, 
@@ -17,6 +18,79 @@ import {
 } from './cloudinary-config';
 
 /**
+ * Processa arquivos de áudio criptografados (.enc) do WhatsApp
+ * Os arquivos de áudio do WhatsApp precisam de tratamento especial
+ */
+async function processWhatsAppAudio(mediaUrl: string): Promise<string> {
+  try {
+    console.log(`[Cloudinary] Processando áudio criptografado do WhatsApp...`);
+    
+    // Gerar um ID baseado em hash para evitar duplicação
+    const hash = crypto.createHash('md5').update(mediaUrl).digest('hex');
+    const audioId = `whatsapp_audio_${hash}`;
+    
+    // Verificar se já existe no Cloudinary
+    try {
+      const existingAsset = await cloudinary.api.resource(audioId, {
+        resource_type: 'video', // Cloudinary usa 'video' para áudio
+        type: 'upload'
+      });
+      
+      if (existingAsset && existingAsset.secure_url) {
+        console.log(`[Cloudinary] Áudio já existe, reutilizando URL: ${existingAsset.secure_url}`);
+        return existingAsset.secure_url;
+      }
+    } catch (lookupError) {
+      // Asset não existe, vamos criar
+      console.log(`[Cloudinary] Áudio não encontrado no Cloudinary, criando novo...`);
+    }
+    
+    // Headers especiais para áudio do WhatsApp
+    const headers: Record<string, string> = {
+      'User-Agent': 'WhatsApp/2.23.13.76',
+      'Accept': '*/*'
+    };
+    
+    // Baixar o áudio
+    const response = await axios({
+      method: 'get',
+      url: mediaUrl,
+      responseType: 'arraybuffer',
+      headers,
+      timeout: 30000
+    });
+    
+    // Criar arquivo temporário com extensão .mp3
+    const tempFilePath = path.join(os.tmpdir(), `${audioId}.mp3`);
+    fs.writeFileSync(tempFilePath, Buffer.from(response.data));
+    
+    // Fazer upload para o Cloudinary com configurações específicas para áudio
+    const result = await cloudinary.uploader.upload(tempFilePath, {
+      resource_type: 'video', // Cloudinary usa 'video' para áudio
+      folder: 'whatsapp_audio',
+      public_id: audioId,
+      overwrite: true,
+      format: 'mp3',
+      audio_codec: 'aac',
+      bit_rate: '128k'
+    });
+    
+    // Limpar arquivo temporário
+    try {
+      fs.unlinkSync(tempFilePath);
+    } catch (cleanupError) {
+      console.log(`[Cloudinary] Aviso: Erro ao limpar arquivo temporário: ${cleanupError.message}`);
+    }
+    
+    console.log(`[Cloudinary] Áudio processado com sucesso: ${result.secure_url}`);
+    return result.secure_url;
+  } catch (error) {
+    console.error(`[Cloudinary] Erro ao processar áudio do WhatsApp:`, error);
+    throw error;
+  }
+}
+
+/**
  * Processa uma URL de mídia da Evolution API e retorna a URL do Cloudinary
  */
 async function processMediaUrl(mediaUrl: string, mimeType?: string): Promise<string> {
@@ -24,6 +98,18 @@ async function processMediaUrl(mediaUrl: string, mimeType?: string): Promise<str
   if (mediaCache.has(mediaUrl)) {
     console.log(`[Cloudinary] Usando cache para URL: ${mediaUrl.substring(0, 50)}...`);
     return mediaCache.get(mediaUrl) as string;
+  }
+  
+  // Caso especial: áudios do WhatsApp (arquivos .enc)
+  if (mediaUrl.includes('.enc') && mediaUrl.includes('/t62.7117-24/')) {
+    try {
+      const audioUrl = await processWhatsAppAudio(mediaUrl);
+      mediaCache.set(mediaUrl, audioUrl);
+      return audioUrl;
+    } catch (audioError) {
+      console.error('[Cloudinary] Erro ao processar áudio especial, tentando método padrão:', audioError);
+      // Continuar com o método padrão se o método especial falhar
+    }
   }
 
   try {
