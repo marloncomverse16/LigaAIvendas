@@ -23,6 +23,7 @@ import { db } from "./db";
 import { checkConnectionStatus, disconnectWhatsApp } from "./connection";
 import * as whatsappApi from "./api/whatsapp-api";
 import { getWhatsAppQrCode, getWhatsAppContacts } from "./direct-connection";
+import { serveMediaProxy } from "./api/simple-media-proxy";
 import { setupWebSocketServer, sendMessage } from "./websocket";
 import multer from "multer";
 import fs from "fs";
