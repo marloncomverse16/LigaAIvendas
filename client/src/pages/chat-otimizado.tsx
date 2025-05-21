@@ -17,13 +17,19 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, RefreshCw, Send } from 'lucide-react';
+import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 // Schema para o formulário de mensagem
 const sendFormSchema = z.object({
-  text: z.string().min(1, "Digite uma mensagem")
+  text: z.string().min(1, "Digite uma mensagem").optional(),
+  mediaType: z.enum(["image", "audio", "video", "document"]).optional(),
+  mediaUrl: z.string().optional(),
+  caption: z.string().optional()
+}).refine(data => data.text || (data.mediaType && data.mediaUrl), {
+  message: "Você precisa enviar um texto ou uma mídia",
+  path: ["text"]
 });
 
 type SendFormValues = z.infer<typeof sendFormSchema>;
