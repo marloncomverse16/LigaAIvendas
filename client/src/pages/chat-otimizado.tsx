@@ -629,7 +629,7 @@ export default function ChatOtimizado() {
     }
   };
   
-  // Envia uma mensagem
+  // Envia uma mensagem com sistema de UI otimista
   const onSubmit = async (values: SendFormValues) => {
     if (!service || !selectedChat) return;
     
@@ -637,17 +637,65 @@ export default function ChatOtimizado() {
       const chatId = selectedChat.remoteJid || selectedChat.id;
       console.log(`Enviando mensagem para ${chatId}: "${values.text}"`);
       
-      // Chama o método do serviço para enviar a mensagem
-      await service.sendMessage(chatId, values.text);
+      // Criar uma mensagem otimista para mostrar imediatamente na interface
+      const localMsgId = `local-${Date.now()}`;
+      const optimisticMsg = {
+        id: localMsgId,
+        key: {
+          id: localMsgId,
+          fromMe: true,
+          remoteJid: chatId
+        },
+        message: {
+          conversation: values.text
+        },
+        messageTimestamp: Math.floor(Date.now() / 1000),
+        fromMe: true,
+        status: 'sending'
+      };
       
-      // Limpa o formulário
+      // Adicionar a mensagem otimista ao estado local
+      const existingMessages = messagesByChatId[chatId] || [];
+      const updatedMessages = [...existingMessages, optimisticMsg];
+      
+      // Atualizar as mensagens exibidas imediatamente
+      setMessages(updatedMessages);
+      setMessagesByChatId(prev => ({
+        ...prev,
+        [chatId]: updatedMessages
+      }));
+      
+      // Atualizar o último timestamp para evitar recarregar a mensagem que acabamos de adicionar
+      setLastMessageTimestamp(prev => ({
+        ...prev,
+        [chatId]: Math.floor(Date.now() / 1000)
+      }));
+      
+      // Rolar para a nova mensagem
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+      
+      // Limpa o formulário imediatamente para melhor experiência do usuário
       form.reset();
       
-      // Recarrega as mensagens depois de enviar
-      await loadMessages(selectedChat, false);
-      
-      // Após enviar, foca no campo de texto
+      // Focar no campo de texto para permitir enviar outra mensagem
       form.setFocus("text");
+      
+      // Agora enviar a mensagem real para o servidor
+      const result = await service.sendMessage(chatId, values.text);
+      
+      // Verificar se houve erro no envio
+      if (result && result.success === false) {
+        throw new Error(result.error || "Falha no envio da mensagem");
+      }
+      
+      // Atualizar mensagens para obter o status real da mensagem enviada
+      // Mas com um pequeno atraso para não interferir na experiência
+      setTimeout(() => {
+        loadMessages(selectedChat, false);
+      }, 500);
+      
     } catch (error: any) {
       console.error("Erro ao enviar mensagem:", error);
       
