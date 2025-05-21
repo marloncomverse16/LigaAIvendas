@@ -1,11 +1,13 @@
 /**
  * Componente para renderizar mídia nas mensagens do WhatsApp
- * Usa o Cloudinary para armazenar e otimizar as mídias, resolvendo problemas de CORS
- * Implementação melhorada que suporta todos os tipos de mídia (imagens, vídeos, áudios, documentos)
+ * Suporta áudios, imagens, vídeos e documentos com reprodução direta
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { FileIcon, ImageIcon, FileVideo, FileAudio, ExternalLink } from "lucide-react";
+import { 
+  FileIcon, ImageIcon, FileVideo, FileAudio, 
+  ExternalLink, Play, Pause, Download 
+} from "lucide-react";
 import { CloudinaryMediaRenderer } from './cloudinary-media-renderer';
 
 interface MessageMediaRendererProps {
@@ -30,6 +32,10 @@ export function MessageMediaRenderer({
   fileLength,
   className = ''
 }: MessageMediaRendererProps) {
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState(false);
+  
   // Determinar o tipo de mídia a partir do messageType
   const getMediaType = (): 'image' | 'video' | 'audio' | 'document' | 'unknown' => {
     if (messageType.includes('image')) return 'image';
@@ -40,6 +46,9 @@ export function MessageMediaRenderer({
   };
   
   const mediaType = getMediaType();
+  
+  // Verificar se é um áudio do WhatsApp (.enc)
+  const isWhatsAppAudio = mediaUrl?.includes('.enc') && mediaUrl?.includes('/t62.7117-24/');
   
   // Formatar o tamanho do arquivo para exibição
   const formatFileSize = (size: string | number | undefined) => {
@@ -70,6 +79,88 @@ export function MessageMediaRenderer({
     );
   };
   
+  // Renderizar player de áudio nativo para arquivos de áudio do WhatsApp
+  const renderAudioPlayer = () => {
+    const handlePlayAudio = () => {
+      setAudioLoading(true);
+      setAudioError(false);
+      
+      // Criar um objeto de áudio e configurá-lo
+      const audio = new Audio(mediaUrl);
+      
+      // Configurar eventos para controlar o estado de reprodução
+      audio.onplaying = () => {
+        setIsAudioPlaying(true);
+        setAudioLoading(false);
+      };
+      
+      audio.onpause = () => {
+        setIsAudioPlaying(false);
+      };
+      
+      audio.onended = () => {
+        setIsAudioPlaying(false);
+      };
+      
+      audio.onerror = () => {
+        setAudioLoading(false);
+        setIsAudioPlaying(false);
+        setAudioError(true);
+        console.error('Erro ao reproduzir áudio');
+      };
+      
+      // Iniciar reprodução
+      audio.play().catch(err => {
+        console.error('Erro ao iniciar reprodução:', err);
+        setAudioLoading(false);
+        setIsAudioPlaying(false);
+        setAudioError(true);
+      });
+    };
+    
+    return (
+      <div className="mt-3 p-2 bg-white dark:bg-gray-700 rounded-md">
+        <div className="flex items-center justify-between">
+          <Button 
+            variant="ghost"
+            size="sm"
+            onClick={handlePlayAudio}
+            disabled={isAudioPlaying || audioLoading}
+            className="text-green-500 hover:text-green-600"
+          >
+            {audioLoading ? (
+              <div className="h-5 w-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Play className="h-5 w-5" />
+            )}
+          </Button>
+          
+          <div className="flex-1 h-1 mx-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+            <div 
+              className={`h-full bg-green-500 ${isAudioPlaying ? 'animate-progress' : ''}`} 
+              style={{width: isAudioPlaying ? '100%' : '0%'}}
+            />
+          </div>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.open(mediaUrl, '_blank')}
+            className="text-gray-500 hover:text-gray-600"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        {audioError && (
+          <div className="text-red-500 text-xs mt-1">
+            Não foi possível reproduzir o áudio. Tente fazer o download.
+          </div>
+        )}
+      </div>
+    );
+  };
+  
   // Botão para abrir a mídia em uma nova aba (backup se o renderer não funcionar)
   const renderBackupButton = () => {
     return (
@@ -77,7 +168,7 @@ export function MessageMediaRenderer({
         onClick={(e) => {
           e.preventDefault();
           if (mediaUrl) {
-            window.open(`/api/process-media?url=${encodeURIComponent(mediaUrl)}`, '_blank');
+            window.open(mediaUrl, '_blank');
           }
         }}
         variant="outline" 
@@ -107,18 +198,24 @@ export function MessageMediaRenderer({
     );
   }
 
-  // Renderizar o componente com o CloudinaryMediaRenderer
+  // Renderizar o componente adequado por tipo de mídia
   return (
     <div className={`p-3 rounded-lg bg-gray-100 dark:bg-gray-800 ${className}`}>
       {renderMediaHeader()}
       
-      <CloudinaryMediaRenderer 
-        mediaUrl={mediaUrl}
-        mediaType={mediaType}
-        mimeType={mimeType !== 'false' ? mimeType : undefined}
-        caption={caption}
-        className="mt-3"
-      />
+      {/* Renderizar player de áudio nativo para arquivos de áudio do WhatsApp */}
+      {mediaType === 'audio' && isWhatsAppAudio ? (
+        renderAudioPlayer()
+      ) : (
+        /* Para outros tipos de mídia, tentar com CloudinaryMediaRenderer */
+        <CloudinaryMediaRenderer 
+          mediaUrl={mediaUrl}
+          mediaType={mediaType}
+          mimeType={mimeType !== 'false' ? mimeType : undefined}
+          caption={caption}
+          className="mt-3"
+        />
+      )}
       
       {renderBackupButton()}
     </div>
