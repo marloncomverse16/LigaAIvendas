@@ -1327,8 +1327,9 @@ export default function ChatOtimizado() {
             {/* Formulário de envio */}
             <div className="p-4 border-t bg-gray-100 dark:bg-gray-900">
               <Form {...form}>
+                {/* Conteúdo do formulário */}
                 <div>
-                  {/* Painel de preview de mídia e legenda */}
+                  {/* Painel de mídia */}
                   {showMediaPanel && (
                     <div className="p-4 border rounded-md mb-2 bg-gray-50 dark:bg-gray-800">
                       <div className="flex justify-between items-center mb-2">
@@ -1389,10 +1390,10 @@ export default function ChatOtimizado() {
                       <Button 
                         type="button" 
                         onClick={() => {
-                          // Ativar o envio automático clicando no botão de submit
                           form.handleSubmit(onSubmit)();
+                          console.log("Botão de enviar mídia clicado");
                         }}
-                        className="w-full"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white"
                         disabled={!connected || loading || form.formState.isSubmitting}
                       >
                         {form.formState.isSubmitting ? (
@@ -1416,10 +1417,10 @@ export default function ChatOtimizado() {
                     style={{ display: 'none' }} 
                   />
                 
-                  {/* Formulário principal */}
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="flex space-x-2">
-                    {/* Botão de anexo */}
-                    {!showMediaPanel && (
+                  {/* Formulário de mensagem principal */}
+                  {!showMediaPanel && (
+                    <div className="flex space-x-2">
+                      {/* Botão de anexo */}
                       <Button 
                         type="button" 
                         variant="ghost" 
@@ -1430,33 +1431,31 @@ export default function ChatOtimizado() {
                       >
                         <Paperclip className="h-5 w-5 text-gray-500" />
                       </Button>
-                    )}
-                    
-                    <FormField
-                      control={form.control}
-                      name="text"
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormControl>
-                            <Input
-                              placeholder="Digite uma mensagem"
-                              {...field}
-                              disabled={!connected || loading || showMediaPanel}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {!showMediaPanel && (
+                      
+                      <FormField
+                        control={form.control}
+                        name="text"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input
+                                placeholder="Digite uma mensagem"
+                                {...field}
+                                disabled={!connected || loading}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
                       <Button 
-                        type="submit" 
+                        type="button" 
                         size="icon" 
                         disabled={!connected || loading || form.formState.isSubmitting}
                         onClick={() => {
                           console.log("Botão de enviar clicado");
-                          // Usar handleSubmit para garantir que o formulário seja enviado
+                          // Verificar se há texto para enviar
                           if (form.getValues().text) {
                             form.handleSubmit(onSubmit)();
                           } else {
@@ -1474,8 +1473,8 @@ export default function ChatOtimizado() {
                           <Send className="h-4 w-4" />
                         )}
                       </Button>
-                    )}
-                  </form>
+                    </div>
+                  )}
                 </div>
               </Form>
             </div>
