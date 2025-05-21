@@ -96,7 +96,7 @@ export default function EvolutionChatPage() {
   // Mutação para enviar mensagem usando o hook
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { to: string; message: string }) => {
-      return await sendMessageApi({ to: data.to, message: data.message });
+      return await sendMessageApi.mutateAsync({ to: data.to, message: data.message });
     },
     onSuccess: (data) => {
       // Adicionar mensagem à lista local
@@ -149,12 +149,12 @@ export default function EvolutionChatPage() {
     }
   }, [messages]);
   
-  // Buscar mensagens quando selecionar um contato
-  useEffect(() => {
+  // Este efeito não é mais necessário pois já temos o mesmo efeito na linha 71
+  /* useEffect(() => {
     if (selectedContact) {
-      loadMessages(selectedContact.id);
+      handleLoadMessages(selectedContact.id);
     }
-  }, [selectedContact]);
+  }, [selectedContact]); */
   
   // Tratar envio de mensagem
   const handleSendMessage = (e: React.FormEvent) => {
@@ -301,7 +301,7 @@ export default function EvolutionChatPage() {
 
           {/* Contacts List */}
           <div className="flex-1 overflow-y-auto">
-            {loadingContacts ? (
+            {isLoadingContacts ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-500">Carregando contatos...</p>
               </div>
@@ -311,8 +311,8 @@ export default function EvolutionChatPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={checkConnection}
-                  disabled={checkingConnection}
+                  onClick={() => checkConnectionStatus()}
+                  disabled={isCheckingConnection}
                 >
                   Tentar conectar
                 </Button>
@@ -459,8 +459,8 @@ export default function EvolutionChatPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={checkConnection}
-                        disabled={checkingConnection}
+                        onClick={() => checkConnectionStatus()}
+                        disabled={isCheckingConnection}
                       >
                         Tentar conectar
                       </Button>
