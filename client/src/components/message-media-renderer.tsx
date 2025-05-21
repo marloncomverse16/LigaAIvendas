@@ -81,12 +81,19 @@ export function MessageMediaRenderer({
   
   // Renderizar player de áudio nativo para arquivos de áudio do WhatsApp
   const renderAudioPlayer = () => {
+    // Criar URL do proxy de áudio para arquivos do WhatsApp
+    const getProxyUrl = () => {
+      if (!mediaUrl) return '';
+      return `/api/audio-proxy?url=${encodeURIComponent(mediaUrl)}`;
+    };
+    
     const handlePlayAudio = () => {
       setAudioLoading(true);
       setAudioError(false);
       
-      // Criar um objeto de áudio e configurá-lo
-      const audio = new Audio(mediaUrl);
+      // Criar um objeto de áudio usando o proxy
+      const proxyUrl = getProxyUrl();
+      const audio = new Audio(proxyUrl);
       
       // Configurar eventos para controlar o estado de reprodução
       audio.onplaying = () => {
@@ -163,12 +170,24 @@ export function MessageMediaRenderer({
   
   // Botão para abrir a mídia em uma nova aba (backup se o renderer não funcionar)
   const renderBackupButton = () => {
+    // Criar URL do proxy apropriado para cada tipo de mídia
+    const getProxyUrl = () => {
+      if (!mediaUrl) return '';
+      
+      // Usar proxy específico para áudio, caso contrário usar proxy genérico
+      if (mediaType === 'audio' && isWhatsAppAudio) {
+        return `/api/audio-proxy?url=${encodeURIComponent(mediaUrl)}`;
+      } else {
+        return `/api/media-proxy?url=${encodeURIComponent(mediaUrl)}`;
+      }
+    };
+    
     return (
       <Button 
         onClick={(e) => {
           e.preventDefault();
           if (mediaUrl) {
-            window.open(mediaUrl, '_blank');
+            window.open(getProxyUrl(), '_blank');
           }
         }}
         variant="outline" 

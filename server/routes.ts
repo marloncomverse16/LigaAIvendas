@@ -41,6 +41,9 @@ import evolutionRoutes from "./api/evolution-routes";
 
 // Importação do controlador para envio direto via Meta API
 import { sendMetaMessageDirectly } from "./api/meta-direct-send";
+
+// Importação do proxy direto para mídia do WhatsApp
+import { directMediaProxy, whatsappAudioProxy } from "./api/direct-media-proxy";
 import { getUserServer } from "./api/meta-api-service";
 import {
   connectWhatsAppMeta,
@@ -2342,6 +2345,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Rota para proxy direto de mídia (mais confiável, sem conversão)
+  app.get("/api/media-proxy", directMediaProxy);
+  
+  // Rota especializada para áudios do WhatsApp
+  app.get("/api/audio-proxy", whatsappAudioProxy);
   
   // Rotas para envio de mensagens via Evolution API
   
