@@ -305,6 +305,8 @@ export default function ChatDireto() {
   const [loading, setLoading] = useState(false);
   const [chats, setChats] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
+  const [messagesByChatId, setMessagesByChatId] = useState<Record<string, any[]>>({});
+  const [lastMessageTimestamp, setLastMessageTimestamp] = useState<Record<string, number>>({}); // Armazena o último timestamp de cada chat
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
   const [messageText, setMessageText] = useState('');
   
