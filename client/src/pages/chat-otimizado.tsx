@@ -538,6 +538,12 @@ export default function ChatOtimizado() {
   // Estado da UI
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showMediaPanel, setShowMediaPanel] = useState(false);
+  const [mediaType, setMediaType] = useState<"image" | "audio" | "video" | "document" | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mediaCaption, setMediaCaption] = useState('');
+  const [mediaBase64, setMediaBase64] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [chats, setChats] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [messagesByChatId, setMessagesByChatId] = useState<Record<string, any[]>>({});
