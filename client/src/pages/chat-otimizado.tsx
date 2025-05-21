@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip, ExternalLink, Eye, Video, Headphones } from 'lucide-react';
+import { MessageMediaRenderer } from "@/components/message-media-renderer";
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -1309,83 +1310,40 @@ export default function ChatOtimizado() {
                           </div>
                         )}
                         {msg.message?.imageMessage ? (
-                          <div className="mb-1 relative">
-                            <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 border border-gray-200 dark:border-gray-700">
-                              <div className="flex items-center mb-2">
-                                <ImageIcon className="text-green-600 dark:text-green-400 mr-2 h-5 w-5" />
-                                <span className="text-sm font-medium">{msg.message.imageMessage.caption || 'Imagem compartilhada'}</span>
-                              </div>
-                              <div className="flex justify-center">
-                                <form 
-                                  method="post" 
-                                  action={`/api/proxy-media?type=image&url=${encodeURIComponent(msg.message?.imageMessage?.url || '')}`} 
-                                  target="_blank"
-                                >
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    type="submit"
-                                    className="w-full bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800/30 hover:bg-green-50 dark:hover:bg-gray-600"
-                                  >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Visualizar imagem
-                                  </Button>
-                                </form>
-                              </div>
-                            </div>
-                          </div>
+                          <MessageMediaRenderer
+                            messageType="imageMessage"
+                            mediaUrl={msg.message.imageMessage.url}
+                            mimeType={msg.message.imageMessage.mimetype}
+                            caption={msg.message.imageMessage.caption}
+                            fileLength={msg.message.imageMessage.fileLength}
+                            className="mb-1"
+                          />
                         ) : msg.message?.videoMessage ? (
-                          <div className="mb-1 relative">
-                            <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 border border-gray-200 dark:border-gray-700">
-                              <div className="flex items-center mb-2">
-                                <Video className="text-blue-600 dark:text-blue-400 mr-2 h-5 w-5" />
-                                <span className="text-sm font-medium">{msg.message.videoMessage.caption || 'Vídeo compartilhado'}</span>
-                              </div>
-                              <div className="flex justify-center">
-                                <form 
-                                  method="post" 
-                                  action={`/api/proxy-media?type=video&url=${encodeURIComponent(msg.message?.videoMessage?.url || '')}&mimetype=${encodeURIComponent(msg.message?.videoMessage?.mimetype || 'video/mp4')}`} 
-                                  target="_blank"
-                                >
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    type="submit"
-                                    className="w-full bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/30 hover:bg-blue-50 dark:hover:bg-gray-600"
-                                  >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Visualizar vídeo
-                                  </Button>
-                                </form>
-                              </div>
-                            </div>
-                          </div>
+                          <MessageMediaRenderer
+                            messageType="videoMessage"
+                            mediaUrl={msg.message.videoMessage.url}
+                            mimeType={msg.message.videoMessage.mimetype}
+                            caption={msg.message.videoMessage.caption}
+                            fileLength={msg.message.videoMessage.fileLength}
+                            className="mb-1"
+                          />
                         ) : msg.message?.audioMessage ? (
-                          <div className="mb-1 relative">
-                            <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 border border-gray-200 dark:border-gray-700">
-                              <div className="flex items-center mb-2">
-                                <Headphones className="text-purple-600 dark:text-purple-400 mr-2 h-5 w-5" />
-                                <span className="text-sm font-medium">Mensagem de áudio</span>
-                              </div>
-                              <div className="flex justify-center">
-                                <form 
-                                  method="post" 
-                                  action={`/api/proxy-media?type=audio&url=${encodeURIComponent(msg.message?.audioMessage?.url || '')}&mimetype=${encodeURIComponent(msg.message?.audioMessage?.mimetype || 'audio/ogg')}`} 
-                                  target="_blank"
-                                >
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    type="submit"
-                                    className="w-full bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800/30 hover:bg-purple-50 dark:hover:bg-gray-600"
-                                  >
-                                    <Headphones className="h-4 w-4 mr-2" />
-                                    Ouvir áudio
-                                  </Button>
-                                </form>
-                              </div>
-                            </div>
-                          </div>
+                          <MessageMediaRenderer
+                            messageType="audioMessage"
+                            mediaUrl={msg.message.audioMessage.url}
+                            mimeType={msg.message.audioMessage.mimetype}
+                            fileLength={msg.message.audioMessage.fileLength}
+                            className="mb-1"
+                          />
+                        ) : msg.message?.documentMessage ? (
+                          <MessageMediaRenderer
+                            messageType="documentMessage"
+                            mediaUrl={msg.message.documentMessage.url}
+                            mimeType={msg.message.documentMessage.mimetype}
+                            fileName={msg.message.documentMessage.fileName}
+                            fileLength={msg.message.documentMessage.fileLength}
+                            className="mb-1"
+                          />
                         ) : (
                           <div className="text-sm whitespace-pre-wrap break-words">
                             {getMessageContent(msg)}
