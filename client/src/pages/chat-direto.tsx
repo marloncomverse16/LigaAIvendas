@@ -23,33 +23,46 @@ class DirectEvolutionService {
     this.instanceName = instanceName;
   }
 
-  // Requisição genérica para a API
+  // Requisição genérica para a API - implementada exatamente como no exemplo HTML
   async apiRequest(endpoint: string, method = 'GET', data?: any) {
-    // Normaliza a URL
-    const url = this.apiUrl.endsWith('/') 
-      ? this.apiUrl + endpoint.replace(/^\//, '') 
-      : this.apiUrl + endpoint;
-
+    // Normaliza a URL - exatamente como no exemplo
+    const url = `${this.apiUrl}${endpoint}`;
+    
     try {
-      console.log(`Fazendo requisição ${method} para ${url}`);
+      // Seguindo exatamente o padrão do exemplo que funciona (chatteste2.html)
+      console.log(`Fazendo requisição ${method} para ${url}:`, data ? 'com dados' : 'sem dados');
       
-      // Implementação exata do exemplo
-      const response = await axios({
-        method,
-        url,
+      // Opções de requisição exatamente como no exemplo
+      const options = {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
+          'apikey': this.apiKey,  // Chave no mesmo formato do exemplo
+          'Authorization': `Bearer ${this.apiKey}` // Adicionado para compatibilidade
         },
-        data: method !== 'GET' ? data : undefined,
-        params: method === 'GET' ? data : undefined
-      });
+        body: data ? JSON.stringify(data) : undefined
+      };
       
-      console.log(`Resposta de ${url}:`, response.status);
-      return response.data;
+      // Usa fetch nativo como no exemplo, em vez de axios
+      const response = await fetch(url, options);
+      
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          errorData = { message: response.statusText };
+        }
+        
+        throw new Error(errorData.message || `Erro ${response.status}`);
+      }
+      
+      const responseData = await response.json();
+      console.log(`Resposta bem-sucedida de ${url}:`, response.status);
+      return responseData;
     } catch (error: any) {
       console.error(`Erro na requisição ${method} para ${url}:`, error);
-      throw new Error(error.response?.data?.message || error.message || 'Erro na comunicação com a API');
+      throw error;
     }
   }
 
@@ -230,27 +243,61 @@ export default function ChatDireto() {
     
     setLoading(true);
     try {
-      const isConnected = await checkConnection();
-      if (!isConnected) {
+      console.log("Tentando carregar contatos...");
+      
+      // Tentando abordagem direta primeiro (que funciona no exemplo)
+      try {
+        // Tenta o endpoint exato do HTML que funciona: /chat/findChats/{instance}
+        console.log("Tentando endpoint /chat/findChats...");
+        const response = await service.apiRequest(`/chat/findChats/${instanceName}`, 'POST', {});
+        console.log("Resposta do findChats:", response);
+        
+        const normalizedChats = service.normalizeChats(response);
+        setChats(normalizedChats);
+        
         toast({
-          title: "Não conectado",
-          description: "É necessário estar conectado para carregar os contatos",
-          variant: "destructive"
+          title: "Contatos carregados",
+          description: `${normalizedChats.length} contatos encontrados`,
         });
+        
         return;
+      } catch (findError) {
+        console.error("Erro no endpoint findChats:", findError);
+        
+        try {
+          // Tenta endpoint alternativo /instances/{instance}/contacts
+          console.log("Tentando endpoint alternativo /instances/*/contacts...");
+          const response = await service.apiRequest(`/instances/${instanceName}/contacts`);
+          console.log("Resposta do endpoint contatos:", response);
+          
+          const normalizedChats = service.normalizeChats(response);
+          setChats(normalizedChats);
+          
+          toast({
+            title: "Contatos carregados",
+            description: `${normalizedChats.length} contatos encontrados`,
+          });
+          
+          return;
+        } catch (contactsError) {
+          console.error("Erro no endpoint contacts:", contactsError);
+          
+          // Terceira tentativa com outro caminho
+          console.log("Tentando último endpoint alternativo...");
+          const response = await service.apiRequest(`/instance/fetchContacts/${instanceName}`);
+          console.log("Resposta do fetchContacts:", response);
+          
+          const normalizedChats = service.normalizeChats(response);
+          setChats(normalizedChats);
+          
+          toast({
+            title: "Contatos carregados",
+            description: `${normalizedChats.length} contatos encontrados`,
+          });
+        }
       }
-      
-      const response = await service.loadChats();
-      const normalizedChats = service.normalizeChats(response);
-      
-      setChats(normalizedChats);
-      
-      toast({
-        title: "Contatos carregados",
-        description: `${normalizedChats.length} contatos encontrados`,
-      });
     } catch (error: any) {
-      console.error("Erro ao carregar contatos:", error);
+      console.error("Erro ao carregar contatos (todos os métodos):", error);
       
       toast({
         title: "Erro ao carregar contatos",
