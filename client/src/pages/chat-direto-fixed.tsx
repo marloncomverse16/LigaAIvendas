@@ -438,8 +438,17 @@ export default function ChatDireto() {
       console.log("Mensagens carregadas:", response);
       
       // Extrai as mensagens da estrutura de resposta
-      const messagesData = response.messages?.records || [];
-      setMessages(messagesData);
+      if (response && response.messages && response.messages.records) {
+        setMessages(response.messages);
+      } else {
+        // Caso a estrutura seja diferente, tentar adaptar
+        if (Array.isArray(response)) {
+          setMessages({ records: response, total: response.length });
+        } else {
+          console.warn("Formato de resposta inesperado:", response);
+          setMessages({ records: [], total: 0 });
+        }
+      }
       
       // Rolagem automática para o final das mensagens
       setTimeout(() => {
@@ -629,7 +638,7 @@ export default function ChatDireto() {
               
               {/* Mensagens */}
               <div className="flex-grow overflow-y-auto p-4 space-y-4">
-                {messages.length === 0 ? (
+                {!messages || messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full p-4 text-center">
                     <p className="text-slate-500 dark:text-slate-400">
                       {loading 
@@ -638,7 +647,8 @@ export default function ChatDireto() {
                     </p>
                   </div>
                 ) : (
-                  messages.map((msg) => (
+                  Array.isArray(messages.records || messages) ? 
+                  (messages.records || messages).map((msg: any) => (
                     <div
                       key={msg.key?.id || Math.random().toString()}
                       className={`flex ${msg.key?.fromMe ? 'justify-end' : 'justify-start'}`}
@@ -653,12 +663,18 @@ export default function ChatDireto() {
                         <p>{msg.message?.conversation || 'Sem conteúdo'}</p>
                         <p className="text-xs mt-1 opacity-70">
                           {msg.messageTimestamp
-                            ? new Date(msg.messageTimestamp * 1000).toLocaleTimeString()
+                            ? new Date(Number(msg.messageTimestamp) * 1000).toLocaleTimeString()
                             : ''}
                         </p>
                       </div>
                     </div>
-                  ))
+                  )) : (
+                    <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                      <p className="text-slate-500 dark:text-slate-400">
+                        Erro ao processar mensagens. Formato desconhecido.
+                      </p>
+                    </div>
+                  )
                 )}
                 <div ref={messagesEndRef} />
               </div>
