@@ -301,15 +301,13 @@ class DirectEvolutionService {
       // Corrigindo a estrutura do payload de acordo com a API
       const payload = {
         number: cleanNumber,
+        mediatype: mediaType, // Colocado fora da estrutura mediaMessage como requisitado pela API
         options: {
           delay: 1200
         },
-        mediaMessage: {
-          mediatype: mediaType,
-          media: mediaUrl,
-          caption: caption,
-          fileName: mediaUrl.split('/').pop() || `file.${this.getDefaultExtension(mediaType)}`
-        }
+        media: mediaUrl, // Movido para o nível raiz
+        caption: caption, // Movido para o nível raiz
+        fileName: mediaUrl.split('/').pop() || `file.${this.getDefaultExtension(mediaType)}` // Movido para o nível raiz
       };
       
       console.log(`Enviando mídia com payload:`, JSON.stringify(payload, null, 2));
