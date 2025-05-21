@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip } from 'lucide-react';
+import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -1309,22 +1309,27 @@ export default function ChatOtimizado() {
                           </div>
                         )}
                         {msg.message?.imageMessage ? (
-                          <div className="mb-1">
-                            <img 
-                              src={msg.message.imageMessage.url} 
-                              alt="Imagem" 
-                              className="rounded-md max-h-64 w-auto object-contain"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                                (e.target as HTMLImageElement).nextSibling!.textContent = '[Imagem indisponível]';
-                              }}
-                            />
-                            <span className="hidden"></span>
-                            {msg.message.imageMessage.caption && (
-                              <div className="mt-1 text-sm">
-                                {msg.message.imageMessage.caption}
+                          <div className="mb-1 relative">
+                            <div className="bg-gray-200 dark:bg-gray-700 rounded-md p-3 text-center">
+                              <ImageIcon className="h-12 w-12 mx-auto text-gray-500 mb-2" />
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                [Imagem] 
+                                {msg.message.imageMessage.caption ? 
+                                  ` - ${msg.message.imageMessage.caption}` : 
+                                  ''}
+                              </p>
+                              <div className="mt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(msg.message?.imageMessage?.url, '_blank')}
+                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                >
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  Ver imagem
+                                </Button>
                               </div>
-                            )}
+                            </div>
                           </div>
                         ) : msg.message?.videoMessage ? (
                           <div className="mb-1">
