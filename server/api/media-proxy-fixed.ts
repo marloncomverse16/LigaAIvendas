@@ -1,7 +1,6 @@
 /**
- * Proxy simplificado para arquivos de mídia WhatsApp
- * Solução direta para resolver problemas de visualização de mídias
- * Suporta todos os tipos de mídia sem conversão, enviando os arquivos como binary
+ * Proxy simplificado e robusto para arquivos de mídia do WhatsApp
+ * Solução para resolver problemas de visualização de mídias em navegadores
  */
 import { Request, Response } from 'express';
 import axios from 'axios';
@@ -10,26 +9,28 @@ import axios from 'axios';
  * Handler para servir arquivos de mídia do WhatsApp
  * Faz proxy das requisições, resolvendo problemas de CORS e formato
  */
-export async function serveMediaProxy(req: Request, res: Response) {
+export async function proxyMedia(req: Request, res: Response) {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Não autenticado" });
   }
 
-  const { url, type } = req.query;
+  const { url, type, mimetype } = req.query;
 
   if (!url) {
-    return res.status(400).json({ message: "URL não fornecida" });
+    return res.status(400).json({ message: "URL da mídia não fornecida" });
   }
 
-  console.log(`[Media Proxy] Processando mídia: ${url}`);
+  console.log(`[Media Proxy] Processando mídia: ${url} (tipo: ${type || 'desconhecido'})`);
 
   try {
+    let mediaResponse;
+    
     // Verificar se é uma URL da Evolution API que requer token
     if (url.toString().includes('api.primerastreadores.com')) {
       console.log('[Media Proxy] Detectada URL da Evolution API, adicionando token');
       
-      // Requisição direta para a URL da mídia com responseType arraybuffer e token
-      const mediaResponse = await axios({
+      // Requisição para a URL da mídia com token de autenticação
+      mediaResponse = await axios({
         method: 'get',
         url: url as string,
         responseType: 'arraybuffer',
@@ -43,7 +44,7 @@ export async function serveMediaProxy(req: Request, res: Response) {
       });
     } else {
       // URL normal sem autenticação
-      const mediaResponse = await axios({
+      mediaResponse = await axios({
         method: 'get',
         url: url as string,
         responseType: 'arraybuffer',
@@ -53,11 +54,15 @@ export async function serveMediaProxy(req: Request, res: Response) {
           'User-Agent': 'WhatsAppMediaProxy/1.0'
         }
       });
+    }
 
-    // Determinar o tipo de conteúdo com base no tipo de mídia
-    let contentType = mediaResponse.headers['content-type'];
-
-    if (!contentType || contentType === 'application/octet-stream') {
+    // Determinar o tipo de conteúdo correto
+    let contentType;
+    if (mimetype && mimetype !== 'false') {
+      contentType = mimetype;
+    } else if (mediaResponse.headers['content-type']) {
+      contentType = mediaResponse.headers['content-type'];
+    } else {
       // Se o servidor não retornar um tipo de conteúdo válido, inferir pelo tipo
       switch (type) {
         case 'image':
@@ -91,7 +96,7 @@ export async function serveMediaProxy(req: Request, res: Response) {
     // Retornar erro no formato JSON
     return res.status(500).json({
       message: 'Erro ao processar mídia',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
       url: url
     });
   }

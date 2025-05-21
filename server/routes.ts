@@ -2314,7 +2314,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota para servir como proxy para arquivos de mídia do WhatsApp (aceita GET e POST)
   app.all("/api/proxy-media", async (req, res) => {
     try {
-      const { proxyMedia } = await import('./api/media-proxy');
+      // Importar e usar a implementação otimizada de proxy
+      const { proxyMedia } = await import('./api/media-proxy-fixed');
       await proxyMedia(req, res);
     } catch (error) {
       console.error('Erro ao fazer proxy para mídia:', error);
