@@ -23,44 +23,67 @@ class DirectEvolutionService {
     this.instanceName = instanceName;
   }
 
-  // Requisição genérica para a API - implementada exatamente como no exemplo HTML
+  // Requisição genérica para a API com log detalhado para diagnóstico
   async apiRequest(endpoint: string, method = 'GET', data?: any) {
-    // Normaliza a URL - exatamente como no exemplo
+    // Normaliza a URL
     const url = `${this.apiUrl}${endpoint}`;
     
     try {
-      // Seguindo exatamente o padrão do exemplo que funciona (chatteste2.html)
-      console.log(`Fazendo requisição ${method} para ${url}:`, data ? 'com dados' : 'sem dados');
+      // Log detalhado dos dados sendo enviados
+      if (data) {
+        console.log(`Fazendo requisição ${method} para ${url} com dados:`, data);
+        console.log("JSON formatado:", JSON.stringify(data, null, 2));
+      } else {
+        console.log(`Fazendo requisição ${method} para ${url} sem dados`);
+      }
       
-      // Opções de requisição exatamente como no exemplo que funciona
+      // Opções de requisição
       const options = {
         method: method,
         headers: {
           'Content-Type': 'application/json',
-          'apikey': this.apiKey  // SOMENTE apikey, sem Bearer (exatamente como no exemplo HTML)
+          'apikey': this.apiKey  // SOMENTE apikey, sem Bearer
         },
         body: data ? JSON.stringify(data) : undefined
       };
       
-      // Usa fetch nativo como no exemplo, em vez de axios
+      // Usa fetch nativo
       const response = await fetch(url, options);
       
+      // Obtém o texto da resposta antes de tentar processar como JSON
+      const responseText = await response.text();
+      
       if (!response.ok) {
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch (e) {
-          errorData = { message: response.statusText };
-        }
+        console.error(`Erro HTTP ${response.status} na requisição para ${url}`);
+        console.error(`Corpo da resposta de erro: ${responseText}`);
+        console.error(`Dados enviados na requisição:`, data);
         
-        throw new Error(errorData.message || `Erro ${response.status}`);
+        try {
+          // Tenta fazer parse do JSON do erro se possível
+          const errorData = responseText ? JSON.parse(responseText) : { message: response.statusText };
+          console.error("Resposta de erro processada:", errorData);
+          throw new Error(errorData.message || `Erro ${response.status}`);
+        } catch (e) {
+          // Se não for JSON, usa o texto bruto
+          throw new Error(`Erro ${response.status}: ${responseText || response.statusText}`);
+        }
       }
       
-      const responseData = await response.json();
+      // Processa a resposta bem-sucedida
       console.log(`Resposta bem-sucedida de ${url}:`, response.status);
-      return responseData;
+      
+      try {
+        // Convertemos de volta para JSON, já que já consumimos o texto
+        const responseData = responseText ? JSON.parse(responseText) : {};
+        console.log("Resposta processada com sucesso:", responseData);
+        return responseData;
+      } catch (jsonError) {
+        console.error("Erro ao processar JSON da resposta:", jsonError);
+        console.log("Resposta em texto bruto:", responseText);
+        return {}; // Retorna objeto vazio se falhar ao processar JSON
+      }
     } catch (error: any) {
-      console.error(`Erro na requisição ${method} para ${url}:`, error);
+      console.error(`Erro completo na requisição ${method} para ${url}:`, error);
       throw error;
     }
   }
