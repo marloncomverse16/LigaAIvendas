@@ -1,11 +1,12 @@
 /**
  * Componente para renderizar mídia nas mensagens do WhatsApp
- * Com suporte a visualização direta de imagens, vídeos, áudios e documentos
- * Usa o serviço de proxy para converter arquivos criptografados (.enc) em formatos mais leves
+ * Usa o Cloudinary para armazenar e otimizar as mídias, resolvendo problemas de CORS
+ * Implementação melhorada que suporta todos os tipos de mídia (imagens, vídeos, áudios, documentos)
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from "@/components/ui/button";
-import { FileIcon, ImageIcon, FileVideo, FileAudio, ExternalLink, Loader2 } from "lucide-react";
+import { FileIcon, ImageIcon, FileVideo, FileAudio, ExternalLink } from "lucide-react";
+import { CloudinaryMediaRenderer } from './cloudinary-media-renderer';
 
 interface MessageMediaRendererProps {
   messageType: string;                   // Tipo de mensagem (imageMessage, videoMessage, audioMessage, documentMessage)
@@ -29,12 +30,8 @@ export function MessageMediaRenderer({
   fileLength,
   className = ''
 }: MessageMediaRendererProps) {
-  const [loadingMedia, setLoadingMedia] = useState(false);
-  const [mediaError, setMediaError] = useState<string | null>(null);
-  const [mediaRendered, setMediaRendered] = useState(false);
-  
   // Determinar o tipo de mídia a partir do messageType
-  const getMediaType = () => {
+  const getMediaType = (): 'image' | 'video' | 'audio' | 'document' | 'unknown' => {
     if (messageType.includes('image')) return 'image';
     if (messageType.includes('video')) return 'video';
     if (messageType.includes('audio')) return 'audio';
@@ -55,140 +52,75 @@ export function MessageMediaRenderer({
     return `${(numSize / (1024 * 1024)).toFixed(1)} MB`;
   };
   
-  // Construir a URL para o proxy de mídia
-  const getMediaProxyUrl = () => {
-    if (!mediaUrl) return '';
-    
-    const params = new URLSearchParams();
-    params.append('url', mediaUrl);
-    params.append('type', mediaType);
-    if (mimeType && mimeType !== 'false') params.append('mimetype', mimeType);
-    
-    return `/api/proxy-media?${params.toString()}`;
-  };
-
-  // Carregar e exibir mídia
-  const handleViewMedia = (e: React.MouseEvent) => {
-    e.preventDefault();
-    
-    if (!mediaUrl) {
-      setMediaError('URL da mídia não disponível');
-      return;
-    }
-    
-    setLoadingMedia(true);
-    setMediaError(null);
-    
-    const proxyUrl = getMediaProxyUrl();
-    
-    // Opção alternativa: sempre abrir numa nova aba (resolve problemas de formato)
-    window.open(proxyUrl, '_blank');
-    setLoadingMedia(false);
-    
-    // Também podemos tentar renderizar no componente (como alternativa)
-    if (mediaType === 'image' || mediaType === 'video' || mediaType === 'audio') {
-      setMediaRendered(true);
-    }
-  };
-  
-  // Renderizar o componente de acordo com o tipo de mídia
-  const renderMediaContent = () => {
-    if (loadingMedia && !mediaRendered) {
-      return (
-        <div className="flex flex-col items-center justify-center py-4">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-2" />
-          <p className="text-sm text-gray-500">Carregando mídia...</p>
-        </div>
-      );
-    }
-    
-    if (mediaError) {
-      return (
-        <div className="text-red-500 text-sm py-2">
-          Erro: {mediaError}
-        </div>
-      );
-    }
-
-    if (mediaRendered && mediaType === 'image') {
-      return (
-        <div className="mt-2">
-          <img 
-            src={getMediaProxyUrl()} 
-            alt={caption || "Imagem"} 
-            className="max-w-full rounded-md object-contain max-h-60"
-            onLoad={() => setLoadingMedia(false)}
-            onError={() => {
-              setMediaError('Não foi possível carregar a imagem');
-              setLoadingMedia(false);
-              setMediaRendered(false);
-            }}
-          />
-          {caption && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{caption}</p>}
-        </div>
-      );
-    }
-    
-    if (mediaRendered && mediaType === 'video') {
-      return (
-        <div className="mt-2">
-          <video 
-            src={getMediaProxyUrl()} 
-            controls 
-            className="max-w-full rounded-md max-h-60"
-            onLoadedData={() => setLoadingMedia(false)}
-            onError={() => {
-              setMediaError('Não foi possível carregar o vídeo');
-              setLoadingMedia(false);
-              setMediaRendered(false);
-            }}
-          />
-          {caption && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{caption}</p>}
-        </div>
-      );
-    }
-    
-    // Renderização dos ícones e botões para os diferentes tipos de mídia
+  // Renderizar o cabeçalho da mídia com informações do arquivo
+  const renderMediaHeader = () => {
     return (
-      <div className="flex flex-col">
-        <div className="flex items-center space-x-2 text-sm mb-1">
-          {mediaType === 'image' && <ImageIcon className="h-5 w-5 text-blue-500" />}
-          {mediaType === 'video' && <FileVideo className="h-5 w-5 text-red-500" />}
-          {mediaType === 'audio' && <FileAudio className="h-5 w-5 text-green-500" />}
-          {mediaType === 'document' && <FileIcon className="h-5 w-5 text-amber-500" />}
-          
-          <span>{fileName || caption || `${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`}</span>
-          
-          {fileLength && (
-            <span className="text-xs text-gray-500">{formatFileSize(fileLength)}</span>
-          )}
-        </div>
+      <div className="flex items-center space-x-2 text-sm mb-1">
+        {mediaType === 'image' && <ImageIcon className="h-5 w-5 text-blue-500" />}
+        {mediaType === 'video' && <FileVideo className="h-5 w-5 text-red-500" />}
+        {mediaType === 'audio' && <FileAudio className="h-5 w-5 text-green-500" />}
+        {(mediaType === 'document' || mediaType === 'unknown') && <FileIcon className="h-5 w-5 text-amber-500" />}
         
-        <Button 
-          onClick={handleViewMedia}
-          variant="outline" 
-          size="sm"
-          className="mt-1 w-full"
-          disabled={loadingMedia || !mediaUrl}
-        >
-          {loadingMedia ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <ExternalLink className="h-4 w-4 mr-2" />
-          )}
-          
-          {mediaType === 'image' && 'Visualizar imagem'}
-          {mediaType === 'video' && 'Visualizar vídeo'}
-          {mediaType === 'audio' && 'Ouvir áudio'}
-          {mediaType === 'document' && 'Abrir documento'}
-        </Button>
+        <span className="truncate max-w-[200px]">{fileName || caption || `${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`}</span>
+        
+        {fileLength && (
+          <span className="text-xs text-gray-500 shrink-0">{formatFileSize(fileLength)}</span>
+        )}
       </div>
     );
   };
   
+  // Botão para abrir a mídia em uma nova aba (backup se o renderer não funcionar)
+  const renderBackupButton = () => {
+    return (
+      <Button 
+        onClick={(e) => {
+          e.preventDefault();
+          if (mediaUrl) {
+            window.open(`/api/process-media?url=${encodeURIComponent(mediaUrl)}`, '_blank');
+          }
+        }}
+        variant="outline" 
+        size="sm"
+        className="mt-1 w-full"
+        disabled={!mediaUrl}
+      >
+        <ExternalLink className="h-4 w-4 mr-2" />
+        
+        {mediaType === 'image' && 'Abrir imagem'}
+        {mediaType === 'video' && 'Abrir vídeo'}
+        {mediaType === 'audio' && 'Abrir áudio'}
+        {mediaType === 'document' && 'Abrir documento'}
+        {mediaType === 'unknown' && 'Abrir mídia'}
+      </Button>
+    );
+  };
+  
+  // Verificar se temos uma URL de mídia para exibir
+  if (!mediaUrl) {
+    return (
+      <div className={`p-3 rounded-lg bg-gray-100 dark:bg-gray-800 ${className}`}>
+        <div className="text-red-500 text-sm py-2">
+          Mídia não disponível
+        </div>
+      </div>
+    );
+  }
+
+  // Renderizar o componente com o CloudinaryMediaRenderer
   return (
     <div className={`p-3 rounded-lg bg-gray-100 dark:bg-gray-800 ${className}`}>
-      {renderMediaContent()}
+      {renderMediaHeader()}
+      
+      <CloudinaryMediaRenderer 
+        mediaUrl={mediaUrl}
+        mediaType={mediaType}
+        mimeType={mimeType !== 'false' ? mimeType : undefined}
+        caption={caption}
+        className="mt-3"
+      />
+      
+      {renderBackupButton()}
     </div>
   );
 }

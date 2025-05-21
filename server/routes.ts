@@ -2327,6 +2327,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para processar mídia com Cloudinary (solução definitiva para problemas de CORS)
+  app.get("/api/process-media", async (req, res) => {
+    try {
+      // Importar e usar o serviço de mídia do Cloudinary
+      const { processMediaProxy } = await import('./api/cloudinary-media-service');
+      await processMediaProxy(req, res);
+    } catch (error) {
+      console.error('Erro ao processar mídia com Cloudinary:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao processar mídia com Cloudinary',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
   // Rotas para envio de mensagens via Evolution API
   
   // Enviar mensagem de texto
