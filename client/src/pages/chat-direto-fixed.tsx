@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, RefreshCw, Send, LogOut } from 'lucide-react';
-import axios from 'axios';
 
 // Classe de serviço para comunicação direta com a Evolution API
 class DirectEvolutionService {
@@ -223,7 +222,7 @@ class DirectEvolutionService {
       throw error;
     }
   }
-  
+
   // Normaliza os dados de chats
   normalizeChats(response: any) {
     let chats: any[] = [];
@@ -341,6 +340,9 @@ export default function ChatDireto() {
           description: `Status: ${statusInfo.state}`,
           variant: "default"
         });
+        
+        // Se conectado, carrega os chats
+        await loadChats();
       } else {
         toast({
           title: "Desconectado",
@@ -380,63 +382,22 @@ export default function ChatDireto() {
     try {
       console.log("Tentando carregar contatos...");
       
-      // Tentando abordagem direta primeiro (que funciona no exemplo)
-      try {
-        // Tenta o endpoint exato do HTML que funciona: /chat/findChats/{instance}
-        console.log("Tentando endpoint /chat/findChats...");
-        const response = await service.apiRequest(`/chat/findChats/${instanceName}`, 'POST', {});
-        console.log("Resposta do findChats:", response);
-        
-        const normalizedChats = service.normalizeChats(response);
-        setChats(normalizedChats);
-        
-        toast({
-          title: "Contatos carregados",
-          description: `${normalizedChats.length} contatos encontrados`,
-        });
-        
-        return;
-      } catch (findError) {
-        console.error("Erro no endpoint findChats:", findError);
-        
-        try {
-          // Tenta endpoint alternativo /instances/{instance}/contacts
-          console.log("Tentando endpoint alternativo /instances/*/contacts...");
-          const response = await service.apiRequest(`/instances/${instanceName}/contacts`);
-          console.log("Resposta do endpoint contatos:", response);
-          
-          const normalizedChats = service.normalizeChats(response);
-          setChats(normalizedChats);
-          
-          toast({
-            title: "Contatos carregados",
-            description: `${normalizedChats.length} contatos encontrados`,
-          });
-          
-          return;
-        } catch (contactsError) {
-          console.error("Erro no endpoint contacts:", contactsError);
-          
-          // Terceira tentativa com outro caminho
-          console.log("Tentando último endpoint alternativo...");
-          const response = await service.apiRequest(`/instance/fetchContacts/${instanceName}`);
-          console.log("Resposta do fetchContacts:", response);
-          
-          const normalizedChats = service.normalizeChats(response);
-          setChats(normalizedChats);
-          
-          toast({
-            title: "Contatos carregados",
-            description: `${normalizedChats.length} contatos encontrados`,
-          });
-        }
-      }
+      const response = await service.loadChats();
+      console.log("Resposta do findChats:", response);
+      
+      // Usa os dados brutos retornados pela API, sem normalizar
+      setChats(response || []);
+      
+      toast({
+        title: "Contatos carregados",
+        description: `${(response || []).length} contatos encontrados`,
+      });
     } catch (error: any) {
-      console.error("Erro ao carregar contatos (todos os métodos):", error);
+      console.error("Erro ao carregar contatos:", error);
       
       toast({
         title: "Erro ao carregar contatos",
-        description: error.message || "Não foi possível obter a lista de contatos",
+        description: error.message || "Não foi possível carregar a lista de contatos",
         variant: "destructive"
       });
     } finally {
@@ -444,28 +405,33 @@ export default function ChatDireto() {
     }
   };
   
-  // Seleciona um chat para exibir mensagens
-  const selectChat = async (chat: any) => {
-    if (!service) return;
+  // Carrega as mensagens de um chat
+  const loadMessages = async (chat: any) => {
+    if (!service || !chat) return;
     
-    setSelectedChat(chat);
     setLoading(true);
+    setSelectedChat(chat);
     
     try {
-      const response = await service.loadMessages(chat.id);
-      const normalizedMessages = service.normalizeMessages(response);
+      const response = await service.loadMessages(chat.remoteJid);
+      console.log("Mensagens carregadas:", response);
       
-      setMessages(normalizedMessages);
+      // Extrai as mensagens da estrutura de resposta
+      const messagesData = response.messages?.records || [];
+      setMessages(messagesData);
+      
+      // Rolagem automática para o final das mensagens
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error: any) {
       console.error("Erro ao carregar mensagens:", error);
       
       toast({
         title: "Erro ao carregar mensagens",
-        description: error.message || "Não foi possível obter as mensagens deste chat",
+        description: error.message || "Não foi possível carregar as mensagens do chat",
         variant: "destructive"
       });
-      
-      setMessages([]);
     } finally {
       setLoading(false);
     }
@@ -476,38 +442,18 @@ export default function ChatDireto() {
     if (!service || !selectedChat || !messageText.trim()) return;
     
     try {
-      // Obtém o número de telefone do chat selecionado
-      const phoneNumber = selectedChat.id.includes('@') 
-        ? selectedChat.id.split('@')[0] 
-        : selectedChat.id;
+      await service.sendMessage(selectedChat.id, messageText);
       
-      // Adiciona a mensagem à UI imediatamente para melhor UX
-      const newMessage = {
-        id: `temp-${Date.now()}`,
-        fromMe: true,
-        content: messageText,
-        timestamp: Date.now(),
-        status: 'sending'
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
+      // Limpa o campo de mensagem
       setMessageText('');
       
-      // Scrolls para a última mensagem
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      // Recarrega as mensagens para ver a nova mensagem enviada
+      await loadMessages(selectedChat);
       
-      // Envia mensagem para a API
-      await service.sendMessage(phoneNumber, messageText);
-      
-      // Atualiza status da mensagem
-      setMessages(prev => prev.map(msg => 
-        msg.id === newMessage.id 
-          ? { ...msg, status: 'sent' } 
-          : msg
-      ));
-      
+      toast({
+        title: "Mensagem enviada",
+        description: "A mensagem foi enviada com sucesso",
+      });
     } catch (error: any) {
       console.error("Erro ao enviar mensagem:", error);
       
@@ -519,147 +465,171 @@ export default function ChatDireto() {
     }
   };
   
-  // Formata a data/hora
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  // Desconecta o WhatsApp
+  const disconnect = async () => {
+    if (!service) return;
+    
+    setLoading(true);
+    try {
+      await service.apiRequest(`/instance/logout/${instanceName}`, 'DELETE');
+      
+      setConnected(false);
+      setChats([]);
+      setMessages([]);
+      setSelectedChat(null);
+      
+      toast({
+        title: "Desconectado",
+        description: "A sessão do WhatsApp foi encerrada",
+      });
+    } catch (error: any) {
+      console.error("Erro ao desconectar:", error);
+      
+      toast({
+        title: "Erro ao desconectar",
+        description: error.message || "Não foi possível desconectar a sessão",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   
-  // Renderização da interface
+  // Interface do usuário
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <div className="bg-indigo-600 text-white p-4 shadow-md flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-medium">Chat Direto WhatsApp</h1>
-          <p className="text-sm opacity-90">
-            Conexão {connected ? 'estabelecida' : 'desconectada'}
-          </p>
-          <p className="text-xs opacity-80">
-            URL: {apiUrl} | Token: {apiKey.substring(0, 5)}... | Instância: {instanceName}
-          </p>
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-900">
+      {/* Cabeçalho */}
+      <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 shadow">
+        <div className="flex items-center space-x-2">
+          <h1 className="text-xl font-bold">Chat Evolution API</h1>
+          <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
         </div>
-        
-        <div className="flex gap-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+        <div className="flex space-x-2">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => checkConnection()}
             disabled={loading}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Verificar
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={disconnect}
+            disabled={!connected || loading}
+          >
+            <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </div>
       
-      {/* Main container */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-80 bg-white border-r flex flex-col">
-          {/* Search and actions */}
-          <div className="p-4 border-b">
-            <Input 
-              placeholder="Buscar conversa..." 
-              className="mb-3"
-            />
-            
-            <div className="flex gap-2">
-              <Button 
-                variant="default" 
-                size="sm"
-                className="flex-1"
-                onClick={loadChats}
-                disabled={loading || !connected}
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Atualizar Contatos
-              </Button>
-            </div>
+      {/* Conteúdo principal */}
+      <div className="flex flex-grow overflow-hidden">
+        {/* Lista de chats */}
+        <div className="w-1/3 border-r border-slate-200 dark:border-slate-700 flex flex-col">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+            <Button 
+              className="w-full" 
+              onClick={loadChats}
+              disabled={!connected || loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : 'Atualizar Contatos'}
+            </Button>
           </div>
           
-          {/* Chats list */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-grow overflow-y-auto">
             {chats.length === 0 ? (
-              <div className="text-center p-4 text-gray-500">
-                {loading 
-                  ? "Carregando contatos..." 
-                  : "Nenhum contato encontrado. Clique em Atualizar Contatos."}
+              <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                <p className="text-slate-500 dark:text-slate-400">
+                  {connected 
+                    ? 'Nenhum contato encontrado. Clique em "Atualizar Contatos".' 
+                    : 'Conecte-se para ver os contatos.'}
+                </p>
               </div>
             ) : (
-              chats.map(chat => (
-                <div 
-                  key={chat.id}
-                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 flex items-center ${
-                    selectedChat?.id === chat.id ? 'bg-indigo-50 border-l-2 border-indigo-500' : ''
-                  }`}
-                  onClick={() => selectChat(chat)}
-                >
-                  <div className="w-10 h-10 rounded-full bg-indigo-300 text-white flex items-center justify-center mr-3 flex-shrink-0">
-                    {chat.name.charAt(0).toUpperCase()}
+              <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                {chats.map((chat) => (
+                  <div
+                    key={chat.id}
+                    className={`p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                      selectedChat?.id === chat.id ? 'bg-slate-100 dark:bg-slate-800' : ''
+                    }`}
+                    onClick={() => loadMessages(chat)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center">
+                        <span className="text-slate-700 dark:text-slate-300">
+                          {chat.pushName?.charAt(0) || '#'}
+                        </span>
+                      </div>
+                      <div className="flex-grow min-w-0">
+                        <div className="flex justify-between">
+                          <p className="font-medium truncate">{chat.pushName || 'Sem nome'}</p>
+                          <p className="text-xs text-slate-500">
+                            {chat.updatedAt 
+                              ? new Date(chat.updatedAt).toLocaleDateString() 
+                              : ''}
+                          </p>
+                        </div>
+                        <p className="text-sm text-slate-500 truncate">
+                          {chat.remoteJid?.split('@')[0] || 'Sem número'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium">{chat.name}</div>
-                    <div className="text-sm text-gray-500 truncate">{chat.lastMessage}</div>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
         
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col bg-gray-100">
+        {/* Área de mensagens */}
+        <div className="flex-grow flex flex-col">
           {selectedChat ? (
             <>
-              {/* Chat header */}
-              <div className="p-4 bg-white border-b flex items-center">
-                <div className="w-10 h-10 rounded-full bg-indigo-300 text-white flex items-center justify-center mr-3">
-                  {selectedChat.name.charAt(0).toUpperCase()}
+              {/* Cabeçalho do chat */}
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center">
+                  <span className="text-slate-700 dark:text-slate-300">
+                    {selectedChat.pushName?.charAt(0) || '#'}
+                  </span>
                 </div>
                 <div>
-                  <div className="font-medium">{selectedChat.name}</div>
-                  <div className="text-sm text-gray-500">
-                    {connected ? 'Online' : 'Desconectado'}
-                  </div>
+                  <p className="font-medium">{selectedChat.pushName || 'Sem nome'}</p>
+                  <p className="text-xs text-slate-500">{selectedChat.remoteJid?.split('@')[0] || 'Sem número'}</p>
                 </div>
               </div>
               
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-100">
-                {loading ? (
-                  <div className="flex justify-center items-center h-full">
-                    <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center p-4 text-gray-500">
-                    Nenhuma mensagem encontrada nesta conversa.
+              {/* Mensagens */}
+              <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                {messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                    <p className="text-slate-500 dark:text-slate-400">
+                      {loading 
+                        ? 'Carregando mensagens...' 
+                        : 'Nenhuma mensagem encontrada.'}
+                    </p>
                   </div>
                 ) : (
-                  messages.map(message => (
-                    <div 
-                      key={message.id}
-                      className={`flex mb-4 ${message.fromMe ? 'justify-end' : 'justify-start'}`}
+                  messages.map((msg) => (
+                    <div
+                      key={msg.key?.id || Math.random().toString()}
+                      className={`flex ${msg.key?.fromMe ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div 
+                      <div
                         className={`max-w-[70%] p-3 rounded-lg ${
-                          message.fromMe 
-                            ? 'bg-green-100 rounded-tr-none' 
-                            : 'bg-white rounded-tl-none'
+                          msg.key?.fromMe
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white dark:bg-slate-700 dark:text-white shadow'
                         }`}
                       >
-                        <div className="text-sm">{message.content}</div>
-                        <div className="text-xs text-gray-500 text-right mt-1">
-                          {formatTime(message.timestamp)}
-                          {message.fromMe && (
-                            <span className="ml-1">
-                              {message.status === 'sending' ? '⌛' : '✓'}
-                            </span>
-                          )}
-                        </div>
+                        <p>{msg.message?.conversation || 'Sem conteúdo'}</p>
+                        <p className="text-xs mt-1 opacity-70">
+                          {msg.messageTimestamp
+                            ? new Date(msg.messageTimestamp * 1000).toLocaleTimeString()
+                            : ''}
+                        </p>
                       </div>
                     </div>
                   ))
@@ -667,34 +637,29 @@ export default function ChatDireto() {
                 <div ref={messagesEndRef} />
               </div>
               
-              {/* Input area */}
-              <div className="p-4 bg-white border-t flex items-end gap-2">
-                <Textarea
-                  placeholder="Digite uma mensagem..."
-                  className="flex-1 min-h-10 max-h-32 resize-none"
+              {/* Input de mensagem */}
+              <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex space-x-2">
+                <Input
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
+                  placeholder="Digite uma mensagem..."
+                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  disabled={!connected || loading}
+                  className="flex-grow"
                 />
-                <Button 
-                  variant="default" 
-                  size="icon"
-                  disabled={!messageText.trim() || !connected}
+                <Button
                   onClick={sendMessage}
+                  disabled={!connected || loading || !messageText.trim()}
                 >
-                  <Send className="h-4 w-4" />
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-              <div className="text-lg mb-2">Nenhuma conversa selecionada</div>
-              <p className="text-sm">Selecione um contato para começar a conversar</p>
+            <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+              <p className="text-slate-500 dark:text-slate-400">
+                Selecione um contato para iniciar a conversa.
+              </p>
             </div>
           )}
         </div>
