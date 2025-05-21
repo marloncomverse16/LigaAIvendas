@@ -164,22 +164,25 @@ class DirectEvolutionService {
     });
   }
 
-  // Envia mensagem - exatamente como no exemplo funcionando
+  // Envia mensagem - corrigido com o formato exato obtido no teste com curl
   async sendMessage(number: string, text: string) {
     console.log(`Enviando mensagem para ${number}: "${text}"`);
     
-    // Formata o número se necessário (remove @c.us se presente)
-    const formattedNumber = number.includes('@c.us') ? number.split('@')[0] : number;
+    // Trata diferentes formatos de número:
+    // - 554391142751@s.whatsapp.net (formato que vem do chat)
+    // - 554391142751@c.us (formato alternativo)
+    let formattedNumber = number;
+    if (number.includes('@s.whatsapp.net')) {
+      formattedNumber = number.split('@')[0];
+    } else if (number.includes('@c.us')) {
+      formattedNumber = number.split('@')[0];
+    }
     
+    // Usando exatamente o formato que funcionou no teste com curl:
+    // { "number": "554391142751", "text": "mensagem" }
     return await this.apiRequest(`/message/sendText/${this.instanceName}`, 'POST', {
       number: formattedNumber,
-      options: {
-        delay: 1200,
-        presence: "composing"
-      },
-      textMessage: {
-        text
-      }
+      text: text
     });
   }
   
