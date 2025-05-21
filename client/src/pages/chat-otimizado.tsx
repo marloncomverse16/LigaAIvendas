@@ -1308,9 +1308,47 @@ export default function ChatOtimizado() {
                             {getMessageSender(msg)}
                           </div>
                         )}
-                        <div className="text-sm whitespace-pre-wrap break-words">
-                          {getMessageContent(msg)}
-                        </div>
+                        {msg.message?.imageMessage ? (
+                          <div className="mb-1">
+                            <img 
+                              src={msg.message.imageMessage.url} 
+                              alt="Imagem" 
+                              className="rounded-md max-h-64 w-auto object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).nextSibling!.textContent = '[Imagem indisponível]';
+                              }}
+                            />
+                            <span className="hidden"></span>
+                            {msg.message.imageMessage.caption && (
+                              <div className="mt-1 text-sm">
+                                {msg.message.imageMessage.caption}
+                              </div>
+                            )}
+                          </div>
+                        ) : msg.message?.videoMessage ? (
+                          <div className="mb-1">
+                            <video 
+                              src={msg.message.videoMessage.url} 
+                              controls 
+                              className="rounded-md max-h-64 w-auto"
+                              onError={(e) => {
+                                (e.target as HTMLVideoElement).style.display = 'none';
+                                (e.target as HTMLVideoElement).nextSibling!.textContent = '[Vídeo indisponível]';
+                              }}
+                            />
+                            <span className="hidden"></span>
+                            {msg.message.videoMessage.caption && (
+                              <div className="mt-1 text-sm">
+                                {msg.message.videoMessage.caption}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-sm whitespace-pre-wrap break-words">
+                            {getMessageContent(msg)}
+                          </div>
+                        )}
                         <div className="text-right text-xs text-gray-500 mt-1">
                           {formatMessageDate(msg.messageTimestamp)}
                         </div>
