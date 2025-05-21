@@ -42,9 +42,20 @@ export class EvolutionApiService {
     let url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
     
     // Resolve endpoints que podem ser ambíguos
-    if (!url.includes('/instance/') && !url.includes('/chat/') && !url.includes('/message/')) {
+    if (!endpoint.startsWith('/instances/') && 
+        !url.includes('/instance/') && 
+        !url.includes('/chat/') && 
+        !url.includes('/message/')) {
       url = `${baseUrl}/instance/${endpoint}`;
     }
+    
+    // Log para debug
+    console.log(`Requisição ${method} para Evolution API:`, { 
+      url, 
+      method,
+      instanceName: this.instanceName,
+      hasToken: !!this.apiToken
+    });
     
     try {
       const response = await axios({
@@ -58,12 +69,31 @@ export class EvolutionApiService {
         params: method === 'GET' ? data : undefined
       });
       
+      console.log(`Resposta recebida da Evolution API (${url}):`, {
+        status: response.status,
+        dataType: typeof response.data,
+        hasData: !!response.data
+      });
+      
       return response.data;
     } catch (error: any) {
       console.error(`Erro na requisição ${method} para ${url}:`, error);
+      
+      // Tenta extrair detalhes do erro da resposta
       if (error.response) {
+        console.log('Detalhes do erro da API:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        });
+        
+        if (error.response.status === 401) {
+          throw new Error(`Erro de autenticação: O token fornecido não é válido para a Evolution API. Verifique as configurações do servidor.`);
+        }
+        
         throw new Error(`Erro ${error.response.status}: ${error.response.data?.message || error.response.statusText}`);
       }
+      
       throw new Error(error.message || 'Erro desconhecido na API');
     }
   }
@@ -71,7 +101,27 @@ export class EvolutionApiService {
   // Verificar o estado da conexão
   public async checkConnectionState() {
     try {
-      const response = await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
+      console.log("Tentando verificar conexão com:", {
+        apiUrl: this.apiUrl,
+        token: this.apiToken ? this.apiToken.substring(0, 5) + "..." : "não configurado", 
+        instance: this.instanceName
+      });
+      
+      // Tenta vários endpoints diferentes para garantir compatibilidade
+      let response;
+      try {
+        // Primeiro tenta o endpoint padrão
+        response = await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
+      } catch (err) {
+        try {
+          // Se falhar, tenta endpoint alternativo
+          response = await this.apiRequest(`/instance/connect/${this.instanceName}`);
+        } catch (err2) {
+          // Último recurso: verifica informações da instância
+          response = await this.apiRequest(`/instance/info/${this.instanceName}`);
+        }
+      }
+      
       // Possíveis estados: connected, connecting, disconnected, error
       const state = response?.state || response?.data?.state || response?.status || 'unknown';
       const connected = state === 'open' || state === 'connected';
@@ -94,13 +144,26 @@ export class EvolutionApiService {
   // Carregar lista de chats/contatos
   public async loadChats() {
     try {
-      const response = await this.apiRequest(`/chat/findChats/${this.instanceName}`, 'POST', {
-        // Parâmetros adicionais como paginação ou filtros podem ser adicionados aqui
-        // where: {},
-        // limit: 100
-      });
+      console.log("Tentando carregar contatos para instância:", this.instanceName);
       
-      return this.normalizeChatsResponse(response);
+      // Primeiro tenta o endpoint padrão
+      try {
+        const response = await this.apiRequest(`/chat/findChats/${this.instanceName}`, 'POST', {
+          // Parâmetros adicionais como paginação ou filtros podem ser adicionados aqui
+          // where: {},
+          // limit: 100
+        });
+        
+        return this.normalizeChatsResponse(response);
+      } catch (err) {
+        // Se falhar, tenta endpoint alternativo (instances/admin/contacts)
+        console.log("Tentando endpoint alternativo para contatos");
+        
+        const alternativeEndpoint = `/instances/${this.instanceName}/contacts`;
+        const response = await this.apiRequest(alternativeEndpoint, 'GET');
+        
+        return this.normalizeChatsResponse(response);
+      }
     } catch (error: any) {
       console.error('Erro ao carregar chats:', error);
       throw error;
