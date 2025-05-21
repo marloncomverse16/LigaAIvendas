@@ -24,12 +24,15 @@ export async function serveMediaProxy(req: Request, res: Response) {
   console.log(`[Media Proxy] Processando mídia: ${url}`);
 
   try {
+    // Definir variáveis para a resposta
+    let mediaResponse;
+    
     // Verificar se é uma URL da Evolution API que requer token
     if (url.toString().includes('api.primerastreadores.com')) {
       console.log('[Media Proxy] Detectada URL da Evolution API, adicionando token');
       
       // Requisição direta para a URL da mídia com responseType arraybuffer e token
-      const mediaResponse = await axios({
+      mediaResponse = await axios({
         method: 'get',
         url: url as string,
         responseType: 'arraybuffer',
@@ -43,7 +46,7 @@ export async function serveMediaProxy(req: Request, res: Response) {
       });
     } else {
       // URL normal sem autenticação
-      const mediaResponse = await axios({
+      mediaResponse = await axios({
         method: 'get',
         url: url as string,
         responseType: 'arraybuffer',
@@ -53,6 +56,7 @@ export async function serveMediaProxy(req: Request, res: Response) {
           'User-Agent': 'WhatsAppMediaProxy/1.0'
         }
       });
+    }
 
     // Determinar o tipo de conteúdo com base no tipo de mídia
     let contentType = mediaResponse.headers['content-type'];
