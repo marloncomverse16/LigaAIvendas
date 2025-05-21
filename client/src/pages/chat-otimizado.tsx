@@ -48,9 +48,11 @@ class DirectEvolutionService {
       ? endpoint 
       : `${this.apiUrl}${endpoint}`;
     
+    console.log(`Fazendo requisição ${method} para ${url}${data ? ' com dados' : ''}`);
+    
+    // IMPORTANTE: Usar exatamente o cabeçalho 'apikey' (sem Bearer) que é o formato esperado pela Evolution API
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      // Usar o formato correto de apikey no cabeçalho
       'apikey': this.apiKey
     };
     
@@ -60,6 +62,8 @@ class DirectEvolutionService {
         headers,
         body: data ? JSON.stringify(data) : undefined
       });
+      
+      console.log(`Resposta de ${url}:`, response.status);
       
       if (!response.ok) {
         // Tentar extrair mensagem de erro da resposta
@@ -73,9 +77,11 @@ class DirectEvolutionService {
       
       // Tentar retornar os dados como JSON, ou undefined se vazio
       const responseText = await response.text();
-      return responseText ? JSON.parse(responseText) : undefined;
+      const responseData = responseText ? JSON.parse(responseText) : undefined;
+      console.log(`Resposta processada com sucesso:`, responseData);
+      return responseData;
     } catch (error: any) {
-      console.error(`Erro na requisição ${method} ${endpoint}:`, error);
+      console.error(`Erro na requisição ${method} ${url}:`, error);
       throw error;
     }
   }
@@ -83,14 +89,20 @@ class DirectEvolutionService {
   // Verifica o status da conexão com WhatsApp
   async checkConnection() {
     try {
+      // Verificar status da conexão (usar o mesmo formato da outra implementação)
+      console.log(`Verificando status da conexão na instância ${this.instanceName}`);
+      
       // Obter status da instância
       const instanceInfo = await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
-      console.log("Status da conexão:", instanceInfo);
+      console.log("Resposta completa do estado de conexão:", instanceInfo);
       
-      // Analisar a resposta para determinar o estado
-      const state = typeof instanceInfo.state === 'string' 
-        ? instanceInfo.state.toLowerCase() 
-        : 'unknown';
+      // Extrair o estado real
+      let state = 'unknown';
+      if (instanceInfo && instanceInfo.instance && instanceInfo.instance.state) {
+        state = instanceInfo.instance.state.toLowerCase();
+      }
+      
+      console.log(`Estado real da instância: ${state} (Conectado: ${state === 'open'})`);
       
       // Verificar se está conectado com base no estado
       const connected = state === 'open' || state === 'connected';
@@ -107,12 +119,15 @@ class DirectEvolutionService {
       }
       
       // Retornar informações de conexão
-      return {
+      const result = {
         connected,
         state,
         qrCode,
         instance: this.instanceName
       };
+      
+      console.log("Resultado da verificação:", result);
+      return result;
     } catch (error) {
       console.error("Erro ao verificar conexão:", error);
       return {
@@ -129,11 +144,27 @@ class DirectEvolutionService {
     try {
       console.log(`Carregando chats para ${this.instanceName}`);
       
-      // Fazer a requisição para obter os chats
-      // Nota: a API pode ter diferentes endpoints dependendo da versão
-      // Tentando o endpoint mais comum primeiro
-      const chats = await this.apiRequest(`/chat/findChats/${this.instanceName}`);
-      return this.normalizeChats(chats);
+      // Usar o método POST em vez de GET (como na implementação que funciona)
+      try {
+        // Primeira tentativa com o formato de posts na nova API
+        const chats = await this.apiRequest(`/chat/findChats/${this.instanceName}`, 'POST', {
+          where: {},
+          limit: 100
+        });
+        return this.normalizeChats(chats);
+      } catch (error) {
+        console.warn("Erro com primeiro formato, tentando alternativa...");
+        // Segunda tentativa com formato alternativo
+        try {
+          const contacts = await this.apiRequest(`/instance/fetchContacts/${this.instanceName}`);
+          return this.normalizeChats(contacts);
+        } catch (altError) {
+          console.warn("Erro com segundo formato, tentando final...");
+          // Terceira tentativa com outro formato
+          const directContacts = await this.apiRequest(`/contacts/getContacts/${this.instanceName}`);
+          return this.normalizeChats(directContacts);
+        }
+      }
     } catch (error) {
       console.error("Erro ao carregar chats:", error);
       // Em caso de erro, retornar array vazio
