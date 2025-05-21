@@ -15,6 +15,7 @@ import ConnectionPage from "@/pages/connection-page";
 import ChatWebView from "@/pages/chat-page-new";
 import ChatTestPage from "@/pages/chat-test-page";
 import WhatsappWebPage from "@/pages/whatsapp-web";
+import EvolutionChatPage from "@/pages/evolution-chat";
 import MessageSendingPage from "@/pages/message-sending-page";
 import AdminUsersPage from "@/pages/admin-users-page";
 import UserPermissionsPage from "@/pages/user-permissions-page";
@@ -45,9 +46,10 @@ function Router() {
       <ProtectedRoute path="/conexoes/whatsapp-meta" component={WhatsAppMetaPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
       <ProtectedRoute path="/contatos" component={ContactsPage} />
-      <ProtectedRoute path="/chat" component={WhatsappWebPage} />
+      <ProtectedRoute path="/chat" component={EvolutionChatPage} />
       <ProtectedRoute path="/whatsapp-web" component={WhatsappWebPage} />
       <ProtectedRoute path="/new-chat" component={WhatsappWebPage} />
+      <ProtectedRoute path="/evolution-chat" component={EvolutionChatPage} />
       <ProtectedRoute path="/message-sending" component={MessageSendingPage} />
       <ProtectedRoute path="/admin-users" component={AdminUsersPage} />
       <ProtectedRoute path="/admin-users/permissions/:userId" component={UserPermissionsPage} />
