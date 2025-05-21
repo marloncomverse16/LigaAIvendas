@@ -1316,19 +1316,21 @@ export default function ChatOtimizado() {
                                 <span className="text-sm font-medium">{msg.message.imageMessage.caption || 'Imagem compartilhada'}</span>
                               </div>
                               <div className="flex justify-center">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="w-full bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800/30 hover:bg-green-50 dark:hover:bg-gray-600"
-                                  onClick={() => {
-                                    if (msg.message?.imageMessage?.url) {
-                                      window.open(msg.message.imageMessage.url, '_blank');
-                                    }
-                                  }}
+                                <form 
+                                  method="post" 
+                                  action={`/api/proxy-media?type=image&url=${encodeURIComponent(msg.message?.imageMessage?.url || '')}`} 
+                                  target="_blank"
                                 >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Visualizar imagem
-                                </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    type="submit"
+                                    className="w-full bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800/30 hover:bg-green-50 dark:hover:bg-gray-600"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Visualizar imagem
+                                  </Button>
+                                </form>
                               </div>
                             </div>
                           </div>
@@ -1340,19 +1342,21 @@ export default function ChatOtimizado() {
                                 <span className="text-sm font-medium">{msg.message.videoMessage.caption || 'Vídeo compartilhado'}</span>
                               </div>
                               <div className="flex justify-center">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="w-full bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/30 hover:bg-blue-50 dark:hover:bg-gray-600"
-                                  onClick={() => {
-                                    if (msg.message?.videoMessage?.url) {
-                                      window.open(msg.message.videoMessage.url, '_blank');
-                                    }
-                                  }}
+                                <form 
+                                  method="post" 
+                                  action={`/api/proxy-media?type=video&url=${encodeURIComponent(msg.message?.videoMessage?.url || '')}&mimetype=${encodeURIComponent(msg.message?.videoMessage?.mimetype || 'video/mp4')}`} 
+                                  target="_blank"
                                 >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Visualizar vídeo
-                                </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    type="submit"
+                                    className="w-full bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/30 hover:bg-blue-50 dark:hover:bg-gray-600"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Visualizar vídeo
+                                  </Button>
+                                </form>
                               </div>
                             </div>
                           </div>
@@ -1364,19 +1368,21 @@ export default function ChatOtimizado() {
                                 <span className="text-sm font-medium">Mensagem de áudio</span>
                               </div>
                               <div className="flex justify-center">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="w-full bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800/30 hover:bg-purple-50 dark:hover:bg-gray-600"
-                                  onClick={() => {
-                                    if (msg.message?.audioMessage?.url) {
-                                      window.open(msg.message.audioMessage.url, '_blank');
-                                    }
-                                  }}
+                                <form 
+                                  method="post" 
+                                  action={`/api/proxy-media?type=audio&url=${encodeURIComponent(msg.message?.audioMessage?.url || '')}&mimetype=${encodeURIComponent(msg.message?.audioMessage?.mimetype || 'audio/ogg')}`} 
+                                  target="_blank"
                                 >
-                                  <Headphones className="h-4 w-4 mr-2" />
-                                  Ouvir áudio
-                                </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    type="submit"
+                                    className="w-full bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800/30 hover:bg-purple-50 dark:hover:bg-gray-600"
+                                  >
+                                    <Headphones className="h-4 w-4 mr-2" />
+                                    Ouvir áudio
+                                  </Button>
+                                </form>
                               </div>
                             </div>
                           </div>
