@@ -413,9 +413,12 @@ export default function ChatDireto() {
       {/* Header */}
       <div className="bg-indigo-600 text-white p-4 shadow-md flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-medium">Chat WhatsApp</h1>
+          <h1 className="text-xl font-medium">Chat Direto WhatsApp</h1>
           <p className="text-sm opacity-90">
             Conexão {connected ? 'estabelecida' : 'desconectada'}
+          </p>
+          <p className="text-xs opacity-80">
+            URL: {apiUrl} | Token: {apiKey.substring(0, 5)}... | Instância: {instanceName}
           </p>
         </div>
         
