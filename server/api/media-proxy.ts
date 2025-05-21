@@ -94,21 +94,53 @@ function isEncryptedWhatsAppFile(buffer: Buffer): boolean {
  */
 async function convertImage(inputBuffer: Buffer): Promise<Buffer> {
   try {
-    // Verificar se o buffer é uma imagem válida
-    const isValid = await isValidImage(inputBuffer);
+    // Verificar se o buffer é uma imagem válida tentando obter seus metadados
+    let metadata;
+    try {
+      metadata = await sharp(inputBuffer).metadata();
+    } catch (metadataError) {
+      console.log('Não foi possível obter metadados da imagem, arquivo pode não ser uma imagem válida');
+      return inputBuffer; // Retorna o buffer original se não conseguir obter metadados
+    }
     
-    // Se não for uma imagem válida e parece ser um arquivo .enc, apenas retornar
-    if (!isValid && isEncryptedWhatsAppFile(inputBuffer)) {
-      console.log('Detectado arquivo .enc do WhatsApp, enviando sem processamento');
+    // Se não tiver um formato válido, retorna o original
+    if (!metadata || !metadata.format) {
+      console.log('Formato de imagem não reconhecido, enviando original');
       return inputBuffer;
     }
     
-    // Tenta converter para webp que é mais leve e amplamente suportado
-    return await sharp(inputBuffer)
-      .webp({ quality: 80 })
-      .toBuffer();
-  } catch (error) {
-    console.error('Erro ao converter imagem:', error);
+    console.log(`Imagem válida detectada: formato=${metadata.format}, largura=${metadata.width}, altura=${metadata.height}`);
+    
+    // Agora tentar converter para WebP (mais leve) com tratamento de erro
+    try {
+      return await sharp(inputBuffer)
+        .rotate() // Auto-rotação baseada em EXIF
+        .resize(800, null, { 
+          fit: 'inside',
+          withoutEnlargement: true 
+        })
+        .webp({ quality: 80 })
+        .toBuffer();
+    } catch (conversionError) {
+      console.error('Falha na conversão para WebP, tentando formato jpeg...', conversionError);
+      
+      // Se falhar com WebP, tentar JPEG como fallback
+      try {
+        return await sharp(inputBuffer)
+          .rotate()
+          .resize(800, null, { 
+            fit: 'inside',
+            withoutEnlargement: true 
+          })
+          .jpeg({ quality: 85 })
+          .toBuffer();
+      } catch (jpegError) {
+        console.error('Ambas as conversões falharam, usando original', jpegError);
+        return inputBuffer;
+      }
+    }
+  } catch (finalError) {
+    console.error('Erro grave no processamento da imagem:', finalError);
     return inputBuffer;
   }
 }
@@ -350,34 +382,81 @@ export async function proxyMedia(req: Request, res: Response) {
     console.log(`Baixando arquivo: ${url}`);
     
     // Fazer requisição para a URL da mídia com o token de autenticação
-    const mediaResponse = await axios({
-      method: 'get',
-      url: url,
-      responseType: 'arraybuffer',
-      headers: {
-        'Authorization': `Bearer ${server.apiToken}`,
-        'apikey': server.apiToken
-      },
-      timeout: 30000  // Timeout de 30 segundos
-    });
+    let mediaResponse;
+    try {
+      mediaResponse = await axios({
+        method: 'get',
+        url: url,
+        responseType: 'arraybuffer',
+        headers: {
+          'Authorization': `Bearer ${server.apiToken}`,
+          'apikey': server.apiToken
+        },
+        timeout: 30000,  // Timeout de 30 segundos
+        // Importante: não rejeitar status de erro para poder inspecionar a resposta
+        validateStatus: () => true
+      });
+    } catch (fetchError) {
+      console.error('Erro ao buscar mídia:', fetchError);
+      return res.status(500).json({
+        message: 'Erro ao buscar mídia',
+        error: fetchError.message
+      });
+    }
     
     if (mediaResponse.status !== 200) {
-      throw new Error(`Falha ao recuperar mídia: ${mediaResponse.status}`);
+      console.log(`Falha ao recuperar mídia: ${mediaResponse.status}`, {
+        url, 
+        status: mediaResponse.status,
+        headers: mediaResponse.headers
+      });
+      // Retornar uma imagem/arquivo de erro genérico
+      return res.status(404).json({
+        message: 'Mídia não encontrada',
+        status: mediaResponse.status
+      });
     }
+    
+    const contentBuffer = Buffer.from(mediaResponse.data);
+    
+    // Para mídias do WhatsApp (.enc), enviar diretamente sem conversão
+    const isEncrypted = url.includes('.enc') || (mimetype && mimetype.includes('enc'));
     
     // Processar diferente baseado no tipo de mídia
     if (type === 'image') {
-      // Para imagens, converter diretamente na memória
-      const convertedImageBuffer = await convertImage(Buffer.from(mediaResponse.data));
+      let outputBuffer;
       
-      // Enviar a imagem convertida
+      // Se for arquivo criptografado .enc, enviar sem processamento
+      if (isEncrypted) {
+        console.log('Detectado arquivo .enc do WhatsApp, enviando sem processamento');
+        outputBuffer = contentBuffer;
+      } else {
+        try {
+          // Tentar converter imagem
+          outputBuffer = await convertImage(contentBuffer);
+        } catch (convError) {
+          console.error('Erro na conversão da imagem, enviando original:', convError);
+          outputBuffer = contentBuffer;
+        }
+      }
+      
+      // Enviar a imagem
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache por 1 dia
-      return res.send(convertedImageBuffer);
+      return res.send(outputBuffer);
       
     } else if (type === 'video' || type === 'audio') {
-      // Para áudio e vídeo, precisamos salvar em arquivo e converter
-      fs.writeFileSync(tempFilePath, Buffer.from(mediaResponse.data));
+      // Para arquivos criptografados .enc, enviar sem conversão
+      if (isEncrypted) {
+        console.log('Detectado arquivo de áudio/vídeo .enc, enviando sem processamento');
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Length', contentBuffer.length);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.send(contentBuffer);
+      }
+      
+      // Para áudio e vídeo normais, tentamos processar
+      fs.writeFileSync(tempFilePath, contentBuffer);
       
       try {
         // Converter o arquivo
@@ -385,6 +464,13 @@ export async function proxyMedia(req: Request, res: Response) {
           await convertVideo(tempFilePath, outputFilePath);
         } else {
           await convertAudio(tempFilePath, outputFilePath);
+        }
+        
+        // Verificar se o arquivo de saída existe e tem tamanho válido
+        if (!fs.existsSync(outputFilePath) || fs.statSync(outputFilePath).size === 0) {
+          // Arquivo de saída inválido, usar o original
+          console.log('Arquivo convertido inválido, usando original');
+          fs.copyFileSync(tempFilePath, outputFilePath);
         }
         
         // Streaming do resultado
@@ -435,8 +521,8 @@ export async function proxyMedia(req: Request, res: Response) {
         console.error('Erro na conversão, enviando arquivo original:', conversionError);
         
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Content-Length', mediaResponse.data.length);
-        return res.send(mediaResponse.data);
+        res.setHeader('Content-Length', contentBuffer.length);
+        return res.send(contentBuffer);
       }
       
     } else {
