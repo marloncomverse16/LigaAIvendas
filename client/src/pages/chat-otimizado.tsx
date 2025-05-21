@@ -274,6 +274,147 @@ class DirectEvolutionService {
       };
     }
   }
+  
+  // Envia uma mídia (imagem, vídeo, documento, etc) para um chat
+  async sendMedia(chatId: string, mediaType: string, mediaUrl: string, caption: string = '') {
+    try {
+      console.log(`Enviando mídia do tipo ${mediaType} para ${chatId}`);
+      
+      // Remover qualquer sufixo do número para garantir compatibilidade
+      const cleanNumber = chatId.includes('@') 
+        ? chatId.split('@')[0] 
+        : chatId;
+      
+      // Validar o tipo de mídia
+      const validMediaTypes = ['image', 'video', 'audio', 'document'];
+      if (!validMediaTypes.includes(mediaType)) {
+        throw new Error(`Tipo de mídia deve ser um dos seguintes: ${validMediaTypes.join(', ')}`);
+      }
+      
+      // Payload para envio de mídia conforme Evolution API
+      // Corrigindo a estrutura do payload de acordo com a API
+      const payload = {
+        number: cleanNumber,
+        options: {
+          delay: 1200
+        },
+        mediaMessage: {
+          mediatype: mediaType,
+          media: mediaUrl,
+          caption: caption,
+          fileName: mediaUrl.split('/').pop() || `file.${this.getDefaultExtension(mediaType)}`
+        }
+      };
+      
+      console.log(`Enviando mídia com payload:`, JSON.stringify(payload, null, 2));
+      
+      // Usando o endpoint específico para envio de mídia
+      const apiUrl = this.apiUrl.endsWith('/') ? this.apiUrl.slice(0, -1) : this.apiUrl;
+      const endpoint = `/message/sendMedia/${this.instanceName}`;
+      const urlWithToken = `${apiUrl}${endpoint}?apikey=${this.apiKey}`;
+      
+      const response = await fetch(urlWithToken, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'apikey': this.apiKey,
+          'api_key': this.apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        console.error(`Erro HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Falha ao enviar mídia: ${errorText || response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log("Mídia enviada com sucesso:", result);
+      return { success: true, result };
+    } catch (error) {
+      console.error("Erro ao enviar mídia:", error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+  
+  // Envia um áudio no formato específico do WhatsApp (mensagem de voz)
+  async sendWhatsAppAudio(chatId: string, audioUrl: string) {
+    try {
+      console.log(`Enviando áudio WhatsApp para ${chatId}`);
+      
+      // Remover qualquer sufixo do número para garantir compatibilidade
+      const cleanNumber = chatId.includes('@') 
+        ? chatId.split('@')[0] 
+        : chatId;
+      
+      // Payload específico para mensagens de áudio WhatsApp
+      // A estrutura correta para envio de áudio precisa seguir o mesmo padrão
+      const payload = {
+        number: cleanNumber,
+        options: {
+          delay: 1200
+        },
+        audioMessage: {
+          audio: audioUrl
+        }
+      };
+      
+      console.log(`Enviando áudio com payload:`, JSON.stringify(payload, null, 2));
+      
+      // Usando o endpoint específico para envio de áudio
+      const apiUrl = this.apiUrl.endsWith('/') ? this.apiUrl.slice(0, -1) : this.apiUrl;
+      // sendPTT é o endpoint para envio de áudio no formato WhatsApp
+      const endpoint = `/message/sendPTT/${this.instanceName}`;
+      const urlWithToken = `${apiUrl}${endpoint}?apikey=${this.apiKey}`;
+      
+      const response = await fetch(urlWithToken, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'apikey': this.apiKey,
+          'api_key': this.apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        console.error(`Erro HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Falha ao enviar áudio: ${errorText || response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log("Áudio enviado com sucesso:", result);
+      return { success: true, result };
+    } catch (error) {
+      console.error("Erro ao enviar áudio WhatsApp:", error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+  
+  // Utilitário para obter a extensão padrão para um tipo de mídia
+  private getDefaultExtension(mediaType: string): string {
+    switch (mediaType.toLowerCase()) {
+      case 'image':
+        return 'jpg';
+      case 'video':
+        return 'mp4';
+      case 'audio':
+        return 'mp3';
+      case 'document':
+      default:
+        return 'pdf';
+    }
+  }
 
   // Normaliza a resposta dos chats para um formato consistente
   normalizeChats(response: any) {
