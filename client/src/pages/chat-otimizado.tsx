@@ -227,15 +227,14 @@ class DirectEvolutionService {
       
       console.log(`Número formatado para envio: ${cleanNumber}`);
       
-      // Formato exatamente igual ao que funciona no código server/api/evolution-message.ts
+      // Analisando o erro "Bad Request", parece que a API espera um formato específico
+      // A mensagem de erro diz que falta a propriedade "text", então vamos simplificar o formato
       const payload = {
         number: cleanNumber,
+        text: text,  // Colocando o texto diretamente aqui como indicado pelo erro
         options: {
           delay: 1200,
-          presence: true
-        },
-        textMessage: {
-          text: text
+          presence: "composing"
         }
       };
       
