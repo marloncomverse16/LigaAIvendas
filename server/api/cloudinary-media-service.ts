@@ -74,17 +74,87 @@ async function processMediaUrl(mediaUrl: string, mimeType?: string): Promise<str
 
     console.log(`[Cloudinary] Fazendo upload para Cloudinary (tipo: ${finalResourceType}, mime: ${finalMimeType})`);
     
-    // Fazer upload para o Cloudinary
-    const result = await cloudinary.uploader.upload(tempFilePath, {
+    // Fazer upload para o Cloudinary - forçando a extensão correta
+    let extension = '';
+    
+    // Determinar a extensão apropriada com base no tipo MIME e URL
+    if (mediaUrl.includes('/t62.7117-24/')) {
+      // Para áudios do WhatsApp (arquivos .enc são normalmente áudios)
+      extension = 'mp3';
+      finalResourceType = 'video'; // Cloudinary usa tipo video para áudios
+      finalMimeType = 'audio/mp3';
+    } else if (mediaUrl.includes('/v/t62.7118-24/')) {
+      // Para vídeos do WhatsApp
+      extension = 'mp4';
+      finalResourceType = 'video';
+      finalMimeType = 'video/mp4';
+    } else if (mediaUrl.includes('/t24/') || mediaUrl.includes('/v/t24/')) {
+      // Para imagens do WhatsApp
+      extension = 'jpg';
+      finalResourceType = 'image';
+      finalMimeType = 'image/jpeg';
+    } else if (finalMimeType.includes('audio')) {
+      extension = 'mp3';
+      finalResourceType = 'video'; // Cloudinary usa tipo video para áudios
+    } else if (finalMimeType.includes('video')) {
+      extension = 'mp4';
+      finalResourceType = 'video';
+    } else if (finalMimeType.includes('image')) {
+      extension = 'jpg';
+      finalResourceType = 'image';
+    } else {
+      // Padrão para outros tipos - usar imagem como tipo mais compatível
+      extension = 'jpg';
+      finalResourceType = 'auto';
+    }
+    
+    console.log(`[Cloudinary] Usando extensão forçada: ${extension}`);
+    
+    // Renomear o arquivo temporário para ter a extensão correta
+    const newTempFilePath = tempFilePath.replace(/\.[^.]+$/, '') + '.' + extension;
+    fs.renameSync(tempFilePath, newTempFilePath);
+    
+    // Configurar opções específicas para cada tipo de mídia
+    const uploadOptions: any = {
       resource_type: finalResourceType as any,
       folder: 'whatsapp_media',
       public_id: generatePublicId(mediaUrl),
-      format: fileExt.replace('.', ''),
       overwrite: true
-    });
+    };
+    
+    // Adicionar configurações otimizadas por tipo
+    if (finalResourceType === 'video' && finalMimeType.includes('audio')) {
+      // Opções específicas para áudio
+      uploadOptions.resource_type = 'video';
+      uploadOptions.audio_codec = 'aac';
+      uploadOptions.bit_rate = '128k';
+    } else if (finalResourceType === 'video') {
+      // Opções específicas para vídeo
+      uploadOptions.resource_type = 'video';
+      uploadOptions.video_codec = 'h264';
+      uploadOptions.bit_rate = '500k';
+    } else if (finalResourceType === 'image') {
+      // Opções específicas para imagem
+      uploadOptions.resource_type = 'image';
+      uploadOptions.quality = 'auto';
+      uploadOptions.fetch_format = 'auto';
+    }
+    
+    // Fazer upload com as opções específicas
+    console.log(`[Cloudinary] Enviando com opções:`, uploadOptions);
+    const result = await cloudinary.uploader.upload(newTempFilePath, uploadOptions);
 
     // Remover o arquivo temporário
-    fs.unlinkSync(tempFilePath);
+    try {
+      if (fs.existsSync(newTempFilePath)) {
+        fs.unlinkSync(newTempFilePath);
+      }
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+    } catch (cleanupError) {
+      console.log(`[Cloudinary] Aviso: Erro ao limpar arquivos temporários: ${cleanupError.message}`);
+    }
 
     console.log(`[Cloudinary] Upload bem-sucedido: ${result.secure_url}`);
     
