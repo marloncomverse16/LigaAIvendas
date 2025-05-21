@@ -195,9 +195,11 @@ export class EvolutionApiService {
     }
   }
 
-  // Enviar mensagem
+  // Enviar mensagem de texto
   public async sendMessage(to: string, message: string) {
     try {
+      console.log(`Enviando mensagem de texto para ${to}: ${message.substring(0, 20)}${message.length > 20 ? '...' : ''}`);
+      
       const response = await this.apiRequest(`/message/sendText/${this.instanceName}`, 'POST', {
         number: to,
         text: message
@@ -206,6 +208,68 @@ export class EvolutionApiService {
       return response;
     } catch (error) {
       console.error(`Erro ao enviar mensagem para ${to}:`, error);
+      throw error;
+    }
+  }
+  
+  // Enviar mídia (imagem, vídeo, documento) em base64
+  public async sendMedia(to: string, mediaType: "image" | "video" | "document", base64Data: string, caption: string = '') {
+    try {
+      console.log(`Enviando ${mediaType} para ${to}${caption ? ' com legenda' : ''}`);
+      
+      // Define o endpoint de acordo com o tipo de mídia
+      let endpoint = '';
+      switch (mediaType) {
+        case 'image':
+          endpoint = `/message/sendImage/${this.instanceName}`;
+          break;
+        case 'video':
+          endpoint = `/message/sendVideo/${this.instanceName}`;
+          break;
+        case 'document':
+          endpoint = `/message/sendDocument/${this.instanceName}`;
+          break;
+        default:
+          throw new Error(`Tipo de mídia não suportado: ${mediaType}`);
+      }
+      
+      // Monta o payload com os parâmetros necessários
+      const payload = {
+        number: to,
+        base64: base64Data,
+        caption: caption,
+        // Alguns parâmetros específicos para documentos
+        ...(mediaType === 'document' && {
+          fileName: `documento_${Date.now()}.pdf`, // Nome padrão
+          mimetype: 'application/pdf' // MIME type padrão
+        })
+      };
+      
+      const response = await this.apiRequest(endpoint, 'POST', payload);
+      return response;
+    } catch (error) {
+      console.error(`Erro ao enviar ${mediaType} para ${to}:`, error);
+      throw error;
+    }
+  }
+  
+  // Método específico para enviar áudio - tem particularidades no WhatsApp
+  public async sendWhatsAppAudio(to: string, base64Audio: string) {
+    try {
+      console.log(`Enviando áudio para ${to}`);
+      
+      // Endpoint específico para áudio
+      const endpoint = `/message/sendPtt/${this.instanceName}`;
+      
+      // O WhatsApp trata áudio de forma diferente (Ptt - Push To Talk)
+      const response = await this.apiRequest(endpoint, 'POST', {
+        number: to,
+        base64Ptt: base64Audio
+      });
+      
+      return response;
+    } catch (error) {
+      console.error(`Erro ao enviar áudio para ${to}:`, error);
       throw error;
     }
   }

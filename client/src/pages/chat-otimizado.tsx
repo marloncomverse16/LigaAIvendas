@@ -890,24 +890,86 @@ export default function ChatOtimizado() {
     
     try {
       const chatId = selectedChat.remoteJid || selectedChat.id;
-      console.log(`Enviando mensagem para ${chatId}: "${values.text}"`);
-      
-      // Criar uma mensagem otimista para mostrar imediatamente na interface
+      const timestamp = Math.floor(Date.now() / 1000);
       const localMsgId = `local-${Date.now()}`;
-      const optimisticMsg = {
-        id: localMsgId,
-        key: {
+      let optimisticMsg;
+      let result;
+      
+      // Verifica se estamos enviando mídia ou mensagem de texto
+      if (showMediaPanel && mediaType && mediaBase64) {
+        console.log(`Enviando ${mediaType} para ${chatId}`);
+        
+        // Texto da legenda (pode vir do campo de mídia ou do campo de texto)
+        const caption = mediaCaption || values.text || '';
+        
+        // Criar uma mensagem otimista para mostrar imediatamente na interface
+        // Estrutura adaptada para mostrar que é uma mídia
+        optimisticMsg = {
           id: localMsgId,
+          key: {
+            id: localMsgId,
+            fromMe: true,
+            remoteJid: chatId
+          },
+          message: {
+            // A mensagem vai conter uma indicação do tipo de mídia
+            conversation: `[${mediaType.toUpperCase()}]${caption ? ' ' + caption : ''}`
+          },
+          messageTimestamp: timestamp,
           fromMe: true,
-          remoteJid: chatId
-        },
-        message: {
-          conversation: values.text
-        },
-        messageTimestamp: Math.floor(Date.now() / 1000),
-        fromMe: true,
-        status: 'sending'
-      };
+          status: 'sending',
+          // Propriedades adicionais para identificar que é uma mídia
+          isMedia: true,
+          mediaType: mediaType
+        };
+        
+        // Limpar o estado de mídia
+        setTimeout(() => {
+          setShowMediaPanel(false);
+          setMediaType(null);
+          setMediaPreview(null);
+          setMediaBase64(null);
+          setMediaCaption('');
+        }, 100);
+        
+        // Envia a mídia para o servidor de acordo com o tipo
+        switch (mediaType) {
+          case "image":
+            result = await service.sendMedia(chatId, "image", mediaBase64, caption);
+            break;
+          case "audio":
+            result = await service.sendWhatsAppAudio(chatId, mediaBase64);
+            break;
+          case "video":
+            result = await service.sendMedia(chatId, "video", mediaBase64, caption);
+            break;
+          case "document":
+            result = await service.sendMedia(chatId, "document", mediaBase64, caption);
+            break;
+        }
+      } else {
+        // Envio normal de mensagem de texto
+        console.log(`Enviando mensagem para ${chatId}: "${values.text}"`);
+        
+        // Criar uma mensagem otimista para mostrar imediatamente na interface
+        optimisticMsg = {
+          id: localMsgId,
+          key: {
+            id: localMsgId,
+            fromMe: true,
+            remoteJid: chatId
+          },
+          message: {
+            conversation: values.text
+          },
+          messageTimestamp: timestamp,
+          fromMe: true,
+          status: 'sending'
+        };
+        
+        // Enviar a mensagem de texto para o servidor
+        result = await service.sendMessage(chatId, values.text);
+      }
       
       // Adicionar a mensagem otimista ao estado local
       const existingMessages = messagesByChatId[chatId] || [];
@@ -923,7 +985,7 @@ export default function ChatOtimizado() {
       // Atualizar o último timestamp para evitar recarregar a mensagem que acabamos de adicionar
       setLastMessageTimestamp(prev => ({
         ...prev,
-        [chatId]: Math.floor(Date.now() / 1000)
+        [chatId]: timestamp
       }));
       
       // Rolar para a nova mensagem
@@ -936,9 +998,6 @@ export default function ChatOtimizado() {
       
       // Focar no campo de texto para permitir enviar outra mensagem
       form.setFocus("text");
-      
-      // Agora enviar a mensagem real para o servidor
-      const result = await service.sendMessage(chatId, values.text);
       
       // Verificar se houve erro no envio
       if (result && result.success === false) {
@@ -1249,7 +1308,7 @@ export default function ChatOtimizado() {
                   <input 
                     type="file" 
                     ref={fileInputRef}
-                    onChange={handleFileSelect}
+                    onChange={(e) => handleFileSelect(e)}
                     accept="image/*,audio/*,video/*,application/*"
                     style={{ display: 'none' }} 
                   />
