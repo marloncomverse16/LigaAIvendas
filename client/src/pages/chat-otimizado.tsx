@@ -923,29 +923,46 @@ export default function ChatOtimizado() {
           mediaType: mediaType
         };
         
-        // Limpar o estado de mídia
-        setTimeout(() => {
+        try {
+          console.log(`Preparando envio de ${mediaType} para ${chatId} (tamanho base64: ${mediaBase64.length} caracteres)`);
+          
+          // Envia a mídia para o servidor de acordo com o tipo
+          switch (mediaType) {
+            case "image":
+              result = await service.sendMedia(chatId, "image", mediaBase64, caption);
+              console.log(`Imagem enviada com sucesso para ${chatId}`);
+              break;
+            case "audio":
+              result = await service.sendWhatsAppAudio(chatId, mediaBase64);
+              console.log(`Áudio enviado com sucesso para ${chatId}`);
+              break;
+            case "video":
+              result = await service.sendMedia(chatId, "video", mediaBase64, caption);
+              console.log(`Vídeo enviado com sucesso para ${chatId}`);
+              break;
+            case "document":
+              result = await service.sendMedia(chatId, "document", mediaBase64, caption);
+              console.log(`Documento enviado com sucesso para ${chatId}`);
+              break;
+          }
+          
+          // Limpar o estado de mídia após o envio
           setShowMediaPanel(false);
           setMediaType(null);
           setMediaPreview(null);
           setMediaBase64(null);
           setMediaCaption('');
-        }, 100);
-        
-        // Envia a mídia para o servidor de acordo com o tipo
-        switch (mediaType) {
-          case "image":
-            result = await service.sendMedia(chatId, "image", mediaBase64, caption);
-            break;
-          case "audio":
-            result = await service.sendWhatsAppAudio(chatId, mediaBase64);
-            break;
-          case "video":
-            result = await service.sendMedia(chatId, "video", mediaBase64, caption);
-            break;
-          case "document":
-            result = await service.sendMedia(chatId, "document", mediaBase64, caption);
-            break;
+        } catch (error) {
+          console.error(`Erro ao enviar ${mediaType}:`, error);
+          toast({
+            title: `Erro ao enviar ${mediaType}`,
+            description: error instanceof Error ? error.message : String(error),
+            variant: "destructive"
+          });
+          
+          // Atualizar a mensagem otimista para mostrar que falhou
+          updateOptimisticMessage(localMsgId, { status: "failed" });
+          return; // Encerra o processamento em caso de erro
         }
       } else {
         // Envio normal de mensagem de texto
