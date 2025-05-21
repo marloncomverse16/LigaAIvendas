@@ -1331,7 +1331,11 @@ export default function ChatOtimizado() {
                 <div>
                   {/* Painel de mídia */}
                   {showMediaPanel && (
-                    <div className="p-4 border rounded-md mb-2 bg-gray-50 dark:bg-gray-800">
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      console.log("Formulário de mídia enviado");
+                      onSubmit(form.getValues());
+                    }} className="p-4 border rounded-md mb-2 bg-gray-50 dark:bg-gray-800">
                       <div className="flex justify-between items-center mb-2">
                         <h4 className="font-medium">
                           {mediaType === "image" && "Imagem"}
@@ -1388,11 +1392,7 @@ export default function ChatOtimizado() {
                       />
                       
                       <Button 
-                        type="button" 
-                        onClick={() => {
-                          form.handleSubmit(onSubmit)();
-                          console.log("Botão de enviar mídia clicado");
-                        }}
+                        type="submit" 
                         className="w-full bg-green-600 hover:bg-green-700 text-white"
                         disabled={!connected || loading || form.formState.isSubmitting}
                       >
@@ -1405,7 +1405,7 @@ export default function ChatOtimizado() {
                           </>
                         )}
                       </Button>
-                    </div>
+                    </form>
                   )}
                 
                   {/* Campo de upload oculto */}
