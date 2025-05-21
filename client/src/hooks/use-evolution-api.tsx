@@ -36,7 +36,7 @@ export function useEvolutionApi() {
         // Valores padrão para desenvolvimento
         const defaultConfig = {
           apiUrl: "https://api.primerastreadores.com",
-          apiToken: "4db623449606bcf2814521b73657dbc0",
+          apiToken: "4db623449606bcf2814521b73657dbc0", // Token fixo para desenvolvimento
           instanceId: "admin"
         };
         
