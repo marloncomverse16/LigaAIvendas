@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip, ExternalLink } from 'lucide-react';
+import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip, ExternalLink, Eye, Video, Headphones } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -1310,72 +1310,74 @@ export default function ChatOtimizado() {
                         )}
                         {msg.message?.imageMessage ? (
                           <div className="mb-1 relative">
-                            <div className="flex items-center justify-between p-2 border rounded-md bg-green-50 dark:bg-gray-700/50 border-green-200 dark:border-gray-600 w-[240px]">
-                              <div className="flex items-center">
-                                <div className="bg-green-100 dark:bg-gray-700 p-2 rounded-md">
-                                  <ImageIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
-                                </div>
-                                <div className="ml-2">
-                                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                    {msg.message.imageMessage.caption || 'Imagem'}
-                                  </p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Imagem compartilhada
-                                  </p>
-                                </div>
+                            <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 border border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center mb-2">
+                                <ImageIcon className="text-green-600 dark:text-green-400 mr-2 h-5 w-5" />
+                                <span className="text-sm font-medium">{msg.message.imageMessage.caption || 'Imagem compartilhada'}</span>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-green-600 dark:text-green-400"
-                                onClick={() => {
-                                  try {
+                              <div className="flex justify-center">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="w-full bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800/30 hover:bg-green-50 dark:hover:bg-gray-600"
+                                  onClick={() => {
                                     if (msg.message?.imageMessage?.url) {
                                       window.open(msg.message.imageMessage.url, '_blank');
                                     }
-                                  } catch (error) {
-                                    console.error("Erro ao abrir imagem:", error);
-                                  }
-                                }}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                                <span className="sr-only">Abrir imagem</span>
-                              </Button>
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Visualizar imagem
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ) : msg.message?.videoMessage ? (
                           <div className="mb-1 relative">
-                            <div className="flex items-center justify-between p-2 border rounded-md bg-blue-50 dark:bg-gray-700/50 border-blue-200 dark:border-gray-600 w-[240px]">
-                              <div className="flex items-center">
-                                <div className="bg-blue-100 dark:bg-gray-700 p-2 rounded-md">
-                                  <Video className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                </div>
-                                <div className="ml-2">
-                                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                    {msg.message.videoMessage.caption || 'Vídeo'}
-                                  </p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Vídeo compartilhado
-                                  </p>
-                                </div>
+                            <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 border border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center mb-2">
+                                <Video className="text-blue-600 dark:text-blue-400 mr-2 h-5 w-5" />
+                                <span className="text-sm font-medium">{msg.message.videoMessage.caption || 'Vídeo compartilhado'}</span>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-blue-600 dark:text-blue-400"
-                                onClick={() => {
-                                  try {
+                              <div className="flex justify-center">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="w-full bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/30 hover:bg-blue-50 dark:hover:bg-gray-600"
+                                  onClick={() => {
                                     if (msg.message?.videoMessage?.url) {
                                       window.open(msg.message.videoMessage.url, '_blank');
                                     }
-                                  } catch (error) {
-                                    console.error("Erro ao abrir vídeo:", error);
-                                  }
-                                }}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                                <span className="sr-only">Abrir vídeo</span>
-                              </Button>
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Visualizar vídeo
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : msg.message?.audioMessage ? (
+                          <div className="mb-1 relative">
+                            <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 border border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center mb-2">
+                                <Headphones className="text-purple-600 dark:text-purple-400 mr-2 h-5 w-5" />
+                                <span className="text-sm font-medium">Mensagem de áudio</span>
+                              </div>
+                              <div className="flex justify-center">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="w-full bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800/30 hover:bg-purple-50 dark:hover:bg-gray-600"
+                                  onClick={() => {
+                                    if (msg.message?.audioMessage?.url) {
+                                      window.open(msg.message.audioMessage.url, '_blank');
+                                    }
+                                  }}
+                                >
+                                  <Headphones className="h-4 w-4 mr-2" />
+                                  Ouvir áudio
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ) : (
