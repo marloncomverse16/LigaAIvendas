@@ -5,6 +5,7 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import { storage } from '../storage';
+import https from 'https';
 
 /**
  * Middleware para servir mídia diretamente com headers corretos
@@ -40,16 +41,26 @@ export async function directMediaProxy(req: Request, res: Response) {
 
     console.log(`[Media Proxy] Fazendo proxy para: ${url}`);
     
+    // Criar instância do Axios com configuração para ignorar erros SSL
+    const instance = axios.create({
+      httpsAgent: new https.Agent({  
+        rejectUnauthorized: false // Ignorar erros de certificado SSL
+      }),
+      timeout: 30000 // Timeout de 30 segundos
+    });
+    
     // Fazer requisição para a URL da mídia com o token de autenticação
-    const mediaResponse = await axios({
+    const mediaResponse = await instance({
       method: 'get',
       url: url,
       responseType: 'arraybuffer',
       headers: {
         'Authorization': `Bearer ${server.apiToken}`,
-        'apikey': server.apiToken
-      },
-      timeout: 30000  // Timeout de 30 segundos
+        'apikey': server.apiToken,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Cache-Control': 'no-cache'
+      }
     });
 
     // Detectar tipo de conteúdo
@@ -133,16 +144,26 @@ export async function audioProxy(req: Request, res: Response) {
 
     console.log(`[Audio Proxy] Processando áudio: ${url}`);
     
+    // Criar instância do Axios com configuração para ignorar erros SSL
+    const instance = axios.create({
+      httpsAgent: new https.Agent({  
+        rejectUnauthorized: false // Ignorar erros de certificado SSL
+      }),
+      timeout: 30000 // Timeout de 30 segundos
+    });
+    
     // Fazer requisição para a URL do áudio com o token de autenticação
-    const mediaResponse = await axios({
+    const mediaResponse = await instance({
       method: 'get',
       url: url,
       responseType: 'arraybuffer',
       headers: {
         'Authorization': `Bearer ${server.apiToken}`,
-        'apikey': server.apiToken
-      },
-      timeout: 30000  // Timeout de 30 segundos
+        'apikey': server.apiToken,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Cache-Control': 'no-cache'
+      }
     });
 
     // Para áudios, sempre definir o tipo como audio/mpeg para maior compatibilidade

@@ -222,11 +222,15 @@ export function MessageMediaRenderer({
   const getProxyUrl = () => {
     if (!mediaUrl) return '';
     
-    // Usar proxy específico para áudio, caso contrário usar proxy genérico
-    if (mediaType === 'audio' && isWhatsAppAudio) {
+    // Usar proxy específico para cada tipo de mídia
+    if (mediaType === 'audio') {
       return `/api/audio-proxy?url=${encodeURIComponent(mediaUrl)}`;
+    } else if (mediaType === 'image') {
+      return `/api/media-proxy?url=${encodeURIComponent(mediaUrl)}&type=image`;
+    } else if (mediaType === 'video') {
+      return `/api/media-proxy?url=${encodeURIComponent(mediaUrl)}&type=video`;
     } else {
-      return `/api/media-proxy?url=${encodeURIComponent(mediaUrl)}`;
+      return `/api/media-proxy?url=${encodeURIComponent(mediaUrl)}&type=${mediaType}`;
     }
   };
   
