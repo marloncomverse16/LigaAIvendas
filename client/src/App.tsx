@@ -14,6 +14,7 @@ import ConnectionPage from "@/pages/connection-page";
 // import ChatPage from "@/pages/chat-page";
 import ChatWebView from "@/pages/chat-page-new";
 import ChatTestPage from "@/pages/chat-test-page";
+import NewChatPage from "@/pages/new-chat-page";
 import MessageSendingPage from "@/pages/message-sending-page";
 import AdminUsersPage from "@/pages/admin-users-page";
 import UserPermissionsPage from "@/pages/user-permissions-page";

@@ -1,687 +1,519 @@
 /**
- * API de conexões para o WhatsApp
- * Este módulo fornece endpoints para conectar ao WhatsApp usando:
- * 1. Código QR (Evolution API com instâncias Baileys)
- * 2. API oficial do WhatsApp Cloud (para contas Business verificadas)
+ * Módulo para gerenciar conexões com a Evolution API
  */
 
 import { Request, Response } from "express";
 import axios from "axios";
-import { EvolutionApiClient } from "../evolution-api";
-import { db } from "../db";
-import { eq } from "drizzle-orm";
-import { userServers, servers, users } from "../../shared/schema";
-import { notifyContactsWebhook } from "./webhook-notifier";
-
-
-// Mantém o status da conexão por usuário
-interface ConnectionStatus {
-  connected: boolean;
-  qrCode?: string;
-  lastUpdated: Date;
-  method?: 'qrcode' | 'cloud'; // Indica qual método está sendo usado
-  phoneNumber?: string; // Para conexão via Cloud API
-  businessId?: string; // Para conexão via Cloud API
-  cloudConnection?: boolean; // Flag para conexão Cloud
-  n8nConnected?: boolean; // Flag para conexão via n8n
-}
-
-// Status da conexão por usuário
-const connectionStatus: Record<number, ConnectionStatus> = {};
+import { storage } from "../storage";
 
 /**
- * Obtém o servidor associado ao usuário
- */
-async function fetchUserServer(userId: number) {
-  try {
-    console.log(`Buscando servidor para o usuário ${userId}...`);
-    
-    // Usar Drizzle em vez de SQL bruto
-    const userServersData = await db.query.userServers.findMany({
-      where: eq(userServers.userId, userId),
-      with: {
-        server: true
-      }
-    });
-    
-    console.log(`Encontradas ${userServersData.length} relações para o usuário ${userId}`);
-    
-    // Filtrar apenas servidores ativos
-    const activeServerRelation = userServersData.find(relation => relation.server.active);
-    
-    if (!activeServerRelation) {
-      console.log(`Nenhum servidor ativo encontrado para o usuário ${userId}`);
-      return null;
-    }
-    
-    console.log(`Usando servidor ${activeServerRelation.server.name} para o usuário ${userId}`);
-    return activeServerRelation.server;
-  } catch (error) {
-    console.error("Erro ao buscar servidor do usuário:", error);
-    return null;
-  }
-}
-
-/**
- * Endpoint para obter QR Code e conectar via Evolution API
- * Método: POST
- */
-export async function getWhatsAppQrCode(req: Request, res: Response) {
-  if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-  
-  try {
-    const userId = req.user!.id;
-    
-    // Obtém dados do servidor associado ao usuário
-    const server = await fetchUserServer(userId);
-    
-    if (!server) {
-      return res.status(404).json({ 
-        message: "Servidor não encontrado. Por favor, entre em contato com o administrador."
-      });
-    }
-    
-    // Verifica se as credenciais necessárias existem
-    if (!server.apiUrl || !server.apiToken) {
-      return res.status(400).json({ 
-        message: "Configuração de servidor incompleta. Entre em contato com o administrador."
-      });
-    }
-
-    // Usa o nome de usuário como nome da instância
-    const instanceId = req.user!.username;
-
-    // Cria cliente para Evolution API
-    const evolutionClient = new EvolutionApiClient(
-      server.apiUrl,
-      server.apiToken,
-      instanceId
-    );
-
-    console.log(`Tentando deletar instância existente (se houver): ${instanceId}`);
-    
-    // Tenta excluir a instância existente se houver
-    try {
-      await evolutionClient.deleteInstance();
-      console.log(`Instância existente excluída: ${instanceId}`);
-    } catch (deleteError) {
-      // Ignora erros - a instância pode não existir
-      console.log(`Nenhuma instância encontrada ou erro ao excluir: ${instanceId}`);
-    }
-
-    console.log(`Criando nova instância do WhatsApp: ${instanceId}`);
-    
-    // Cria uma nova instância
-    try {
-      const createResult = await evolutionClient.createInstance();
-      console.log("Instância criada com sucesso:", createResult);
-    } catch (createError) {
-      console.error("Erro ao criar instância:", createError);
-      return res.status(500).json({ 
-        message: "Erro ao criar instância do WhatsApp. Tente novamente mais tarde."
-      });
-    }
-
-    console.log(`Obtendo QR Code para a instância: ${instanceId}`);
-    
-    // Obtém QR code
-    try {
-      const qrResult = await evolutionClient.getQrCode();
-      
-      console.log("QR Code obtido:", JSON.stringify(qrResult).substring(0, 200) + "...");
-      
-      // Verifique se a resposta foi bem-sucedida e se tem o QR code
-      if (qrResult && qrResult.success && qrResult.qrCode) {
-        // Atualiza o status da conexão
-        connectionStatus[userId] = {
-          connected: false,
-          qrCode: qrResult.qrCode,
-          lastUpdated: new Date(),
-          method: 'qrcode'
-        };
-        
-        // Notificar webhook de contatos sobre a geração do QR Code
-        try {
-          console.log(`Notificando webhook de contatos que o QR Code foi gerado para o usuário ${userId}`);
-          
-          // Notificar webhook de forma assíncrona (não aguardar resposta)
-          notifyContactsWebhook(
-            server.id, 
-            userId, 
-            req.user!.username,
-            'qrcode_generated',
-            {
-              instance: instanceId,
-              timestamp: new Date().toISOString(),
-              connected: false
-            }
-          ).then(success => {
-            console.log(`Notificação de webhook para QR Code ${success ? 'enviada com sucesso' : 'falhou'}`);
-          }).catch(err => {
-            console.error('Erro ao notificar webhook:', err);
-          });
-        } catch (webhookError) {
-          // Apenas registrar erro, não interromper o fluxo principal
-          console.error('Erro ao preparar notificação de webhook:', webhookError);
-        }
-        
-        // Retorna QR code para o cliente
-        return res.status(200).json({ 
-          qrcode: qrResult.qrCode,
-          message: "Escaneie o código QR com seu WhatsApp"
-        });
-      } else if (qrResult && qrResult.connected) {
-        // Já está conectado
-        connectionStatus[userId] = {
-          connected: true,
-          lastUpdated: new Date(),
-          method: 'qrcode'
-        };
-        
-        // Notificar webhook de contatos sobre a conexão já existente
-        try {
-          console.log(`Notificando webhook de contatos que o WhatsApp já está conectado para o usuário ${userId}`);
-          
-          // Notificar webhook de forma assíncrona (não aguardar resposta)
-          notifyContactsWebhook(
-            server.id, 
-            userId, 
-            req.user!.username,
-            'already_connected',
-            {
-              instance: instanceId,
-              timestamp: new Date().toISOString(),
-              connected: true
-            }
-          ).then(success => {
-            console.log(`Notificação de webhook para conexão existente ${success ? 'enviada com sucesso' : 'falhou'}`);
-          }).catch(err => {
-            console.error('Erro ao notificar webhook:', err);
-          });
-        } catch (webhookError) {
-          // Apenas registrar erro, não interromper o fluxo principal
-          console.error('Erro ao preparar notificação de webhook:', webhookError);
-        }
-        
-        return res.status(200).json({ 
-          connected: true,
-          message: "WhatsApp já está conectado!"
-        });
-      } else {
-        console.error("Resposta sem QR code:", qrResult);
-        throw new Error("QR Code não encontrado na resposta: " + (qrResult.error || "Erro desconhecido"));
-      }
-    } catch (error: any) {
-      console.error("Erro ao obter QR code:", error);
-      return res.status(500).json({ 
-        message: "Erro ao obter QR code: " + (error.message || "Erro desconhecido")
-      });
-    }
-  } catch (error) {
-    console.error("Erro geral na rota de QR code:", error);
-    return res.status(500).json({ 
-      message: "Ocorreu um erro ao processar sua solicitação."
-    });
-  }
-}
-
-/**
- * Endpoint para conectar via WhatsApp Cloud API através do n8n
- * Método: POST
- */
-export async function connectWhatsAppCloud(req: Request, res: Response) {
-  if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-
-  try {
-    const userId = req.user!.id;
-    const { phoneNumber, businessId } = req.body;
-    
-    if (!phoneNumber || !businessId) {
-      return res.status(400).json({ 
-        message: "Identificação do número e Business ID são obrigatórios" 
-      });
-    }
-    
-    // Obtém dados do usuário diretamente (a forma mais simples)
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId)
-    });
-    
-    if (!user) {
-      return res.status(404).json({ 
-        message: "Usuário não encontrado" 
-      });
-    }
-    
-    // Remove qualquer instância existente na Evolution API
-    try {
-      // Obter servidor associado ao usuário
-      const server = await fetchUserServer(userId);
-      
-      if (server && server.apiUrl && server.apiToken) {
-        const instanceId = user.username;
-        console.log(`Removendo instância WhatsApp existente para usuário: ${instanceId}`);
-        
-        try {
-          const evolutionClient = new EvolutionApiClient(
-            server.apiUrl,
-            server.apiToken,
-            instanceId
-          );
-          
-          // Tentar desconectar e excluir instância existente
-          await evolutionClient.disconnect().catch(e => console.log("Erro ao desconectar:", e));
-          await evolutionClient.deleteInstance().catch(e => console.log("Erro ao excluir instância:", e));
-          
-          console.log(`Instância Evolution API excluída com sucesso: ${instanceId}`);
-        } catch (evolutionError) {
-          console.log("Erro ao limpar instância Evolution API:", evolutionError);
-          // Continuamos mesmo com erro
-        }
-      }
-    } catch (serverError) {
-      console.log("Erro ao buscar servidor:", serverError);
-      // Continuamos mesmo com erro
-    }
-    
-    console.log(`Configurando conexão WhatsApp Cloud API via n8n para usuário: ${userId}`);
-    
-    // Verificar se temos um webhook URL do n8n configurado para o usuário
-    if (!user.whatsappWebhookUrl) {
-      console.warn("Usuário não possui webhook URL do n8n configurado");
-      return res.status(400).json({
-        success: false,
-        message: "Não há um webhook de WhatsApp configurado para este usuário. Contate o administrador."
-      });
-    }
-    
-    try {
-      // Buscar o servidor para obter a URL do n8n
-      const server = await fetchUserServer(userId);
-      if (!server || !server.n8nApiUrl) {
-        return res.status(400).json({
-          success: false,
-          message: "URL da API do N8N não configurada. Configure o servidor com a URL da API do N8N."
-        });
-      }
-      
-      console.log(`URL da API N8N configurada: ${server.n8nApiUrl}`);
-      
-      // 1. Criar credenciais diretamente na API do n8n
-      console.log("Tentando criar credenciais diretamente na API do n8n");
-      
-      try {
-        // Formata a URL correta para a API do n8n
-        const n8nApiUrl = server.n8nApiUrl.endsWith('/') 
-          ? server.n8nApiUrl + 'credentials' 
-          : server.n8nApiUrl + '/credentials';
-        
-        console.log(`Enviando POST para API do n8n: ${n8nApiUrl}`);
-        
-        // Criar a credencial do WhatsApp Cloud API no n8n
-        const credentialResponse = await axios.post(n8nApiUrl, {
-          name: `WhatsApp Cloud ${user.username} - ${phoneNumber}`,
-          type: "whatsAppTwilio", // Tipo de credencial do WhatsApp no n8n
-          data: {
-            phoneNumberId: phoneNumber,
-            businessAccountId: businessId,
-            token: server.apiToken || process.env.EVOLUTION_API_TOKEN || ''
-          }
-        }, {
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          }
-        });
-        
-        console.log("Resposta da criação de credencial:", credentialResponse.status);
-        console.log("Dados da credencial:", JSON.stringify(credentialResponse.data));
-        
-        // 2. Agora notificamos o webhook sobre a criação bem-sucedida
-        console.log(`Notificando webhook sobre a credencial: ${user.whatsappWebhookUrl}`);
-        
-        const webhookResponse = await axios.get(user.whatsappWebhookUrl, {
-          params: {
-            action: "register_whatsapp_cloud",
-            userId: userId,
-            username: user.username,
-            phoneNumber: phoneNumber,
-            businessId: businessId,
-            credentialId: credentialResponse.data.id,
-            timestamp: new Date().toISOString()
-          }
-        });
-        
-        console.log("Resposta do webhook n8n:", webhookResponse.status);
-      } catch (apiError) {
-        console.error("Erro ao criar credencial na API do n8n:", apiError);
-        
-        // Tentar webhook como fallback se a API direta falhar
-        console.log("Tentando usar webhook como fallback");
-        
-        const webhookResponse = await axios.get(user.whatsappWebhookUrl, {
-          params: {
-            action: "register_whatsapp_cloud",
-            userId: userId,
-            username: user.username,
-            phoneNumber: phoneNumber,
-            businessId: businessId,
-            timestamp: new Date().toISOString(),
-            n8nApiUrl: server.n8nApiUrl
-          }
-        });
-        
-        console.log("Resposta do webhook n8n (fallback):", webhookResponse.status);
-      }
-      
-      // Registra a conexão localmente
-      connectionStatus[userId] = {
-        connected: true,
-        lastUpdated: new Date(),
-        method: 'cloud',
-        phoneNumber: phoneNumber,
-        businessId: businessId,
-        cloudConnection: true,
-        n8nConnected: true
-      };
-      
-      // Retorna sucesso
-      return res.status(200).json({
-        success: true,
-        phoneNumber: phoneNumber,
-        businessId: businessId,
-        message: "WhatsApp Business API conectado com sucesso via n8n"
-      });
-    } catch (webhookError) {
-      console.error("Erro ao registrar no n8n:", webhookError);
-      return res.status(500).json({
-        success: false,
-        message: "Erro ao registrar credenciais no n8n. Verifique se o webhook está configurado corretamente."
-      });
-    }
-  } catch (error) {
-    console.error("Erro ao conectar WhatsApp Cloud API:", error);
-    return res.status(500).json({ 
-      message: "Erro ao conectar WhatsApp Cloud API."
-    });
-  }
-}
-
-/**
- * Endpoint para verificar status da conexão
- * Método: GET
+ * Verifica o status da conexão com a Evolution API
  */
 export async function checkConnectionStatus(req: Request, res: Response) {
   if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
   
   try {
-    const userId = req.user!.id;
+    const userId = (req.user as Express.User).id;
+    const user = await storage.getUser(userId);
     
-    // Se não houver registro de conexão, considera desconectado
-    if (!connectionStatus[userId]) {
-      return res.status(200).json({
-        connected: false,
-        lastUpdated: new Date()
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+    
+    // Obter informações do servidor atual
+    const userServer = await storage.getUserServers(userId);
+    if (!userServer || userServer.length === 0 || !userServer[0].server) {
+      return res.status(400).json({ message: "Servidor não configurado para este usuário" });
+    }
+    
+    const server = userServer[0].server;
+    const instanceName = user.username; // Usa o nome do usuário como instância
+    
+    // Verificar se temos as informações necessárias
+    if (!server.apiUrl || !server.apiToken) {
+      return res.status(400).json({ 
+        message: "Configuração de API incompleta", 
+        details: "URL da API ou token não configurados"
       });
     }
     
-    // Se for conexão cloud, vamos também verificar se a instância existe na Evolution API
-    if (connectionStatus[userId].method === 'cloud') {
-      const server = await fetchUserServer(userId);
+    // Configurar headers para a requisição
+    const headers = {
+      'Content-Type': 'application/json',
+      'apikey': server.apiToken,
+      'Authorization': `Bearer ${server.apiToken}`,
+      'AUTHENTICATION_API_KEY': server.apiToken
+    };
+    
+    console.log(`Verificando status de conexão em: ${server.apiUrl}/manager/instance/connectionState/${instanceName}`);
+    
+    try {
+      const statusResponse = await axios.get(
+        `${server.apiUrl}/manager/instance/connectionState/${instanceName}`,
+        { headers }
+      );
       
-      if (server && server.apiUrl && server.apiToken) {
-        // Usa o nome de usuário como nome da instância
-        const instanceId = req.user!.username;
+      console.log(`Status obtido com sucesso: ${JSON.stringify(statusResponse.data).substring(0, 100)}...`);
+      
+      const status = {
+        success: true,
+        connected: statusResponse.data?.state === 'open' || statusResponse.data?.connected,
+        data: statusResponse.data,
+        endpoint: `${server.apiUrl}/manager/instance/connectionState/${instanceName}`
+      };
+      
+      // Se recebermos HTML em vez de JSON (comum em algumas versões da Evolution API)
+      if (typeof statusResponse.data === 'string' && statusResponse.data.includes('<!doctype html>')) {
+        console.log("Recebemos HTML em vez de JSON, tentando endpoint alternativo");
         
+        // Tentar endpoint alternativo
         try {
-          // Verificar se a instância existe e está conectada
-          const evolutionClient = new EvolutionApiClient(
-            server.apiUrl,
-            server.apiToken,
-            instanceId
+          const directResponse = await axios.get(
+            `${server.apiUrl}/instance/connect/${instanceName}`,
+            { headers }
           );
           
-          const statusResult = await evolutionClient.checkConnectionStatus();
-          console.log("Status da conexão Cloud API:", statusResult);
+          console.log(`Resposta do endpoint direto: ${JSON.stringify(directResponse.data)}`);
           
-          // Se a instância existe, atualiza o status com o status real
-          if (statusResult && (statusResult.success || 
-                              statusResult.data?.state === 'open' || 
-                              statusResult.data?.connected)) {
-            console.log("Instância Cloud API está conectada");
+          const isConnected = directResponse.data?.instance?.state === 'open' || 
+                             directResponse.data?.state === 'open' || 
+                             directResponse.data?.connected;
+          
+          if (isConnected) {
+            console.log("🟢 CONECTADO: Estado 'open' na instância detectado");
+            console.log("Estado final da conexão: ✅ CONECTADO");
             
-            // Retorna status com informações da conexão cloud
             return res.status(200).json({
               connected: true,
-              cloudConnection: true,
-              phoneNumber: connectionStatus[userId].phoneNumber,
-              businessId: connectionStatus[userId].businessId,
+              qrCode: req.query.includeQr === 'true' ? await getQrCodeForInstance(server, instanceName, headers) : null,
               lastUpdated: new Date()
             });
           }
-        } catch (cloudStatusError) {
-          console.warn("Erro ao verificar status da conexão cloud:", cloudStatusError);
-          // Em caso de erro, prosseguimos com o status armazenado
+        } catch (directError) {
+          console.log(`Erro ao verificar status direto: ${directError.message}`);
         }
+      } 
+      else if (statusResponse.data?.state === 'open' || statusResponse.data?.connected) {
+        console.log("🟢 CONECTADO: Estado 'open' na resposta JSON");
+        console.log("Estado final da conexão: ✅ CONECTADO");
+        
+        return res.status(200).json({
+          connected: true,
+          qrCode: req.query.includeQr === 'true' ? await getQrCodeForInstance(server, instanceName, headers) : null,
+          lastUpdated: new Date()
+        });
       }
       
-      // Retorna o status armazenado se não conseguiu verificar
-      return res.status(200).json({
-        connected: connectionStatus[userId].connected,
-        cloudConnection: true,
-        phoneNumber: connectionStatus[userId].phoneNumber,
-        businessId: connectionStatus[userId].businessId,
-        lastUpdated: connectionStatus[userId].lastUpdated
-      });
-    }
-    
-    // Para conexão via QR Code, verifica o status na Evolution API
-    const server = await fetchUserServer(userId);
-    
-    if (!server || !server.apiUrl || !server.apiToken) {
-      // Se não tiver servidor configurado, considera desconectado
+      // Forçar conexão para desenvolvimento, comentar em produção
+      // return res.status(200).json({
+      //   connected: true,
+      //   qrCode: null,
+      //   lastUpdated: new Date()
+      // });
+      
+      // Se chegou aqui, não está conectado
+      console.log("Estado final da conexão: ❌ DESCONECTADO");
       return res.status(200).json({
         connected: false,
-        message: "Servidor não configurado",
+        qrCode: req.query.includeQr === 'true' ? await getQrCodeForInstance(server, instanceName, headers) : null,
+        lastUpdated: new Date()
+      });
+      
+    } catch (statusError: any) {
+      console.error(`Erro ao verificar status: ${statusError.message}`);
+      
+      // Mesmo com erro, tentamos alternativas antes de desistir
+      try {
+        // Tentar endpoint alternativo
+        const directResponse = await axios.get(
+          `${server.apiUrl}/instance/connect/${instanceName}`,
+          { headers }
+        );
+        
+        console.log(`Resposta do endpoint alternativo: ${JSON.stringify(directResponse.data)}`);
+        
+        const isConnected = directResponse.data?.instance?.state === 'open' || 
+                          directResponse.data?.state === 'open' || 
+                          directResponse.data?.connected;
+        
+        if (isConnected) {
+          console.log("🟢 CONECTADO (via alternativa): Estado 'open' detectado");
+          return res.status(200).json({
+            connected: true,
+            lastUpdated: new Date()
+          });
+        }
+      } catch (altError) {
+        console.log(`Erro também no endpoint alternativo: ${altError.message}`);
+      }
+      
+      // Se chegou aqui, não conseguimos determinar o status ou não está conectado
+      console.log("❌ DESCONECTADO: Não foi possível determinar o status");
+      
+      // Em desenvolvimento, forçar conexão para testes
+      // return res.status(200).json({
+      //   connected: true,
+      //   lastUpdated: new Date()
+      // });
+      
+      return res.status(200).json({
+        connected: false,
         lastUpdated: new Date()
       });
     }
+  } catch (error: any) {
+    console.error(`Erro geral ao verificar status:`, error);
     
-    // Usa o nome de usuário como nome da instância
-    const instanceId = req.user!.username;
+    // Em desenvolvimento, forçar conexão para testes
+    // return res.status(200).json({
+    //   connected: true,
+    //   error: error.message,
+    //   lastUpdated: new Date()
+    // });
     
-    // Verifica status na Evolution API
-    try {
-      const evolutionClient = new EvolutionApiClient(
-        server.apiUrl,
-        server.apiToken,
-        instanceId
-      );
-      
-      const statusResult = await evolutionClient.checkConnectionStatus();
-      console.log("Status da conexão:", statusResult);
-      
-      // Se recebemos HTML, isso geralmente significa um erro de autenticação ou sessão
-      if (typeof statusResult.data === 'string' && 
-          (statusResult.data.includes('<!DOCTYPE html>') || 
-          statusResult.data.includes('<html'))) {
-        
-        console.log("Recebemos HTML em vez de JSON, tentando endpoint alternativo");
-        
-        // Tentar outro endpoint para status - o endpoint direto /instance/connect que usamos para o QR code
-        try {
-          const connectEndpoint = `${server.apiUrl}/instance/connect/${instanceId}`;
-          console.log(`Verificando status direto em: ${connectEndpoint}`);
-          
-          const response = await fetch(connectEndpoint, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': server.apiToken || process.env.EVOLUTION_API_TOKEN || '',
-              'Authorization': `Bearer ${server.apiToken || process.env.EVOLUTION_API_TOKEN || ''}`
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log("Resposta do endpoint direto:", data);
-            
-            // Verificar state específico para Evolution API v2.x:
-            // data: { instance: { instanceName: 'admin', state: 'open' } }
-            let isConnected = false;
-            
-            if (data.instance && data.instance.state === 'open') {
-              console.log("🟢 CONECTADO: Estado 'open' na instância detectado");
-              isConnected = true;
-            } else if (data.connected === true) {
-              console.log("🟢 CONECTADO: Flag 'connected' detectada");
-              isConnected = true;
-            } else if (data.state === 'open' || data.state === 'connected') {
-              console.log("🟢 CONECTADO: Estado 'open'/'connected' detectado");
-              isConnected = true;
-            } else if (data.status === 'connected') {
-              console.log("🟢 CONECTADO: Status 'connected' detectado");
-              isConnected = true;
-            } else {
-              console.log("🔴 DESCONECTADO: Nenhum estado de conexão positivo detectado");
-              console.log("Dados recebidos:", JSON.stringify(data));
-            }
-            
-            console.log(`Estado final da conexão: ${isConnected ? '✅ CONECTADO' : '❌ DESCONECTADO'}`);
-            
-            connectionStatus[userId] = {
-              connected: isConnected,
-              qrCode: connectionStatus[userId]?.qrCode,
-              lastUpdated: new Date(),
-              method: 'qrcode'
-            };
-          }
-        } catch (directError) {
-          console.error("Erro ao verificar status direto:", directError);
-          // Manter o status atual
-        }
-      } else {
-        // Processamento normal do status
-        const isConnected = statusResult.success && statusResult.connected || 
-                          statusResult.data?.state === 'open' || 
-                          statusResult.data?.state === 'connected' ||
-                          statusResult.data?.connected === true;
-        
-        connectionStatus[userId] = {
-          connected: isConnected,
-          qrCode: connectionStatus[userId]?.qrCode,
-          lastUpdated: new Date(),
-          method: 'qrcode'
-        };
-        
-        console.log(`Status da conexão atualizado: ${isConnected ? 'Conectado' : 'Desconectado'}`);
-      }
-    } catch (statusError) {
-      console.warn("Erro ao verificar status da conexão:", statusError);
-      
-      // Em caso de erro, não alteramos o status para evitar falsos negativos
-      // Apenas garantimos que o objeto de status exista
-      if (!connectionStatus[userId]) {
-        connectionStatus[userId] = {
-          connected: false,
-          lastUpdated: new Date(),
-          method: 'qrcode'
-        };
-      }
-    }
-    
-    // Retorna o status atual
-    return res.status(200).json({
-      ...connectionStatus[userId],
-      qrcode: connectionStatus[userId]?.qrCode // Mantém compatibilidade
-    });
-  } catch (error) {
-    console.error("Erro ao verificar status da conexão:", error);
-    return res.status(500).json({ 
-      message: "Erro ao verificar status da conexão"
+    return res.status(500).json({
+      message: "Erro ao verificar status de conexão",
+      error: error.message
     });
   }
 }
 
 /**
- * Endpoint para desconectar WhatsApp
- * Método: POST
+ * Obtém o QR Code para uma instância específica
  */
-export async function disconnectWhatsApp(req: Request, res: Response) {
+async function getQrCodeForInstance(server: any, instanceName: string, headers: any): Promise<string | null> {
+  try {
+    const qrResponse = await axios.get(
+      `${server.apiUrl}/instance/qrcode/${instanceName}`,
+      { headers }
+    );
+    
+    if (qrResponse.data && (qrResponse.data.qrcode || qrResponse.data.qrCode)) {
+      return qrResponse.data.qrcode || qrResponse.data.qrCode;
+    }
+    
+    return null;
+  } catch (qrError) {
+    console.log(`Erro ao obter QR code: ${qrError.message}`);
+    return null;
+  }
+}
+
+/**
+ * Obtém o QR Code para autenticação WhatsApp de forma mais robusta
+ */
+export async function getWhatsAppQrCode(req: Request, res: Response) {
   if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
   
   try {
-    const userId = req.user!.id;
+    const userId = (req.user as Express.User).id;
+    const user = await storage.getUser(userId);
     
-    // Se for conexão cloud, apenas remove o registro
-    if (connectionStatus[userId]?.method === 'cloud') {
-      delete connectionStatus[userId];
-      
-      // Opcionalmente, atualize o banco de dados para remover essa configuração
-      // (código para persistência omitido)
-      
-      return res.status(200).json({
-        success: true,
-        message: "Conexão WhatsApp Business API removida com sucesso"
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+    
+    // Obter informações do servidor atual
+    const userServer = await storage.getUserServers(userId);
+    if (!userServer || userServer.length === 0 || !userServer[0].server) {
+      return res.status(400).json({ message: "Servidor não configurado para este usuário" });
+    }
+    
+    const server = userServer[0].server;
+    const instanceName = user.username; // Usa o nome do usuário como instância
+    
+    // Verificar se temos as informações necessárias para conectar
+    if (!server.apiUrl || !server.apiToken) {
+      return res.status(400).json({ 
+        message: "Configuração de API incompleta", 
+        details: "URL da API ou token não configurados" 
       });
     }
     
-    // Para conexão via QR Code, desconecta na Evolution API
-    const server = await fetchUserServer(userId);
+    // Configurar headers para a requisição
+    const headers = {
+      'Content-Type': 'application/json',
+      'apikey': server.apiToken,
+      'Authorization': `Bearer ${server.apiToken}`,
+      'AUTHENTICATION_API_KEY': server.apiToken // Para compatibilidade com diferentes versões
+    };
     
-    if (!server || !server.apiUrl || !server.apiToken) {
-      return res.status(404).json({ 
-        message: "Servidor não encontrado"
-      });
-    }
+    console.log(`Usando token nos headers: ${server.apiToken.substring(0, 5)}...${server.apiToken.substring(server.apiToken.length - 4)} (origem: ambiente)`);
+    console.log(`Headers de autenticação configurados: ${Object.keys(headers).join(', ')}`);
     
-    // Usa o nome de usuário como nome da instância
-    const instanceId = req.user!.username;
-    
-    // Tenta desconectar e excluir a instância
+    // Tentamos usar a Rota /qr da Evolution API
     try {
-      const evolutionClient = new EvolutionApiClient(
-        server.apiUrl,
-        server.apiToken,
-        instanceId
+      const connectResponse = await axios.get(
+        `${server.apiUrl}/instance/qrcode/${instanceName}`,
+        { headers }
       );
       
-      // Faz logout primeiro
-      await evolutionClient.disconnect();
-      console.log(`Instância desconectada: ${instanceId}`);
-      
-      // Depois exclui a instância
-      await evolutionClient.deleteInstance();
-      console.log(`Instância excluída: ${instanceId}`);
-    } catch (logoutError) {
-      // Ainda tenta excluir a instância mesmo se o logout falhar
-      console.warn("Erro ao desconectar, tentando excluir instância:", logoutError);
-      
-      try {
-        const evolutionClient = new EvolutionApiClient(
-          server.apiUrl,
-          server.apiToken,
-          instanceId
-        );
+      if (connectResponse.status === 200) {
+        let qrCode = null;
         
-        await evolutionClient.deleteInstance();
-        console.log(`Instância excluída: ${instanceId}`);
-      } catch (logoutError) {
-        console.error("Erro ao excluir instância:", logoutError);
+        // Buscar QR code nos diferentes formatos possíveis de resposta
+        if (connectResponse.data.qrcode) {
+          qrCode = connectResponse.data.qrcode;
+        } else if (connectResponse.data.qrCode) {
+          qrCode = connectResponse.data.qrCode;
+        } else if (connectResponse.data.code) {
+          qrCode = connectResponse.data.code;
+        } else if (connectResponse.data.data && connectResponse.data.data.qrcode) {
+          qrCode = connectResponse.data.data.qrcode;
+        } else if (typeof connectResponse.data === 'string' && connectResponse.data.includes('data:image/')) {
+          qrCode = connectResponse.data; // QR code como string base64
+        }
+        
+        if (qrCode) {
+          console.log(`QR Code obtido: ${qrCode.substring(0, 100)}...`);
+          return res.status(200).json({
+            success: true,
+            qrCode: qrCode,
+            message: "Escaneie o QR Code com o seu WhatsApp"
+          });
+        }
       }
+    } catch (qrError) {
+      console.log(`Erro na rota direta de QR Code: ${qrError.message}`);
+      // Continuar para tentar outras abordagens
     }
     
-    // Remove o registro de conexão
-    delete connectionStatus[userId];
+    // Tentar via connect
+    try {
+      console.log(`Tentando obter QR Code pelo endpoint connect: ${server.apiUrl}/instance/connect/${instanceName}`);
+      
+      const connectResponse = await axios.get(
+        `${server.apiUrl}/instance/connect/${instanceName}`,
+        { headers }
+      );
+      
+      if (connectResponse.status === 200) {
+        let qrCode = null;
+        
+        // Buscar QR code nos diferentes formatos possíveis de resposta
+        if (connectResponse.data.qrcode) {
+          qrCode = connectResponse.data.qrcode;
+        } else if (connectResponse.data.qrCode) {
+          qrCode = connectResponse.data.qrCode;
+        } else if (connectResponse.data.code) {
+          qrCode = connectResponse.data.code;
+        } else if (connectResponse.data.data && connectResponse.data.data.qrcode) {
+          qrCode = connectResponse.data.data.qrcode;
+        } else if (typeof connectResponse.data === 'string' && connectResponse.data.includes('data:image/')) {
+          qrCode = connectResponse.data; // QR code como string base64
+        }
+        
+        if (qrCode) {
+          console.log(`QR Code obtido via connect: ${qrCode.substring(0, 100)}...`);
+          return res.status(200).json({
+            success: true,
+            qrCode: qrCode,
+            message: "Escaneie o QR Code com o seu WhatsApp"
+          });
+        } else {
+          console.log(`Resposta sem QR code: ${JSON.stringify(connectResponse.data)}`);
+          
+          // Se não obteve o QR code, mas a conexão foi estabelecida
+          if (connectResponse.data.connected || 
+              (connectResponse.data.instance && connectResponse.data.instance.state === 'open') ||
+              connectResponse.data.state === 'open') {
+            
+            console.log("Conexão já estabelecida, não é necessário QR Code");
+            return res.status(200).json({
+              success: true,
+              connected: true,
+              message: "Seu WhatsApp já está conectado"
+            });
+          }
+          
+          // Tentar criar a instância e então obter o QR code
+          console.log("Recebeu erro 404. Tentando criar a instância e obter QR code novamente...");
+          
+          // Tenta criar a instância
+          try {
+            console.log(`Tentando criar instância no endpoint: ${server.apiUrl}/instance/create`);
+            const createInstanceData = {
+              instanceName: instanceName,
+              token: server.apiToken,
+              webhook: null,
+              webhookByEvents: false,
+              integration: "WHATSAPP-BAILEYS",
+              language: "pt-BR",
+              qrcode: true,
+              qrcodeImage: true,
+              reject_call: false,
+              events_message: false,
+              ignore_group: false,
+              ignore_broadcast: false,
+              save_message: true,
+              webhook_base64: true
+            };
+            
+            console.log(`Dados enviados: ${JSON.stringify(createInstanceData)}`);
+            console.log(`Usando token nos headers: ${server.apiToken.substring(0, 5)}...${server.apiToken.substring(server.apiToken.length - 4)} (origem: ambiente)`);
+            console.log(`Headers de autenticação configurados: ${Object.keys(headers).join(', ')}`);
+            
+            const createInstance = await axios.post(
+              `${server.apiUrl}/instance/create`,
+              createInstanceData,
+              { headers }
+            );
+            
+            // Após criar a instância, tenta obter o QR code novamente
+            const reconnectResponse = await axios.get(
+              `${server.apiUrl}/instance/connect/${instanceName}`,
+              { headers }
+            );
+            
+            let qrCode = null;
+            
+            // Buscar QR code nos diferentes formatos possíveis de resposta
+            if (reconnectResponse.data.qrcode) {
+              qrCode = reconnectResponse.data.qrcode;
+            } else if (reconnectResponse.data.qrCode) {
+              qrCode = reconnectResponse.data.qrCode;
+            } else if (reconnectResponse.data.code) {
+              qrCode = reconnectResponse.data.code;
+            } else if (reconnectResponse.data.data && reconnectResponse.data.data.qrcode) {
+              qrCode = reconnectResponse.data.data.qrcode;
+            } else if (typeof reconnectResponse.data === 'string' && reconnectResponse.data.includes('data:image/')) {
+              qrCode = reconnectResponse.data; // QR code como string base64
+            }
+            
+            if (qrCode) {
+              console.log(`QR Code obtido: ${qrCode.substring(0, 100)}...`);
+              return res.status(200).json({
+                success: true,
+                qrCode: qrCode,
+                message: "Escaneie o QR Code com o seu WhatsApp"
+              });
+            } else {
+              console.log(`Resposta sem QR code: ${JSON.stringify(reconnectResponse.data)}`);
+              return res.status(500).json({
+                success: false,
+                error: "QR Code não encontrado na resposta",
+                details: reconnectResponse.data
+              });
+            }
+          } catch (createError: any) {
+            console.log(`Erro ao criar instância: ${createError.message}`);
+            
+            // Tentar um endpoint alternativo
+            try {
+              console.log(`Tentando endpoint alternativo: ${server.apiUrl}/instance/create/${instanceName}`);
+              await axios.post(
+                `${server.apiUrl}/instance/create/${instanceName}`,
+                {},
+                { headers }
+              );
+              
+              // Após tentar criar com o endpoint alternativo, tenta obter o QR code novamente
+              const altReconnectResponse = await axios.get(
+                `${server.apiUrl}/instance/connect/${instanceName}`,
+                { headers }
+              );
+              
+              let qrCode = null;
+              
+              // Buscar QR code nos diferentes formatos possíveis de resposta
+              if (altReconnectResponse.data.qrcode) {
+                qrCode = altReconnectResponse.data.qrcode;
+              } else if (altReconnectResponse.data.qrCode) {
+                qrCode = altReconnectResponse.data.qrCode;
+              } else if (altReconnectResponse.data.code) {
+                qrCode = altReconnectResponse.data.code;
+              } else if (altReconnectResponse.data.data && altReconnectResponse.data.data.qrcode) {
+                qrCode = altReconnectResponse.data.data.qrcode;
+              } else if (typeof altReconnectResponse.data === 'string' && altReconnectResponse.data.includes('data:image/')) {
+                qrCode = altReconnectResponse.data; // QR code como string base64
+              }
+              
+              if (qrCode) {
+                console.log(`QR Code obtido via alt endpoint: ${qrCode.substring(0, 100)}...`);
+                return res.status(200).json({
+                  success: true,
+                  qrCode: qrCode,
+                  message: "Escaneie o QR Code com o seu WhatsApp"
+                });
+              }
+            } catch (altError: any) {
+              console.log(`Erro no endpoint alternativo: ${altError.message}`);
+            }
+            
+            return res.status(500).json({
+              success: false,
+              error: "Falha ao criar a instância",
+              details: { success: false, error: "Não foi possível criar a instância após múltiplas tentativas" }
+            });
+          }
+        }
+      }
+    } catch (connectError: any) {
+      console.error(`Erro ao conectar: ${connectError.message}`);
+      
+      // Tentar criar a instância e então reconectar
+      try {
+        console.log("Tentando criar a instância primeiro...");
+        
+        // Tenta criar a instância
+        const createInstance = await axios.post(
+          `${server.apiUrl}/instance/create`,
+          {
+            instanceName: instanceName,
+            token: server.apiToken,
+            webhook: null
+          },
+          { headers }
+        );
+        
+        // Após criar a instância, tenta obter o QR code novamente
+        const reconnectResponse = await axios.get(
+          `${server.apiUrl}/instance/connect/${instanceName}`,
+          { headers }
+        );
+        
+        let qrCode = null;
+        
+        // Buscar QR code nos diferentes formatos possíveis de resposta
+        if (reconnectResponse.data.qrcode) {
+          qrCode = reconnectResponse.data.qrcode;
+        } else if (reconnectResponse.data.qrCode) {
+          qrCode = reconnectResponse.data.qrCode;
+        } else if (reconnectResponse.data.code) {
+          qrCode = reconnectResponse.data.code;
+        } else if (reconnectResponse.data.data && reconnectResponse.data.data.qrcode) {
+          qrCode = reconnectResponse.data.data.qrcode;
+        } else if (typeof reconnectResponse.data === 'string' && reconnectResponse.data.includes('data:image/')) {
+          qrCode = reconnectResponse.data; // QR code como string base64
+        }
+        
+        if (qrCode) {
+          console.log(`QR Code obtido após criar instância: ${qrCode.substring(0, 100)}...`);
+          return res.status(200).json({
+            success: true,
+            qrCode: qrCode,
+            message: "Escaneie o QR Code com o seu WhatsApp"
+          });
+        }
+      } catch (createError: any) {
+        console.log(`Erro ao criar instância: ${createError.message}`);
+      }
+      
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao obter QR code",
+        message: connectError.message
+      });
+    }
     
-    return res.status(200).json({
-      success: true,
-      message: "WhatsApp desconectado com sucesso"
-    });
-  } catch (error) {
-    console.error("Erro ao desconectar WhatsApp:", error);
-    return res.status(500).json({ 
-      message: "Erro ao desconectar WhatsApp"
+    // Se chegou aqui, todas as tentativas falharam
+    throw new Error("QR Code não encontrado na resposta");
+    
+  } catch (error: any) {
+    console.error(`Erro geral ao obter QR code:`, error);
+    return res.status(500).json({
+      message: "Erro ao obter QR code",
+      error: error.message
     });
   }
 }

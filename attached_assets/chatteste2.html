@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evolution API Chat - Redesenhado</title>
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary-color: #10b981;
+            --accent-color: #f59e0b;
+            --text-color: #1f2937;
+            --text-light: #f9fafb;
+            --text-muted: #6b7280;
+            --background-color: #f3f4f6;
+            --sidebar-bg: #ffffff;
+            --chat-bg: #f3f4f6;
+            --header-bg: #6366f1;
+            --border-color: #e5e7eb;
+            --box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --error-color: #ef4444;
+            --success-color: #10b981;
+            --info-color: #3b82f6;
+            --warning-color: #f59e0b;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-color);
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background: var(--header-bg);
+            color: var(--text-light);
+            padding: 1rem 1.5rem;
+            box-shadow: var(--box-shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .header-left h1 {
+            font-size: 1.4rem;
+            font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-connected .status-dot {
+            background-color: var(--success-color);
+        }
+
+        .status-disconnected .status-dot {
+            background-color: var(--error-color);
+        }
+
+        .status-reconnecting .status-dot {
+            background-color: var(--warning-color);
+            animation: blink 1s infinite;
+        }
+
+        .status-error .status-dot {
+            background-color: var(--error-color);
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .settings-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-light);
+            font-size: 1.2rem;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .settings-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .webhook-info {
+            display: flex;
+            align-items: center;
+            font-size: 0.85rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .webhook-info i {
+            margin-right: 0.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            background-color: var(--sidebar-bg);
+            width: 100%;
+            height: calc(100vh - 72px); /* Adjust based on header height */
+        }
+
+        .sidebar {
+            width: 320px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background-color: var(--background-color);
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .search-box::before {
+            content: "🔍";
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 0.6rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .action-btn i {
+            margin-right: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: var(--text-light);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: var(--text-light);
+        }
+
+        .btn-secondary:hover {
+            background-color: #0ca678;
+        }
+
+        .btn-danger {
+            background-color: var(--error-color);
+            color: var(--text-light);
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        .chats-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem 0;
+        }
+
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .chat-item:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+
+        .chat-item.active {
+            background-color: rgba(99, 102, 241, 0.1);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .chat-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: var(--primary-light);
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-right: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .chat-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chat-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-last-message {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            margin-left: 0.5rem;
+        }
+
+        .chat-time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .chat-unread-count {
+            background-color: var(--primary-color);
+            color: var(--text-light);
+            font-size: 0.75rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+            font-weight: bold;
+            padding: 0 5px;
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--chat-bg);
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+        }
+
+        .chat-header-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-light);
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+
+        .chat-header-info {
+            flex: 1;
+        }
+
+        .chat-header-name {
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+
+        .chat-header-status {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .no-chat-selected {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .no-chat-selected h3 {
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        .info-message {
+            color: var(--info-color);
+            font-style: italic;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAADBJREFUOE9jfPbs2X8GPEBTU1M2QAb+D4RP9+/f/wYgLcCMPgjHpQFEAwZgQhAhBAD+fwd5rG4U/QAAAABJRU5ErkJggg=="); /* Subtle pattern */
+            background-color: #e5ddd5; /* WhatsApp-like background */
+            width: 100%;
+            height: calc(100% - 120px); /* Adjust based on header and input area heights */
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            display: flex;
+        }
+
+        .message.received {
+            justify-content: flex-start;
+        }
+
+        .message.sent {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message.received .message-content {
+            background-color: white;
+            border-top-left-radius: 0;
+        }
+
+        .message.sent .message-content {
+            background-color: #d9fdd3; /* WhatsApp-like sent message color */
+            border-top-right-radius: 0;
+        }
+
+        .message-text {
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-align: right;
+            margin-top: 0.25rem;
+        }
+
+        .message-status {
+            display: inline-block;
+            margin-left: 0.25rem;
+            font-size: 0.7rem;
+        }
+
+        .message-status.sent {
+            color: #a3a3a3;
+        }
+
+        .message-status.delivered {
+            color: #a3a3a3;
+        }
+
+        .message-status.read {
+            color: #53bdeb;
+        }
+
+        .input-area {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: flex-end;
+            gap: 0.75rem;
+            background-color: white;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            resize: none;
+            max-height: 120px;
+            min-height: 40px;
+            line-height: 1.4;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: var(--text-light);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .send-btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .send-btn:disabled {
+            background-color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background-color: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transform: translateY(-20px);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.6rem 1.25rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-cancel {
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        .btn-cancel:hover {
+            background-color: #e5e7eb;
+        }
+
+        .btn-save {
+            background-color: var(--primary-color);
+            color: var(--text-light);
+        }
+
+        .btn-save:hover {
+            background-color: var(--primary-dark);
+        }
+
+        /* Loading indicators */
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            color: var(--text-muted);
+        }
+
+        .loading-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s linear infinite;
+            margin-right: 0.75rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 1001;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .notification.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notification.success {
+            background-color: var(--success-color);
+        }
+
+        .notification.error {
+            background-color: var(--error-color);
+        }
+
+        .notification.info {
+            background-color: var(--info-color);
+        }
+
+        .notification.warning {
+            background-color: var(--warning-color);
+        }
+
+        /* Scrollbar styling */
+        .chats-list::-webkit-scrollbar,
+        .messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chats-list::-webkit-scrollbar-track,
+        .messages-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chats-list::-webkit-scrollbar-thumb,
+        .messages-container::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        .chats-list::-webkit-scrollbar-thumb:hover,
+        .messages-container::-webkit-scrollbar-thumb:hover {
+            background: #aaa;
+        }
+
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: 40%;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .main-container {
+                flex-direction: column;
+                height: calc(100vh - 72px);
+            }
+            .chat-area {
+                height: 60%;
+            }
+            .header {
+                padding: 0.8rem 1rem;
+            }
+            .header-left h1 {
+                font-size: 1.2rem;
+            }
+            .webhook-info { display: none; }
+            .chat-header {
+                padding: 0.8rem 1rem;
+            }
+            .input-area {
+                padding: 0.8rem 1rem;
+            }
+            .message {
+                max-width: 85%;
+            }
+            .messages-container {
+                height: calc(100% - 100px);
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>Evolution API Chat</h1>
+        </div>
+        <div class="header-right">
+            <div class="status-indicator status-disconnected">
+                <div class="status-dot"></div>
+                <span class="status-text">Erro na API</span>
+            </div>
+            <div class="webhook-info">
+                <i class="webhook-icon">🔗</i>
+                <span class="webhook-url">Webhook URL: </span>
+            </div>
+            <button class="settings-btn" title="Configurações">⚙️</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="search-box">
+                    <input type="text" placeholder="🔍 Buscar ou iniciar conversa..." />
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button class="action-btn btn-primary">
+                    <i>🔄</i> Testar
+                </button>
+                <button class="action-btn btn-secondary">
+                    <i>💬</i> Chats
+                </button>
+                <button class="action-btn btn-danger">
+                    <i>🗑️</i> Limpar
+                </button>
+            </div>
+            <div class="chats-list">
+                <!-- Chats will be loaded here -->
+                <div class="loading-indicator">
+                    <div class="loading-spinner"></div>
+                    <span>Carregando chats...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-area">
+            <div class="no-chat-selected">
+                <h3>Selecione um chat</h3>
+                <p>Escolha uma conversa na lista ao lado para começar.</p>
+            </div>
+
+            <div class="chat-container" style="display: none; flex-direction: column; height: 100%;">
+                <div class="chat-header">
+                    <div class="chat-header-avatar">M</div>
+                    <div class="chat-header-info">
+                        <div class="chat-header-name">Nome do Contato</div>
+                        <div class="chat-header-status">Online</div>
+                    </div>
+                </div>
+
+                <div class="messages-container">
+                    <!-- Messages will be loaded here -->
+                    <div class="loading-indicator">
+                        <div class="loading-spinner"></div>
+                        <span>Carregando mensagens...</span>
+                    </div>
+                </div>
+
+                <div class="input-area">
+                    <textarea class="message-input" placeholder="Digite sua mensagem..."></textarea>
+                    <button class="send-btn">➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Configurações da API</h2>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>URL da API Evolution:</label>
+                    <input type="text" id="apiUrl" placeholder="https://sua-api.com" />
+                </div>
+                <div class="form-group">
+                    <label>API Key:</label>
+                    <input type="text" id="apiKey" placeholder="Sua Chave API" />
+                </div>
+                <div class="form-group">
+                    <label>Nome da Instância:</label>
+                    <input type="text" id="instanceName" placeholder="Nome da Instância (ex: instance123)" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel">Cancelar</button>
+                <button class="btn btn-save">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification">
+        Notificação de exemplo
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicialização da aplicação
+            const app = new EvolutionChatApp();
+            app.init();
+            
+            // Configuração para receber mensagens via webhook
+            window.addEventListener('message', function(event) {
+                // Verificar origem da mensagem (segurança)
+                if (event.origin !== window.location.origin) {
+                    console.warn('Mensagem recebida de origem não confiável:', event.origin);
+                    return;
+                }
+                
+                // Processar mensagem recebida via postMessage
+                if (event.data && event.data.type === 'webhook') {
+                    console.log('Webhook event recebido:', event.data);
+                    app.processWebhookEvent(event.data.payload);
+                }
+            });
+            
+            // Função para simular recebimento de webhook (para testes)
+            window.receiveWebhook = function(payload) {
+                app.processWebhookEvent(payload);
+            };
+        });
+
+        class EvolutionChatApp {
+            constructor() {
+                // Elementos da UI
+                this.statusIndicator = document.querySelector('.status-indicator');
+                this.statusText = document.querySelector('.status-text');
+                this.webhookUrl = document.querySelector('.webhook-url');
+                this.settingsBtn = document.querySelector('.settings-btn');
+                this.modalOverlay = document.querySelector('.modal-overlay');
+                this.modalCancelBtn = document.querySelector('.btn-cancel');
+                this.modalSaveBtn = document.querySelector('.btn-save');
+                this.apiUrlInput = document.getElementById('apiUrl');
+                this.apiKeyInput = document.getElementById('apiKey');
+                this.instanceNameInput = document.getElementById('instanceName');
+                this.searchInput = document.querySelector('.search-box input');
+                this.testBtn = document.querySelector('.action-buttons .btn-primary');
+                this.chatsBtn = document.querySelector('.action-buttons .btn-secondary');
+                this.clearBtn = document.querySelector('.action-buttons .btn-danger');
+                this.chatsList = document.querySelector('.chats-list');
+                this.chatsLoading = document.querySelector('.chats-list .loading-indicator');
+                this.noChatSelected = document.querySelector('.no-chat-selected');
+                this.chatContainer = document.querySelector('.chat-container');
+                this.chatHeaderAvatar = document.querySelector('.chat-header-avatar');
+                this.currentChatName = document.querySelector('.chat-header-name');
+                this.currentChatStatus = document.querySelector('.chat-header-status');
+                this.messagesContainer = document.querySelector('.messages-container');
+                this.messagesLoading = document.querySelector('.messages-container .loading-indicator');
+                this.messageInput = document.querySelector('.message-input');
+                this.sendBtn = document.querySelector('.send-btn');
+                this.notification = document.querySelector('.notification');
+
+                // Estado da aplicação
+                this.apiUrl = localStorage.getItem('apiUrl') || '';
+                this.apiKey = localStorage.getItem('apiKey') || '';
+                this.instanceName = localStorage.getItem('instanceName') || '';
+                this.currentChatId = null;
+                this.chats = new Map(); // Armazena os objetos de chat por ID
+                this.messages = new Map(); // Armazena mensagens por chat ID
+                this.connected = false;
+            }
+
+            init() {
+                // Carregar configurações salvas
+                this.apiUrlInput.value = this.apiUrl;
+                this.apiKeyInput.value = this.apiKey;
+                this.instanceNameInput.value = this.instanceName;
+                this.webhookUrl.textContent = `Webhook URL: ${this.getWebhookUrl()}`;
+
+                // Configurar event listeners
+                this.settingsBtn.addEventListener('click', () => this.openModal());
+                this.modalCancelBtn.addEventListener('click', () => this.closeModal());
+                this.modalSaveBtn.addEventListener('click', () => this.saveSettings());
+                this.modalOverlay.addEventListener('click', (e) => {
+                    if (e.target === this.modalOverlay) this.closeModal();
+                });
+
+                this.searchInput.addEventListener('input', (e) => this.filterChats(e.target.value));
+                this.testBtn.addEventListener('click', () => this.testConnection());
+                this.chatsBtn.addEventListener('click', () => this.loadChats());
+                this.clearBtn.addEventListener('click', () => this.clearData());
+
+                this.messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+                this.messageInput.addEventListener('input', this.autoResizeTextarea.bind(this));
+                this.sendBtn.addEventListener('click', () => this.sendMessage());
+
+                // Verificar se temos configurações salvas e tentar conectar
+                if (this.apiUrl && this.apiKey && this.instanceName) {
+                    this.updateStatus('reconnecting', 'Conectando...');
+                    this.testConnection().then(success => {
+                        if (success) {
+                            this.loadChats();
+                        }
+                    });
+                } else {
+                    this.openModal(); // Abrir modal de configurações se não tiver dados salvos
+                }
+            }
+
+            openModal() {
+                this.modalOverlay.classList.add('active');
+            }
+
+            closeModal() {
+                this.modalOverlay.classList.remove('active');
+            }
+
+            saveSettings() {
+                const newApiUrl = this.apiUrlInput.value.trim();
+                const newApiKey = this.apiKeyInput.value.trim();
+                const newInstanceName = this.instanceNameInput.value.trim();
+
+                if (!newApiUrl || !newApiKey || !newInstanceName) {
+                    this.showNotification('Todos os campos são obrigatórios.', 'error');
+                    return;
+                }
+
+                // Salvar configurações
+                this.apiUrl = newApiUrl;
+                this.apiKey = newApiKey;
+                this.instanceName = newInstanceName;
+                localStorage.setItem('apiUrl', this.apiUrl);
+                localStorage.setItem('apiKey', this.apiKey);
+                localStorage.setItem('instanceName', this.instanceName);
+                this.webhookUrl.textContent = `Webhook URL: ${this.getWebhookUrl()}`;
+
+                this.closeModal();
+                this.updateStatus('reconnecting', 'Conectando...');
+                this.testConnection().then(success => {
+                    if (success) {
+                        this.loadChats();
+                    }
+                });
+            }
+
+            getWebhookUrl() {
+                return `https://primerastreadores.com/chat/chatteste.html`;
+            }
+
+            updateStatus(status, text) {
+                this.statusIndicator.className = 'status-indicator';
+                this.statusIndicator.classList.add(`status-${status}`);
+                this.statusText.textContent = text;
+                this.connected = status === 'connected';
+            }
+
+            showNotification(message, type = 'info') {
+                this.notification.textContent = message;
+                this.notification.className = 'notification';
+                this.notification.classList.add(type);
+                this.notification.classList.add('active');
+
+                // Auto-hide after 3 seconds
+                setTimeout(() => {
+                    this.notification.classList.remove('active');
+                }, 3000);
+            }
+
+            clearData() {
+                if (confirm('Tem certeza que deseja limpar todos os dados locais? Isso não afetará os dados no servidor.')) {
+                    localStorage.clear();
+                    this.chats.clear();
+                    this.messages.clear();
+                    this.chatsList.innerHTML = '';
+                    this.messagesContainer.innerHTML = '';
+                    this.currentChatId = null;
+                    this.noChatSelected.style.display = 'flex';
+                    this.chatContainer.style.display = 'none';
+                    this.apiUrl = '';
+                    this.apiKey = '';
+                    this.instanceName = '';
+                    this.apiUrlInput.value = '';
+                    this.apiKeyInput.value = '';
+                    this.instanceNameInput.value = '';
+                    this.updateStatus('disconnected', 'Desconectado');
+                    this.showNotification('Dados locais limpos com sucesso.', 'info');
+                }
+            }
+
+            autoResizeTextarea() {
+                this.messageInput.style.height = 'auto';
+                this.messageInput.style.height = (this.messageInput.scrollHeight) + 'px';
+            }
+
+            async sendMessage() {
+                const text = this.messageInput.value.trim();
+                if (!text || !this.currentChatId || !this.connected) return;
+
+                // Add message to UI immediately for better UX
+                const timestamp = Date.now();
+                const messageId = `temp-${timestamp}`;
+                this.addMessageToUI({
+                    id: messageId,
+                    fromMe: true,
+                    text: text,
+                    timestamp: timestamp,
+                    status: 'sending'
+                });
+
+                this.messageInput.value = '';
+                this.messageInput.style.height = 'auto'; // Reset height
+
+                try {
+                    // --- Correct API Payload --- 
+                    const payload = {
+                        number: this.formatPhoneNumber(this.currentChatId),
+                        text: text, // Texto diretamente na raiz do payload
+                        options: {
+                            delay: 1200,
+                            presence: "composing"
+                        }
+                    };
+
+                    const response = await this.apiRequest(`/message/sendText/${this.instanceName}`, 'POST', payload);
+                    console.log('Send message response:', response);
+
+                    // Update message status in UI based on response
+                    const messageElement = document.getElementById(messageId);
+                    if (messageElement) {
+                        const statusElement = messageElement.querySelector('.message-status');
+                        if (statusElement) {
+                            statusElement.textContent = '✓';
+                            statusElement.className = 'message-status sent';
+                        }
+                    }
+
+                    // Optionally add the sent message to the messages cache
+                    const cachedMessages = this.messages.get(this.currentChatId) || [];
+                    cachedMessages.push({
+                        id: response.key?.id || messageId,
+                        fromMe: true,
+                        text: text,
+                        timestamp: timestamp,
+                        status: 'sent'
+                    });
+                    this.messages.set(this.currentChatId, cachedMessages);
+
+                } catch (error) {
+                    console.error('Erro ao enviar mensagem:', error);
+                    this.showNotification(`Erro ao enviar: ${error.message}`, 'error');
+                    
+                    // Update UI to show error
+                    const messageElement = document.getElementById(messageId);
+                    if (messageElement) {
+                        messageElement.classList.add('error');
+                        const statusElement = messageElement.querySelector('.message-status');
+                        if (statusElement) {
+                            statusElement.textContent = '!';
+                            statusElement.className = 'message-status error';
+                        }
+                    }
+                }
+            }
+
+            addMessageToUI(message) {
+                const messageElement = document.createElement('div');
+                messageElement.className = `message ${message.fromMe ? 'sent' : 'received'}`;
+                messageElement.id = message.id;
+
+                let statusIcon = '';
+                if (message.fromMe) {
+                    switch (message.status) {
+                        case 'sending': statusIcon = '⌛'; break;
+                        case 'sent': statusIcon = '✓'; break;
+                        case 'delivered': statusIcon = '✓✓'; break;
+                        case 'read': statusIcon = '✓✓'; break; // Could use blue color via CSS
+                        default: statusIcon = '✓';
+                    }
+                }
+
+                messageElement.innerHTML = `
+                    <div class="message-content">
+                        <div class="message-text">${this.escapeHtml(message.text)}</div>
+                        <div class="message-time">
+                            ${this.formatTime(message.timestamp)}
+                            ${message.fromMe ? `<span class="message-status ${message.status}">${statusIcon}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+
+                this.messagesContainer.appendChild(messageElement);
+                this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+            }
+
+            renderMessages(messages) {
+                this.messagesContainer.innerHTML = '';
+                if (!messages || messages.length === 0) {
+                    this.messagesContainer.innerHTML = '<div class="info-message" style="margin: 1rem; text-align: center;">Nenhuma mensagem nesta conversa ainda.</div>';
+                    return;
+                }
+
+                // Sort messages by timestamp
+                messages.sort((a, b) => {
+                    const timeA = a.timestamp || 0;
+                    const timeB = b.timestamp || 0;
+                    return timeA - timeB;
+                });
+
+                messages.forEach(message => {
+                    this.addMessageToUI(message);
+                });
+            }
+
+            // Função para extrair e formatar corretamente o número de telefone do chat
+            extractPhoneNumber(chat) {
+                console.log("Extraindo número do chat:", chat);
+                
+                // Verificar se temos um jid no formato padrão do WhatsApp
+                if (chat.jid && typeof chat.jid === 'string') {
+                    // Formato típico: "554391142751@s.whatsapp.net"
+                    const match = chat.jid.match(/^(\d+)@/);
+                    if (match && match[1]) {
+                        console.log("Número extraído do jid:", match[1]);
+                        return match[1];
+                    }
+                }
+                
+                // Verificar se temos um remoteJid
+                if (chat.remoteJid && typeof chat.remoteJid === 'string') {
+                    const match = chat.remoteJid.match(/^(\d+)@/);
+                    if (match && match[1]) {
+                        console.log("Número extraído do remoteJid:", match[1]);
+                        return match[1];
+                    }
+                }
+                
+                // Verificar se temos um campo number explícito
+                if (chat.number) {
+                    console.log("Usando campo number explícito:", chat.number);
+                    return this.cleanPhoneNumber(chat.number);
+                }
+                
+                // Verificar se o próprio ID é um número de telefone
+                if (chat.id && typeof chat.id === 'string') {
+                    // Se o ID contiver @ (formato jid), extrair a parte numérica
+                    if (chat.id.includes('@')) {
+                        const match = chat.id.match(/^(\d+)@/);
+                        if (match && match[1]) {
+                            console.log("Número extraído do id (formato jid):", match[1]);
+                            return match[1];
+                        }
+                    } 
+                    // Se o ID for apenas numérico
+                    else if (/^\d+$/.test(chat.id)) {
+                        console.log("Usando id numérico como número:", chat.id);
+                        return chat.id;
+                    }
+                }
+                
+                // Último recurso: tentar extrair números do nome
+                const name = chat.name || chat.pushName || chat.subject || '';
+                const numbers = name.match(/\d+/g);
+                if (numbers && numbers.length > 0) {
+                    const possibleNumber = numbers.join('');
+                    if (possibleNumber.length >= 8) { // Número de telefone plausível
+                        console.log("Número extraído do nome:", possibleNumber);
+                        return possibleNumber;
+                    }
+                }
+                
+                // Se chegamos aqui, não conseguimos extrair um número válido
+                console.warn("Não foi possível extrair um número válido do chat:", chat);
+                return chat.id || "unknown";
+            }
+            
+            // Função para limpar e formatar número de telefone
+            cleanPhoneNumber(number) {
+                if (!number) return "";
+                // Remove todos os caracteres não numéricos
+                return number.toString().replace(/\D/g, '');
+            }
+            
+            // Função para formatar número de telefone para o padrão internacional
+            formatPhoneNumber(number) {
+                // Primeiro limpa o número
+                let cleaned = this.cleanPhoneNumber(number);
+                
+                // Se estiver vazio após limpeza, retorna vazio
+                if (!cleaned) return "";
+                
+                // Garante que o número tenha o código do país (Brasil 55 como padrão)
+                if (!cleaned.startsWith('55')) {
+                    cleaned = '55' + cleaned;
+                }
+                
+                console.log("Número formatado para envio:", cleaned);
+                return cleaned;
+            }
+
+            async apiRequest(endpoint, method = 'GET', data = null) {
+                const url = `${this.apiUrl}${endpoint}`;
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': this.apiKey
+                    }
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                try {
+                    console.log(`Fazendo requisição para ${url}:`, options);
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        let errorData;
+                        try {
+                            errorData = await response.json();
+                        } catch (e) {
+                            errorData = { message: response.statusText };
+                        }
+                        console.error('API Error Response:', errorData);
+                        throw new Error(`Erro ${response.status}: ${errorData.message || JSON.stringify(errorData)}`);
+                    }
+                    // Handle cases where the response might be empty (e.g., 204 No Content)
+                    if (response.status === 204) {
+                        return null;
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(`Erro na requisição API para ${endpoint}:`, error);
+                    this.updateStatus('error', 'Erro na API');
+                    throw error; // Re-throw the error to be caught by calling function
+                }
+            }
+
+            async testConnection() {
+                this.updateStatus('reconnecting', 'Testando...');
+                try {
+                    // Use a simple endpoint like fetching instances or connection state
+                    await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
+                    this.updateStatus('connected', 'Conectado');
+                    this.showNotification('Conexão com a API bem-sucedida!', 'success');
+                    return true;
+                } catch (error) {
+                    this.updateStatus('error', 'Falha na Conexão');
+                    this.showNotification(`Falha ao conectar: ${error.message}`, 'error');
+                    return false;
+                }
+            }
+
+            async loadChats() {
+                if (!this.instanceName) {
+                    this.showNotification('Nome da instância não configurado.', 'error');
+                    return;
+                }
+                this.chatsLoading.style.display = 'flex';
+                this.chatsList.innerHTML = ''; // Clear previous list but keep loading indicator
+                this.chatsList.appendChild(this.chatsLoading);
+
+                try {
+                    const response = await this.apiRequest(`/chat/findChats/${this.instanceName}`, 'POST', {
+                        // Add parameters if needed, e.g., pagination or filters
+                        // where: {},
+                        // limit: 100
+                    });
+
+                    console.log('Chats response:', response);
+                    this.chats.clear();
+                    this.renderChatsList(response); // Pass the raw response
+                    this.showNotification('Chats carregados.', 'success');
+                } catch (error) {
+                    console.error('Erro ao carregar chats:', error);
+                    this.showNotification(`Erro ao carregar chats: ${error.message}`, 'error');
+                    this.chatsList.innerHTML = '<div class="info-message" style="margin: 1rem; text-align: center;">Falha ao carregar chats. Verifique as configurações e a conexão.</div>';
+                } finally {
+                    this.chatsLoading.style.display = 'none';
+                }
+            }
+
+            renderChatsList(apiResponse) {
+                this.chatsList.innerHTML = ''; // Clear loading or previous error message
+
+                // --- Data Normalization --- 
+                // Adapt based on observed API response structures
+                let chatsArray = [];
+                if (Array.isArray(apiResponse)) {
+                    chatsArray = apiResponse;
+                } else if (apiResponse && Array.isArray(apiResponse.chats)) {
+                    chatsArray = apiResponse.chats;
+                } else if (apiResponse && Array.isArray(apiResponse.data)) {
+                    chatsArray = apiResponse.data;
+                } else if (apiResponse && Array.isArray(apiResponse.result)) {
+                    chatsArray = apiResponse.result;
+                } else if (apiResponse && typeof apiResponse === 'object') {
+                     // Try to extract from a common pattern like { data: { chats: [] } }
+                     if (apiResponse.data && Array.isArray(apiResponse.data.chats)) {
+                         chatsArray = apiResponse.data.chats;
+                     } else {
+                        // Fallback: Treat object values as potential chats if they have an ID
+                        chatsArray = Object.values(apiResponse).filter(item => item && (item.id || item.jid || item.remoteJid));
+                     }
+                }
+
+                if (chatsArray.length === 0) {
+                    this.chatsList.innerHTML = '<div class="info-message" style="margin: 1rem; text-align: center;">Nenhum chat encontrado.</div>';
+                    return;
+                }
+
+                // Sort chats by timestamp (most recent first)
+                chatsArray.sort((a, b) => {
+                    const timeA = a.t || a.timestamp || a.lastMessageTimestamp || 0;
+                    const timeB = b.t || b.timestamp || b.lastMessageTimestamp || 0;
+                    return timeB - timeA;
+                });
+
+                chatsArray.forEach(chat => {
+                    const chatId = chat.id || chat.jid || chat.remoteJid; // Normalize chat ID
+                    if (!chatId) {
+                        console.warn('Chat sem ID encontrado:', chat);
+                        return; // Skip chats without a valid ID
+                    }
+
+                    this.chats.set(chatId, chat); // Store the original chat object
+
+                    const chatItem = document.createElement('div');
+                    chatItem.className = 'chat-item';
+                    chatItem.dataset.chatId = chatId;
+
+                    const name = chat.name || chat.pushName || chat.subject || chatId.split('@')[0];
+                    const unreadCount = chat.unreadCount || 0;
+
+                    // --- Determine Last Message Text --- 
+                    let lastMessageText = 'Nenhuma mensagem';
+                    if (chat.lastMessage) { // Check specific field first
+                        lastMessageText = this.getMessagePreview(chat.lastMessage);
+                    } else if (chat.messages && chat.messages.length > 0) { // Check messages array
+                        const lastMsgObj = chat.messages[chat.messages.length - 1];
+                        lastMessageText = this.getMessagePreview(lastMsgObj);
+                    }
+                    // Add more checks based on API variations if needed
+
+                    const timestamp = chat.t || chat.timestamp || chat.lastMessageTimestamp;
+
+                    chatItem.innerHTML = `
+                        <div class="chat-avatar" style="background-color: ${this.getAvatarColor(name)}">${name.charAt(0).toUpperCase()}</div>
+                        <div class="chat-info">
+                            <div class="chat-name">${this.escapeHtml(name)}</div>
+                            <div class="chat-last-message">${this.escapeHtml(lastMessageText)}</div>
+                        </div>
+                        <div class="chat-meta">
+                            <div class="chat-time">${this.formatTime(timestamp)}</div>
+                            ${unreadCount > 0 ? `<div class="chat-unread-count">${unreadCount > 99 ? '99+' : unreadCount}</div>` : ''}
+                        </div>
+                    `;
+
+                    chatItem.addEventListener('click', () => {
+                        this.selectChat(chatId);
+                    });
+
+                    this.chatsList.appendChild(chatItem);
+                });
+            }
+
+            getMessagePreview(message) {
+                if (!message) return '...';
+                if (typeof message === 'string') return message; // Simple case
+
+                // Handle complex message objects (adapt based on API structure)
+                if (message.message) {
+                    if (message.message.conversation) return message.message.conversation;
+                    if (message.message.extendedTextMessage?.text) return message.message.extendedTextMessage.text;
+                    if (message.message.imageMessage?.caption) return `🖼️ ${message.message.imageMessage.caption}`;
+                    if (message.message.videoMessage?.caption) return `🎬 ${message.message.videoMessage.caption}`;
+                    if (message.message.audioMessage) return '🔊 Áudio';
+                    if (message.message.documentMessage?.caption) return `📄 ${message.message.documentMessage.caption || 'Documento'}`;
+                    if (message.message.stickerMessage) return '😊 Sticker';
+                    if (message.message.locationMessage) return '📍 Localização';
+                    if (message.message.contactMessage?.displayName) return `👤 ${message.message.contactMessage.displayName}`;
+                    // Add more types as needed
+                }
+                // Fallback for other structures
+                if (message.text) return message.text;
+                if (message.body) return message.body;
+                if (message.type) return `(${message.type})`; // Generic type
+
+                return '...'; // Default preview
+            }
+
+            getAvatarColor(name) {
+                // Simple hash function for consistent colors
+                let hash = 0;
+                for (let i = 0; i < name.length; i++) {
+                    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const color = `hsl(${hash % 360}, 70%, 70%)`;
+                return color;
+            }
+
+            formatTime(timestamp) {
+                if (!timestamp) return '';
+                // Ensure timestamp is in milliseconds
+                const date = new Date(timestamp * (timestamp > 1e12 ? 1 : 1000));
+                const now = new Date();
+                const isToday = date.toDateString() === now.toDateString();
+                const isYesterday = new Date(now.setDate(now.getDate() - 1)).toDateString() === date.toDateString();
+                now.setDate(now.getDate() + 1); // Reset now date
+
+                if (isToday) {
+                    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                } else if (isYesterday) {
+                    return 'Ontem';
+                } else {
+                    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                }
+            }
+
+            escapeHtml(unsafe) {
+                if (!unsafe) return '';
+                return unsafe
+                    .toString()
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            filterChats(query) {
+                const lowerQuery = query.toLowerCase().trim();
+                const chatItems = this.chatsList.querySelectorAll('.chat-item');
+                chatItems.forEach(item => {
+                    const chatId = item.dataset.chatId;
+                    const chat = this.chats.get(chatId);
+                    const name = chat?.name || chat?.pushName || chat?.subject || chatId?.split('@')[0] || '';
+                    if (name.toLowerCase().includes(lowerQuery)) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+
+            async selectChat(chatId) {
+                if (this.currentChatId === chatId) return; // Avoid reloading same chat
+
+                // Obter o objeto completo do chat
+                const chat = this.chats.get(chatId);
+                if (!chat) {
+                    console.error('Chat não encontrado:', chatId);
+                    return;
+                }
+
+                // Extrair o número de telefone do objeto do chat
+                const phoneNumber = this.extractPhoneNumber(chat);
+                console.log("Número extraído para envio:", phoneNumber);
+                
+                // Armazenar o número extraído como ID atual do chat
+                this.currentChatId = phoneNumber;
+                
+                // Armazenar o objeto completo do chat para referência
+                this.currentChatObj = chat;
+
+                // Update sidebar UI
+                document.querySelectorAll('.chat-item.active').forEach(el => el.classList.remove('active'));
+                const selectedItem = this.chatsList.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+                if (selectedItem) {
+                    selectedItem.classList.add('active');
+                    // Optionally mark as read visually immediately
+                    const unreadBadge = selectedItem.querySelector('.chat-unread-count');
+                    if (unreadBadge) unreadBadge.remove();
+                }
+
+                // Update chat area header
+                const name = chat?.name || chat?.pushName || chat?.subject || chatId.split('@')[0];
+                this.currentChatName.textContent = this.escapeHtml(name);
+                this.chatHeaderAvatar.textContent = name.charAt(0).toUpperCase();
+                this.chatHeaderAvatar.style.backgroundColor = this.getAvatarColor(name);
+                this.currentChatStatus.textContent = 'Online'; // Default or fetch real status
+
+                // Show chat area, hide placeholder
+                this.noChatSelected.style.display = 'none';
+                this.chatContainer.style.display = 'flex';
+
+                // Load messages
+                this.messagesContainer.innerHTML = ''; // Clear previous messages
+                this.messagesLoading.style.display = 'flex';
+
+                // Load cached messages first if available
+                const cachedMessages = this.messages.get(chatId);
+                if (cachedMessages) {
+                    this.renderMessages(cachedMessages);
+                    this.messagesLoading.style.display = 'none';
+                } else {
+                     // Fetch from API if not cached
+                    try {
+                        const response = await this.apiRequest(`/chat/findMessages/${this.instanceName}`, 'POST', {
+                            jid: chatId,
+                            limit: 50 // Or adjust limit as needed
+                        });
+                        console.log(`Messages for ${chatId}:`, response);
+                        const messagesArray = this.normalizeMessagesResponse(response);
+                        this.messages.set(chatId, messagesArray); // Cache messages
+                        this.renderMessages(messagesArray);
+                    } catch (error) {
+                        console.error('Erro ao carregar mensagens:', error);
+                        this.showNotification(`Erro ao carregar mensagens: ${error.message}`, 'error');
+                        this.messagesContainer.innerHTML = '<div class="info-message" style="margin: 1rem; text-align: center;">Falha ao carregar mensagens.</div>';
+                    } finally {
+                        this.messagesLoading.style.display = 'none';
+                    }
+                }
+
+                // Mark chat as read on the server (optional, might be handled by webhook)
+                // this.markChatAsRead(chatId);
+            }
+
+            // Função para processar eventos de webhook da Evolution API
+            processWebhookEvent(payload) {
+                console.log('Processando evento de webhook:', payload);
+                
+                try {
+                    // Verificar se é um evento de mensagem recebida
+                    if (payload.event === 'messages.upsert' || 
+                        payload.event === 'message' || 
+                        payload.event === 'message.received') {
+                        
+                        // Extrair a mensagem do payload (adaptável conforme formato da API)
+                        let message = null;
+                        
+                        if (payload.data && payload.data.messages && payload.data.messages.length > 0) {
+                            message = payload.data.messages[0];
+                        } else if (payload.messages && payload.messages.length > 0) {
+                            message = payload.messages[0];
+                        } else if (payload.message) {
+                            message = payload.message;
+                        }
+                        
+                        if (!message) {
+                            console.warn('Formato de mensagem não reconhecido no webhook:', payload);
+                            return;
+                        }
+                        
+                        // Extrair dados relevantes da mensagem
+                        const fromMe = message.key?.fromMe || message.fromMe || false;
+                        const remoteJid = message.key?.remoteJid || message.remoteJid || message.from;
+                        const text = this.extractMessageText(message);
+                        const timestamp = message.messageTimestamp || message.timestamp || Date.now();
+                        const id = message.key?.id || message.id || `msg-${Date.now()}`;
+                        
+                        if (!remoteJid || !text) {
+                            console.warn('Mensagem sem JID ou texto:', message);
+                            return;
+                        }
+                        
+                        // Extrair o número de telefone do remoteJid
+                        let phoneNumber = remoteJid;
+                        if (remoteJid.includes('@')) {
+                            const match = remoteJid.match(/^(\d+)@/);
+                            if (match && match[1]) {
+                                phoneNumber = match[1];
+                            }
+                        }
+                        
+                        console.log(`Mensagem recebida de ${phoneNumber}: ${text}`);
+                        
+                        // Verificar se esta mensagem é para o chat atualmente aberto
+                        if (this.currentChatId === phoneNumber || this.currentChatId.includes(phoneNumber)) {
+                            // Adicionar mensagem à UI
+                            this.addMessageToUI({
+                                id: id,
+                                fromMe: fromMe,
+                                text: text,
+                                timestamp: timestamp,
+                                status: 'received'
+                            });
+                            
+                            // Atualizar cache de mensagens
+                            const cachedMessages = this.messages.get(this.currentChatId) || [];
+                            cachedMessages.push({
+                                id: id,
+                                fromMe: fromMe,
+                                text: text,
+                                timestamp: timestamp,
+                                status: 'received'
+                            });
+                            this.messages.set(this.currentChatId, cachedMessages);
+                            
+                            // Notificar usuário (opcional)
+                            this.showNotification('Nova mensagem recebida', 'info');
+                        } else {
+                            // Mensagem para outro chat, atualizar contador não lidas
+                            console.log('Mensagem para outro chat:', phoneNumber);
+                            // Implementar atualização de contador não lidas se necessário
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erro ao processar evento de webhook:', error);
+                }
+            }
+            
+            // Função auxiliar para extrair texto de diferentes formatos de mensagem
+            extractMessageText(message) {
+                if (!message) return null;
+                
+                // Verificar diferentes formatos possíveis
+                if (typeof message.text === 'string') return message.text;
+                if (typeof message.body === 'string') return message.body;
+                
+                // Formato WhatsApp comum
+                if (message.message) {
+                    if (typeof message.message.conversation === 'string') return message.message.conversation;
+                    if (message.message.extendedTextMessage?.text) return message.message.extendedTextMessage.text;
+                    if (message.message.imageMessage?.caption) return message.message.imageMessage.caption;
+                    if (message.message.videoMessage?.caption) return message.message.videoMessage.caption;
+                    if (message.message.documentMessage?.caption) return message.message.documentMessage.caption;
+                }
+                
+                // Outros formatos possíveis
+                if (message.content && typeof message.content === 'string') return message.content;
+                
+                return null;
+            }
+        }
+    </script>
+</body>
+</html>

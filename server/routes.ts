@@ -30,11 +30,12 @@ import { getContactsV2 } from "./api/evolution-contacts-v2";
 
 // Novas importações para o menu Conexões
 import { 
-  getWhatsAppQrCode as getQrCode, 
-  connectWhatsAppCloud, 
-  checkConnectionStatus as checkConnectionStatusNew,
-  disconnectWhatsApp as disconnectWhatsAppNew
+  getWhatsAppQrCode as getQrCode,
+  checkConnectionStatus as checkConnectionStatusNew
 } from "./api/connections";
+
+// Importação das rotas para a nova interface WhatsApp
+import evolutionRoutes from "./api/evolution-routes";
 
 // Importação do controlador para envio direto via Meta API
 import { sendMetaMessageDirectly } from "./api/meta-direct-send";
@@ -153,6 +154,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registrar rotas de chat
   app.use("/api/chat", chatRoutes);
+  
+  // Registrar rotas da nova interface do WhatsApp
+  app.use("/api/evolution", evolutionRoutes);
+  
+  // Registrar rotas de conexão
+  app.get("/api/connections/status", checkConnectionStatusNew);
+  app.get("/api/connections/qrcode", getQrCode);
   
   // Temporariamente desativado para evitar problemas de conexão
   // app.use("/api/evolution-webhook", evolutionWebhookRoutes);
@@ -2975,9 +2983,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Novas rotas para o menu Conexões
   app.post("/api/connections/qrcode", getQrCode);
-  app.post("/api/connections/cloud", connectWhatsAppCloud);
+  // Rota temporariamente desativada
   app.get("/api/connections/status", checkConnectionStatusNew);
-  app.post("/api/connections/disconnect", disconnectWhatsAppNew);
+  // app.post("/api/connections/disconnect", disconnectWhatsApp); // Desabilitado temporariamente
   
   // Rotas para conexão direta com a Meta API (nível de servidor)
   app.post("/api/meta-connections/connect", connectWhatsAppMeta);
