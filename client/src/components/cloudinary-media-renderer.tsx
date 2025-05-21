@@ -89,7 +89,7 @@ export const CloudinaryMediaRenderer: React.FC<CloudinaryMediaRendererProps> = (
       return 'unknown';
     };
 
-    // Processar a URL através do servidor/Cloudinary
+    // Processar a URL através do novo proxy direto
     const processMediaUrl = async () => {
       try {
         setLoading(true);
@@ -98,28 +98,28 @@ export const CloudinaryMediaRenderer: React.FC<CloudinaryMediaRendererProps> = (
         const detectedType = detectMediaType(mediaUrl, mimeType);
         setFinalMediaType(detectedType);
 
-        // Fazer a requisição para a API que processa a mídia com o Cloudinary
-        const response = await axios.get('/api/process-media', {
-          params: {
-            url: mediaUrl,
-            mimetype: mimeType
-          }
-        });
-
-        if (response.data && response.data.success && response.data.url) {
-          // Salvar a URL no cache
-          urlCache.set(mediaUrl, response.data.url);
-          setCloudinaryUrl(response.data.url);
+        // Criar URL do proxy adequado para o tipo de mídia
+        let proxyUrl: string;
+        
+        // Para áudios do WhatsApp (.enc), usar o proxy especializado
+        if (detectedType === 'audio' && mediaUrl.includes('.enc')) {
+          proxyUrl = `/api/audio-proxy?url=${encodeURIComponent(mediaUrl)}`;
         } else {
-          throw new Error('Resposta inválida do servidor');
+          // Para outros tipos, usar o proxy genérico
+          proxyUrl = `/api/media-proxy?url=${encodeURIComponent(mediaUrl)}`;
         }
+        
+        // Salvar a URL no cache e atualizar o estado
+        urlCache.set(mediaUrl, proxyUrl);
+        setCloudinaryUrl(proxyUrl);
+        setLoading(false);
       } catch (err) {
         console.error('Erro ao processar mídia:', err);
         setError('Não foi possível carregar a mídia');
         
-        // Usar URL original como fallback
-        setCloudinaryUrl(mediaUrl);
-      } finally {
+        // Usar URL do proxy diretamente como fallback
+        const fallbackUrl = `/api/media-proxy?url=${encodeURIComponent(mediaUrl)}`;
+        setCloudinaryUrl(fallbackUrl);
         setLoading(false);
       }
     };
