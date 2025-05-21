@@ -32,13 +32,12 @@ class DirectEvolutionService {
       // Seguindo exatamente o padrão do exemplo que funciona (chatteste2.html)
       console.log(`Fazendo requisição ${method} para ${url}:`, data ? 'com dados' : 'sem dados');
       
-      // Opções de requisição exatamente como no exemplo
+      // Opções de requisição exatamente como no exemplo que funciona
       const options = {
         method: method,
         headers: {
           'Content-Type': 'application/json',
-          'apikey': this.apiKey,  // Chave no mesmo formato do exemplo
-          'Authorization': `Bearer ${this.apiKey}` // Adicionado para compatibilidade
+          'apikey': this.apiKey  // SOMENTE apikey, sem Bearer (exatamente como no exemplo HTML)
         },
         body: data ? JSON.stringify(data) : undefined
       };
