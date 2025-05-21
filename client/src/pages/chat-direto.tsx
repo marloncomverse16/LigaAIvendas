@@ -83,26 +83,41 @@ class DirectEvolutionService {
     }
   }
 
-  // Carrega mensagens de um chat específico
+  // Carrega mensagens de um chat específico - exatamente como no exemplo
   async loadMessages(chatId: string) {
+    console.log(`Carregando mensagens para ${chatId} (instância: ${this.instanceName})`);
+    
+    // Usar exatamente o mesmo formato do exemplo que funciona
     return await this.apiRequest(`/chat/findMessages/${this.instanceName}`, 'POST', {
-      jid: chatId,
-      limit: 50
+      where: {
+        key: {
+          remoteJid: chatId
+        }
+      },
+      limit: 50,
+      sort: {
+        messageTimestamp: 'desc'
+      }
     });
   }
 
-  // Envia mensagem - usando exatamente o formato do exemplo
+  // Envia mensagem - exatamente como no exemplo funcionando
   async sendMessage(number: string, text: string) {
-    const payload = {
-      number,
-      text,
+    console.log(`Enviando mensagem para ${number}: "${text}"`);
+    
+    // Formata o número se necessário (remove @c.us se presente)
+    const formattedNumber = number.includes('@c.us') ? number.split('@')[0] : number;
+    
+    return await this.apiRequest(`/message/sendText/${this.instanceName}`, 'POST', {
+      number: formattedNumber,
       options: {
         delay: 1200,
         presence: "composing"
+      },
+      textMessage: {
+        text
       }
-    };
-    
-    return await this.apiRequest(`/message/sendText/${this.instanceName}`, 'POST', payload);
+    });
   }
   
   // Normaliza os dados de chats
