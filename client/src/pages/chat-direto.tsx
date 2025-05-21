@@ -66,9 +66,30 @@ class DirectEvolutionService {
     }
   }
 
-  // Verifica estado da conexão
+  // Verifica estado da conexão - exatamente como no exemplo HTML
   async checkConnection() {
-    return await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
+    try {
+      console.log(`Verificando status da conexão na instância ${this.instanceName}`);
+      
+      const response = await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
+      
+      // Análise detalhada da resposta para verificar o status real
+      if (response && response.state) {
+        // Estado específico retornado pela API
+        const isConnected = ['CONNECTED', 'OPEN', 'connected', 'open'].includes(response.state);
+        console.log(`Status retornado pela Evolution API: ${response.state} (Conectado: ${isConnected})`);
+        return { 
+          connected: isConnected,
+          state: response.state,
+          qrCode: response.qrcode || null
+        };
+      }
+      
+      return { connected: false, state: 'unknown', qrCode: null };
+    } catch (error) {
+      console.error('Erro ao verificar status da conexão:', error);
+      return { connected: false, state: 'error', qrCode: null };
+    }
   }
 
   // Carrega lista de contatos/chats
@@ -222,20 +243,36 @@ export default function ChatDireto() {
     setLoading(true);
     try {
       const svc = serviceInstance || service;
-      if (!svc) return;
+      if (!svc) return false;
       
-      const status = await svc.checkConnection();
-      const isConnected = status.state === 'open' || status.state === 'connected';
+      console.log("Iniciando verificação de conexão...");
+      const statusInfo = await svc.checkConnection();
+      console.log("Resultado da verificação:", statusInfo);
       
-      setConnected(isConnected);
+      // Atualiza o estado da conexão com base na resposta
+      setConnected(statusInfo.connected);
       
-      toast({
-        title: isConnected ? "Conectado" : "Desconectado",
-        description: `Status: ${status.state || 'desconhecido'}`,
-        variant: isConnected ? "default" : "destructive"
-      });
+      if (statusInfo.connected) {
+        toast({
+          title: "Conectado",
+          description: `Status: ${statusInfo.state}`,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Desconectado",
+          description: `Status: ${statusInfo.state}`,
+          variant: "destructive"
+        });
+        
+        // Se houver QR Code, poderia mostrar aqui
+        if (statusInfo.qrCode) {
+          console.log("QR Code disponível para conexão");
+          // Implementar exibição do QR Code se necessário
+        }
+      }
       
-      return isConnected;
+      return statusInfo.connected;
     } catch (error: any) {
       console.error("Erro ao verificar conexão:", error);
       setConnected(false);
