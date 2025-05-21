@@ -65,41 +65,84 @@ class DirectEvolutionService {
     }
   }
 
-  // Verifica estado da conexão - exatamente como no exemplo HTML
+  // Verifica estado da conexão - ajustado para formato real da API
   async checkConnection() {
     try {
       console.log(`Verificando status da conexão na instância ${this.instanceName}`);
       
       const response = await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
+      console.log("Resposta completa do estado de conexão:", response);
       
-      // Análise detalhada da resposta para verificar o status real
-      if (response && response.state) {
-        // Estado específico retornado pela API
-        const isConnected = ['CONNECTED', 'OPEN', 'connected', 'open'].includes(response.state);
-        console.log(`Status retornado pela Evolution API: ${response.state} (Conectado: ${isConnected})`);
-        return { 
-          connected: isConnected,
-          state: response.state,
-          qrCode: response.qrcode || null
-        };
+      // Formato identificado com curl: {"instance":{"instanceName":"admin","state":"open"}}
+      if (response && response.instance) {
+        // Novo formato detectado via curl
+        if (response.instance.state) {
+          const state = response.instance.state.toString().toLowerCase();
+          const isConnected = state === 'connected' || state === 'open';
+          
+          console.log(`Estado real da instância: ${state} (Conectado: ${isConnected})`);
+          
+          return { 
+            connected: isConnected,
+            state: state,
+            qrCode: response.qrcode || null
+          };
+        }
+      } else if (response) {
+        // Verificando formatos alternativos
+        if (response.state) {
+          const state = response.state.toString().toLowerCase();
+          const isConnected = state === 'connected' || state === 'open';
+          
+          console.log(`Estado direto: ${state} (Conectado: ${isConnected})`);
+          
+          return { 
+            connected: isConnected,
+            state: state,
+            qrCode: response.qrcode || null
+          };
+        }
+        
+        // Verificar se temos status diretamente no objeto
+        if (response.status && response.status === 'connected') {
+          console.log("Status conectado encontrado diretamente no objeto");
+          return { connected: true, state: 'connected', qrCode: null };
+        }
+        
+        // Verificar o campo específico 'connected' 
+        if (response.connected === true) {
+          console.log("Campo 'connected' é true");
+          return { connected: true, state: 'connected', qrCode: null };
+        }
       }
       
-      return { connected: false, state: 'unknown', qrCode: null };
+      console.log("Não foi possível determinar o estado de conexão, considerando como desconectado");
+      return { connected: false, state: 'unknown', qrCode: response?.qrcode || null };
     } catch (error) {
       console.error('Erro ao verificar status da conexão:', error);
       return { connected: false, state: 'error', qrCode: null };
     }
   }
 
-  // Carrega lista de contatos/chats
+  // Carrega lista de contatos/chats - exatamente como no exemplo que funciona
   async loadChats() {
     try {
-      // Tenta o endpoint exato do exemplo
-      return await this.apiRequest(`/chat/findChats/${this.instanceName}`, 'POST', {});
+      // Usa o mesmo endpoint e payload do exemplo HTML
+      console.log(`Tentando carregar chats para instância ${this.instanceName}`);
+      return await this.apiRequest(`/chat/findChats/${this.instanceName}`, 'POST', {
+        // Importante: não passar nenhum parâmetro (where/limit) conforme exemplo
+      });
     } catch (error) {
       console.error('Erro ao carregar chats:', error);
-      // Tenta endpoint alternativo
-      return await this.apiRequest(`/instances/${this.instanceName}/contacts`);
+      console.log('Tentando encontrar contatos via endpoint alternativo...');
+      try {
+        // Tenta método alternativo conforme documentação
+        return await this.apiRequest(`/chat/findContacts/${this.instanceName}`, 'POST', {});
+      } catch (altError) {
+        console.error('Erro no endpoint alternativo findContacts:', altError);
+        // Último recurso: tenta o endpoint padrão de contatos
+        return await this.apiRequest(`/instance/fetchContacts/${this.instanceName}`);
+      }
     }
   }
 
