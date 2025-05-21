@@ -81,13 +81,13 @@ export function MessageMediaRenderer({
     
     const proxyUrl = getMediaProxyUrl();
     
-    // Para imagens e vídeos, tenta renderizar no componente
-    if (mediaType === 'image' || mediaType === 'video') {
+    // Opção alternativa: sempre abrir numa nova aba (resolve problemas de formato)
+    window.open(proxyUrl, '_blank');
+    setLoadingMedia(false);
+    
+    // Também podemos tentar renderizar no componente (como alternativa)
+    if (mediaType === 'image' || mediaType === 'video' || mediaType === 'audio') {
       setMediaRendered(true);
-    } else {
-      // Para outros tipos, abre em nova aba
-      window.open(proxyUrl, '_blank');
-      setLoadingMedia(false);
     }
   };
   

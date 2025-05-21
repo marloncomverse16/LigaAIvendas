@@ -93,56 +93,7 @@ function isEncryptedWhatsAppFile(buffer: Buffer): boolean {
  * @returns Buffer da imagem convertida
  */
 async function convertImage(inputBuffer: Buffer): Promise<Buffer> {
-  try {
-    // Verificar se o buffer é uma imagem válida tentando obter seus metadados
-    let metadata;
-    try {
-      metadata = await sharp(inputBuffer).metadata();
-    } catch (metadataError) {
-      console.log('Não foi possível obter metadados da imagem, arquivo pode não ser uma imagem válida');
-      return inputBuffer; // Retorna o buffer original se não conseguir obter metadados
-    }
-    
-    // Se não tiver um formato válido, retorna o original
-    if (!metadata || !metadata.format) {
-      console.log('Formato de imagem não reconhecido, enviando original');
-      return inputBuffer;
-    }
-    
-    console.log(`Imagem válida detectada: formato=${metadata.format}, largura=${metadata.width}, altura=${metadata.height}`);
-    
-    // Agora tentar converter para WebP (mais leve) com tratamento de erro
-    try {
-      return await sharp(inputBuffer)
-        .rotate() // Auto-rotação baseada em EXIF
-        .resize(800, null, { 
-          fit: 'inside',
-          withoutEnlargement: true 
-        })
-        .webp({ quality: 80 })
-        .toBuffer();
-    } catch (conversionError) {
-      console.error('Falha na conversão para WebP, tentando formato jpeg...', conversionError);
-      
-      // Se falhar com WebP, tentar JPEG como fallback
-      try {
-        return await sharp(inputBuffer)
-          .rotate()
-          .resize(800, null, { 
-            fit: 'inside',
-            withoutEnlargement: true 
-          })
-          .jpeg({ quality: 85 })
-          .toBuffer();
-      } catch (jpegError) {
-        console.error('Ambas as conversões falharam, usando original', jpegError);
-        return inputBuffer;
-      }
-    }
-  } catch (finalError) {
-    console.error('Erro grave no processamento da imagem:', finalError);
-    return inputBuffer;
-  }
+  return inputBuffer; // Temporariamente desabilitamos a conversão para diagnosticar problemas
 }
 
 /**
@@ -455,23 +406,10 @@ export async function proxyMedia(req: Request, res: Response) {
         return res.send(contentBuffer);
       }
       
-      // Para áudio e vídeo normais, tentamos processar
-      fs.writeFileSync(tempFilePath, contentBuffer);
-      
-      try {
-        // Converter o arquivo
-        if (type === 'video') {
-          await convertVideo(tempFilePath, outputFilePath);
-        } else {
-          await convertAudio(tempFilePath, outputFilePath);
-        }
-        
-        // Verificar se o arquivo de saída existe e tem tamanho válido
-        if (!fs.existsSync(outputFilePath) || fs.statSync(outputFilePath).size === 0) {
-          // Arquivo de saída inválido, usar o original
-          console.log('Arquivo convertido inválido, usando original');
-          fs.copyFileSync(tempFilePath, outputFilePath);
-        }
+      // Para áudio e vídeo, sempre enviar o arquivo original sem conversão
+      // Isso resolve problemas com arquivos .enc e outros formatos do WhatsApp
+      fs.writeFileSync(outputFilePath, contentBuffer);
+      console.log('Enviando mídia original sem processamento');
         
         // Streaming do resultado
         const stat = fs.statSync(outputFilePath);
