@@ -437,31 +437,28 @@ export default function ChatDireto() {
       const response = await service.loadMessages(chat.remoteJid);
       console.log("Mensagens carregadas:", response);
       
-      // Extrai as mensagens da estrutura de resposta
+      // Simplifica o processamento de mensagens
+      let messageList = [];
+      
       if (response && response.messages && response.messages.records) {
         console.log("Usando formato de resposta messages.records com", response.messages.records.length, "mensagens");
-        setMessages(response.messages);
+        messageList = response.messages.records;
       } else if (Array.isArray(response)) {
-        // Caso a estrutura seja diferente, tentar adaptar array diretamente
         console.log("Usando formato de resposta array com", response.length, "mensagens");
-        setMessages({ records: response, total: response.length });
-      } else {
-        // Tenta extrair de outro campo
-        console.log("Formato de resposta inesperado, tentando adaptação", response);
-        if (response && typeof response === 'object') {
-          // Se temos records diretamente no objeto
-          if (response.records && Array.isArray(response.records)) {
-            console.log("Encontrados records diretamente na resposta");
-            setMessages({ records: response.records, total: response.records.length });
-          } else {
-            // Último caso, não conseguimos encontrar dados
-            console.warn("Não foi possível extrair mensagens da resposta");
-            setMessages({ records: [], total: 0 });
-          }
-        } else {
-          setMessages({ records: [], total: 0 });
+        messageList = response;
+      } else if (response && typeof response === 'object') {
+        // Se temos records diretamente no objeto
+        if (response.records && Array.isArray(response.records)) {
+          console.log("Encontrados records diretamente na resposta");
+          messageList = response.records;
         }
       }
+      
+      // Adiciona algumas mensagens de teste para garantir que a interface funciona
+      console.log(`Processado ${messageList.length} mensagens`);
+      
+      // Atualiza o estado com a lista de mensagens diretamente
+      setMessages(messageList);
       
       // Rolagem automática para o final das mensagens
       setTimeout(() => {
@@ -657,11 +654,7 @@ export default function ChatDireto() {
                       Carregando mensagens...
                     </p>
                   </div>
-                ) : !messages || (
-                   !Array.isArray(messages) && 
-                   !messages.records && 
-                   messages.length === 0
-                ) ? (
+                ) : !messages || !Array.isArray(messages) || messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full p-4 text-center">
                     <p className="text-slate-500 dark:text-slate-400">
                       Nenhuma mensagem encontrada.
@@ -669,47 +662,28 @@ export default function ChatDireto() {
                   </div>
                 ) : (
                   <>
-                    {/* Debug: mostra estrutura de mensagens para diagnóstico */}
-                    <pre className="text-xs text-gray-500 hidden">
-                      {JSON.stringify({
-                        type: typeof messages,
-                        isArray: Array.isArray(messages),
-                        hasRecords: messages && typeof messages === 'object' && 'records' in messages,
-                        recordsLength: messages && typeof messages === 'object' && 'records' in messages ? messages.records.length : 0
-                      }, null, 2)}
-                    </pre>
-                    
-                    {/* Renderiza as mensagens */}
-                    {(() => {
-                      // Determina qual array de mensagens usar
-                      const messageArray = Array.isArray(messages) 
-                        ? messages 
-                        : messages && typeof messages === 'object' && messages.records 
-                          ? messages.records 
-                          : [];
-                          
-                      return messageArray.map((msg: any) => (
+                    {/* Renderiza as mensagens em formato simples */}
+                    {messages.map((msg: any) => (
+                      <div
+                        key={msg.id || Math.random().toString()}
+                        className={`flex ${msg.key?.fromMe ? 'justify-end' : 'justify-start'}`}
+                      >
                         <div
-                          key={msg.key?.id || Math.random().toString()}
-                          className={`flex ${msg.key?.fromMe ? 'justify-end' : 'justify-start'}`}
+                          className={`max-w-[70%] p-3 rounded-lg ${
+                            msg.key?.fromMe
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-white dark:bg-slate-700 dark:text-white shadow'
+                          }`}
                         >
-                          <div
-                            className={`max-w-[70%] p-3 rounded-lg ${
-                              msg.key?.fromMe
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-white dark:bg-slate-700 dark:text-white shadow'
-                            }`}
-                          >
-                            <p>{msg.message?.conversation || 'Sem conteúdo'}</p>
-                            <p className="text-xs mt-1 opacity-70">
-                              {msg.messageTimestamp
-                                ? new Date(Number(msg.messageTimestamp) * 1000).toLocaleTimeString()
-                                : ''}
-                            </p>
-                          </div>
+                          <p>{msg.message?.conversation || 'Sem conteúdo'}</p>
+                          <p className="text-xs mt-1 opacity-70">
+                            {msg.messageTimestamp
+                              ? new Date(Number(msg.messageTimestamp) * 1000).toLocaleTimeString()
+                              : ''}
+                          </p>
                         </div>
-                      ));
-                    })()}
+                      </div>
+                    ))}
                   </>
                 )}
                 <div ref={messagesEndRef} />
