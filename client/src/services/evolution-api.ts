@@ -58,12 +58,22 @@ export class EvolutionApiService {
     });
     
     try {
+      // Adiciona o token como parte da URL para compatibilidade com algumas versões da API
+      const urlWithToken = url.includes('?') 
+        ? `${url}&apikey=${this.apiToken}` 
+        : `${url}?apikey=${this.apiToken}`;
+        
+      console.log(`Tentando acessar URL com token: ${url} (token: ${this.apiToken.substring(0,5)}...)`);
+        
       const response = await axios({
         method,
-        url,
+        url: urlWithToken,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiToken}`
+          'Authorization': `Bearer ${this.apiToken}`,
+          // Alguns servidores Evolution API requerem API Key em formato diferente
+          'apiKey': this.apiToken,
+          'api_key': this.apiToken
         },
         data: method !== 'GET' ? data : undefined,
         params: method === 'GET' ? data : undefined
