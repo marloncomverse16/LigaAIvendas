@@ -47,6 +47,7 @@ function Router() {
       <ProtectedRoute path="/contatos" component={ContactsPage} />
       <ProtectedRoute path="/chat" component={ChatWebView} />
       <ProtectedRoute path="/whatsapp-web" component={WhatsappWebPage} />
+      <ProtectedRoute path="/new-chat" component={WhatsappWebPage} />
       <ProtectedRoute path="/message-sending" component={MessageSendingPage} />
       <ProtectedRoute path="/admin-users" component={AdminUsersPage} />
       <ProtectedRoute path="/admin-users/permissions/:userId" component={UserPermissionsPage} />
