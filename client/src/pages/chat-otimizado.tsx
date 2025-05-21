@@ -1311,70 +1311,29 @@ export default function ChatOtimizado() {
                         {msg.message?.imageMessage ? (
                           <div className="mb-1 relative">
                             <div className="rounded-md overflow-hidden flex flex-col items-center">
-                              <div 
-                                className="w-full max-w-[240px] h-[200px] rounded-md overflow-hidden relative cursor-pointer group"
-                                onClick={() => {
-                                  // Abrir modal para visualizar a imagem em tamanho maior
-                                  const modal = document.createElement('div');
-                                  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/80';
-                                  
-                                  // Evento para fechar o modal ao clicar fora da imagem
-                                  modal.addEventListener('click', (e) => {
-                                    if (e.target === modal) {
-                                      document.body.removeChild(modal);
-                                    }
-                                  });
-                                  
-                                  // Criar conteúdo do modal
-                                  const content = document.createElement('div');
-                                  content.className = 'relative max-w-[90vw] max-h-[90vh] overflow-auto';
-                                  
-                                  // Adicionar imagem
-                                  const img = document.createElement('img');
-                                  img.src = msg.message!.imageMessage!.url;
-                                  img.className = 'max-w-full max-h-[90vh] object-contain';
-                                  img.alt = 'Imagem';
-                                  
-                                  // Criar botão de fechar
-                                  const closeBtn = document.createElement('button');
-                                  closeBtn.className = 'absolute top-2 right-2 bg-white/80 rounded-full p-1 hover:bg-white';
-                                  closeBtn.innerHTML = '✕';
-                                  closeBtn.addEventListener('click', () => {
-                                    document.body.removeChild(modal);
-                                  });
-                                  
-                                  // Montar e anexar ao documento
-                                  content.appendChild(img);
-                                  content.appendChild(closeBtn);
-                                  modal.appendChild(content);
-                                  document.body.appendChild(modal);
-                                }}
-                              >
-                                <img 
-                                  src={msg.message.imageMessage.url} 
-                                  alt="Imagem" 
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    target.parentElement!.classList.add('bg-gray-100', 'dark:bg-gray-700');
-                                    const icon = document.createElement('div');
-                                    icon.className = 'flex items-center justify-center h-full w-full';
-                                    icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>';
-                                    target.parentElement!.appendChild(icon);
-                                  }}
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <div className="bg-white/80 p-2 rounded-full">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-gray-700"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path><path d="M11 8v6"></path><path d="M8 11h6"></path></svg>
+                              <div className="w-full max-w-[240px] rounded-md overflow-hidden">
+                                <div className="bg-gray-100 dark:bg-gray-700 p-4 flex flex-col items-center justify-center">
+                                  <ImageIcon size={48} className="text-gray-400 mb-2" />
+                                  <div className="text-sm text-gray-600 dark:text-gray-300 text-center mb-2">
+                                    {msg.message.imageMessage.caption ? 
+                                      msg.message.imageMessage.caption : 
+                                      'Imagem'}
                                   </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (msg.message?.imageMessage?.url) {
+                                        window.open(msg.message.imageMessage.url, '_blank');
+                                      }
+                                    }}
+                                    className="bg-white hover:bg-gray-100 text-green-600 border-green-200 dark:bg-gray-600 dark:text-green-300 dark:border-gray-500 dark:hover:bg-gray-500"
+                                  >
+                                    <ExternalLink size={14} className="mr-1" />
+                                    Ver imagem
+                                  </Button>
                                 </div>
                               </div>
-                              {msg.message.imageMessage.caption && (
-                                <p className="text-sm text-center my-1">
-                                  {msg.message.imageMessage.caption}
-                                </p>
-                              )}
                             </div>
                           </div>
                         ) : msg.message?.videoMessage ? (
