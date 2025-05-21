@@ -320,6 +320,27 @@ export default function ChatDireto() {
     checkConnection(evolutionService);
   }, [apiUrl, apiKey, instanceName]);
   
+  // Configuração de polling para atualização automática de mensagens
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    // Se tiver um chat selecionado, configura polling
+    if (service && selectedChat && connected) {
+      // Atualiza as mensagens a cada 5 segundos
+      intervalId = setInterval(() => {
+        console.log("Atualizando mensagens automaticamente...");
+        loadMessages(selectedChat);
+      }, 5000);
+    }
+    
+    // Limpeza ao desmontar
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [service, selectedChat, connected]);
+  
   // Verifica a conexão
   const checkConnection = async (serviceInstance?: DirectEvolutionService) => {
     setLoading(true);
@@ -454,6 +475,11 @@ export default function ChatDireto() {
         title: "Mensagem enviada",
         description: "A mensagem foi enviada com sucesso",
       });
+      
+      // Configura um intervalor para verificar novas mensagens
+      setTimeout(() => {
+        loadMessages(selectedChat);
+      }, 2000);
     } catch (error: any) {
       console.error("Erro ao enviar mensagem:", error);
       
