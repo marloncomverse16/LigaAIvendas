@@ -3255,6 +3255,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para obter configurações do servidor do usuário para o Evolution API
+  app.get("/api/user/server-config", async (req, res) => {
+    try {
+      await getUserServerConfig(req, res);
+    } catch (error) {
+      console.error('Erro ao obter configurações do servidor:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao obter configurações do servidor',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+
   // Rota para obter templates da Meta API
   app.get("/api/user/meta-templates", async (req, res) => {
     console.log("Rota /api/user/meta-templates chamada - VERSÃO CORRIGIDA");
