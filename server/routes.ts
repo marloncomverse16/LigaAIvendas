@@ -2330,6 +2330,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Novas rotas otimizadas para mídia do WhatsApp
+  app.get("/api/media-proxy", async (req, res) => {
+    try {
+      const { directMediaProxy } = await import('./api/enhanced-media-proxy');
+      await directMediaProxy(req, res);
+    } catch (error) {
+      console.error('Erro no proxy de mídia melhorado:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao processar mídia',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Proxy específico para áudios
+  app.get("/api/audio-proxy", async (req, res) => {
+    try {
+      const { audioProxy } = await import('./api/enhanced-media-proxy');
+      await audioProxy(req, res);
+    } catch (error) {
+      console.error('Erro no proxy de áudio:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao processar áudio',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
   // Rota para processar mídia com Cloudinary (solução definitiva para problemas de CORS)
   app.get("/api/process-media", async (req, res) => {
     try {

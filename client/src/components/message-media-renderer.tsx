@@ -8,7 +8,7 @@ import {
   FileIcon, ImageIcon, FileVideo, FileAudio, 
   ExternalLink, Play, Pause, Download 
 } from "lucide-react";
-import { CloudinaryMediaRenderer } from './cloudinary-media-renderer';
+// Implementando visualização direta com proxies sem uso do Cloudinary
 
 interface MessageMediaRendererProps {
   messageType: string;                   // Tipo de mensagem (imageMessage, videoMessage, audioMessage, documentMessage)
@@ -35,6 +35,7 @@ export function MessageMediaRenderer({
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   // Determinar o tipo de mídia a partir do messageType
   const getMediaType = (): 'image' | 'video' | 'audio' | 'document' | 'unknown' => {
@@ -217,24 +218,94 @@ export function MessageMediaRenderer({
     );
   }
 
+  // Função para obter URL do proxy para a mídia
+  const getProxyUrl = () => {
+    if (!mediaUrl) return '';
+    
+    // Usar proxy específico para áudio, caso contrário usar proxy genérico
+    if (mediaType === 'audio' && isWhatsAppAudio) {
+      return `/api/audio-proxy?url=${encodeURIComponent(mediaUrl)}`;
+    } else {
+      return `/api/media-proxy?url=${encodeURIComponent(mediaUrl)}`;
+    }
+  };
+  
+  // Renderizar imagem com proxy
+  const renderDirectImage = () => {
+    const proxyUrl = getProxyUrl();
+    return (
+      <div className="relative mt-3">
+        <img 
+          src={proxyUrl} 
+          alt={caption || "Imagem do WhatsApp"} 
+          className="max-w-[300px] max-h-[400px] h-auto object-contain rounded-md"
+          onError={() => setImageError(true)}
+          loading="lazy"
+        />
+        {caption && (
+          <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {caption}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  // Renderizar vídeo com proxy
+  const renderDirectVideo = () => {
+    const proxyUrl = getProxyUrl();
+    return (
+      <div className="relative mt-3">
+        <video 
+          src={proxyUrl} 
+          controls
+          className="max-w-[300px] max-h-[400px] rounded-md"
+          preload="metadata"
+        >
+          Seu navegador não suporta a reprodução de vídeos.
+        </video>
+        {caption && (
+          <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {caption}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  // Renderizar documento com link para proxy
+  const renderDirectDocument = () => {
+    const proxyUrl = getProxyUrl();
+    return (
+      <div className="mt-3 flex items-center">
+        <a 
+          href={proxyUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-primary hover:underline flex items-center"
+        >
+          <FileIcon className="h-5 w-5 mr-2" />
+          {fileName || "Documento"}
+        </a>
+        {caption && (
+          <div className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+            {caption}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
   // Renderizar o componente adequado por tipo de mídia
   return (
     <div className={`p-3 rounded-lg bg-gray-100 dark:bg-gray-800 ${className}`}>
       {renderMediaHeader()}
       
-      {/* Renderizar player de áudio nativo para arquivos de áudio do WhatsApp */}
-      {mediaType === 'audio' && isWhatsAppAudio ? (
-        renderAudioPlayer()
-      ) : (
-        /* Para outros tipos de mídia, tentar com CloudinaryMediaRenderer */
-        <CloudinaryMediaRenderer 
-          mediaUrl={mediaUrl}
-          mediaType={mediaType}
-          mimeType={mimeType !== 'false' ? mimeType : undefined}
-          caption={caption}
-          className="mt-3"
-        />
-      )}
+      {/* Renderização direta por tipo de mídia */}
+      {mediaType === 'audio' && renderAudioPlayer()}
+      {mediaType === 'image' && renderDirectImage()}
+      {mediaType === 'video' && renderDirectVideo()}
+      {(mediaType === 'document' || mediaType === 'unknown') && renderDirectDocument()}
       
       {renderBackupButton()}
     </div>
