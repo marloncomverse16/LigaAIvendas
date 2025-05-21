@@ -1419,7 +1419,7 @@ export default function ChatOtimizado() {
                 
                   {/* Formulário de mensagem principal */}
                   {!showMediaPanel && (
-                    <div className="flex space-x-2">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="flex space-x-2">
                       {/* Botão de anexo */}
                       <Button 
                         type="button" 
@@ -1450,30 +1450,18 @@ export default function ChatOtimizado() {
                       />
                       
                       <Button 
-                        type="button" 
+                        type="submit" 
                         size="icon" 
                         disabled={!connected || loading || form.formState.isSubmitting}
-                        onClick={() => {
-                          console.log("Botão de enviar clicado");
-                          // Verificar se há texto para enviar
-                          if (form.getValues().text) {
-                            form.handleSubmit(onSubmit)();
-                          } else {
-                            toast({
-                              title: "Mensagem vazia",
-                              description: "Digite uma mensagem para enviar",
-                              variant: "destructive"
-                            });
-                          }
-                        }}
+                        className="bg-green-600 hover:bg-green-700"
                       >
                         {form.formState.isSubmitting ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin text-white" />
                         ) : (
-                          <Send className="h-4 w-4" />
+                          <Send className="h-4 w-4 text-white" />
                         )}
                       </Button>
-                    </div>
+                    </form>
                   )}
                 </div>
               </Form>
