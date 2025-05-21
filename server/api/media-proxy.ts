@@ -47,13 +47,63 @@ setInterval(() => {
 }, 30 * 60 * 1000);
 
 /**
+ * Tenta detectar se o buffer contém uma imagem válida
+ * @param buffer Buffer da imagem
+ * @returns boolean indicando se é uma imagem válida
+ */
+async function isValidImage(buffer: Buffer): Promise<boolean> {
+  try {
+    // Tenta carregar a imagem e obter seus metadados
+    const metadata = await sharp(buffer).metadata();
+    return !!metadata.format;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Determina se um buffer é um arquivo criptografado do WhatsApp (.enc)
+ * @param buffer Buffer do arquivo
+ * @returns boolean indicando se é um arquivo .enc
+ */
+function isEncryptedWhatsAppFile(buffer: Buffer): boolean {
+  // Verificação simplificada com base em padrões conhecidos de arquivos .enc
+  // Os arquivos .enc do WhatsApp geralmente têm uma assinatura específica
+  if (buffer.length < 10) return false;
+  
+  // Verificar assinaturas conhecidas dos arquivos .enc do WhatsApp
+  const headerBytes = buffer.subarray(0, 8);
+  const hexHeader = headerBytes.toString('hex');
+  
+  // Algumas assinaturas conhecidas de arquivos .enc do WhatsApp
+  const knownSignatures = [
+    '576861747341707020', // "WhatsApp "
+    '89504e470d0a1a0a',   // PNG signature
+    'ffd8ffe000104a46',   // JPEG signature
+    '3c3f786d6c207665',   // XML signature
+    '4d4d002a'            // TIFF signature
+  ];
+  
+  return !knownSignatures.some(sig => hexHeader.includes(sig.toLowerCase()));
+}
+
+/**
  * Converte uma imagem para um formato mais leve e compatível
- * @param inputPath Caminho para o arquivo original
- * @param outputPath Caminho para o arquivo convertido
+ * @param inputBuffer Buffer da imagem original
+ * @returns Buffer da imagem convertida
  */
 async function convertImage(inputBuffer: Buffer): Promise<Buffer> {
   try {
-    // Converter para webp que é mais leve e amplamente suportado
+    // Verificar se o buffer é uma imagem válida
+    const isValid = await isValidImage(inputBuffer);
+    
+    // Se não for uma imagem válida e parece ser um arquivo .enc, apenas retornar
+    if (!isValid && isEncryptedWhatsAppFile(inputBuffer)) {
+      console.log('Detectado arquivo .enc do WhatsApp, enviando sem processamento');
+      return inputBuffer;
+    }
+    
+    // Tenta converter para webp que é mais leve e amplamente suportado
     return await sharp(inputBuffer)
       .webp({ quality: 80 })
       .toBuffer();
@@ -64,25 +114,129 @@ async function convertImage(inputBuffer: Buffer): Promise<Buffer> {
 }
 
 /**
+ * Verifica se um arquivo pode ser um vídeo válido
+ * @param filePath Caminho para o arquivo
+ * @returns Promise<boolean> indicando se é um vídeo válido
+ */
+async function isValidVideoFile(filePath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      // Usamos o método padrão sem ffprobe, apenas tentando abrir o arquivo
+      const process = ffmpeg(filePath);
+      
+      process.on('error', () => {
+        console.log('Arquivo não é um vídeo válido, erro na leitura');
+        resolve(false);
+      });
+      
+      process.on('codecData', () => {
+        // Se chegamos aqui, o ffmpeg conseguiu ler o arquivo
+        process.kill(); // Importante para não deixar o processo rodando
+        resolve(true);
+      });
+      
+      // Definir um timeout para caso a detecção demore muito
+      setTimeout(() => {
+        try {
+          process.kill();
+        } catch (e) {
+          // Ignorar erros de kill
+        }
+        resolve(false);
+      }, 3000);
+      
+      // Inicia o processo só para verificação
+      process.format('null').output('/dev/null').run();
+    } catch (error) {
+      console.error('Erro ao verificar arquivo de vídeo:', error);
+      resolve(false);
+    }
+  });
+}
+
+/**
  * Converte um vídeo para um formato mais leve e compatível (para navegadores)
  * @param inputPath Caminho para o arquivo original
  * @param outputPath Caminho para o arquivo convertido (MP4) 
  */
-function convertVideo(inputPath: string, outputPath: string): Promise<void> {
+async function convertVideo(inputPath: string, outputPath: string): Promise<void> {
+  // Primeiro verificamos se o arquivo é um vídeo válido
+  const isValid = await isValidVideoFile(inputPath);
+  
+  if (!isValid) {
+    // Se não for um vídeo válido, apenas copiamos o arquivo
+    console.log('Arquivo não é um vídeo válido, copiando sem conversão');
+    fs.copyFileSync(inputPath, outputPath);
+    return;
+  }
+  
   return new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
-      .outputOptions([
-        '-c:v libx264',           // Codec de vídeo H.264
-        '-crf 28',                // Qualidade mais baixa para tamanho menor
-        '-preset ultrafast',      // Codificação mais rápida
-        '-c:a aac',               // Codec de áudio AAC
-        '-b:a 128k',              // Bitrate de áudio
-        '-movflags +faststart'    // Otimizar para streaming Web
-      ])
-      .output(outputPath)
-      .on('end', () => resolve())
-      .on('error', (err) => reject(err))
-      .run();
+    try {
+      ffmpeg(inputPath)
+        .outputOptions([
+          '-c:v libx264',           // Codec de vídeo H.264
+          '-crf 28',                // Qualidade mais baixa para tamanho menor
+          '-preset ultrafast',      // Codificação mais rápida
+          '-c:a aac',               // Codec de áudio AAC
+          '-b:a 128k',              // Bitrate de áudio
+          '-movflags +faststart'    // Otimizar para streaming Web
+        ])
+        .output(outputPath)
+        .on('end', () => resolve())
+        .on('error', (err) => {
+          console.error('Erro na conversão de vídeo, usando arquivo original:', err);
+          // Em caso de erro, apenas copiar o arquivo original
+          fs.copyFileSync(inputPath, outputPath);
+          resolve();
+        })
+        .run();
+    } catch (error) {
+      console.error('Erro fatal na conversão de vídeo:', error);
+      // Em caso de erro na execução do ffmpeg, copiar o arquivo original
+      fs.copyFileSync(inputPath, outputPath);
+      resolve();
+    }
+  });
+}
+
+/**
+ * Verifica se um arquivo pode ser um arquivo de áudio válido
+ * @param filePath Caminho para o arquivo
+ * @returns Promise<boolean> indicando se é um áudio válido
+ */
+async function isValidAudioFile(filePath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      // Usamos o método padrão sem ffprobe, apenas tentando abrir o arquivo
+      const process = ffmpeg(filePath);
+      
+      process.on('error', () => {
+        console.log('Arquivo não é um áudio válido, erro na leitura');
+        resolve(false);
+      });
+      
+      process.on('codecData', () => {
+        // Se chegamos aqui, o ffmpeg conseguiu ler o arquivo
+        process.kill(); // Importante para não deixar o processo rodando
+        resolve(true);
+      });
+      
+      // Definir um timeout para caso a detecção demore muito
+      setTimeout(() => {
+        try {
+          process.kill();
+        } catch (e) {
+          // Ignorar erros de kill
+        }
+        resolve(false);
+      }, 3000);
+      
+      // Inicia o processo só para verificação
+      process.format('null').output('/dev/null').run();
+    } catch (error) {
+      console.error('Erro ao verificar arquivo de áudio:', error);
+      resolve(false);
+    }
   });
 }
 
@@ -91,19 +245,41 @@ function convertVideo(inputPath: string, outputPath: string): Promise<void> {
  * @param inputPath Caminho para o arquivo original
  * @param outputPath Caminho para o arquivo convertido
  */
-function convertAudio(inputPath: string, outputPath: string): Promise<void> {
+async function convertAudio(inputPath: string, outputPath: string): Promise<void> {
+  // Primeiro verificamos se o arquivo é um áudio válido
+  const isValid = await isValidAudioFile(inputPath);
+  
+  if (!isValid) {
+    // Se não for um áudio válido, apenas copiamos o arquivo
+    console.log('Arquivo não é um áudio válido, copiando sem conversão');
+    fs.copyFileSync(inputPath, outputPath);
+    return;
+  }
+  
   return new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
-      .outputOptions([
-        '-c:a libmp3lame',     // Codec MP3
-        '-b:a 128k',           // Bitrate de áudio
-        '-ac 2',               // 2 canais (estéreo)
-        '-ar 44100'            // Taxa de amostragem
-      ])
-      .output(outputPath)
-      .on('end', () => resolve())
-      .on('error', (err) => reject(err))
-      .run();
+    try {
+      ffmpeg(inputPath)
+        .outputOptions([
+          '-c:a libmp3lame',     // Codec MP3
+          '-b:a 128k',           // Bitrate de áudio
+          '-ac 2',               // 2 canais (estéreo)
+          '-ar 44100'            // Taxa de amostragem
+        ])
+        .output(outputPath)
+        .on('end', () => resolve())
+        .on('error', (err) => {
+          console.error('Erro na conversão de áudio, usando arquivo original:', err);
+          // Em caso de erro, apenas copiar o arquivo original
+          fs.copyFileSync(inputPath, outputPath);
+          resolve();
+        })
+        .run();
+    } catch (error) {
+      console.error('Erro fatal na conversão de áudio:', error);
+      // Em caso de erro na execução do ffmpeg, copiar o arquivo original
+      fs.copyFileSync(inputPath, outputPath);
+      resolve();
+    }
   });
 }
 
