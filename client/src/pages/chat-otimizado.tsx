@@ -44,26 +44,35 @@ class DirectEvolutionService {
   // Método central para realizar requisições à API
   async apiRequest(endpoint: string, method = 'GET', data?: any) {
     // Garantir que a URL está formatada corretamente
-    const url = endpoint.startsWith('http') 
-      ? endpoint 
-      : `${this.apiUrl}${endpoint}`;
+    const baseUrl = this.apiUrl.endsWith('/') ? this.apiUrl.slice(0, -1) : this.apiUrl;
+    const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
     
     console.log(`Fazendo requisição ${method} para ${url}${data ? ' com dados' : ''}`);
+    if (data) {
+      console.log(`JSON formatado:`, JSON.stringify(data, null, 2));
+    }
     
-    // IMPORTANTE: Usar exatamente o cabeçalho 'apikey' (sem Bearer) que é o formato esperado pela Evolution API
+    // Incluir todos os possíveis formatos de autenticação para compatibilidade com diferentes versões da API
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'apikey': this.apiKey
+      'Authorization': `Bearer ${this.apiKey}`,
+      'apikey': this.apiKey,
+      'api_key': this.apiKey
     };
     
+    // Adicionar token à URL para máxima compatibilidade
+    const urlWithToken = url.includes('?') 
+      ? `${url}&apikey=${this.apiKey}` 
+      : `${url}?apikey=${this.apiKey}`;
+    
     try {
-      const response = await fetch(url, {
+      const response = await fetch(urlWithToken, {
         method,
         headers,
         body: data ? JSON.stringify(data) : undefined
       });
       
-      console.log(`Resposta de ${url}:`, response.status);
+      console.log(`Resposta bem-sucedida de ${url}:`, response.status);
       
       if (!response.ok) {
         // Tentar extrair mensagem de erro da resposta
@@ -206,7 +215,7 @@ class DirectEvolutionService {
     }
   }
 
-  // Envia uma mensagem para um chat - método atualizado com múltiplas tentativas
+  // Envia uma mensagem para um chat - método compatível com o servidor
   async sendMessage(chatId: string, text: string) {
     try {
       console.log(`Enviando mensagem para ${chatId}`);
@@ -218,69 +227,45 @@ class DirectEvolutionService {
       
       console.log(`Número formatado para envio: ${cleanNumber}`);
       
-      // Payload no formato esperado pela API
-      const messageData = {
+      // Formato exatamente igual ao que funciona no código server/api/evolution-message.ts
+      const payload = {
         number: cleanNumber,
         options: {
           delay: 1200,
-          presence: 'composing'
+          presence: true
         },
         textMessage: {
-          text
+          text: text
         }
       };
-
-      // Alternativa em formato mais simples caso o primeiro formato falhe
-      const simpleData = {
-        phone: cleanNumber,
-        message: text
-      };
       
-      console.log("Tentando enviar com formato completo:", JSON.stringify(messageData, null, 2));
+      console.log("Enviando mensagem com payload:", JSON.stringify(payload, null, 2));
       
-      // Primeira tentativa - endpoint padrão
-      try {
-        const result = await this.apiRequest(
-          `/message/sendText/${this.instanceName}`,
-          'POST',
-          messageData
-        );
-        console.log("Mensagem enviada com sucesso (método 1):", result);
-        return { success: true, result };
-      } catch (error1) {
-        console.warn("Falha no envio usando método 1:", error1);
-        
-        // Segunda tentativa - endpoint alternativo
-        try {
-          const result2 = await this.apiRequest(
-            `/send-message/${this.instanceName}`,
-            'POST',
-            simpleData
-          );
-          console.log("Mensagem enviada com sucesso (método 2):", result2);
-          return { success: true, result: result2 };
-        } catch (error2) {
-          console.warn("Falha no envio usando método 2:", error2);
-          
-          // Terceira tentativa - outro formato de endpoint possível
-          try {
-            const result3 = await this.apiRequest(
-              `/texts/${this.instanceName}/send`,
-              'POST',
-              { 
-                receivers: [cleanNumber],
-                message: text 
-              }
-            );
-            console.log("Mensagem enviada com sucesso (método 3):", result3);
-            return { success: true, result: result3 };
-          } catch (error3) {
-            // Se todas as tentativas falharem, lança o erro final
-            console.error("Todas as tentativas de envio falharam");
-            throw error3;
-          }
-        }
+      // Usando o endpoint de forma exata como no código que funciona
+      const apiUrl = this.apiUrl.endsWith('/') ? this.apiUrl.slice(0, -1) : this.apiUrl;
+      const endpoint = `/message/sendText/${this.instanceName}`;
+      const urlWithToken = `${apiUrl}${endpoint}?apikey=${this.apiKey}`;
+      
+      const response = await fetch(urlWithToken, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'apikey': this.apiKey,
+          'api_key': this.apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        console.error(`Erro HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Falha ao enviar mensagem: ${errorText || response.statusText}`);
       }
+      
+      const result = await response.json();
+      console.log("Mensagem enviada com sucesso:", result);
+      return { success: true, result };
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       // Retornar objeto de erro estruturado para tratamento na UI
