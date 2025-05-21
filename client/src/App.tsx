@@ -28,7 +28,7 @@ import ContactsPage from "@/pages/contacts-page";
 import MetaTestPage from "@/pages/meta-test-page";
 import MetaDiagnosticPage from "@/pages/meta-diagnostic-page";
 import ChatDiagnosticsPage from "@/pages/chat-diagnostics-page";
-import ChatDireto from "@/pages/chat-direto";
+import ChatDireto from "@/pages/chat-direto-fixed";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { SidebarProvider } from "@/providers/sidebar-provider";
