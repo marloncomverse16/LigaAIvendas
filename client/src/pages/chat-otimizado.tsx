@@ -884,9 +884,39 @@ export default function ChatOtimizado() {
     setMediaCaption('');
   };
   
+  // Função auxiliar para atualizar mensagens otimistas
+  const updateOptimisticMessage = (messageId: string, updates: Partial<any>) => {
+    if (!selectedChat) return;
+    
+    const chatId = selectedChat.remoteJid;
+    const existingMessages = messagesByChatId[chatId] || [];
+    const messageIndex = existingMessages.findIndex(m => m.id === messageId);
+    
+    if (messageIndex !== -1) {
+      const updatedMessages = [...existingMessages];
+      updatedMessages[messageIndex] = {
+        ...updatedMessages[messageIndex],
+        ...updates
+      };
+      
+      setMessages(updatedMessages);
+      setMessagesByChatId(prev => ({
+        ...prev,
+        [chatId]: updatedMessages
+      }));
+    }
+  };
+
   // Envia uma mensagem com sistema de UI otimista
   const onSubmit = async (values: SendFormValues) => {
-    if (!service || !selectedChat) return;
+    if (!service || !selectedChat) {
+      toast({
+        title: "Erro",
+        description: "Serviço não inicializado ou nenhum chat selecionado",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       const chatId = selectedChat.remoteJid || selectedChat.id;
@@ -960,12 +990,33 @@ export default function ChatOtimizado() {
             variant: "destructive"
           });
           
-          // Atualizar a mensagem otimista para mostrar que falhou
-          updateOptimisticMessage(localMsgId, { status: "failed" });
+          // Buscar a mensagem e atualizar o status
+          const existingMessages = messagesByChatId[chatId] || [];
+          const messageIndex = existingMessages.findIndex(m => m.id === localMsgId);
+          
+          if (messageIndex !== -1) {
+            const updatedMessages = [...existingMessages];
+            updatedMessages[messageIndex] = {
+              ...updatedMessages[messageIndex], 
+              status: 'failed'
+            };
+            
+            setMessages(updatedMessages);
+            setMessagesByChatId(prev => ({
+              ...prev,
+              [chatId]: updatedMessages
+            }));
+          }
+          
           return; // Encerra o processamento em caso de erro
         }
       } else {
         // Envio normal de mensagem de texto
+        if (!values.text || values.text.trim() === '') {
+          console.log("Mensagem vazia, ignorando envio");
+          return;
+        }
+        
         console.log(`Enviando mensagem para ${chatId}: "${values.text}"`);
         
         // Criar uma mensagem otimista para mostrar imediatamente na interface
@@ -984,8 +1035,43 @@ export default function ChatOtimizado() {
           status: 'sending'
         };
         
-        // Enviar a mensagem de texto para o servidor
-        result = await service.sendMessage(chatId, values.text);
+        try {
+          // Verificar se o texto está definido
+          if (!values.text) {
+            throw new Error("Texto da mensagem não pode ser vazio");
+          }
+          
+          // Enviar a mensagem de texto para o servidor
+          result = await service.sendMessage(chatId, values.text);
+          console.log("Mensagem enviada com sucesso:", result);
+        } catch (error) {
+          console.error("Erro ao enviar mensagem:", error);
+          toast({
+            title: "Erro ao enviar mensagem",
+            description: error instanceof Error ? error.message : String(error),
+            variant: "destructive"
+          });
+          
+          // Buscar a mensagem e atualizar o status
+          const existingMessages = messagesByChatId[chatId] || [];
+          const messageIndex = existingMessages.findIndex(m => m.id === localMsgId);
+          
+          if (messageIndex !== -1) {
+            const updatedMessages = [...existingMessages];
+            updatedMessages[messageIndex] = {
+              ...updatedMessages[messageIndex], 
+              status: 'failed'
+            };
+            
+            setMessages(updatedMessages);
+            setMessagesByChatId(prev => ({
+              ...prev,
+              [chatId]: updatedMessages
+            }));
+          }
+          
+          return; // Encerra o processamento em caso de erro
+        }
       }
       
       // Adicionar a mensagem otimista ao estado local
