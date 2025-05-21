@@ -1450,7 +1450,24 @@ export default function ChatOtimizado() {
                     />
                     
                     {!showMediaPanel && (
-                      <Button type="submit" size="icon" disabled={!connected || loading || form.formState.isSubmitting}>
+                      <Button 
+                        type="submit" 
+                        size="icon" 
+                        disabled={!connected || loading || form.formState.isSubmitting}
+                        onClick={() => {
+                          console.log("Botão de enviar clicado");
+                          // Usar handleSubmit para garantir que o formulário seja enviado
+                          if (form.getValues().text) {
+                            form.handleSubmit(onSubmit)();
+                          } else {
+                            toast({
+                              title: "Mensagem vazia",
+                              description: "Digite uma mensagem para enviar",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                      >
                         {form.formState.isSubmitting ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
