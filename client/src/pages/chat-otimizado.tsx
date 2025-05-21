@@ -206,7 +206,7 @@ class DirectEvolutionService {
     }
   }
 
-  // Envia uma mensagem para um chat
+  // Envia uma mensagem para um chat - método atualizado com múltiplas tentativas
   async sendMessage(chatId: string, text: string) {
     try {
       console.log(`Enviando mensagem para ${chatId}`);
@@ -218,8 +218,8 @@ class DirectEvolutionService {
       
       console.log(`Número formatado para envio: ${cleanNumber}`);
       
-      // Usar o formato correto que funciona com a API
-      const data = {
+      // Payload no formato esperado pela API
+      const messageData = {
         number: cleanNumber,
         options: {
           delay: 1200,
@@ -229,21 +229,61 @@ class DirectEvolutionService {
           text
         }
       };
+
+      // Alternativa em formato mais simples caso o primeiro formato falhe
+      const simpleData = {
+        phone: cleanNumber,
+        message: text
+      };
       
-      console.log("Enviando dados:", JSON.stringify(data, null, 2));
+      console.log("Tentando enviar com formato completo:", JSON.stringify(messageData, null, 2));
       
-      // Requisição para enviar a mensagem
-      const result = await this.apiRequest(
-        `/message/sendText/${this.instanceName}`,
-        'POST',
-        data
-      );
-      
-      console.log("Mensagem enviada com sucesso:", result);
-      return result;
+      // Primeira tentativa - endpoint padrão
+      try {
+        const result = await this.apiRequest(
+          `/message/sendText/${this.instanceName}`,
+          'POST',
+          messageData
+        );
+        console.log("Mensagem enviada com sucesso (método 1):", result);
+        return { success: true, result };
+      } catch (error1) {
+        console.warn("Falha no envio usando método 1:", error1);
+        
+        // Segunda tentativa - endpoint alternativo
+        try {
+          const result2 = await this.apiRequest(
+            `/send-message/${this.instanceName}`,
+            'POST',
+            simpleData
+          );
+          console.log("Mensagem enviada com sucesso (método 2):", result2);
+          return { success: true, result: result2 };
+        } catch (error2) {
+          console.warn("Falha no envio usando método 2:", error2);
+          
+          // Terceira tentativa - outro formato de endpoint possível
+          try {
+            const result3 = await this.apiRequest(
+              `/texts/${this.instanceName}/send`,
+              'POST',
+              { 
+                receivers: [cleanNumber],
+                message: text 
+              }
+            );
+            console.log("Mensagem enviada com sucesso (método 3):", result3);
+            return { success: true, result: result3 };
+          } catch (error3) {
+            // Se todas as tentativas falharem, lança o erro final
+            console.error("Todas as tentativas de envio falharam");
+            throw error3;
+          }
+        }
+      }
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
-      // Ao invés de propagar o erro, retornar um objeto de erro estruturado
+      // Retornar objeto de erro estruturado para tratamento na UI
       return { 
         success: false, 
         error: error instanceof Error ? error.message : String(error)
