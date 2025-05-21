@@ -21,6 +21,7 @@ import { promisify } from "util";
 import { eq, and } from "drizzle-orm";
 import { db } from "./db";
 import { checkConnectionStatus, disconnectWhatsApp } from "./connection";
+import * as whatsappApi from "./api/whatsapp-api";
 import { getWhatsAppQrCode, getWhatsAppContacts } from "./direct-connection";
 import { setupWebSocketServer, sendMessage } from "./websocket";
 import multer from "multer";
@@ -1998,6 +1999,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WhatsApp API Routes
   // Endpoint direto para obter contatos do WhatsApp (alternativa robusta)
   app.get("/api/chat/direct-contacts", getWhatsAppContacts);
+  
+  // Rotas para o WhatsApp Web (nova interface)
+  app.get("/api/whatsapp/contacts", whatsappApi.getContacts);
+  app.get("/api/whatsapp/messages/:contactId", whatsappApi.getMessages);
+  app.post("/api/whatsapp/send", whatsappApi.sendMessage);
+  app.get("/api/whatsapp/status", whatsappApi.checkStatus);
   
   // Novo endpoint usando a implementação correta conforme documentação oficial
   app.get("/api/chat/contacts-v2", getContactsV2);
