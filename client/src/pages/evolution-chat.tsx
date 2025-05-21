@@ -15,6 +15,7 @@ import { Send, Search, UserPlus, Phone, Settings, RefreshCw } from "lucide-react
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import evolutionApiService from "@/services/evolution-api";
+import { useEvolutionApi } from "@/hooks/use-evolution-api";
 
 // Tipos 
 interface Contact {
@@ -46,109 +47,38 @@ export default function EvolutionChatPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loadingContacts, setLoadingContacts] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState({ connected: false, state: "unknown" });
-  const [checkingConnection, setCheckingConnection] = useState(false);
   
-  // Configuração inicial com dados do servidor
+  // Usando o hook criado para a Evolution API
+  const {
+    connected,
+    connectionState,
+    contacts = [],
+    isLoadingContacts,
+    isCheckingConnection,
+    checkConnection: checkConnectionStatus,
+    refreshContacts,
+    loadMessages: fetchMessages,
+    sendMessage: sendMessageApi
+  } = useEvolutionApi();
+  
+  // Estado de conexão agora vem do hook
+  const connectionStatus = {
+    connected,
+    state: connectionState
+  };
+  
+  // Efeito para buscar mensagens quando um contato é selecionado
   useEffect(() => {
-    const loadServerConfig = async () => {
-      try {
-        // Buscar configurações do servidor
-        const response = await fetch('/api/user/server-config');
-        if (!response.ok) {
-          throw new Error('Falha ao buscar configurações do servidor');
-        }
-        
-        const config = await response.json();
-        
-        // Verificar se temos todas as informações necessárias
-        if (!config || !config.apiUrl || !config.apiToken) {
-          toast({
-            title: "Configuração incompleta",
-            description: "As configurações da API não estão completas. Verifique as configurações do servidor.",
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        // Configurar a API com dados do servidor
-        evolutionApiService.configure(
-          config.apiUrl,
-          config.apiToken,
-          config.instanceId || "admin"
-        );
-        
-        // Verificar imediatamente o status da conexão
-        checkConnection();
-      } catch (error: any) {
-        console.error("Erro ao buscar configurações:", error);
-        toast({
-          title: "Erro de configuração",
-          description: error.message || "Falha ao buscar configurações do servidor",
-          variant: "destructive"
-        });
-      }
-    };
-    
-    loadServerConfig();
-  }, [toast]);
-  
-  // Verificar o status da conexão
-  const checkConnection = async () => {
-    setCheckingConnection(true);
-    try {
-      const status = await evolutionApiService.checkConnectionState();
-      setConnectionStatus({
-        connected: status.connected,
-        state: status.state
-      });
-      
-      // Se estiver conectado, carregar contatos
-      if (status.connected) {
-        loadContacts();
-      }
-    } catch (error: any) {
-      console.error("Erro ao verificar conexão:", error);
-      toast({
-        title: "Erro de conexão",
-        description: error.message || "Não foi possível verificar o status da conexão",
-        variant: "destructive"
-      });
-      setConnectionStatus({
-        connected: false,
-        state: "error"
-      });
-    } finally {
-      setCheckingConnection(false);
+    if (selectedContact) {
+      handleLoadMessages(selectedContact.id);
     }
-  };
-  
-  // Carregar contatos da Evolution API
-  const loadContacts = async () => {
-    setLoadingContacts(true);
-    try {
-      const contactsList = await evolutionApiService.loadChats();
-      setContacts(contactsList);
-    } catch (error: any) {
-      console.error("Erro ao carregar contatos:", error);
-      toast({
-        title: "Erro ao carregar contatos",
-        description: error.message || "Não foi possível carregar a lista de contatos",
-        variant: "destructive"
-      });
-      setContacts([]);
-    } finally {
-      setLoadingContacts(false);
-    }
-  };
+  }, [selectedContact]);
   
   // Carregar mensagens de um contato específico
-  const loadMessages = async (contactId: string) => {
+  const handleLoadMessages = async (contactId: string) => {
     setLoadingMessages(true);
     try {
-      const messagesList = await evolutionApiService.loadMessages(contactId);
+      const messagesList = await fetchMessages(contactId);
       setMessages(messagesList);
     } catch (error: any) {
       console.error("Erro ao carregar mensagens:", error);
@@ -163,10 +93,10 @@ export default function EvolutionChatPage() {
     }
   };
   
-  // Mutação para enviar mensagem
+  // Mutação para enviar mensagem usando o hook
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { to: string; message: string }) => {
-      return await evolutionApiService.sendMessage(data.to, data.message);
+      return await sendMessageApi({ to: data.to, message: data.message });
     },
     onSuccess: (data) => {
       // Adicionar mensagem à lista local
@@ -183,7 +113,7 @@ export default function EvolutionChatPage() {
       
       // Atualizar contatos após enviar uma nova mensagem
       setTimeout(() => {
-        loadContacts();
+        refreshContacts();
       }, 1000);
       
       toast({
@@ -202,16 +132,15 @@ export default function EvolutionChatPage() {
   
   // Efeito para verificar o status da conexão periodicamente
   useEffect(() => {
-    // Verificar inicialmente
-    checkConnection();
+    // A verificação inicial já ocorre no hook useEvolutionApi
     
     // Configurar verificação periódica
     const interval = setInterval(() => {
-      checkConnection();
+      checkConnectionStatus();
     }, 30000); // A cada 30 segundos
     
     return () => clearInterval(interval);
-  }, []);
+  }, [checkConnectionStatus]);
   
   // Rolar para a última mensagem quando mensagens mudarem
   useEffect(() => {
@@ -277,14 +206,14 @@ export default function EvolutionChatPage() {
   
   // Obter classe CSS para o status da conexão
   function getConnectionStatusClass() {
-    if (checkingConnection) return "status-reconnecting";
+    if (isCheckingConnection) return "status-reconnecting";
     if (!connectionStatus) return "status-error";
     return connectionStatus.connected ? "status-connected" : "status-disconnected";
   }
   
   // Obter texto do status da conexão
   function getConnectionStatusText() {
-    if (checkingConnection) return "Verificando conexão...";
+    if (isCheckingConnection) return "Verificando conexão...";
     if (!connectionStatus.connected) return "Desconectado";
     
     switch (connectionStatus.state) {
@@ -319,10 +248,10 @@ export default function EvolutionChatPage() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={checkConnection}
-            disabled={checkingConnection}
+            onClick={() => checkConnectionStatus()}
+            disabled={isCheckingConnection}
           >
-            <RefreshCw className={`h-5 w-5 ${checkingConnection ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-5 w-5 ${isCheckingConnection ? 'animate-spin' : ''}`} />
           </Button>
           <Button variant="ghost" size="icon">
             <Settings className="h-5 w-5" />
@@ -353,8 +282,8 @@ export default function EvolutionChatPage() {
             <Button 
               variant="default" 
               className="flex-1 text-xs h-9"
-              onClick={loadContacts}
-              disabled={loadingContacts || !connectionStatus.connected}
+              onClick={() => refreshContacts()}
+              disabled={isLoadingContacts || !connectionStatus.connected}
             >
               <UserPlus className="h-4 w-4 mr-1" />
               Atualizar Contatos
@@ -362,8 +291,8 @@ export default function EvolutionChatPage() {
             <Button 
               variant="secondary" 
               className="flex-1 text-xs h-9"
-              onClick={checkConnection}
-              disabled={checkingConnection}
+              onClick={() => checkConnectionStatus()}
+              disabled={isCheckingConnection}
             >
               <Phone className="h-4 w-4 mr-1" />
               Verificar Conexão
