@@ -48,6 +48,7 @@ import {
 } from "./api/meta-connections";
 
 // Importação do novo controlador para verificar status da Meta API
+import { getUserServerConfig } from "./api/user-server-config";
 import { checkMetaConnectionStatus } from "./api/meta-status";
 
 // Importação do controlador para forçar verificação de conexão

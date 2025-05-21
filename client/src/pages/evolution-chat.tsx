@@ -51,26 +51,49 @@ export default function EvolutionChatPage() {
   const [connectionStatus, setConnectionStatus] = useState({ connected: false, state: "unknown" });
   const [checkingConnection, setCheckingConnection] = useState(false);
   
-  // Configuração inicial com valores padrão
+  // Configuração inicial com dados do servidor
   useEffect(() => {
     const loadServerConfig = async () => {
       try {
-        // Configurar com API URL e token padrão para desenvolvimento
+        // Buscar configurações do servidor
+        const response = await fetch('/api/user/server-config');
+        if (!response.ok) {
+          throw new Error('Falha ao buscar configurações do servidor');
+        }
+        
+        const config = await response.json();
+        
+        // Verificar se temos todas as informações necessárias
+        if (!config || !config.apiUrl || !config.apiToken) {
+          toast({
+            title: "Configuração incompleta",
+            description: "As configurações da API não estão completas. Verifique as configurações do servidor.",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Configurar a API com dados do servidor
         evolutionApiService.configure(
-          "https://api.primerastreadores.com",
-          "4db623449606bcf2814521b73657dbc0",
-          "admin"
+          config.apiUrl,
+          config.apiToken,
+          config.instanceId || "admin"
         );
         
         // Verificar imediatamente o status da conexão
         checkConnection();
-      } catch (error) {
-        console.error("Erro ao configurar API:", error);
+      } catch (error: any) {
+        console.error("Erro ao buscar configurações:", error);
+        toast({
+          title: "Erro de configuração",
+          description: error.message || "Falha ao buscar configurações do servidor",
+          variant: "destructive"
+        });
       }
     };
     
     loadServerConfig();
-  }, []);
+  }, [toast]);
   
   // Verificar o status da conexão
   const checkConnection = async () => {
@@ -521,7 +544,7 @@ export default function EvolutionChatPage() {
         </div>
       </div>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .status-dot {
           display: inline-block;
           width: 8px;
@@ -555,7 +578,7 @@ export default function EvolutionChatPage() {
           50% { opacity: 1; }
           100% { opacity: 0.5; }
         }
-      `}</style>
+      `}} />
     </div>
   );
 }
