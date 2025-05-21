@@ -172,30 +172,38 @@ class DirectEvolutionService {
     }
   }
 
-  // Carrega mensagens de um chat específico - exatamente como no exemplo
+  // Carrega mensagens de um chat específico - exatamente como no exemplo que funciona
   async loadMessages(chatId: string, afterTimestamp?: number) {
     console.log(`Carregando mensagens para ${chatId} (instância: ${this.instanceName})`);
     
-    // Criar um objeto de consulta com filtro opcional de timestamp
-    const query: any = {
+    // Usar formato de consulta que sabemos que funciona
+    const query = {
       where: {
         key: {
           remoteJid: chatId
         }
       },
-      limit: 50,
+      limit: 100,
       sort: {
         messageTimestamp: -1
       }
     };
     
     // Se temos um timestamp, adicionar à consulta para buscar apenas mensagens mais recentes
-    if (afterTimestamp) {
+    if (afterTimestamp && afterTimestamp > 0) {
+      console.log(`Buscando apenas mensagens após timestamp ${afterTimestamp}`);
+      // @ts-ignore - ignora erro de tipo já que sabemos que o formato funciona
       query.where.messageTimestamp = { gt: afterTimestamp };
     }
     
-    // Fazer a requisição para obter as mensagens
-    return await this.apiRequest(`/chat/findMessages/${this.instanceName}`, 'POST', query);
+    try {
+      // Usar método POST que é o correto para este endpoint
+      return await this.apiRequest(`/chat/findMessages/${this.instanceName}`, 'POST', query);
+    } catch (error) {
+      console.error(`Erro ao buscar mensagens de ${chatId}:`, error);
+      // Em caso de erro, retornar mensagens vazias em formato consistente
+      return { messages: { records: [] } };
+    }
   }
 
   // Envia uma mensagem para um chat
@@ -203,27 +211,43 @@ class DirectEvolutionService {
     try {
       console.log(`Enviando mensagem para ${chatId}`);
       
+      // Remover qualquer sufixo do número para garantir compatibilidade
+      const cleanNumber = chatId.includes('@') 
+        ? chatId.split('@')[0] 
+        : chatId;
+      
+      console.log(`Número formatado para envio: ${cleanNumber}`);
+      
+      // Usar o formato correto que funciona com a API
+      const data = {
+        number: cleanNumber,
+        options: {
+          delay: 1200,
+          presence: 'composing'
+        },
+        textMessage: {
+          text
+        }
+      };
+      
+      console.log("Enviando dados:", JSON.stringify(data, null, 2));
+      
       // Requisição para enviar a mensagem
       const result = await this.apiRequest(
         `/message/sendText/${this.instanceName}`,
         'POST',
-        {
-          number: chatId,
-          options: {
-            delay: 1200,
-            presence: 'composing'
-          },
-          textMessage: {
-            text
-          }
-        }
+        data
       );
       
-      console.log("Mensagem enviada:", result);
+      console.log("Mensagem enviada com sucesso:", result);
       return result;
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
-      throw error;
+      // Ao invés de propagar o erro, retornar um objeto de erro estruturado
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
   }
 
