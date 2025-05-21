@@ -549,15 +549,22 @@ export const whatsappContacts = pgTable("whatsapp_contacts", {
 export const whatsappMessages = pgTable("whatsapp_messages", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
-  contactId: integer("contact_id").references(() => whatsappContacts.id).notNull(),
+  contactId: integer("contact_id").references(() => whatsappContacts.id),
   messageId: text("message_id").notNull(), // ID na Evolution API
-  content: text("content"),
-  fromMe: boolean("from_me").default(false),
-  timestamp: timestamp("timestamp").defaultNow(),
+  chatId: text("chat_id").notNull(), // ID do chat/contato (remoteJid)
+  remoteJid: text("remote_jid").notNull(), // JID do contato/grupo
+  content: text("content"), // Conteúdo da mensagem
+  pushName: text("push_name"), // Nome do remetente
+  messageType: text("message_type"), // Tipo da mensagem (texto, imagem, etc)
+  fromMe: boolean("from_me").default(false), // Se a mensagem foi enviada por mim
+  timestamp: timestamp("timestamp").defaultNow(), // Timestamp da mensagem
+  messageTimestamp: integer("message_timestamp").notNull().default(0), // Timestamp original da mensagem (em segundos)
+  instanceId: text("instance_id"), // ID da instância do WhatsApp
   mediaType: text("media_type"), // image, video, audio, document
-  mediaUrl: text("media_url"),
-  isRead: boolean("is_read").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  mediaUrl: text("media_url"), // URL da mídia
+  isRead: boolean("is_read").default(false), // Se a mensagem foi lida
+  createdAt: timestamp("created_at").defaultNow(), // Data de criação no banco
+  expiresAt: timestamp("expires_at"), // Data de expiração (90 dias)
 });
 
 // Schema para inserção de contatos
@@ -576,9 +583,15 @@ export const insertWhatsappContactSchema = createInsertSchema(whatsappContacts).
 export const insertWhatsappMessageSchema = createInsertSchema(whatsappMessages).pick({
   contactId: true,
   messageId: true,
+  chatId: true,
+  remoteJid: true,
   content: true,
+  pushName: true, 
+  messageType: true,
   fromMe: true,
   timestamp: true,
+  messageTimestamp: true,
+  instanceId: true,
   mediaType: true,
   mediaUrl: true,
   isRead: true,
@@ -762,3 +775,6 @@ export type InsertServerAiAgent = z.infer<typeof insertServerAiAgentSchema>;
 
 export type UserAiAgent = typeof userAiAgents.$inferSelect;
 export type InsertUserAiAgent = z.infer<typeof insertUserAiAgentSchema>;
+
+// Tabela para armazenar mensagens de WhatsApp
+
