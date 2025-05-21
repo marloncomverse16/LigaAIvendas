@@ -1310,25 +1310,25 @@ export default function ChatOtimizado() {
                         )}
                         {msg.message?.imageMessage ? (
                           <div className="mb-1 relative">
-                            <div className="bg-gray-200 dark:bg-gray-700 rounded-md p-3 text-center">
-                              <ImageIcon className="h-12 w-12 mx-auto text-gray-500 mb-2" />
-                              <p className="text-sm text-gray-600 dark:text-gray-300">
-                                [Imagem] 
+                            <div className="rounded-md overflow-hidden flex flex-col items-center">
+                              <div className="w-full max-w-[240px] aspect-square bg-gray-100 dark:bg-gray-700 flex items-center justify-center rounded-md overflow-hidden">
+                                <ImageIcon className="h-12 w-12 text-gray-400" />
+                              </div>
+                              <p className="text-sm text-center my-1">
+                                [Imagem]
                                 {msg.message.imageMessage.caption ? 
                                   ` - ${msg.message.imageMessage.caption}` : 
                                   ''}
                               </p>
-                              <div className="mt-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => window.open(msg.message?.imageMessage?.url, '_blank')}
-                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                                >
-                                  <ExternalLink className="h-3 w-3 mr-1" />
-                                  Ver imagem
-                                </Button>
-                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(msg.message?.imageMessage?.url, '_blank')}
+                                className="bg-white hover:bg-gray-100 text-green-600 border-green-200 dark:bg-gray-700 dark:text-green-400 dark:border-gray-600 dark:hover:bg-gray-600 mt-1"
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                Ver imagem
+                              </Button>
                             </div>
                           </div>
                         ) : msg.message?.videoMessage ? (
