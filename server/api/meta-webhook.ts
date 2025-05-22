@@ -189,20 +189,11 @@ async function saveIncomingMessage(message: any, metadata: any) {
       console.log(`Chat atualizado para ${remoteJid}`);
     }
 
-    // Salvar a mensagem usando o esquema correto do banco
-    await db
-      .insert(whatsappCloudMessages)
-      .values({
-        userId,
-        chatId: existingChat.id,
-        messageId: messageId,
-        remoteJid,
-        content: content,
-        messageType,
-        fromMe: false,
-        timestamp,
-        status: 'delivered'
-      });
+    // Salvar a mensagem usando SQL direto para evitar problemas de esquema
+    await db.execute(`
+      INSERT INTO whatsapp_cloud_messages (user_id, chat_id, message_id, remote_jid, content, message_type, from_me, timestamp, status, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+    `, [userId, existingChat.id, messageId, remoteJid, content, messageType, false, timestamp, 'delivered']);
 
     console.log(`Mensagem salva: ${content.substring(0, 50)}...`);
 
