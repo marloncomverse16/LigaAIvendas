@@ -2345,6 +2345,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   });
+
+  // Rota para buscar chats da Meta Cloud API
+  app.get("/api/whatsapp-cloud/chats", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service');
+      const cloudService = new WhatsAppCloudService();
+      const result = await cloudService.getChats(req.user.id);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+      
+      res.json(result.data);
+    } catch (error) {
+      console.error('Erro ao buscar chats da Meta Cloud API:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
   
   app.post("/api/whatsapp-meta/connect", async (req, res) => {
     try {
