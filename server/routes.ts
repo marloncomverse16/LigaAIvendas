@@ -2335,10 +2335,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Proxy especializado para mídia do WhatsApp com suporte a descriptografia
   app.get("/api/whatsapp-media", whatsappMediaProxy);
 
-  // Rotas para WhatsApp Cloud API (Meta)
-  app.get("/api/whatsapp-meta/status", checkMetaConnectionStatus);
-  app.post("/api/whatsapp-meta/connect", connectMetaWhatsApp);
-  app.post("/api/whatsapp-meta/disconnect", disconnectMetaWhatsApp);
+  // Rotas para WhatsApp Cloud API (Meta) - usando as mesmas que funcionam na aba Conexões
+  app.get("/api/whatsapp-meta/status", async (req, res) => {
+    try {
+      const { checkMetaConnectionStatus } = await import('./api/user-meta-connections');
+      return await checkMetaConnectionStatus(req, res);
+    } catch (error) {
+      console.error('Erro ao verificar status Meta:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+  
+  app.post("/api/whatsapp-meta/connect", async (req, res) => {
+    try {
+      const { connectWhatsAppMeta } = await import('./api/user-meta-connections');
+      return await connectWhatsAppMeta(req, res);
+    } catch (error) {
+      console.error('Erro ao conectar Meta:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+  
+  app.post("/api/whatsapp-meta/disconnect", async (req, res) => {
+    try {
+      const { disconnectWhatsAppMeta } = await import('./api/user-meta-connections');
+      return await disconnectWhatsAppMeta(req, res);
+    } catch (error) {
+      console.error('Erro ao desconectar Meta:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
 
   // Novas rotas otimizadas para mídia do WhatsApp
   app.get("/api/media-proxy", async (req, res) => {
