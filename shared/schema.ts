@@ -360,6 +360,46 @@ export const prospectingDispatchHistory = pgTable("prospecting_dispatch_history"
   scheduledId: integer("scheduled_id").references(() => prospectingSchedules.id),
 });
 
+// Tabelas para WhatsApp Cloud API (Meta API)
+export const whatsappCloudChats = pgTable("whatsapp_cloud_chats", {
+  id: text("id").primaryKey(), // ID único do chat na Meta API
+  userId: integer("user_id").references(() => users.id).notNull(),
+  remoteJid: text("remote_jid").notNull(), // ID do contato (ex: 5511999998888@c.us)
+  pushName: text("push_name"), // Nome do contato
+  profilePicUrl: text("profile_pic_url"), // URL da foto de perfil
+  lastMessageTime: timestamp("last_message_time"),
+  unreadCount: integer("unread_count").default(0),
+  phoneNumber: text("phone_number"), // Número de telefone limpo
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const whatsappCloudMessages = pgTable("whatsapp_cloud_messages", {
+  id: text("id").primaryKey(), // ID único da mensagem na Meta API
+  chatId: text("chat_id").references(() => whatsappCloudChats.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  remoteJid: text("remote_jid").notNull(), // Para quem a mensagem foi enviada/recebida
+  messageContent: text("message_content"), // Conteúdo da mensagem
+  messageType: text("message_type").default("text"), // text, image, audio, video, document
+  fromMe: boolean("from_me").default(false), // Se a mensagem foi enviada por mim
+  timestamp: timestamp("timestamp").notNull(),
+  status: text("status").default("sent"), // sent, delivered, read, failed
+  quotedMessageId: text("quoted_message_id"), // ID da mensagem citada (para respostas)
+  mediaUrl: text("media_url"), // URL do arquivo de mídia
+  mediaCaption: text("media_caption"), // Legenda da mídia
+  metaMessageId: text("meta_message_id"), // ID da mensagem na Meta API
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Schemas para inserção
+export const insertWhatsappCloudChatSchema = createInsertSchema(whatsappCloudChats);
+export const insertWhatsappCloudMessageSchema = createInsertSchema(whatsappCloudMessages);
+
+export type WhatsappCloudChat = typeof whatsappCloudChats.$inferSelect;
+export type WhatsappCloudMessage = typeof whatsappCloudMessages.$inferSelect;
+export type InsertWhatsappCloudChat = z.infer<typeof insertWhatsappCloudChatSchema>;
+export type InsertWhatsappCloudMessage = z.infer<typeof insertWhatsappCloudMessageSchema>;
+
 // Schema para inserção de prospecções
 export const insertProspectingSearchSchema = createInsertSchema(prospectingSearches).pick({
   segment: true,
