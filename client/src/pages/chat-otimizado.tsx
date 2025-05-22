@@ -1183,9 +1183,26 @@ export default function ChatOtimizado() {
           }
         } catch (error) {
           console.error("Erro ao enviar mensagem:", error);
+          
+          // Melhor tratamento de erro para evitar erro vazio
+          let errorMessage = "Erro desconhecido ao enviar mensagem";
+          
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          } else if (typeof error === 'string') {
+            errorMessage = error;
+          } else if (error && typeof error === 'object') {
+            errorMessage = JSON.stringify(error);
+          }
+          
+          // Se ainda estiver vazio, usar mensagem padrão
+          if (!errorMessage || errorMessage === '{}' || errorMessage.trim() === '') {
+            errorMessage = "Falha na comunicação com o servidor";
+          }
+          
           toast({
             title: "Erro ao enviar mensagem",
-            description: error instanceof Error ? error.message : String(error),
+            description: errorMessage,
             variant: "destructive"
           });
           
