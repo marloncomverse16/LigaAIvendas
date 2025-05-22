@@ -126,8 +126,9 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
 
   try {
     const userId = req.user!.id;
-    const validatedData = metaConnectionSchema.parse(req.body);
-    const { phoneNumberId } = validatedData;
+    
+    // Phone Number ID é opcional no body, vamos obtê-lo automaticamente se não fornecido
+    let phoneNumberId = req.body?.phoneNumberId;
 
     // Obter configurações do usuário
     const settingsResult = await userSettingsService.getUserSettings(userId);
@@ -148,10 +149,38 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
     }
 
     const apiVersion = settings.whatsappMetaApiVersion || 'v18.0';
-    console.log(`Conectando com Meta API. Token: ${settings.whatsappMetaToken.substring(0, 5)}... BusinessID: ${settings.whatsappMetaBusinessId}, PhoneID: ${phoneNumberId}, APIVersion: ${apiVersion}`);
+    console.log(`Conectando com Meta API. Token: ${settings.whatsappMetaToken.substring(0, 5)}... BusinessID: ${settings.whatsappMetaBusinessId}, APIVersion: ${apiVersion}`);
+    
+    // Se não fornecido o phoneNumberId, obter automaticamente da Business Account
+    if (!phoneNumberId) {
+      console.log('Phone Number ID não fornecido, obtendo automaticamente...');
+      
+      // Obter Phone Numbers da Business Account
+      const phoneNumbersResponse = await fetch(`https://graph.facebook.com/${apiVersion}/${settings.whatsappMetaBusinessId}/phone_numbers`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${settings.whatsappMetaToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (phoneNumbersResponse.ok) {
+        const phoneData = await phoneNumbersResponse.json();
+        if (phoneData.data && phoneData.data.length > 0) {
+          phoneNumberId = phoneData.data[0].id;
+          console.log(`Phone Number ID obtido automaticamente: ${phoneNumberId}`);
+        }
+      }
+      
+      if (!phoneNumberId) {
+        return res.status(400).json({
+          message: 'Não foi possível obter o Phone Number ID. Verifique se sua conta Meta tem números de telefone configurados.'
+        });
+      }
+    }
     
     // Verificar conexão com a Meta API diretamente
-    // Fazendo chamada GET para a API da Meta para verificar o status da conta
+    console.log(`Verificando Phone Number ID: ${phoneNumberId}`);
     const apiUrl = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}`;
     const response = await fetch(apiUrl, {
       method: 'GET',
