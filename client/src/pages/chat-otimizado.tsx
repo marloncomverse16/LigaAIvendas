@@ -552,6 +552,75 @@ export default function ChatOtimizado() {
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
   
   const { toast } = useToast();
+
+  // Funções para WhatsApp Cloud API
+  const checkMetaConnection = async () => {
+    try {
+      const response = await fetch('/api/whatsapp-meta/status');
+      if (response.ok) {
+        const result = await response.json();
+        setMetaConnectionStatus(result);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar conexão Meta:', error);
+      setMetaConnectionStatus(null);
+    }
+  };
+
+  const connectMetaWhatsApp = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/whatsapp-meta/connect', {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setMetaConnectionStatus(result);
+        toast({
+          title: "Sucesso",
+          description: "WhatsApp Cloud API conectado com sucesso!",
+        });
+      } else {
+        throw new Error('Falha ao conectar WhatsApp Cloud API');
+      }
+    } catch (error) {
+      console.error('Erro ao conectar Meta WhatsApp:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao conectar WhatsApp Cloud API",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const disconnectMetaWhatsApp = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/whatsapp-meta/disconnect', {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        setMetaConnectionStatus(null);
+        toast({
+          title: "Sucesso",
+          description: "WhatsApp Cloud API desconectado com sucesso!",
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao desconectar Meta WhatsApp:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao desconectar WhatsApp Cloud API",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Inicializa o formulário para envio de mensagens
   const form = useForm<SendFormValues>({
@@ -1212,22 +1281,89 @@ export default function ChatOtimizado() {
   };
 
   return (
-    <div className="flex h-screen">
-      {/* Barra lateral - lista de chats */}
-      <div className="w-1/3 border-r flex flex-col">
-        <div className="p-4 border-b bg-gray-100 dark:bg-gray-900 flex justify-between items-center">
-          <h2 className="font-semibold">WhatsApp Web</h2>
-          <div className="flex space-x-2">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => checkConnection()}
-              disabled={loading}
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            </Button>
-          </div>
+    <div className="flex h-screen flex-col">
+      {/* Seletor de Conexão WhatsApp */}
+      <div className="p-4 border-b bg-white dark:bg-gray-900">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-lg">Conexão WhatsApp</h3>
         </div>
+        
+        <div className="flex flex-wrap gap-4 items-center">
+          {/* Seletor de Modo */}
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium">Modo:</label>
+            <select 
+              value={connectionMode} 
+              onChange={(e) => setConnectionMode(e.target.value as 'qr' | 'cloud' | 'both')}
+              className="px-3 py-1 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600"
+            >
+              <option value="qr">QR Code</option>
+              <option value="cloud">Cloud API</option>
+              <option value="both">Ambos</option>
+            </select>
+          </div>
+
+          {/* Status QR Code */}
+          {(connectionMode === 'qr' || connectionMode === 'both') && (
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-sm">QR Code: {connected ? 'Conectado' : 'Desconectado'}</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => checkConnection()}
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              </Button>
+            </div>
+          )}
+
+          {/* Status Cloud API */}
+          {(connectionMode === 'cloud' || connectionMode === 'both') && (
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${metaConnectionStatus?.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-sm">Cloud API: {metaConnectionStatus?.connected ? 'Conectado' : 'Desconectado'}</span>
+              {metaConnectionStatus?.connected ? (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={disconnectMetaWhatsApp}
+                  disabled={loading}
+                >
+                  Desconectar
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={connectMetaWhatsApp}
+                  disabled={loading}
+                >
+                  Conectar
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-1">
+        {/* Barra lateral - lista de chats */}
+        <div className="w-1/3 border-r flex flex-col">
+          <div className="p-4 border-b bg-gray-100 dark:bg-gray-900 flex justify-between items-center">
+            <h2 className="font-semibold">WhatsApp Web</h2>
+            <div className="flex space-x-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => checkConnection()}
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
         
         {/* Lista de chats */}
         <div className="flex-1 overflow-y-auto">
@@ -1512,6 +1648,7 @@ export default function ChatOtimizado() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
