@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip, ExternalLink, Eye, Video, Headphones } from 'lucide-react';
-import SimpleMediaViewer from "@/components/simple-media-viewer";
+
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -1309,16 +1309,9 @@ export default function ChatOtimizado() {
                             {getMessageSender(msg)}
                           </div>
                         )}
-                        {(msg.message?.imageMessage || msg.message?.videoMessage || msg.message?.audioMessage) ? (
-                          <SimpleMediaViewer
-                            message={msg}
-                            isFromMe={msg.key.fromMe}
-                          />
-                        ) : (
-                          <div className="text-sm whitespace-pre-wrap break-words">
-                            {getMessageContent(msg)}
-                          </div>
-                        )}
+                        <div className="text-sm whitespace-pre-wrap break-words">
+                          {getMessageContent(msg)}
+                        </div>
                         <div className="text-right text-xs text-gray-500 mt-1">
                           {formatMessageDate(msg.messageTimestamp)}
                         </div>
