@@ -1,42 +1,40 @@
 /**
- * Versão otimizada da página de Chat que implementa o acesso direto à Evolution API
- * Com melhorias para gerenciamento eficiente de mensagens e evitar recarregamentos completos
+ * Versão otimizada da página de Chat com seletor de números Meta API
+ * Implementa busca automática e seleção visual dos números disponíveis
  */
-import React, { useState, useEffect, useRef } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form";
-import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip, ExternalLink, Eye, Video, Headphones } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Loader2, 
+  RefreshCw, 
+  MessageSquare,
+  Send,
+  Phone,
+  CheckCircle,
+  AlertCircle,
+  Info
+} from 'lucide-react';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-
-// Schema para o formulário de mensagem
+// Schema para validação do formulário de envio
 const sendFormSchema = z.object({
-  text: z.string().min(1, "Digite uma mensagem").optional(),
-  mediaType: z.enum(["image", "audio", "video", "document"]).optional(),
-  mediaUrl: z.string().optional(),
-  caption: z.string().optional()
-}).refine(data => data.text || (data.mediaType && data.mediaUrl), {
-  message: "Você precisa enviar um texto ou uma mídia",
-  path: ["text"]
+  text: z.string().min(1, 'Digite uma mensagem'),
 });
 
 type SendFormValues = z.infer<typeof sendFormSchema>;
 
-// Classe de serviço que encapsula as chamadas à Evolution API
+// Serviço direto para Evolution API
 class DirectEvolutionService {
   private apiUrl: string;
   private apiKey: string;
@@ -46,1702 +44,512 @@ class DirectEvolutionService {
     this.apiUrl = apiUrl;
     this.apiKey = apiKey;
     this.instanceName = instanceName;
-    console.log(`Serviço inicializado com instância: ${instanceName}`);
   }
 
-  // Método central para realizar requisições à API
   async apiRequest(endpoint: string, method = 'GET', data?: any) {
-    // Garantir que a URL está formatada corretamente
-    const baseUrl = this.apiUrl.endsWith('/') ? this.apiUrl.slice(0, -1) : this.apiUrl;
-    const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
-    
-    console.log(`Fazendo requisição ${method} para ${url}${data ? ' com dados' : ''}`);
-    if (data) {
-      console.log(`JSON formatado:`, JSON.stringify(data, null, 2));
-    }
-    
-    // Incluir todos os possíveis formatos de autenticação para compatibilidade com diferentes versões da API
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.apiKey}`,
-      'apikey': this.apiKey,
-      'api_key': this.apiKey
-    };
-    
-    // Adicionar token à URL para máxima compatibilidade
-    const urlWithToken = url.includes('?') 
-      ? `${url}&apikey=${this.apiKey}` 
-      : `${url}?apikey=${this.apiKey}`;
-    
     try {
-      const response = await fetch(urlWithToken, {
+      const url = `${this.apiUrl}${endpoint}`;
+      const config: RequestInit = {
         method,
-        headers,
-        body: data ? JSON.stringify(data) : undefined
-      });
-      
-      console.log(`Resposta bem-sucedida de ${url}:`, response.status);
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': this.apiKey,
+        },
+      };
+
+      if (data && method !== 'GET') {
+        config.body = JSON.stringify(data);
+      }
+
+      const response = await fetch(url, config);
       
       if (!response.ok) {
-        // Tentar extrair mensagem de erro da resposta
-        const errorData = await response.json().catch(() => null);
-        throw new Error(
-          errorData?.message || 
-          errorData?.error?.message || 
-          `Erro ${response.status}: ${response.statusText}`
-        );
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
-      // Tentar retornar os dados como JSON, ou undefined se vazio
-      const responseText = await response.text();
-      const responseData = responseText ? JSON.parse(responseText) : undefined;
-      console.log(`Resposta processada com sucesso:`, responseData);
-      return responseData;
-    } catch (error: any) {
-      console.error(`Erro na requisição ${method} ${url}:`, error);
+
+      return await response.json();
+    } catch (error) {
+      console.error(`Evolution API Error (${endpoint}):`, error);
       throw error;
     }
   }
 
-  // Verifica o status da conexão com WhatsApp
   async checkConnection() {
     try {
-      // Verificar status da conexão (usar o mesmo formato da outra implementação)
-      console.log(`Verificando status da conexão na instância ${this.instanceName}`);
-      
-      // Obter status da instância
-      const instanceInfo = await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
-      console.log("Resposta completa do estado de conexão:", instanceInfo);
-      
-      // Extrair o estado real
-      let state = 'unknown';
-      if (instanceInfo && instanceInfo.instance && instanceInfo.instance.state) {
-        state = instanceInfo.instance.state.toLowerCase();
-      }
-      
-      console.log(`Estado real da instância: ${state} (Conectado: ${state === 'open'})`);
-      
-      // Verificar se está conectado com base no estado
-      const connected = state === 'open' || state === 'connected';
-      
-      // Se não estiver conectado, verificar se há QR code disponível
-      let qrCode = null;
-      if (!connected) {
-        try {
-          const qrResponse = await this.apiRequest(`/instance/qrcode/${this.instanceName}`);
-          qrCode = qrResponse?.qrcode || null;
-        } catch (qrError) {
-          console.warn("QR Code não disponível:", qrError);
-        }
-      }
-      
-      // Retornar informações de conexão
-      const result = {
-        connected,
-        state,
-        qrCode,
+      const response = await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
+      return {
+        connected: response?.instance?.state === 'open',
+        state: response?.instance?.state || 'unknown',
         instance: this.instanceName
       };
-      
-      console.log("Resultado da verificação:", result);
-      return result;
     } catch (error) {
-      console.error("Erro ao verificar conexão:", error);
       return {
         connected: false,
         state: 'error',
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
         instance: this.instanceName
       };
     }
   }
 
-  // Carrega a lista de chats (contatos e grupos)
   async loadChats() {
     try {
-      console.log(`Carregando chats para ${this.instanceName}`);
-      
-      // Usar o método POST em vez de GET (como na implementação que funciona)
-      try {
-        // Primeira tentativa com o formato de posts na nova API
-        const chats = await this.apiRequest(`/chat/findChats/${this.instanceName}`, 'POST', {
-          where: {},
-          limit: 100
-        });
-        return this.normalizeChats(chats);
-      } catch (error) {
-        console.warn("Erro com primeiro formato, tentando alternativa...");
-        // Segunda tentativa com formato alternativo
-        try {
-          const contacts = await this.apiRequest(`/instance/fetchContacts/${this.instanceName}`);
-          return this.normalizeChats(contacts);
-        } catch (altError) {
-          console.warn("Erro com segundo formato, tentando final...");
-          // Terceira tentativa com outro formato
-          const directContacts = await this.apiRequest(`/contacts/getContacts/${this.instanceName}`);
-          return this.normalizeChats(directContacts);
-        }
-      }
+      const response = await this.apiRequest(`/chat/findChats/${this.instanceName}`);
+      return this.normalizeChats(response);
     } catch (error) {
-      console.error("Erro ao carregar chats:", error);
-      // Em caso de erro, retornar array vazio
+      console.error('Erro ao carregar chats:', error);
       return [];
     }
   }
 
-  // Carrega mensagens de um chat específico - exatamente como no exemplo que funciona
   async loadMessages(chatId: string, afterTimestamp?: number) {
-    console.log(`Carregando mensagens para ${chatId} (instância: ${this.instanceName})`);
-    
-    // Usar formato de consulta que sabemos que funciona
-    const query = {
-      where: {
-        key: {
-          remoteJid: chatId
-        }
-      },
-      limit: 100,
-      sort: {
-        messageTimestamp: -1
-      }
-    };
-    
-    // Se temos um timestamp, adicionar à consulta para buscar apenas mensagens mais recentes
-    if (afterTimestamp && afterTimestamp > 0) {
-      console.log(`Buscando apenas mensagens após timestamp ${afterTimestamp}`);
-      // @ts-ignore - ignora erro de tipo já que sabemos que o formato funciona
-      query.where.messageTimestamp = { gt: afterTimestamp };
-    }
-    
     try {
-      // Usar método POST que é o correto para este endpoint
-      return await this.apiRequest(`/chat/findMessages/${this.instanceName}`, 'POST', query);
+      const cleanChatId = chatId.replace('@c.us', '').replace('@g.us', '');
+      const endpoint = `/chat/findMessages/${this.instanceName}`;
+      const params = new URLSearchParams({
+        where: JSON.stringify({
+          key: {
+            remoteJid: chatId
+          }
+        })
+      });
+
+      if (afterTimestamp) {
+        params.append('afterTimestamp', afterTimestamp.toString());
+      }
+
+      const response = await this.apiRequest(`${endpoint}?${params}`);
+      return this.normalizeMessages(response);
     } catch (error) {
-      console.error(`Erro ao buscar mensagens de ${chatId}:`, error);
-      // Em caso de erro, retornar mensagens vazias em formato consistente
-      return { messages: { records: [] } };
+      console.error('Erro ao carregar mensagens:', error);
+      return [];
     }
   }
 
-  // Envia uma mensagem para um chat - método compatível com o servidor
   async sendMessage(chatId: string, text: string) {
     try {
-      console.log(`Enviando mensagem para ${chatId}`);
-      
-      // Remover qualquer sufixo do número para garantir compatibilidade
-      const cleanNumber = chatId.includes('@') 
-        ? chatId.split('@')[0] 
-        : chatId;
-      
-      console.log(`Número formatado para envio: ${cleanNumber}`);
-      
-      // Analisando o erro "Bad Request", parece que a API espera um formato específico
-      // A mensagem de erro diz que falta a propriedade "text", então vamos simplificar o formato
-      const payload = {
-        number: cleanNumber,
-        text: text,  // Colocando o texto diretamente aqui como indicado pelo erro
-        options: {
-          delay: 1200,
-          presence: "composing"
-        }
-      };
-      
-      console.log("Enviando mensagem com payload:", JSON.stringify(payload, null, 2));
-      
-      // Usando o endpoint de forma exata como no código que funciona
-      const apiUrl = this.apiUrl.endsWith('/') ? this.apiUrl.slice(0, -1) : this.apiUrl;
-      const endpoint = `/message/sendText/${this.instanceName}`;
-      const urlWithToken = `${apiUrl}${endpoint}?apikey=${this.apiKey}`;
-      
-      const response = await fetch(urlWithToken, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'apikey': this.apiKey,
-          'api_key': this.apiKey
-        },
-        body: JSON.stringify(payload)
+      const cleanChatId = chatId.replace('@c.us', '').replace('@g.us', '');
+      const response = await this.apiRequest(`/message/sendText/${this.instanceName}`, 'POST', {
+        number: cleanChatId,
+        text: text
       });
-      
-      if (!response.ok) {
-        console.error(`Erro HTTP ${response.status}: ${response.statusText}`);
-        const errorText = await response.text();
-        throw new Error(`Falha ao enviar mensagem: ${errorText || response.statusText}`);
-      }
-      
-      const result = await response.json();
-      console.log("Mensagem enviada com sucesso:", result);
-      return { success: true, result };
+      return response;
     } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
-      // Retornar objeto de erro estruturado para tratamento na UI
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-  
-  // Envia uma mídia (imagem, vídeo, documento, etc) para um chat
-  async sendMedia(chatId: string, mediaType: string, mediaUrl: string, caption: string = '') {
-    try {
-      console.log(`Enviando mídia do tipo ${mediaType} para ${chatId}`);
-      
-      // Remover qualquer sufixo do número para garantir compatibilidade
-      const cleanNumber = chatId.includes('@') 
-        ? chatId.split('@')[0] 
-        : chatId;
-      
-      // Validar o tipo de mídia
-      const validMediaTypes = ['image', 'video', 'audio', 'document'];
-      if (!validMediaTypes.includes(mediaType)) {
-        throw new Error(`Tipo de mídia deve ser um dos seguintes: ${validMediaTypes.join(', ')}`);
-      }
-      
-      // Payload para envio de mídia conforme Evolution API
-      // Corrigindo a estrutura do payload de acordo com a API
-      const payload = {
-        number: cleanNumber,
-        mediatype: mediaType, // Colocado fora da estrutura mediaMessage como requisitado pela API
-        options: {
-          delay: 1200
-        },
-        media: mediaUrl, // Movido para o nível raiz
-        caption: caption, // Movido para o nível raiz
-        fileName: mediaUrl.split('/').pop() || `file.${this.getDefaultExtension(mediaType)}` // Movido para o nível raiz
-      };
-      
-      console.log(`Enviando mídia com payload:`, JSON.stringify(payload, null, 2));
-      
-      // Usando o endpoint específico para envio de mídia
-      const apiUrl = this.apiUrl.endsWith('/') ? this.apiUrl.slice(0, -1) : this.apiUrl;
-      const endpoint = `/message/sendMedia/${this.instanceName}`;
-      const urlWithToken = `${apiUrl}${endpoint}?apikey=${this.apiKey}`;
-      
-      const response = await fetch(urlWithToken, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'apikey': this.apiKey,
-          'api_key': this.apiKey
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) {
-        console.error(`Erro HTTP ${response.status}: ${response.statusText}`);
-        const errorText = await response.text();
-        throw new Error(`Falha ao enviar mídia: ${errorText || response.statusText}`);
-      }
-      
-      const result = await response.json();
-      console.log("Mídia enviada com sucesso:", result);
-      return { success: true, result };
-    } catch (error) {
-      console.error("Erro ao enviar mídia:", error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-  
-  // Envia um áudio no formato específico do WhatsApp (mensagem de voz)
-  async sendWhatsAppAudio(chatId: string, audioUrl: string) {
-    try {
-      console.log(`Enviando áudio WhatsApp para ${chatId}`);
-      
-      // Remover qualquer sufixo do número para garantir compatibilidade
-      const cleanNumber = chatId.includes('@') 
-        ? chatId.split('@')[0] 
-        : chatId;
-      
-      // Payload específico para mensagens de áudio WhatsApp
-      // A estrutura correta para envio de áudio precisa seguir o mesmo padrão
-      const payload = {
-        number: cleanNumber,
-        options: {
-          delay: 1200
-        },
-        audioMessage: {
-          audio: audioUrl
-        }
-      };
-      
-      console.log(`Enviando áudio com payload:`, JSON.stringify(payload, null, 2));
-      
-      // Usando o endpoint específico para envio de áudio
-      const apiUrl = this.apiUrl.endsWith('/') ? this.apiUrl.slice(0, -1) : this.apiUrl;
-      // sendPTT é o endpoint para envio de áudio no formato WhatsApp
-      const endpoint = `/message/sendPTT/${this.instanceName}`;
-      const urlWithToken = `${apiUrl}${endpoint}?apikey=${this.apiKey}`;
-      
-      const response = await fetch(urlWithToken, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'apikey': this.apiKey,
-          'api_key': this.apiKey
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) {
-        console.error(`Erro HTTP ${response.status}: ${response.statusText}`);
-        const errorText = await response.text();
-        throw new Error(`Falha ao enviar áudio: ${errorText || response.statusText}`);
-      }
-      
-      const result = await response.json();
-      console.log("Áudio enviado com sucesso:", result);
-      return { success: true, result };
-    } catch (error) {
-      console.error("Erro ao enviar áudio WhatsApp:", error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-  
-  // Utilitário para obter a extensão padrão para um tipo de mídia
-  private getDefaultExtension(mediaType: string): string {
-    switch (mediaType.toLowerCase()) {
-      case 'image':
-        return 'jpg';
-      case 'video':
-        return 'mp4';
-      case 'audio':
-        return 'mp3';
-      case 'document':
-      default:
-        return 'pdf';
+      console.error('Erro ao enviar mensagem:', error);
+      throw error;
     }
   }
 
-  // Normaliza a resposta dos chats para um formato consistente
   normalizeChats(response: any) {
-    if (!response) return [];
+    if (!response || !Array.isArray(response)) return [];
     
-    try {
-      let chats = [];
-      
-      // Se a resposta já for um array, usá-la diretamente
-      if (Array.isArray(response)) {
-        chats = response;
-      } 
-      // Se for um objeto com uma propriedade 'chats' que é um array
-      else if (response.chats && Array.isArray(response.chats)) {
-        chats = response.chats;
-      }
-      // Se for outro formato que contém um array 'records'
-      else if (response.records && Array.isArray(response.records)) {
-        chats = response.records;
-      }
-      
-      // Ordena por data da última mensagem (mais recente primeiro)
-      return chats.sort((a: any, b: any) => {
-        const timeA = a.lastMessageTimestamp || 0;
-        const timeB = b.lastMessageTimestamp || 0;
-        return timeB - timeA;
-      });
-    } catch (error) {
-      console.error("Erro ao normalizar chats:", error);
-      return [];
-    }
+    return response.map((chat: any) => ({
+      id: chat.id || chat.remoteJid,
+      remoteJid: chat.id || chat.remoteJid,
+      name: chat.name || chat.pushName || this.formatPhoneNumber(chat.id || chat.remoteJid),
+      lastMessage: chat.lastMessage?.message || chat.lastMessage,
+      lastMessageTimestamp: chat.lastMessage?.messageTimestamp || chat.lastMessageTimestamp || Date.now(),
+      unreadCount: chat.unreadCount || 0,
+      isGroup: (chat.id || chat.remoteJid || '').includes('@g.us'),
+      profilePictureUrl: chat.profilePictureUrl
+    }));
   }
 
-  // Normaliza a resposta das mensagens para um formato consistente
   normalizeMessages(response: any) {
-    if (!response) return [];
+    if (!response || !Array.isArray(response)) return [];
     
-    try {
-      let messages = [];
-      
-      // Se a resposta já for um array, usá-la diretamente
-      if (Array.isArray(response)) {
-        messages = response;
-      } 
-      // Se for um objeto com uma propriedade que é um array
-      else if (response.messages && response.messages.records) {
-        messages = response.messages.records;
-      }
-      // Se for outro formato que contém um array 'records'
-      else if (response.records && Array.isArray(response.records)) {
-        messages = response.records;
-      }
-      
-      // Ordenar por timestamp (mais antigas primeiro)
-      return messages.sort((a: any, b: any) => {
-        const timeA = Number(a.messageTimestamp) || 0;
-        const timeB = Number(b.messageTimestamp) || 0;
-        return timeA - timeB;
-      });
-    } catch (error) {
-      console.error("Erro ao normalizar mensagens:", error);
-      return [];
-    }
+    return response.map((msg: any) => ({
+      id: msg.key?.id || msg.id,
+      key: msg.key,
+      content: this.extractMessageContent(msg),
+      timestamp: msg.messageTimestamp || msg.timestamp || Date.now(),
+      fromMe: msg.key?.fromMe || msg.fromMe || false,
+      status: msg.status || 'sent',
+      remoteJid: msg.key?.remoteJid || msg.remoteJid,
+      pushName: msg.pushName || '',
+      messageType: msg.messageType || 'text'
+    }));
   }
 
-  // Extrai o conteúdo da mensagem a partir de diferentes formatos
   private extractMessageContent(msg: any): string {
-    try {
-      // Diferentes formatos possíveis da mensagem
-      if (msg.message?.conversation) {
-        return msg.message.conversation;
-      } else if (msg.message?.extendedTextMessage?.text) {
-        return msg.message.extendedTextMessage.text;
-      } else if (msg.message?.imageMessage?.caption) {
-        return `[Imagem] ${msg.message.imageMessage.caption}`;
-      } else if (msg.message?.videoMessage?.caption) {
-        return `[Vídeo] ${msg.message.videoMessage.caption}`;
-      } else if (msg.message?.documentMessage?.fileName) {
-        return `[Documento] ${msg.message.documentMessage.fileName}`;
-      } else if (msg.message?.audioMessage) {
-        return `[Áudio]`;
-      } else if (msg.message?.stickerMessage) {
-        return `[Sticker]`;
-      } else if (msg.message?.locationMessage) {
-        return `[Localização]`;
-      } else if (msg.message?.contactMessage) {
-        return `[Contato]`;
-      } else if (msg.body) {
-        // Formato alternativo que pode vir da API
-        return msg.body;
-      } else if (msg.content) {
-        // Outro formato alternativo
-        return msg.content;
+    if (msg.message?.conversation) return msg.message.conversation;
+    if (msg.message?.extendedTextMessage?.text) return msg.message.extendedTextMessage.text;
+    if (msg.message?.imageMessage?.caption) return `[Imagem] ${msg.message.imageMessage.caption}`;
+    if (msg.message?.videoMessage?.caption) return `[Vídeo] ${msg.message.videoMessage.caption}`;
+    if (msg.message?.documentMessage) return `[Documento] ${msg.message.documentMessage.title || 'Arquivo'}`;
+    if (msg.message?.audioMessage) return '[Áudio]';
+    if (msg.message?.stickerMessage) return '[Figurinha]';
+    if (msg.content) return msg.content;
+    return '[Mensagem não suportada]';
+  }
+
+  private formatPhoneNumber(jid: string): string {
+    const number = jid.replace('@c.us', '').replace('@g.us', '');
+    if (number.startsWith('55')) {
+      const cleaned = number.substring(2);
+      if (cleaned.length === 11) {
+        return `(${cleaned.substring(0, 2)}) ${cleaned.substring(2, 7)}-${cleaned.substring(7)}`;
       }
-      
-      // Caso nenhum formato conhecido seja encontrado
-      return '[Mensagem não suportada]';
-    } catch (error) {
-      console.error("Erro ao extrair conteúdo da mensagem:", error, msg);
-      return '[Erro ao processar mensagem]';
     }
+    return number;
   }
 }
 
 export default function ChatOtimizado() {
-  // Estado para armazenar dados da API
-  const [apiUrl, setApiUrl] = useState('https://api.primerastreadores.com');
-  const [apiKey, setApiKey] = useState('4db623449606bcf2814521b73657dbc0');
-  const [instanceName, setInstanceName] = useState('admin');
-  
-  // Referência para o serviço
+  // Estados para Evolution API
   const [service, setService] = useState<DirectEvolutionService | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // Estado da UI
-  const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<'qr' | 'cloud' | 'both'>('qr');
-  const [metaConnectionStatus, setMetaConnectionStatus] = useState<any>(null);
-  const [metaPhoneNumbers, setMetaPhoneNumbers] = useState<any[]>([]);
-  const [selectedPhoneNumberId, setSelectedPhoneNumberId] = useState<string>('');
-  const [showMediaPanel, setShowMediaPanel] = useState(false);
-  const [mediaType, setMediaType] = useState<"image" | "audio" | "video" | "document" | null>(null);
-  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-  const [mediaCaption, setMediaCaption] = useState('');
-  const [mediaBase64, setMediaBase64] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [connected, setConnected] = useState(false);
   const [chats, setChats] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
-  const [messagesByChatId, setMessagesByChatId] = useState<Record<string, any[]>>({});
-  const [lastMessageTimestamp, setLastMessageTimestamp] = useState<Record<string, number>>({});
-  const [selectedChat, setSelectedChat] = useState<any | null>(null);
+  const [selectedChat, setSelectedChat] = useState<any>(null);
+  const [connectionType, setConnectionType] = useState<'qr' | 'meta' | 'both'>('qr');
   
-  const { toast } = useToast();
+  // Estados para Meta API
+  const [metaConnected, setMetaConnected] = useState(false);
+  const [metaLoading, setMetaLoading] = useState(false);
+  const [availablePhoneNumbers, setAvailablePhoneNumbers] = useState<any[]>([]);
+  const [selectedPhoneNumberId, setSelectedPhoneNumberId] = useState<string>('');
+  const [fetchingNumbers, setFetchingNumbers] = useState(false);
 
-  // Funções para WhatsApp Cloud API
-  const checkMetaConnection = async () => {
-    try {
-      const response = await fetch('/api/whatsapp-meta/status');
-      if (response.ok) {
-        const result = await response.json();
-        setMetaConnectionStatus(result);
-      }
-    } catch (error) {
-      console.error('Erro ao verificar conexão Meta:', error);
-      setMetaConnectionStatus(null);
-    }
-  };
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Função para buscar números de telefone da conta Meta
-  const fetchMetaPhoneNumbers = async () => {
-    try {
-      const response = await fetch('/api/whatsapp-meta/phone-numbers');
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.phoneNumbers) {
-          setMetaPhoneNumbers(result.phoneNumbers);
-          // Se há apenas um número, selecionar automaticamente
-          if (result.phoneNumbers.length === 1) {
-            setSelectedPhoneNumberId(result.phoneNumbers[0].id);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao buscar números de telefone:', error);
-    }
-  };
-
-  const connectMetaWhatsApp = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/whatsapp-meta/connect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phoneNumberId: selectedPhoneNumberId
-        }),
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        setMetaConnectionStatus(result);
-        toast({
-          title: "Sucesso",
-          description: "WhatsApp Cloud API conectado com sucesso!",
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao conectar WhatsApp Cloud API');
-      }
-    } catch (error) {
-      console.error('Erro ao conectar Meta WhatsApp:', error);
-      toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Falha ao conectar WhatsApp Cloud API",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const disconnectMetaWhatsApp = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/whatsapp-meta/disconnect', {
-        method: 'POST',
-      });
-      
-      if (response.ok) {
-        setMetaConnectionStatus(null);
-        toast({
-          title: "Sucesso",
-          description: "WhatsApp Cloud API desconectado com sucesso!",
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao desconectar Meta WhatsApp:', error);
-      toast({
-        title: "Erro",
-        description: "Falha ao desconectar WhatsApp Cloud API",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Inicializa o formulário para envio de mensagens
   const form = useForm<SendFormValues>({
     resolver: zodResolver(sendFormSchema),
     defaultValues: {
       text: ''
     }
   });
-  
-  // Inicializa o serviço quando o componente é montado
+
+  // Configuração da Evolution API
+  const EVOLUTION_API_URL = 'https://api.primerastreadores.com';
+  const EVOLUTION_API_KEY = '4db623449606bcf2814521b73657dbc0';
+  const INSTANCE_NAME = 'admin';
+
   useEffect(() => {
-    console.log("Inicializando serviço com:", { apiUrl, apiKey, instanceName });
-    
-    // Criar instância do serviço
-    const evolutionService = new DirectEvolutionService(apiUrl, apiKey, instanceName);
+    const evolutionService = new DirectEvolutionService(
+      EVOLUTION_API_URL,
+      EVOLUTION_API_KEY,
+      INSTANCE_NAME
+    );
     setService(evolutionService);
-    
-    // Verificar conexão inicial
     checkConnection(evolutionService);
-  }, [apiUrl, apiKey, instanceName]);
-  
-  // Configuração de polling para atualização automática de mensagens
+  }, []);
+
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    
-    // Se tiver um chat selecionado, configura polling
-    if (service && selectedChat && connected) {
-      // Atualiza as mensagens a cada 5 segundos
-      intervalId = setInterval(() => {
-        console.log("Atualizando mensagens automaticamente...");
-        loadMessages(selectedChat, false);
-      }, 5000);
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-    
-    // Limpeza ao desmontar
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [service, selectedChat, connected]);
-  
-  // Verifica a conexão
+  }, [messages]);
+
   const checkConnection = async (serviceInstance?: DirectEvolutionService) => {
+    const currentService = serviceInstance || service;
+    if (!currentService) return;
+
     setLoading(true);
     try {
-      const svc = serviceInstance || service;
-      if (!svc) return false;
+      const result = await currentService.checkConnection();
+      setConnected(result.connected);
       
-      console.log("Iniciando verificação de conexão...");
-      const statusInfo = await svc.checkConnection();
-      console.log("Resultado da verificação:", statusInfo);
-      
-      // Atualiza o estado da conexão com base na resposta
-      setConnected(statusInfo.connected);
-      
-      if (statusInfo.connected) {
-        toast({
-          title: "Conectado",
-          description: `Status: ${statusInfo.state}`,
-          variant: "default"
-        });
-        
-        // Se conectado, carrega os chats
-        await loadChats();
-      } else {
-        toast({
-          title: "Desconectado",
-          description: `Status: ${statusInfo.state}`,
-          variant: "destructive"
-        });
-        
-        // Se houver QR Code, poderia mostrar aqui
-        if (statusInfo.qrCode) {
-          console.log("QR Code disponível para conexão");
-          // Implementar exibição do QR Code se necessário
-        }
+      if (result.connected) {
+        await loadChats(currentService);
       }
-      
-      return statusInfo.connected;
-    } catch (error: any) {
-      console.error("Erro ao verificar conexão:", error);
-      toast({
-        title: "Erro de conexão",
-        description: error.message || "Não foi possível verificar o status da conexão",
-        variant: "destructive"
-      });
-      setConnected(false);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Carrega a lista de chats
-  const loadChats = async () => {
-    if (!service) {
-      console.log("Serviço não inicializado");
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      console.log("Tentando carregar contatos...");
-      
-      const response = await service.loadChats();
-      console.log("Resposta do findChats:", response);
-      
-      // Usa os dados brutos retornados pela API, sem normalizar
-      setChats(response || []);
-      
-      toast({
-        title: "Contatos carregados",
-        description: `${(response || []).length} contatos encontrados`,
-      });
-    } catch (error: any) {
-      console.error("Erro ao carregar contatos:", error);
-      
-      toast({
-        title: "Erro ao carregar contatos",
-        description: error.message || "Não foi possível carregar a lista de contatos",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Carrega as mensagens de um chat
-  const loadMessages = async (chat: any, isInitialLoad = true) => {
-    if (!service || !chat) return;
-    
-    const chatId = chat.remoteJid || chat.id;
-    
-    // Só mostra loading na carga inicial
-    if (isInitialLoad) {
-      setLoading(true);
-      setSelectedChat(chat);
-    }
-    
-    // Usar mensagens já carregadas se existirem
-    const existingMessages = messagesByChatId[chatId] || [];
-    
-    // Determinar o timestamp da mensagem mais recente
-    const lastTimestamp = !isInitialLoad && existingMessages.length > 0
-      ? lastMessageTimestamp[chatId] || 0
-      : 0;
-    
-    try {
-      console.log(`Carregando mensagens para ${chatId} ${lastTimestamp ? '(apenas novas)' : '(todas)'}`);
-      
-      // Buscar mensagens (com parâmetro opcional para apenas novas)
-      const response = await service.loadMessages(chatId, lastTimestamp > 0 ? lastTimestamp : undefined);
-      console.log("Mensagens carregadas:", response);
-      
-      // Processamento das mensagens recebidas para formato consistente
-      const messageList = service.normalizeMessages(response);
-      
-      // Encontrar o timestamp mais recente para a próxima busca
-      let maxTimestamp = lastTimestamp;
-      messageList.forEach((msg: any) => {
-        const msgTs = Number(msg.messageTimestamp) || 0;
-        if (msgTs > maxTimestamp) {
-          maxTimestamp = msgTs;
-        }
-      });
-      
-      // Atualizar o lastTimestamp apenas se encontrou mensagens mais recentes
-      if (maxTimestamp > lastTimestamp) {
-        setLastMessageTimestamp(prev => ({
-          ...prev,
-          [chatId]: maxTimestamp
-        }));
-      }
-      
-      console.log(`Processadas ${messageList.length} mensagens.`);
-      
-      // Se for uma atualização (não inicial) e já temos mensagens existentes
-      if (!isInitialLoad && existingMessages.length > 0) {
-        // Obter IDs de mensagens existentes para evitar duplicatas
-        const existingIds = new Set();
-        existingMessages.forEach(msg => {
-          const msgId = msg.id || (msg.key && msg.key.id);
-          if (msgId) existingIds.add(msgId);
-        });
-        
-        // Filtrar apenas mensagens novas
-        const newMessages = messageList.filter((msg: any) => {
-          const msgId = msg.id || (msg.key && msg.key.id);
-          return msgId && !existingIds.has(msgId);
-        });
-        
-        console.log(`Encontradas ${newMessages.length} novas mensagens`);
-        
-        if (newMessages.length > 0) {
-          // Combinar mensagens existentes com novas e ordenar
-          const combinedMessages = [...existingMessages, ...newMessages];
-          combinedMessages.sort((a, b) => {
-            const tsA = Number(a.messageTimestamp) || 0;
-            const tsB = Number(b.messageTimestamp) || 0;
-            return tsA - tsB;
-          });
-          
-          // Atualizar o cache de mensagens
-          setMessagesByChatId(prev => ({
-            ...prev,
-            [chatId]: combinedMessages
-          }));
-          
-          // Atualizar mensagens visíveis
-          setMessages(combinedMessages);
-          
-          // Rolagem automática para o final das mensagens
-          setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-          }, 100);
-        }
-      } else {
-        // Carga inicial: ordenar e salvar todas as mensagens
-        console.log(`Carregadas ${messageList.length} mensagens iniciais`);
-        
-        // Atualizar o cache de mensagens
-        setMessagesByChatId(prev => ({
-          ...prev,
-          [chatId]: messageList
-        }));
-        
-        // Atualizar mensagens visíveis
-        setMessages(messageList);
-        
-        // Rolagem automática para o final das mensagens
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-      }
-    } catch (error: any) {
-      console.error("Erro ao carregar mensagens:", error);
-      
-      // Mostrar toast apenas na primeira carga
-      if (isInitialLoad) {
-        toast({
-          title: "Erro ao carregar mensagens",
-          description: error.message || "Não foi possível carregar as mensagens",
-          variant: "destructive"
-        });
-        
-        setMessages([]);
-      }
-    } finally {
-      if (isInitialLoad) {
-        setLoading(false);
-      }
-    }
-  };
-  
-  // Função para converter arquivo para Base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          // Remover prefixo data:image/jpeg;base64, para obter apenas o base64
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        } else {
-          reject(new Error('Erro ao converter arquivo para base64'));
-        }
-      };
-      reader.onerror = error => reject(error);
-    });
-  };
-
-  // Função para lidar com a seleção de arquivos
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      // Determinar o tipo de mídia com base no tipo MIME
-      let mediaType: "image" | "audio" | "video" | "document" | null = null;
-      
-      if (file.type.startsWith('image/')) {
-        mediaType = "image";
-      } else if (file.type.startsWith('audio/')) {
-        mediaType = "audio";
-      } else if (file.type.startsWith('video/')) {
-        mediaType = "video";
-      } else {
-        mediaType = "document";
-      }
-      
-      setMediaType(mediaType);
-      
-      // Converter para base64
-      const base64Data = await fileToBase64(file);
-      setMediaBase64(base64Data);
-      
-      // Criar URL para preview (apenas para imagens e vídeos)
-      if (mediaType === "image" || mediaType === "video") {
-        const previewUrl = URL.createObjectURL(file);
-        setMediaPreview(previewUrl);
-      } else {
-        setMediaPreview(null);
-      }
-      
-      // Mostrar painel de mídia com opção para adicionar legenda
-      setShowMediaPanel(true);
-      
-      // Resetar o input para permitir selecionar o mesmo arquivo novamente
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      
     } catch (error) {
-      console.error("Erro ao processar arquivo:", error);
-      toast({
-        title: "Erro ao processar arquivo",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive"
-      });
+      console.error('Erro ao verificar conexão:', error);
+      setConnected(false);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Função para cancelar o envio de mídia
-  const cancelMediaUpload = () => {
-    setShowMediaPanel(false);
-    setMediaType(null);
-    setMediaPreview(null);
-    setMediaBase64(null);
-    setMediaCaption('');
-  };
-  
-  // Função auxiliar para atualizar mensagens otimistas
-  const updateOptimisticMessage = (messageId: string, updates: Partial<any>) => {
-    if (!selectedChat) return;
-    
-    const chatId = selectedChat.remoteJid;
-    const existingMessages = messagesByChatId[chatId] || [];
-    const messageIndex = existingMessages.findIndex(m => m.id === messageId);
-    
-    if (messageIndex !== -1) {
-      const updatedMessages = [...existingMessages];
-      updatedMessages[messageIndex] = {
-        ...updatedMessages[messageIndex],
-        ...updates
-      };
-      
-      setMessages(updatedMessages);
-      setMessagesByChatId(prev => ({
-        ...prev,
-        [chatId]: updatedMessages
-      }));
+  const loadChats = async (serviceInstance?: DirectEvolutionService) => {
+    const currentService = serviceInstance || service;
+    if (!currentService) return;
+
+    try {
+      const chatsData = await currentService.loadChats();
+      setChats(chatsData);
+    } catch (error) {
+      console.error('Erro ao carregar chats:', error);
     }
   };
 
-  // Envia uma mensagem com sistema de UI otimista
-  const onSubmit = async (values: SendFormValues) => {
-    if (!service || !selectedChat) {
-      toast({
-        title: "Erro",
-        description: "Serviço não inicializado ou nenhum chat selecionado",
-        variant: "destructive"
-      });
-      return;
-    }
+  const loadMessages = async (chat: any) => {
+    if (!service || !chat) return;
+
+    setSelectedChat(chat);
+    setLoading(true);
     
     try {
-      const chatId = selectedChat.remoteJid || selectedChat.id;
-      const timestamp = Math.floor(Date.now() / 1000);
-      const localMsgId = `local-${Date.now()}`;
-      let optimisticMsg;
-      let result;
-      
-      // Verifica se estamos enviando mídia ou mensagem de texto
-      if (showMediaPanel && mediaType && mediaBase64) {
-        console.log(`Enviando ${mediaType} para ${chatId}`);
-        
-        // Texto da legenda (pode vir do campo de mídia ou do campo de texto)
-        const caption = mediaCaption || values.text || '';
-        
-        // Criar uma mensagem otimista para mostrar imediatamente na interface
-        // Estrutura adaptada para mostrar que é uma mídia
-        optimisticMsg = {
-          id: localMsgId,
-          key: {
-            id: localMsgId,
-            fromMe: true,
-            remoteJid: chatId
-          },
-          message: {
-            // A mensagem vai conter uma indicação do tipo de mídia
-            conversation: `[${mediaType.toUpperCase()}]${caption ? ' ' + caption : ''}`
-          },
-          messageTimestamp: timestamp,
-          fromMe: true,
-          status: 'sending',
-          // Propriedades adicionais para identificar que é uma mídia
-          isMedia: true,
-          mediaType: mediaType
-        };
-        
-        try {
-          console.log(`Preparando envio de ${mediaType} para ${chatId} (tamanho base64: ${mediaBase64.length} caracteres)`);
-          
-          // Envia a mídia para o servidor de acordo com o tipo
-          switch (mediaType) {
-            case "image":
-              result = await service.sendMedia(chatId, "image", mediaBase64, caption);
-              console.log(`Imagem enviada com sucesso para ${chatId}`);
-              break;
-            case "audio":
-              result = await service.sendWhatsAppAudio(chatId, mediaBase64);
-              console.log(`Áudio enviado com sucesso para ${chatId}`);
-              break;
-            case "video":
-              result = await service.sendMedia(chatId, "video", mediaBase64, caption);
-              console.log(`Vídeo enviado com sucesso para ${chatId}`);
-              break;
-            case "document":
-              result = await service.sendMedia(chatId, "document", mediaBase64, caption);
-              console.log(`Documento enviado com sucesso para ${chatId}`);
-              break;
-          }
-          
-          // Limpar o estado de mídia após o envio
-          setShowMediaPanel(false);
-          setMediaType(null);
-          setMediaPreview(null);
-          setMediaBase64(null);
-          setMediaCaption('');
-        } catch (error) {
-          console.error(`Erro ao enviar ${mediaType}:`, error);
-          toast({
-            title: `Erro ao enviar ${mediaType}`,
-            description: error instanceof Error ? error.message : String(error),
-            variant: "destructive"
-          });
-          
-          // Buscar a mensagem e atualizar o status
-          const existingMessages = messagesByChatId[chatId] || [];
-          const messageIndex = existingMessages.findIndex(m => m.id === localMsgId);
-          
-          if (messageIndex !== -1) {
-            const updatedMessages = [...existingMessages];
-            updatedMessages[messageIndex] = {
-              ...updatedMessages[messageIndex], 
-              status: 'failed'
-            };
-            
-            setMessages(updatedMessages);
-            setMessagesByChatId(prev => ({
-              ...prev,
-              [chatId]: updatedMessages
-            }));
-          }
-          
-          return; // Encerra o processamento em caso de erro
+      const messagesData = await service.loadMessages(chat.remoteJid || chat.id);
+      setMessages(messagesData);
+    } catch (error) {
+      console.error('Erro ao carregar mensagens:', error);
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onSubmit = async (values: SendFormValues) => {
+    if (!service || !selectedChat) return;
+
+    try {
+      if (connectionType === 'meta') {
+        // Enviar via Meta API
+        const response = await fetch('/api/whatsapp/send-message-meta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phoneNumberId: selectedPhoneNumberId,
+            to: selectedChat.remoteJid?.replace('@c.us', ''),
+            message: values.text
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Erro ao enviar mensagem via Meta API');
         }
       } else {
-        // Envio normal de mensagem de texto
-        if (!values.text || values.text.trim() === '') {
-          console.log("Mensagem vazia, ignorando envio");
-          return;
-        }
-        
-        console.log(`Enviando mensagem para ${chatId}: "${values.text}"`);
-        
-        // Criar uma mensagem otimista para mostrar imediatamente na interface
-        optimisticMsg = {
-          id: localMsgId,
-          key: {
-            id: localMsgId,
-            fromMe: true,
-            remoteJid: chatId
-          },
-          message: {
-            conversation: values.text
-          },
-          messageTimestamp: timestamp,
-          fromMe: true,
-          status: 'sending'
-        };
-        
-        try {
-          // Verificar se o texto está definido
-          if (!values.text) {
-            throw new Error("Texto da mensagem não pode ser vazio");
-          }
-          
-          // Enviar a mensagem de texto para o servidor
-          result = await service.sendMessage(chatId, values.text);
-          console.log("Mensagem enviada com sucesso:", result);
-        } catch (error) {
-          console.error("Erro ao enviar mensagem:", error);
-          toast({
-            title: "Erro ao enviar mensagem",
-            description: error instanceof Error ? error.message : String(error),
-            variant: "destructive"
-          });
-          
-          // Buscar a mensagem e atualizar o status
-          const existingMessages = messagesByChatId[chatId] || [];
-          const messageIndex = existingMessages.findIndex(m => m.id === localMsgId);
-          
-          if (messageIndex !== -1) {
-            const updatedMessages = [...existingMessages];
-            updatedMessages[messageIndex] = {
-              ...updatedMessages[messageIndex], 
-              status: 'failed'
-            };
-            
-            setMessages(updatedMessages);
-            setMessagesByChatId(prev => ({
-              ...prev,
-              [chatId]: updatedMessages
-            }));
-          }
-          
-          return; // Encerra o processamento em caso de erro
-        }
+        // Enviar via Evolution API
+        await service.sendMessage(selectedChat.remoteJid || selectedChat.id, values.text);
       }
-      
-      // Adicionar a mensagem otimista ao estado local
-      const existingMessages = messagesByChatId[chatId] || [];
-      const updatedMessages = [...existingMessages, optimisticMsg];
-      
-      // Atualizar as mensagens exibidas imediatamente
-      setMessages(updatedMessages);
-      setMessagesByChatId(prev => ({
-        ...prev,
-        [chatId]: updatedMessages
-      }));
-      
-      // Atualizar o último timestamp para evitar recarregar a mensagem que acabamos de adicionar
-      setLastMessageTimestamp(prev => ({
-        ...prev,
-        [chatId]: timestamp
-      }));
-      
-      // Rolar para a nova mensagem
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 50);
-      
-      // Limpa o formulário imediatamente para melhor experiência do usuário
+
       form.reset();
-      
-      // Focar no campo de texto para permitir enviar outra mensagem
-      form.setFocus("text");
-      
-      // Verificar se houve erro no envio
-      if (result && result.success === false) {
-        throw new Error(result.error || "Falha no envio da mensagem");
-      }
-      
-      // Atualizar mensagens para obter o status real da mensagem enviada
-      // Mas com um pequeno atraso para não interferir na experiência
-      setTimeout(() => {
-        loadMessages(selectedChat, false);
-      }, 500);
-      
-    } catch (error: any) {
-      console.error("Erro ao enviar mensagem:", error);
-      
-      toast({
-        title: "Erro ao enviar mensagem",
-        description: error.message || "Não foi possível enviar a mensagem",
-        variant: "destructive"
-      });
+      // Recarregar mensagens
+      await loadMessages(selectedChat);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
     }
   };
-  
-  // Formata a data da mensagem para exibição
-  const formatMessageDate = (timestamp: number | string) => {
-    if (!timestamp) return '';
-    
-    const date = new Date(Number(timestamp) * 1000);
-    return formatDistanceToNow(date, { 
-      addSuffix: true,
-      locale: ptBR 
-    });
-  };
-  
-  // Extrai o conteúdo da mensagem
-  const getMessageContent = (msg: any) => {
-    // Texto da mensagem
-    if (msg.message?.conversation) {
-      return msg.message.conversation;
-    } else if (msg.message?.extendedTextMessage?.text) {
-      return msg.message.extendedTextMessage.text;
-    } else if (msg.body) {
-      return msg.body;
-    } else if (msg.content) {
-      return msg.content;
-    }
-    
-    // Tipos específicos de mídia
-    if (msg.message?.imageMessage) {
-      return '[Imagem]';
-    } else if (msg.message?.videoMessage) {
-      return '[Vídeo]';
-    } else if (msg.message?.audioMessage) {
-      return '[Áudio]';
-    } else if (msg.message?.documentMessage) {
-      return '[Documento]';
-    } else if (msg.message?.stickerMessage) {
-      return '[Sticker]';
-    }
-    
-    // Fallback para outros tipos
-    return '[Mensagem não suportada]';
-  };
-  
-  // Determina se uma mensagem é do usuário atual (fromMe)
-  const isFromMe = (msg: any) => {
-    return msg.key?.fromMe === true || msg.fromMe === true;
-  };
-  
-  // Formata o nome do chat para exibição
+
   const getChatName = (chat: any) => {
     if (!chat) return '';
-    
-    // Diferentes formatos possíveis para o nome do chat
-    if (chat.name) return chat.name;
-    if (chat.pushName) return chat.pushName;
-    if (chat.notifyName) return chat.notifyName;
-    if (chat.subject) return chat.subject;
-    
-    // Se não tiver nome, usar o ID formatado sem o sufixo @c.us ou @s.whatsapp.net
-    const id = chat.id || chat.remoteJid || '';
-    return id.split('@')[0] || 'Desconhecido';
+    return chat.name || chat.pushName || formatPhoneNumber(chat.remoteJid || chat.id);
   };
-  
-  // Formata o nome do contato da mensagem
-  const getMessageSender = (msg: any) => {
-    if (isFromMe(msg)) return 'Você';
-    
-    // Diferentes formatos possíveis
-    if (msg.pushName) return msg.pushName;
-    if (msg.notifyName) return msg.notifyName;
-    if (msg.sender) return msg.sender;
-    
-    // Tenta extrair o nome do ID
-    if (msg.key?.participant) {
-      const participant = msg.key.participant.split('@')[0];
-      return participant || 'Contato';
+
+  const formatPhoneNumber = (jid: string) => {
+    if (!jid) return '';
+    const number = jid.replace('@c.us', '').replace('@g.us', '');
+    if (number.startsWith('55') && number.length >= 11) {
+      const cleaned = number.substring(2);
+      if (cleaned.length === 11) {
+        return `(${cleaned.substring(0, 2)}) ${cleaned.substring(2, 7)}-${cleaned.substring(7)}`;
+      }
     }
-    
-    return 'Contato';
+    return number;
   };
-  
-  // Retorna a classe CSS para a bolha de mensagem
+
+  const formatMessageDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getMessageContent = (msg: any) => {
+    if (typeof msg === 'string') return msg;
+    return msg?.content || msg?.text || '[Mensagem não suportada]';
+  };
+
   const getMessageBubbleClass = (msg: any) => {
-    return isFromMe(msg) 
-      ? 'bg-green-100 dark:bg-green-950 ml-auto rounded-bl-lg rounded-tl-lg rounded-tr-lg' 
-      : 'bg-white dark:bg-gray-800 mr-auto rounded-br-lg rounded-tr-lg rounded-tl-lg';
+    const isFromMe = msg.fromMe;
+    return `${isFromMe 
+      ? 'bg-green-500 text-white ml-auto rounded-tl-2xl rounded-tr-sm rounded-bl-2xl rounded-br-2xl' 
+      : 'bg-white dark:bg-gray-800 border mr-auto rounded-tl-sm rounded-tr-2xl rounded-bl-2xl rounded-br-2xl'
+    }`;
+  };
+
+  // Funções para Meta API
+  const fetchAvailableNumbers = async () => {
+    setFetchingNumbers(true);
+    try {
+      const response = await fetch('/api/whatsapp/meta/phone-numbers');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailablePhoneNumbers(data.phoneNumbers || []);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar números:', error);
+    } finally {
+      setFetchingNumbers(false);
+    }
+  };
+
+  const connectToMeta = async () => {
+    if (!selectedPhoneNumberId) return;
+    
+    setMetaLoading(true);
+    try {
+      const response = await fetch('/api/whatsapp/meta/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumberId: selectedPhoneNumberId })
+      });
+
+      if (response.ok) {
+        setMetaConnected(true);
+      }
+    } catch (error) {
+      console.error('Erro ao conectar Meta API:', error);
+    } finally {
+      setMetaLoading(false);
+    }
+  };
+
+  const getSelectedPhoneNumber = () => {
+    return availablePhoneNumbers.find(phone => phone.id === selectedPhoneNumberId);
   };
 
   return (
-    <div className="flex h-screen flex-col">
-      {/* Seletor de Conexão WhatsApp */}
-      <div className="p-4 border-b bg-white dark:bg-gray-900">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-lg">Conexão WhatsApp</h3>
-        </div>
-        
-        <div className="flex flex-wrap gap-4 items-center">
-          {/* Seletor de Modo */}
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium">Modo:</label>
-            <select 
-              value={connectionMode} 
-              onChange={(e) => setConnectionMode(e.target.value as 'qr' | 'cloud' | 'both')}
-              className="px-3 py-1 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600"
+    <div className="h-screen flex bg-gray-100 dark:bg-gray-900">
+      {/* Sidebar - Lista de Chats */}
+      <div className="w-1/3 bg-white dark:bg-gray-800 border-r flex flex-col">
+        {/* Cabeçalho da sidebar */}
+        <div className="p-4 border-b bg-gray-50 dark:bg-gray-900">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <MessageSquare className="h-6 w-6" />
+              Chat WhatsApp
+            </h1>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => checkConnection()}
+              disabled={loading}
             >
-              <option value="qr">QR Code</option>
-              <option value="cloud">Cloud API</option>
-              <option value="both">Ambos</option>
-            </select>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            </Button>
           </div>
 
-          {/* Status QR Code */}
-          {(connectionMode === 'qr' || connectionMode === 'both') && (
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-sm">QR Code: {connected ? 'Conectado' : 'Desconectado'}</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => checkConnection()}
-                disabled={loading}
-              >
-                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-              </Button>
-            </div>
-          )}
+          {/* Seletor de Conexão */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Tipo de Conexão WhatsApp</Label>
+            <Select value={connectionType} onValueChange={(value: 'qr' | 'meta' | 'both') => setConnectionType(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="qr">QR Code (Evolution API)</SelectItem>
+                <SelectItem value="meta">Cloud API (Meta)</SelectItem>
+                <SelectItem value="both">Ambos</SelectItem>
+              </SelectContent>
+            </Select>
 
-          {/* Status Cloud API */}
-          {(connectionMode === 'cloud' || connectionMode === 'both') && (
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${metaConnectionStatus?.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-sm">Cloud API: {metaConnectionStatus?.connected ? 'Conectado' : 'Desconectado'}</span>
-                {metaConnectionStatus?.connected ? (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={disconnectMetaWhatsApp}
-                    disabled={loading}
-                  >
-                    Desconectar
-                  </Button>
-                ) : (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={fetchMetaPhoneNumbers}
-                      disabled={loading}
-                    >
-                      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                      Buscar Números
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={connectMetaWhatsApp}
-                      disabled={loading || !selectedPhoneNumber}
-                    >
-                      Conectar
-                    </Button>
-                  </>
-                )}
-              </div>
-              
-              {/* Seletor de Números de Telefone da Meta API */}
-              {!metaConnectionStatus?.connected && availablePhoneNumbers.length > 0 && (
-                <div className="flex items-center space-x-2 ml-4">
-                  <label className="text-sm font-medium">Número:</label>
-                  <select 
-                    value={selectedPhoneNumber} 
-                    onChange={(e) => setSelectedPhoneNumber(e.target.value)}
-                    className="px-3 py-1 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 min-w-[200px]"
-                  >
-                    <option value="">Selecione um número</option>
-                    {availablePhoneNumbers.map((phone) => (
-                      <option key={phone.id} value={phone.id}>
-                        {phone.display_phone_number} ({phone.verified_name})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              
-              {/* Mostrar número conectado quando estiver conectado */}
-              {metaConnectionStatus?.connected && metaConnectionStatus?.phoneNumber && (
-                <div className="flex items-center space-x-2 ml-4 text-sm text-green-600">
-                  <span>📱 {metaConnectionStatus.phoneNumber}</span>
-                </div>
-              )}
-            </div>
-          )}
-        
-        {/* Mensagem explicativa sobre tipos de conexão */}
-        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
-          <p className="text-sm text-blue-700 dark:text-blue-300">
-            <strong>QR Code:</strong> Conecta usando WhatsApp Web (gratuito) • 
-            <strong> Cloud API:</strong> Conexão oficial Meta Business (requer configuração)
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Lista de contatos */}
-        <div className="w-1/3 border-r bg-white dark:bg-gray-900 flex flex-col">
-          <div className="p-4 border-b bg-gray-50 dark:bg-gray-800">
-            <h3 className="font-semibold">Conversas</h3>
-          </div>
-          
-          <div className="flex-1 overflow-auto">
-            {chats.map((chat, index) => {
-              const lastMessage = getLastMessage(chat);
-              const hasNewMessages = hasUnreadMessages(chat);
-              
-              return (
-                <div 
-                  key={chat.id || `chat-${index}`}
-                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                    selectedChat?.id === chat.id ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-l-blue-500' : ''
-                  }`}
-                  onClick={() => selectChat(chat)}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                      <span className="text-lg font-medium text-gray-600 dark:text-gray-300">
-                        {getChatName(chat).charAt(0).toUpperCase() || '?'}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-medium truncate text-gray-900 dark:text-gray-100">
-                          {getChatName(chat) || 'Contato'}
-                        </h4>
-                        {lastMessage && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatMessageTime(lastMessage.messageTimestamp)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <p className="text-sm text-gray-600 dark:text-gray-300 truncate">
-                          {lastMessage ? getMessageContent(lastMessage) : 'Nenhuma mensagem'}
-                        </p>
-                        {hasNewMessages && (
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          <div className="p-4 border-t">
-            {!connected && !metaConnectionStatus?.connected && (
-              <div className="text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                  Conecte-se ao WhatsApp para ver suas conversas
-                </p>
-                <Button 
-                  onClick={() => checkConnection()} 
-                  variant="outline" 
-                  className="mt-2"
-                  disabled={loading}
-                >
-                  {loading ? (
+            {/* Painel Meta API */}
+            {(connectionType === 'meta' || connectionType === 'both') && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    WhatsApp Cloud API
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {!metaConnected ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verificando...
+                      <Button 
+                        onClick={fetchAvailableNumbers}
+                        disabled={fetchingNumbers}
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {fetchingNumbers ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Buscando...
+                          </>
+                        ) : (
+                          'Buscar Números'
+                        )}
+                      </Button>
+
+                      {availablePhoneNumbers.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-xs">Selecionar Número:</Label>
+                          <Select value={selectedPhoneNumberId} onValueChange={setSelectedPhoneNumberId}>
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Escolha um número" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availablePhoneNumbers.map((phone: any) => (
+                                <SelectItem key={phone.id} value={phone.id}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono text-sm">{phone.display_phone_number}</span>
+                                    {phone.verified_name && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {phone.verified_name}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <Button 
+                            onClick={connectToMeta}
+                            disabled={!selectedPhoneNumberId || metaLoading}
+                            size="sm"
+                            className="w-full"
+                          >
+                            {metaLoading ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                Conectando...
+                              </>
+                            ) : (
+                              'Conectar'
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </>
                   ) : (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Verificar Conexão
-                    </>
+                    <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-green-800 dark:text-green-200">Conectado</p>
+                        {getSelectedPhoneNumber() && (
+                          <p className="text-xs text-green-600 dark:text-green-400 font-mono">
+                            📱 {getSelectedPhoneNumber().display_phone_number}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </Button>
-              </div>
+                </CardContent>
+              </Card>
             )}
-            {!loading && (connected || metaConnectionStatus?.connected) && chats.length === 0 && (
-              <Button 
-                onClick={loadChats} 
-                variant="default"
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Carregar Contatos
-              </Button>
+
+            {/* Status da Conexão Evolution */}
+            {(connectionType === 'qr' || connectionType === 'both') && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800">
+                {connected ? (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                )}
+                <span className="text-sm">
+                  Evolution: {connected ? 'Conectado' : 'Desconectado'}
+                </span>
+              </div>
             )}
           </div>
         </div>
-
-        {/* Área de mensagens */}
-        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900">
-          {selectedChat ? (
-            <>
-              {/* Cabeçalho do chat */}
-              <div className="p-4 border-b bg-white dark:bg-gray-800 flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                  <span className="text-lg font-medium text-gray-600 dark:text-gray-300">
-                    {getChatName(selectedChat).charAt(0).toUpperCase() || '?'}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                    {getChatName(selectedChat) || 'Contato'}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {selectedChat.remoteJid?.replace('@s.whatsapp.net', '') || 'Sem ID'}
-                  </p>
-                </div>
-                <div className="ml-auto">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => loadMessages(selectedChat.remoteJid)}
-                    disabled={loading}
-                  >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Lista de mensagens */}
-              <div className="flex-1 overflow-auto p-4 space-y-2">
-                {currentMessages.map((msg, index) => {
-                  const isOwn = isFromMe(msg);
-                  
-                  return (
-                    <div 
-                      key={msg.id || `msg-${index}`}
-                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-xs lg:max-w-md px-4 py-2 shadow-sm ${getMessageBubbleClass(msg)}`}>
-                        <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
-                          {getMessageContent(msg)}
-                        </p>
-                        <div className="flex justify-between items-center mt-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatMessageTime(msg.messageTimestamp)}
-                          </span>
-                          {isOwn && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                              {msg.status === 'sent' && '✓'}
-                              {msg.status === 'delivered' && '✓✓'}
-                              {msg.status === 'read' && <span className="text-blue-500">✓✓</span>}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Área de digitação */}
-              <div className="p-4 bg-white dark:bg-gray-800 border-t">
-                <FormProvider {...form}>
-                  {/* Painel de mídia */}
-                  {showMediaPanel && mediaType && (
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      console.log("Formulário de mídia enviado");
-                      onSubmit(form.getValues());
-                    }} className="p-4 border rounded-md mb-2 bg-gray-50 dark:bg-gray-800">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium">
-                          {mediaType === "image" && "Imagem"}
-                          {mediaType === "audio" && "Áudio"}
-                          {mediaType === "video" && "Vídeo"}
-                          {mediaType === "document" && "Documento"}
-                        </h4>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => cancelMediaUpload()}
-                          type="button"
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                      
-                      {/* Preview para imagens */}
-                      {mediaType === "image" && mediaPreview && (
-                        <div className="mb-2 max-h-48 overflow-hidden rounded-md">
-                          <img src={mediaPreview} alt="Preview" className="object-contain max-w-full" />
-                        </div>
-                      )}
-                      
-                      {/* Preview para vídeos */}
-                      {mediaType === "video" && mediaPreview && (
-                        <div className="mb-2">
-                          <video src={mediaPreview} controls className="max-w-full max-h-48 rounded-md" />
-                        </div>
-                      )}
-                      
-                      {/* Ícone para áudio e documentos */}
-                      {(mediaType === "audio" || mediaType === "document") && (
-                        <div className="flex items-center justify-center h-16 mb-2 bg-gray-100 dark:bg-gray-700 rounded-md">
-                          {mediaType === "audio" ? (
-                            <FileAudio className="h-8 w-8 text-blue-500" />
-                          ) : (
-                            <div className="h-8 w-8 text-blue-500">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                                <polyline points="14 2 14 8 20 8" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Campo de legenda para mídia */}
-                      <Input
-                        placeholder="Adicionar legenda (opcional)"
-                        value={mediaCaption}
-                        onChange={(e) => setMediaCaption(e.target.value)}
-                        className="mb-2"
-                      />
-                      
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-green-600 hover:bg-green-700 text-white"
-                        disabled={!connected || loading || form.formState.isSubmitting}
-                      >
-                        {form.formState.isSubmitting ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <>
-                            <Send className="h-4 w-4 mr-2" />
-                            Enviar
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  )}
-                
-                  {/* Campo de upload oculto */}
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={(e) => handleFileSelect(e)}
-                    accept="image/*,audio/*,video/*,application/*"
-                    style={{ display: 'none' }} 
-                  />
-                
-                  {/* Formulário de mensagem principal */}
-                  {!showMediaPanel && (
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="flex space-x-2">
-                      {/* Botão de anexo */}
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={!connected || loading}
-                        className="rounded-full"
-                      >
-                        <Paperclip className="h-5 w-5 text-gray-500" />
-                      </Button>
-                      
-                      {/* Campo de texto */}
-                      <FormField
-                        control={form.control}
-                        name="message"
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Digite sua mensagem..."
-                                disabled={!connected && !metaConnectionStatus?.connected}
-                                className="rounded-full"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    form.handleSubmit(onSubmit)();
-                                  }
-                                }}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Botão de enviar */}
-                      <Button 
-                        type="submit" 
-                        size="icon"
-                        disabled={!connected && !metaConnectionStatus?.connected || loading || form.formState.isSubmitting}
-                        className="rounded-full bg-green-600 hover:bg-green-700"
-                      >
-                        {form.formState.isSubmitting ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </form>
-                  )}
-                </FormProvider>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <MessagesSquare className="h-16 w-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  Selecione uma conversa
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400">
-                  Escolha uma conversa para começar a enviar mensagens
-                </p>
-              </div>
+        
+        {/* Lista de chats */}
+        <div className="flex-1 overflow-y-auto">
+          {chats.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              {loading ? 'Carregando contatos...' : 'Nenhum chat encontrado'}
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+          ) : (
+            <div className="divide-y">
+              {chats.map((chat) => (
                 <div
                   key={chat.id || chat.remoteJid}
                   className={`p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center space-x-3 ${
@@ -1810,17 +618,15 @@ export default function ChatOtimizado() {
                       <div 
                         className={`${getMessageBubbleClass(msg)} p-3 max-w-[70%] shadow-sm`}
                       >
-                        {!isFromMe(msg) && (selectedChat.isGroup || selectedChat.participant) && (
-                          <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">
-                            {getMessageSender(msg)}
-                          </div>
+                        {!msg.fromMe && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                            {msg.pushName || formatPhoneNumber(msg.remoteJid)}
+                          </p>
                         )}
-                        <div className="text-sm whitespace-pre-wrap break-words">
-                          {getMessageContent(msg)}
-                        </div>
-                        <div className="text-right text-xs text-gray-500 mt-1">
-                          {formatMessageDate(msg.messageTimestamp)}
-                        </div>
+                        <p className="text-sm">{getMessageContent(msg)}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {formatMessageDate(msg.timestamp)}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -1828,195 +634,66 @@ export default function ChatOtimizado() {
                 </div>
               )}
             </div>
-            
+
             {/* Formulário de envio */}
-            <div className="p-4 border-t bg-gray-100 dark:bg-gray-900">
+            <div className="p-4 border-t bg-white dark:bg-gray-800">
               <Form {...form}>
-                {/* Conteúdo do formulário */}
-                <div>
-                  {/* Painel de mídia */}
-                  {showMediaPanel && (
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      console.log("Formulário de mídia enviado");
-                      onSubmit(form.getValues());
-                    }} className="p-4 border rounded-md mb-2 bg-gray-50 dark:bg-gray-800">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium">
-                          {mediaType === "image" && "Imagem"}
-                          {mediaType === "audio" && "Áudio"}
-                          {mediaType === "video" && "Vídeo"}
-                          {mediaType === "document" && "Documento"}
-                        </h4>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => cancelMediaUpload()}
-                          type="button"
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                      
-                      {/* Preview para imagens */}
-                      {mediaType === "image" && mediaPreview && (
-                        <div className="mb-2 max-h-48 overflow-hidden rounded-md">
-                          <img src={mediaPreview} alt="Preview" className="object-contain max-w-full" />
-                        </div>
-                      )}
-                      
-                      {/* Preview para vídeos */}
-                      {mediaType === "video" && mediaPreview && (
-                        <div className="mb-2">
-                          <video src={mediaPreview} controls className="max-w-full max-h-48 rounded-md" />
-                        </div>
-                      )}
-                      
-                      {/* Ícone para áudio e documentos */}
-                      {(mediaType === "audio" || mediaType === "document") && (
-                        <div className="flex items-center justify-center h-16 mb-2 bg-gray-100 dark:bg-gray-700 rounded-md">
-                          {mediaType === "audio" ? (
-                            <FileAudio className="h-8 w-8 text-blue-500" />
-                          ) : (
-                            <div className="h-8 w-8 text-blue-500">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                                <polyline points="14 2 14 8 20 8" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Campo de legenda para mídia */}
-                      <Input
-                        placeholder="Adicionar legenda (opcional)"
-                        value={mediaCaption}
-                        onChange={(e) => setMediaCaption(e.target.value)}
-                        className="mb-2"
-                      />
-                      
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-green-600 hover:bg-green-700 text-white"
-                        disabled={!connected || loading || form.formState.isSubmitting}
-                      >
-                        {form.formState.isSubmitting ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <>
-                            <Send className="h-4 w-4 mr-2" />
-                            Enviar
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  )}
-                
-                  {/* Campo de upload oculto */}
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={(e) => handleFileSelect(e)}
-                    accept="image/*,audio/*,video/*,application/*"
-                    style={{ display: 'none' }} 
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex space-x-2">
+                  <FormField
+                    control={form.control}
+                    name="text"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="Digite sua mensagem..."
+                            disabled={!connected && !metaConnected}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                
-                  {/* Formulário de mensagem principal */}
-                  {!showMediaPanel && (
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="flex space-x-2">
-                      {/* Botão de anexo */}
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={!connected || loading}
-                        className="rounded-full"
-                      >
-                        <Paperclip className="h-5 w-5 text-gray-500" />
-                      </Button>
-                      
-                      <FormField
-                        control={form.control}
-                        name="text"
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormControl>
-                              <Input
-                                placeholder="Digite uma mensagem"
-                                {...field}
-                                disabled={!connected || loading}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <Button 
-                        type="submit" 
-                        size="icon" 
-                        disabled={!connected || loading || form.formState.isSubmitting}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        {form.formState.isSubmitting ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-white" />
-                        ) : (
-                          <Send className="h-4 w-4 text-white" />
-                        )}
-                      </Button>
-                    </form>
-                  )}
-                </div>
+                  <Button 
+                    type="submit" 
+                    disabled={!connected && !metaConnected}
+                    size="icon"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </form>
               </Form>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-950">
-            <div className="max-w-md text-center">
-              <h2 className="text-2xl font-bold mb-4">Bem-vindo ao Chat LiguIA</h2>
-              <p className="text-gray-500 mb-8">
-                Selecione um contato na barra lateral para iniciar uma conversa.
-              </p>
-              {!connected && (
-                <div className="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg mb-4">
-                  <p className="text-yellow-800 dark:text-yellow-200">
-                    Você está desconectado do WhatsApp. Verifique sua conexão.
-                  </p>
+          <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+            <div className="text-center text-gray-500">
+              <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
+              <p className="text-lg mb-2">Selecione um chat para começar</p>
+              <p className="text-sm">
+                {!connected && !metaConnected ? (
                   <Button 
-                    onClick={() => checkConnection()} 
-                    variant="outline" 
-                    className="mt-2"
+                    onClick={() => checkConnection()}
                     disabled={loading}
+                    variant="outline"
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Verificando...
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Conectando...
                       </>
                     ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Verificar Conexão
-                      </>
+                      'Conectar WhatsApp'
                     )}
                   </Button>
-                </div>
-              )}
-              {!loading && connected && chats.length === 0 && (
-                <Button 
-                  onClick={loadChats} 
-                  variant="default"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Carregar Contatos
-                </Button>
-              )}
+                ) : (
+                  `${loading || (!connected && chats.length === 0) ? 'Carregando chats...' : 'Escolha um contato na lista'}`
+                )}
+              </p>
             </div>
           </div>
         )}
-        </div>
       </div>
     </div>
   );
