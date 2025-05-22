@@ -539,6 +539,61 @@ export default function ChatOtimizado() {
   const [loading, setLoading] = useState(false);
   const [connectionMode, setConnectionMode] = useState<'qr' | 'cloud' | 'both'>('qr');
   const [metaConnectionStatus, setMetaConnectionStatus] = useState<any>(null);
+
+  // Efeito para reagir à mudança de modo de conexão
+  useEffect(() => {
+    console.log(`Modo de conexão alterado para: ${connectionMode}`);
+    
+    // Limpar estado atual quando trocar de modo
+    setSelectedChat(null);
+    setMessages([]);
+    setMessagesByChatId({});
+    
+    // Carregar dados específicos do modo selecionado
+    if (connectionMode === 'cloud') {
+      console.log('Carregando chats para modo: cloud');
+      loadCloudChats();
+    } else if (connectionMode === 'qr') {
+      console.log('Carregando chats para modo: qr');
+      loadQrChats();
+    }
+  }, [connectionMode]);
+
+  // Função para carregar chats do Cloud API
+  const loadCloudChats = async () => {
+    try {
+      console.log('Buscando chats da Meta Cloud API...');
+      const response = await fetch('/api/whatsapp-cloud/chats');
+      
+      if (response.ok) {
+        const cloudChats = await response.json();
+        console.log('Resposta da Meta API:', cloudChats);
+        setChats(cloudChats || []);
+      } else {
+        console.error('Erro ao buscar chats da Meta Cloud API');
+        setChats([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar chats do Cloud API:', error);
+      setChats([]);
+    }
+  };
+
+  // Função para carregar chats do QR Code
+  const loadQrChats = async () => {
+    try {
+      if (service) {
+        console.log('Buscando chats da Evolution API...');
+        const response = await service.getChats();
+        console.log('Resposta da Evolution API:', response);
+        setChats(response || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar chats do QR Code:', error);
+      setChats([]);
+    }
+  };
+
   const [showMediaPanel, setShowMediaPanel] = useState(false);
   const [mediaType, setMediaType] = useState<"image" | "audio" | "video" | "document" | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
