@@ -3414,49 +3414,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Rota para buscar mensagens do WhatsApp Cloud API
-  app.get('/api/whatsapp-cloud/messages/:chatId', async (req, res) => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        return res.status(401).json({ error: 'Usuário não autenticado' });
-      }
-
-      const { chatId } = req.params;
-      console.log(`Buscando mensagens do Meta API para chat: ${chatId}`);
-      
-      // Buscar mensagens no banco de dados
-      const { whatsappCloudMessages } = await import('@shared/schema');
-      const messages = await db
-        .select()
-        .from(whatsappCloudMessages)
-        .where(
-          and(
-            eq(whatsappCloudMessages.userId, userId),
-            eq(whatsappCloudMessages.remoteJid, chatId)
-          )
-        )
-        .orderBy(whatsappCloudMessages.timestamp);
-
-      console.log(`Encontradas ${messages.length} mensagens para ${chatId}`);
-      
-      // Converter para formato compatível com o frontend
-      const formattedMessages = messages.map(msg => ({
-        id: msg.id,
-        content: msg.messageContent,
-        timestamp: Math.floor(new Date(msg.timestamp).getTime() / 1000),
-        fromMe: msg.fromMe,
-        status: msg.status,
-        messageType: msg.messageType || 'text'
-      }));
-
-      res.json(formattedMessages);
-    } catch (error) {
-      console.error('Erro ao buscar mensagens do WhatsApp Cloud API:', error);
-      res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-  });
-
   // Rota para envio direto via Meta API
   app.post("/api/meta-direct-send", async (req, res) => {
     console.log("Rota /api/meta-direct-send chamada - ENVIO DIRETO");
@@ -3827,36 +3784,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Erro ao buscar mensagens da Meta API:', error);
       res.status(500).json({ error: 'Erro ao buscar mensagens da Meta API' });
-    }
-  });
-
-  // Rota para envio de mensagens via WhatsApp Cloud API - CORRIGINDO ERRO JSON
-  app.post('/api/whatsapp-cloud/send-message', async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: 'Não autenticado' });
-    }
-
-    try {
-      const userId = req.user!.id;
-      const { to, message, useTemplate, templateMessage } = req.body;
-      
-      if (!to || !message) {
-        return res.status(400).json({ error: 'Destinatário e mensagem são obrigatórios' });
-      }
-
-      console.log(`Enviando mensagem via Meta Cloud API para ${to}:`, message);
-      
-      const { whatsappCloudService } = await import('./api/whatsapp-cloud-service');
-      const result = await whatsappCloudService.sendMessage(userId, to, message);
-      
-      if (result.success) {
-        res.json({ success: true, messageId: result.messageId });
-      } else {
-        res.status(500).json({ error: result.error || 'Erro ao enviar mensagem' });
-      }
-    } catch (error) {
-      console.error('Erro ao enviar mensagem via WhatsApp Cloud API:', error);
-      res.status(500).json({ error: 'Erro interno do servidor' });
     }
   });
   

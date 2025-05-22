@@ -418,30 +418,6 @@ export class EvolutionApiService {
     return '...';
   }
 
-  // Método getChats para compatibilidade
-  public async getChats() {
-    return await this.findChats();
-  }
-
-  // Método checkConnection para compatibilidade
-  public async checkConnection() {
-    try {
-      const response = await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
-      const isConnected = response?.instance?.state === 'open';
-      return {
-        connected: isConnected,
-        state: response?.instance?.state || 'unknown',
-        instance: this.instanceName
-      };
-    } catch (error) {
-      return {
-        connected: false,
-        error: 'Erro de conexão',
-        instance: this.instanceName
-      };
-    }
-  }
-
   // Formatar timestamp para exibição amigável
   private formatTime(timestamp: number): string {
     if (!timestamp) return '';
@@ -467,9 +443,6 @@ export class EvolutionApiService {
     }
   }
 }
-
-// Alias para compatibilidade
-export const DirectEvolutionService = EvolutionApiService;
 
 // Exporta uma instância padrão do serviço
 export default new EvolutionApiService();

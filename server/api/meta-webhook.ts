@@ -3,7 +3,7 @@
  * Este webhook será chamado automaticamente quando mensagens forem recebidas
  */
 import { Request, Response } from 'express';
-import { db, pool } from '../db';
+import { db } from '../db';
 import { whatsappCloudChats, whatsappCloudMessages } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -189,23 +189,20 @@ async function saveIncomingMessage(message: any, metadata: any) {
       console.log(`Chat atualizado para ${remoteJid}`);
     }
 
-    // Salvar a mensagem usando Drizzle ORM
-    const [savedMessage] = await db
+    // Salvar a mensagem usando o esquema correto do banco
+    await db
       .insert(whatsappCloudMessages)
       .values({
-        id: messageId,
-        chatId: existingChat.id,
         userId,
+        chatId: existingChat.id,
+        messageId: messageId,
         remoteJid,
-        messageContent: content,
+        content: content,
         messageType,
         fromMe: false,
         timestamp,
-        status: 'delivered',
-        metaMessageId: messageId,
-        createdAt: new Date()
-      })
-      .returning();
+        status: 'delivered'
+      });
 
     console.log(`Mensagem salva: ${content.substring(0, 50)}...`);
 
