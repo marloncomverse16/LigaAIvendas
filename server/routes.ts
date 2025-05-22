@@ -25,6 +25,7 @@ import * as whatsappApi from "./api/whatsapp-api";
 import { getWhatsAppQrCode, getWhatsAppContacts } from "./direct-connection";
 import { serveMediaProxy } from "./api/simple-media-proxy";
 import { setupWebSocketServer, sendMessage } from "./websocket";
+import { checkMetaConnectionStatus, connectMetaWhatsApp, disconnectMetaWhatsApp } from "./api/whatsapp-meta-connection";
 import multer from "multer";
 import fs from "fs";
 import { runContactDiagnostics } from "./api/contact-diagnostics";
@@ -2333,6 +2334,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Proxy especializado para mídia do WhatsApp com suporte a descriptografia
   app.get("/api/whatsapp-media", whatsappMediaProxy);
+
+  // Rotas para WhatsApp Cloud API (Meta)
+  app.get("/api/whatsapp-meta/status", checkMetaConnectionStatus);
+  app.post("/api/whatsapp-meta/connect", connectMetaWhatsApp);
+  app.post("/api/whatsapp-meta/disconnect", disconnectMetaWhatsApp);
 
   // Novas rotas otimizadas para mídia do WhatsApp
   app.get("/api/media-proxy", async (req, res) => {
