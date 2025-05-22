@@ -3718,6 +3718,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota para testar webhook de contatos
   app.get("/api/servers/:serverId/test-webhook", testContactsWebhook);
 
+  // ===== WEBHOOK DA META API PARA RECEBER MENSAGENS =====
+  // Verificação do webhook (chamado pela Meta para validar)
+  app.get('/api/webhooks/meta', async (req, res) => {
+    try {
+      const { verifyWebhook } = await import('./api/meta-webhook');
+      await verifyWebhook(req, res);
+    } catch (error) {
+      console.error('Erro no webhook Meta (GET):', error);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+
+  // Recebimento de mensagens do webhook da Meta API
+  app.post('/api/webhooks/meta', async (req, res) => {
+    try {
+      const { receiveWebhook } = await import('./api/meta-webhook');
+      await receiveWebhook(req, res);
+    } catch (error) {
+      console.error('Erro no webhook Meta (POST):', error);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+
   // Rotas para WhatsApp Cloud API (Meta) - buscar conversas reais
   app.get('/api/whatsapp-cloud/chats', async (req, res) => {
     if (!req.isAuthenticated()) {
