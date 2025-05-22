@@ -2417,6 +2417,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       console.log(`Enviando mensagem de texto para ${phoneNumber}: ${message.substring(0, 30)}...`);
+      console.log('URL da Meta API:', metaApiUrl);
+      console.log('Dados da mensagem:', JSON.stringify(messageData, null, 2));
+      console.log('Token usado (primeiros 10 caracteres):', metaConfig.token.substring(0, 10) + '...');
 
       // Enviar para Meta API usando o token das configurações personalizadas
       const response = await fetch(metaApiUrl, {
@@ -2427,6 +2430,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         body: JSON.stringify(messageData)
       });
+      
+      console.log('Status da resposta da Meta API:', response.status);
+      console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
