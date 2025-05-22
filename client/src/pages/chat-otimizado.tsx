@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip, ExternalLink, Eye, Video, Headphones } from 'lucide-react';
-import { MessageMediaRenderer } from "@/components/message-media-renderer";
+import SimpleMediaViewer from "@/components/simple-media-viewer";
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -1309,40 +1309,10 @@ export default function ChatOtimizado() {
                             {getMessageSender(msg)}
                           </div>
                         )}
-                        {msg.message?.imageMessage ? (
-                          <MessageMediaRenderer
-                            messageType="imageMessage"
-                            mediaUrl={msg.message.imageMessage.url}
-                            mimeType={msg.message.imageMessage.mimetype}
-                            caption={msg.message.imageMessage.caption}
-                            fileLength={msg.message.imageMessage.fileLength}
-                            className="mb-1"
-                          />
-                        ) : msg.message?.videoMessage ? (
-                          <MessageMediaRenderer
-                            messageType="videoMessage"
-                            mediaUrl={msg.message.videoMessage.url}
-                            mimeType={msg.message.videoMessage.mimetype}
-                            caption={msg.message.videoMessage.caption}
-                            fileLength={msg.message.videoMessage.fileLength}
-                            className="mb-1"
-                          />
-                        ) : msg.message?.audioMessage ? (
-                          <MessageMediaRenderer
-                            messageType="audioMessage"
-                            mediaUrl={msg.message.audioMessage.url}
-                            mimeType={msg.message.audioMessage.mimetype}
-                            fileLength={msg.message.audioMessage.fileLength}
-                            className="mb-1"
-                          />
-                        ) : msg.message?.documentMessage ? (
-                          <MessageMediaRenderer
-                            messageType="documentMessage"
-                            mediaUrl={msg.message.documentMessage.url}
-                            mimeType={msg.message.documentMessage.mimetype}
-                            fileName={msg.message.documentMessage.fileName}
-                            fileLength={msg.message.documentMessage.fileLength}
-                            className="mb-1"
+                        {(msg.message?.imageMessage || msg.message?.videoMessage || msg.message?.audioMessage) ? (
+                          <SimpleMediaViewer
+                            message={msg}
+                            isFromMe={msg.key.fromMe}
                           />
                         ) : (
                           <div className="text-sm whitespace-pre-wrap break-words">
