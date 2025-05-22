@@ -77,27 +77,78 @@ export class WhatsAppCloudService {
   /**
    * Busca mensagens de uma conversa específica
    */
-  async getMessages(userId: number, chatId: string, limit: number = 50) {
+  async getMessages(userId: number, chatId: string) {
     try {
+      console.log(`Buscando mensagens da Meta Cloud API para usuário ${userId}, chat ${chatId}`);
+
+      // Buscar mensagens no banco de dados
       const messages = await db
         .select()
         .from(whatsappCloudMessages)
-        .where(
-          and(
-            eq(whatsappCloudMessages.userId, userId),
-            eq(whatsappCloudMessages.chatId, chatId)
-          )
-        )
-        .orderBy(desc(whatsappCloudMessages.timestamp))
-        .limit(limit);
+        .where(and(
+          eq(whatsappCloudMessages.userId, userId),
+          eq(whatsappCloudMessages.remoteJid, chatId)
+        ))
+        .orderBy(whatsappCloudMessages.timestamp);
+
+      console.log(`Encontradas ${messages.length} mensagens da Meta Cloud API`);
+      console.log('Mensagens encontradas:', messages);
+
+      // Transformar para o formato esperado pelo frontend
+      const formattedMessages = messages.map(msg => ({
+        id: msg.id,
+        key: {
+          id: msg.metaMessageId || msg.id,
+          fromMe: msg.fromMe,
+          remoteJid: msg.remoteJid
+        },
+        message: {
+          conversation: msg.content || msg.messageContent
+        },
+        messageTimestamp: Math.floor(new Date(msg.timestamp).getTime() / 1000),
+        messageType: msg.messageType || 'conversation',
+        pushName: 'Meta Cloud API',
+        fromMe: msg.fromMe,
+        body: msg.content || msg.messageContent,
+        content: msg.content || msg.messageContent,
+        timestamp: Math.floor(new Date(msg.timestamp).getTime() / 1000),
+        status: msg.status || 'delivered'
+      }));
+
+      console.log('Mensagens formatadas:', formattedMessages);
 
       return {
         success: true,
-        data: messages.reverse() // Retornar em ordem cronológica
+        data: formattedMessages
       };
 
     } catch (error) {
-      console.error('Erro ao buscar mensagens da Meta API:', error);
+      console.error('Erro ao buscar mensagens da Meta Cloud API:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      };
+    }
+  }
+
+  /**
+   * Busca contatos recentes do usuário da Meta API
+   */
+  async getRecentContacts(userId: number) {
+    try {
+      const recentChats = await this.getChats(userId);
+      
+      if (!recentChats.success) {
+        return recentChats;
+      }
+
+      return {
+        success: true,
+        data: recentChats.data || []
+      };
+
+    } catch (error) {
+      console.error('Erro ao buscar contatos recentes da Meta API:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Erro desconhecido'
