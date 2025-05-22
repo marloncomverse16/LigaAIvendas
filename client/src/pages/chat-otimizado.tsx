@@ -778,8 +778,8 @@ export default function ChatOtimizado() {
       
       let response;
       
-      if (connectionMode === 'cloud' && metaConnectionStatus?.connected) {
-        // Buscar chats da Meta Cloud API
+      if (connectionMode === 'cloud') {
+        // Buscar chats da Meta Cloud API - sempre que o modo Cloud estiver selecionado
         console.log('Buscando chats da Meta Cloud API...');
         const apiResponse = await fetch('/api/whatsapp-cloud/chats');
         if (apiResponse.ok) {
