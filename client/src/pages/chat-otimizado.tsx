@@ -736,7 +736,7 @@ export default function ChatOtimizado() {
         const apiResponse = await fetch('/api/whatsapp-cloud/chats');
         if (apiResponse.ok) {
           const result = await apiResponse.json();
-          response = result.data || [];
+          response = result || [];
           console.log('Resposta da Meta API:', response);
         } else {
           throw new Error(`Erro HTTP: ${apiResponse.status}`);
