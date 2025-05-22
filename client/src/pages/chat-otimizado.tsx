@@ -718,13 +718,20 @@ export default function ChatOtimizado() {
   // Carrega a lista de chats baseado no modo de conexão selecionado
   const loadChats = async () => {
     setLoading(true);
+    
+    // PRIMEIRO: Limpar dados anteriores sempre que trocar de modo
+    setChats([]);
+    setSelectedChat(null);
+    setMessages([]);
+    setMessagesByChatId({});
+    
     try {
       console.log(`Carregando chats para modo: ${connectionMode}`);
       
       let response;
       
-      if (connectionMode === 'cloud' && metaConnectionStatus?.connected) {
-        // Buscar chats da Meta Cloud API
+      if (connectionMode === 'cloud') {
+        // APENAS buscar da Meta Cloud API quando Cloud estiver selecionado
         console.log('Buscando chats da Meta Cloud API...');
         const apiResponse = await fetch('/api/whatsapp-cloud/chats');
         if (apiResponse.ok) {
@@ -734,14 +741,13 @@ export default function ChatOtimizado() {
         } else {
           throw new Error(`Erro HTTP: ${apiResponse.status}`);
         }
-      } else if ((connectionMode === 'qr' || connectionMode === 'both') && service && connected) {
-        // Buscar chats da Evolution API (comportamento original)
+      } else if (connectionMode === 'qr' && service && connected) {
+        // APENAS buscar da Evolution API quando QR estiver selecionado
         console.log('Buscando chats da Evolution API...');
         response = await service.loadChats();
         console.log('Resposta da Evolution API:', response);
       } else {
-        console.log('Nenhuma conexão válida disponível');
-        setChats([]);
+        console.log('Nenhuma conexão válida disponível para o modo:', connectionMode);
         return;
       }
       
