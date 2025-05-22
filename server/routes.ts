@@ -2366,17 +2366,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para buscar números de telefone disponíveis na conta Meta
-  app.get("/api/whatsapp-meta/phone-numbers", async (req, res) => {
-    try {
-      const { getMetaPhoneNumbers } = await import('./api/user-meta-connections');
-      return await getMetaPhoneNumbers(req, res);
-    } catch (error) {
-      console.error('Erro ao buscar números Meta:', error);
-      res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-  });
-
   // Novas rotas otimizadas para mídia do WhatsApp
   app.get("/api/media-proxy", async (req, res) => {
     try {
