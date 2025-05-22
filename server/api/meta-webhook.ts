@@ -194,18 +194,14 @@ async function saveIncomingMessage(message: any, metadata: any) {
       .insert(whatsappCloudMessages)
       .values({
         id: messageId,
-        chatId: existingChat.id,
+        chatId: existingChat.id.toString(),
         userId,
         remoteJid,
         messageContent: content,
         messageType,
         fromMe: false,
         timestamp,
-        status: 'delivered',
-        quotedMessageId: null,
-        mediaUrl: null,
-        mediaCaption: null,
-        metaMessageId: messageId
+        status: 'delivered'
       });
 
     console.log(`Mensagem salva: ${content.substring(0, 50)}...`);
