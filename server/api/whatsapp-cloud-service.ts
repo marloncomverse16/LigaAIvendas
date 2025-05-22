@@ -40,30 +40,29 @@ export class WhatsAppCloudService {
         .orderBy(desc(whatsappCloudChats.lastMessageTime));
 
       console.log(`Encontradas ${existingChats.length} conversas existentes do Cloud API para usuário ${userId}`);
+      console.log('Dados dos chats encontrados:', existingChats);
 
-      // Primeiro retorna as conversas existentes do banco de dados
-      console.log(`Encontradas ${existingChats.length} conversas existentes do Cloud API para usuário ${userId}`);
+      // Transformar os dados para o formato esperado pelo frontend
+      const chatsFormatted = existingChats.map(chat => ({
+        id: chat.id,
+        remoteJid: chat.remoteJid,
+        pushName: chat.pushName || chat.phoneNumber || 'Contato',
+        profilePicUrl: chat.profilePicUrl || '',
+        updatedAt: chat.lastMessageTime || chat.updatedAt,
+        unreadCount: chat.unreadCount || 0,
+        source: 'meta', // Identificar que vem da Meta API
+        lastMessage: 'Conversa via WhatsApp Cloud API',
+        lastMessageTime: chat.lastMessageTime ? new Date(chat.lastMessageTime).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : 'Agora'
+      }));
 
-      // TODO: Aqui podemos implementar busca de conversas diretamente da Meta API
-      // Por enquanto, retornamos as conversas que temos no banco de dados
-      // As conversas são criadas quando mensagens são enviadas/recebidas via webhook
+      console.log('Chats formatados para envio:', chatsFormatted);
       
       return {
         success: true,
-        data: existingChats.map(chat => ({
-          id: chat.id,
-          remoteJid: chat.remoteJid,
-          pushName: chat.pushName || chat.phoneNumber || 'Contato',
-          profilePicUrl: chat.profilePicUrl || '',
-          updatedAt: chat.lastMessageTime || chat.updatedAt,
-          unreadCount: chat.unreadCount || 0,
-          source: 'meta', // Identificar que vem da Meta API
-          lastMessage: 'Conversa via WhatsApp Cloud API',
-          lastMessageTime: new Date(chat.lastMessageTime || chat.updatedAt).toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit'
-          })
-        }))
+        data: chatsFormatted
       };
 
     } catch (error) {
