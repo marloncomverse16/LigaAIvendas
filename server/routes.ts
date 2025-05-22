@@ -3829,6 +3829,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Erro ao buscar mensagens da Meta API' });
     }
   });
+
+  // Rota para envio de mensagens via WhatsApp Cloud API - CORRIGINDO ERRO JSON
+  app.post('/api/whatsapp-cloud/send-message', async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: 'Não autenticado' });
+    }
+
+    try {
+      const userId = req.user!.id;
+      const { to, message, useTemplate, templateMessage } = req.body;
+      
+      if (!to || !message) {
+        return res.status(400).json({ error: 'Destinatário e mensagem são obrigatórios' });
+      }
+
+      console.log(`Enviando mensagem via Meta Cloud API para ${to}:`, message);
+      
+      const { whatsappCloudService } = await import('./api/whatsapp-cloud-service');
+      const result = await whatsappCloudService.sendMessage(userId, to, message);
+      
+      if (result.success) {
+        res.json({ success: true, messageId: result.messageId });
+      } else {
+        res.status(500).json({ error: result.error || 'Erro ao enviar mensagem' });
+      }
+    } catch (error) {
+      console.error('Erro ao enviar mensagem via WhatsApp Cloud API:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
   
   // Configure HTTP server
   const httpServer = createServer(app);
