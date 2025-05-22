@@ -794,12 +794,30 @@ export default function ChatOtimizado() {
     try {
       console.log(`Carregando mensagens para ${chatId} ${lastTimestamp ? '(apenas novas)' : '(todas)'}`);
       
-      // Buscar mensagens (com parâmetro opcional para apenas novas)
-      const response = await service.loadMessages(chatId, lastTimestamp > 0 ? lastTimestamp : undefined);
-      console.log("Mensagens carregadas:", response);
+      let response;
+      let messageList: any[] = [];
       
-      // Processamento das mensagens recebidas para formato consistente
-      const messageList = service.normalizeMessages(response);
+      if (connectionMode === 'cloud') {
+        // BUSCAR DA META CLOUD API
+        console.log('Buscando mensagens da Meta Cloud API...');
+        const apiResponse = await fetch(`/api/whatsapp-cloud/messages/${chatId}`);
+        if (apiResponse.ok) {
+          response = await apiResponse.json();
+          messageList = response || [];
+          console.log("Mensagens da Meta Cloud API carregadas:", messageList);
+        } else {
+          throw new Error(`Erro HTTP: ${apiResponse.status}`);
+        }
+      } else if (connectionMode === 'qr' && service) {
+        // BUSCAR DA EVOLUTION API
+        console.log('Buscando mensagens da Evolution API...');
+        response = await service.loadMessages(chatId, lastTimestamp > 0 ? lastTimestamp : undefined);
+        console.log("Mensagens da Evolution API carregadas:", response);
+        messageList = service.normalizeMessages(response);
+      } else {
+        console.log('Nenhuma conexão válida disponível para carregar mensagens');
+        return;
+      }
       
       // Encontrar o timestamp mais recente para a próxima busca
       let maxTimestamp = lastTimestamp;
