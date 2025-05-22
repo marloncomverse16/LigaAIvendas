@@ -1151,9 +1151,35 @@ export default function ChatOtimizado() {
             throw new Error("Texto da mensagem não pode ser vazio");
           }
           
-          // Enviar a mensagem de texto para o servidor
-          result = await service.sendMessage(chatId, values.text);
-          console.log("Mensagem enviada com sucesso:", result);
+          // Enviar a mensagem de texto baseado no modo de conexão
+          if (connectionMode === 'cloud') {
+            // ENVIAR VIA META CLOUD API
+            console.log('Enviando mensagem via Meta Cloud API...');
+            const apiResponse = await fetch('/api/whatsapp-meta/send', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                to: chatId,
+                message: values.text
+              })
+            });
+            
+            if (apiResponse.ok) {
+              result = await apiResponse.json();
+              console.log("Mensagem enviada via Meta Cloud API:", result);
+            } else {
+              throw new Error(`Erro HTTP: ${apiResponse.status}`);
+            }
+          } else if (connectionMode === 'qr' && service) {
+            // ENVIAR VIA EVOLUTION API
+            console.log('Enviando mensagem via Evolution API...');
+            result = await service.sendMessage(chatId, values.text);
+            console.log("Mensagem enviada via Evolution API:", result);
+          } else {
+            throw new Error('Nenhuma conexão válida disponível para envio');
+          }
         } catch (error) {
           console.error("Erro ao enviar mensagem:", error);
           toast({

@@ -2346,6 +2346,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para enviar mensagens via Meta Cloud API
+  app.post("/api/whatsapp-meta/send", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { to, message } = req.body;
+      
+      if (!to || !message) {
+        return res.status(400).json({ error: 'Destinatário e mensagem são obrigatórios' });
+      }
+
+      const { sendMetaMessageDirectly } = await import('./api/user-meta-connections');
+      const result = await sendMetaMessageDirectly(req.user.id, to, message);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem via Meta Cloud API:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
   // Rota para buscar chats da Meta Cloud API
   app.get("/api/whatsapp-cloud/chats", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
