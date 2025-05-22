@@ -59,8 +59,24 @@ export const SimpleMediaViewer: React.FC<SimpleMediaViewerProps> = ({
     );
   }
 
-  // Usar proxy para acessar a mídia
-  const proxyUrl = `/api/media-proxy?url=${encodeURIComponent(mediaInfo.url)}`;
+  // Usar proxy especializado para mídia do WhatsApp
+  const buildProxyUrl = () => {
+    let url = `/api/whatsapp-media?url=${encodeURIComponent(mediaInfo.url)}&type=${mediaInfo.type}`;
+    
+    // Para arquivos criptografados, adicionar informações de chave
+    if (mediaInfo.url.includes('.enc')) {
+      if (message.key) {
+        url += `&messageKey=${encodeURIComponent(JSON.stringify(message.key))}`;
+      }
+      if (message.message[message.messageType]?.mediaKey) {
+        url += `&mediaKey=${encodeURIComponent(message.message[message.messageType].mediaKey)}`;
+      }
+    }
+    
+    return url;
+  };
+
+  const proxyUrl = buildProxyUrl();
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);

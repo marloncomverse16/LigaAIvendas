@@ -1,114 +1,156 @@
 /**
- * Proxy simplificado e otimizado para mídias do WhatsApp
- * Esta é uma implementação completa que resolve os problemas de
- * visualização de imagens, áudios e vídeos do WhatsApp
+ * Proxy especializado para mídia do WhatsApp
+ * Lida com arquivos criptografados (.enc) e diferentes tipos de mídia
  */
 import { Request, Response } from 'express';
 import axios from 'axios';
 
-/**
- * Serviço de proxy para mídias do WhatsApp
- * Suporta todos os tipos de mídias: imagens, vídeos, áudios e documentos
- */
-export async function serveMedia(req: Request, res: Response) {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Não autenticado" });
-  }
-
-  const { url, type, mimetype } = req.query;
-
-  if (!url) {
-    return res.status(400).json({ message: "URL da mídia não fornecida" });
-  }
-
-  console.log(`[Media Proxy] Processando mídia: ${url} (tipo: ${type || 'desconhecido'})`);
-
+export async function whatsappMediaProxy(req: Request, res: Response) {
   try {
-    // Configuração da requisição com as opções corretas
-    const config: any = {
-      method: 'get',
-      url: url as string,
-      responseType: 'arraybuffer',
-      timeout: 20000, // 20s de timeout para arquivos maiores
-      headers: {
-        'Accept': '*/*',
-        'User-Agent': 'WhatsAppMediaProxy/1.0'
-      }
-    };
-
-    // Adicionar token de autenticação para URLs da Evolution API
-    if (url.toString().includes('api.primerastreadores.com')) {
-      console.log('[Media Proxy] Detectada URL da Evolution API, adicionando token');
-      config.headers['Authorization'] = 'Bearer 4db623449606bcf2814521b73657dbc0';
-      config.headers['apikey'] = '4db623449606bcf2814521b73657dbc0';
+    const { url, messageKey, mediaKey, type } = req.query;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'URL da mídia é obrigatória' });
     }
 
-    // Fazer a requisição para obter o conteúdo da mídia
-    const mediaResponse = await axios(config);
+    const mediaUrl = decodeURIComponent(url as string);
+    console.log(`[WhatsApp Media Proxy] Processando mídia: ${mediaUrl}`);
+
+    // Verificar se é um arquivo criptografado (.enc)
+    const isEncrypted = mediaUrl.includes('.enc');
     
-    // Determinar o tipo de conteúdo correto
-    let contentType;
-    
-    // Prioridade:
-    // 1. Usar mimetype explícito da query se fornecido
-    // 2. Usar o Content-Type da resposta se disponível
-    // 3. Inferir pelo parâmetro 'type'
-    // 4. Usar octect-stream como fallback
-    
-    if (mimetype && mimetype !== 'false' && typeof mimetype === 'string') {
-      contentType = mimetype;
-    } else if (mediaResponse.headers['content-type'] && 
-               mediaResponse.headers['content-type'] !== 'application/octet-stream') {
-      contentType = mediaResponse.headers['content-type'];
-    } else {
-      // Inferir pelo tipo de mídia
-      switch (type) {
-        case 'image':
-          contentType = 'image/jpeg';
-          break;
-        case 'video':
-          contentType = 'video/mp4';
-          break;
-        case 'audio':
-        case 'ptt':
-          // Para áudios do WhatsApp (PTT = Push To Talk)
-          if (url.toString().includes('.enc')) {
-            contentType = 'audio/ogg; codecs=opus';
-          } else {
-            contentType = 'audio/mpeg';
+    if (isEncrypted) {
+      console.log(`[WhatsApp Media Proxy] Arquivo criptografado detectado`);
+      
+      // Para arquivos criptografados, tenta usar a Evolution API para descriptografar
+      if (messageKey && mediaKey) {
+        try {
+          const evolutionResponse = await axios.get(`https://api.primerastreadores.com/chat/getBase64FromMediaMessage/admin`, {
+            headers: {
+              'Authorization': 'Bearer 4db623449606bcf2814521b73657dbc0',
+              'Content-Type': 'application/json'
+            },
+            params: {
+              message: {
+                key: JSON.parse(messageKey as string),
+                mediaKey: mediaKey as string,
+                url: mediaUrl
+              }
+            },
+            timeout: 10000
+          });
+
+          if (evolutionResponse.data && evolutionResponse.data.base64) {
+            const buffer = Buffer.from(evolutionResponse.data.base64, 'base64');
+            const mimeType = determineMimeType(mediaUrl, type as string);
+            
+            res.set({
+              'Content-Type': mimeType,
+              'Content-Length': buffer.length.toString(),
+              'Cache-Control': 'public, max-age=3600',
+              'Access-Control-Allow-Origin': '*'
+            });
+            
+            return res.send(buffer);
           }
-          break;
-        case 'document':
-          contentType = 'application/pdf';
-          break;
-        default:
-          contentType = 'application/octet-stream';
+        } catch (evolutionError) {
+          console.log(`[WhatsApp Media Proxy] Falha na descriptografia via Evolution API:`, evolutionError.message);
+        }
       }
     }
 
-    // Configurar headers de resposta adequados
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', mediaResponse.data.length);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache por 24 horas
+    // Fallback: tentar acesso direto à URL
+    console.log(`[WhatsApp Media Proxy] Tentando acesso direto à mídia`);
     
-    // Se for áudio ogg, adicionar os headers necessários para reproducão
-    if (contentType.includes('audio/ogg')) {
-      res.setHeader('Accept-Ranges', 'bytes');
+    const response = await axios.get(mediaUrl, {
+      responseType: 'stream',
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'WhatsApp/2.2.24.6 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept': '*/*',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+      }
+    });
+
+    // Determinar o tipo MIME correto
+    const mimeType = response.headers['content-type'] || determineMimeType(mediaUrl, type as string);
+    
+    // Configurar headers de resposta
+    res.set({
+      'Content-Type': mimeType,
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+      'Content-Length': response.headers['content-length'] || undefined
+    });
+
+    // Fazer pipe da resposta
+    response.data.pipe(res);
+    
+    console.log(`[WhatsApp Media Proxy] Mídia servida com sucesso (${mimeType})`);
+
+  } catch (error) {
+    console.error('[WhatsApp Media Proxy] Erro ao fazer proxy da mídia:', error);
+    
+    // Retornar uma resposta de erro mais informativa
+    if (error.response?.status === 404) {
+      return res.status(404).json({ 
+        error: 'Mídia não encontrada',
+        message: 'O arquivo pode ter expirado ou não estar mais disponível'
+      });
     }
     
-    // Enviar o buffer diretamente, sem manipulação
-    return res.send(mediaResponse.data);
+    if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      return res.status(503).json({ 
+        error: 'Servidor de mídia indisponível',
+        message: 'Não foi possível conectar ao servidor do WhatsApp'
+      });
+    }
     
-  } catch (error) {
-    console.error('[Media Proxy] Erro ao processar mídia:', error);
-    
-    // Resposta de erro detalhada
-    return res.status(500).json({
-      success: false,
-      message: 'Erro ao processar mídia',
-      error: error instanceof Error ? error.message : 'Erro desconhecido',
-      url: url
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: 'Falha ao processar a mídia'
     });
   }
+}
+
+/**
+ * Determina o tipo MIME baseado na URL e tipo fornecido
+ */
+function determineMimeType(url: string, type?: string): string {
+  // Se o tipo foi fornecido explicitamente, usar ele
+  if (type) {
+    switch (type) {
+      case 'audio':
+      case 'audioMessage':
+        return 'audio/ogg';
+      case 'video':
+      case 'videoMessage':
+        return 'video/mp4';
+      case 'image':
+      case 'imageMessage':
+        return 'image/jpeg';
+      default:
+        break;
+    }
+  }
+
+  // Tentar determinar pelo URL
+  const urlLower = url.toLowerCase();
+  
+  if (urlLower.includes('/t62.7117-24/') || urlLower.includes('audio')) {
+    return 'audio/ogg';
+  }
+  
+  if (urlLower.includes('/t24/f2/') || urlLower.includes('image') || urlLower.includes('jpg') || urlLower.includes('jpeg') || urlLower.includes('png')) {
+    return 'image/jpeg';
+  }
+  
+  if (urlLower.includes('video') || urlLower.includes('mp4')) {
+    return 'video/mp4';
+  }
+  
+  // Fallback padrão
+  return 'application/octet-stream';
 }

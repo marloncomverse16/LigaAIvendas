@@ -44,6 +44,7 @@ import { sendMetaMessageDirectly } from "./api/meta-direct-send";
 
 // Importação do proxy direto para mídia do WhatsApp
 import { directMediaProxy, whatsappAudioProxy } from "./api/direct-media-proxy";
+import { whatsappMediaProxy } from "./api/whatsapp-media-proxy";
 import { getUserServer } from "./api/meta-api-service";
 import {
   connectWhatsAppMeta,
@@ -2330,6 +2331,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Proxy especializado para mídia do WhatsApp com suporte a descriptografia
+  app.get("/api/whatsapp-media", whatsappMediaProxy);
+
   // Novas rotas otimizadas para mídia do WhatsApp
   app.get("/api/media-proxy", async (req, res) => {
     try {
