@@ -540,6 +540,8 @@ export default function ChatOtimizado() {
   const [loading, setLoading] = useState(false);
   const [connectionMode, setConnectionMode] = useState<'qr' | 'cloud' | 'both'>('qr');
   const [metaConnectionStatus, setMetaConnectionStatus] = useState<any>(null);
+  const [metaPhoneNumbers, setMetaPhoneNumbers] = useState<any[]>([]);
+  const [selectedPhoneNumberId, setSelectedPhoneNumberId] = useState<string>('');
   const [showMediaPanel, setShowMediaPanel] = useState(false);
   const [mediaType, setMediaType] = useState<"image" | "audio" | "video" | "document" | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
@@ -568,11 +570,36 @@ export default function ChatOtimizado() {
     }
   };
 
+  // Função para buscar números de telefone da conta Meta
+  const fetchMetaPhoneNumbers = async () => {
+    try {
+      const response = await fetch('/api/whatsapp-meta/phone-numbers');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.phoneNumbers) {
+          setMetaPhoneNumbers(result.phoneNumbers);
+          // Se há apenas um número, selecionar automaticamente
+          if (result.phoneNumbers.length === 1) {
+            setSelectedPhoneNumberId(result.phoneNumbers[0].id);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar números de telefone:', error);
+    }
+  };
+
   const connectMetaWhatsApp = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/whatsapp-meta/connect', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumberId: selectedPhoneNumberId
+        }),
       });
       
       if (response.ok) {
@@ -583,13 +610,14 @@ export default function ChatOtimizado() {
           description: "WhatsApp Cloud API conectado com sucesso!",
         });
       } else {
-        throw new Error('Falha ao conectar WhatsApp Cloud API');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao conectar WhatsApp Cloud API');
       }
     } catch (error) {
       console.error('Erro ao conectar Meta WhatsApp:', error);
       toast({
         title: "Erro",
-        description: "Falha ao conectar WhatsApp Cloud API",
+        description: error instanceof Error ? error.message : "Falha ao conectar WhatsApp Cloud API",
         variant: "destructive",
       });
     } finally {
