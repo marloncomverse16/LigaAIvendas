@@ -189,7 +189,7 @@ async function saveIncomingMessage(message: any, metadata: any) {
       console.log(`Chat atualizado para ${remoteJid}`);
     }
 
-    // Salvar a mensagem
+    // Salvar a mensagem usando apenas as colunas que existem
     await db
       .insert(whatsappCloudMessages)
       .values({
@@ -201,7 +201,11 @@ async function saveIncomingMessage(message: any, metadata: any) {
         messageType,
         fromMe: false,
         timestamp,
-        status: 'delivered'
+        status: 'delivered',
+        quotedMessageId: null,
+        mediaUrl: null,
+        mediaCaption: null,
+        metaMessageId: messageId
       });
 
     console.log(`Mensagem salva: ${content.substring(0, 50)}...`);
