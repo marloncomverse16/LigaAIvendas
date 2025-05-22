@@ -194,14 +194,15 @@ async function saveIncomingMessage(message: any, metadata: any) {
       .insert(whatsappCloudMessages)
       .values({
         id: messageId,
-        userId,
         chatId: existingChat.id,
+        userId,
         remoteJid,
         messageContent: content,
         messageType,
         fromMe: false,
         timestamp,
         status: 'delivered',
+        metaMessageId: messageId,
         createdAt: new Date()
       })
       .returning();
