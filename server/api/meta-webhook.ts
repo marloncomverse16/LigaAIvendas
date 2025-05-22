@@ -198,6 +198,7 @@ async function saveIncomingMessage(message: any, metadata: any) {
         messageId: messageId,
         remoteJid,
         content: content,
+        messageContent: content, // Salvar também em message_content para compatibilidade
         messageType,
         fromMe: false,
         timestamp,
