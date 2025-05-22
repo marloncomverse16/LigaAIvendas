@@ -553,16 +553,16 @@ export default function ChatOtimizado() {
   
   const { toast } = useToast();
 
-  // Funções para WhatsApp Cloud API
-  const checkMetaConnection = async () => {
+  // Funções para WhatsApp Cloud API - usando as mesmas rotas que funcionam na aba Conexões
+  const checkMetaConnectionStatus = async () => {
     try {
-      const response = await fetch('/api/whatsapp-meta/status');
+      const response = await fetch('/api/meta-connections/status');
       if (response.ok) {
         const result = await response.json();
         setMetaConnectionStatus(result);
       }
     } catch (error) {
-      console.error('Erro ao verificar conexão Meta:', error);
+      console.error('Erro ao verificar status da conexão Meta:', error);
       setMetaConnectionStatus(null);
     }
   };
@@ -570,8 +570,16 @@ export default function ChatOtimizado() {
   const connectMetaWhatsApp = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/whatsapp-meta/connect', {
+      // Usar as mesmas rotas que funcionam na aba Conexões
+      const response = await fetch('/api/meta-connections/connect', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumberId: '01234567890123',
+          businessId: '650175278335138'
+        })
       });
       
       if (response.ok) {
@@ -581,14 +589,17 @@ export default function ChatOtimizado() {
           title: "Sucesso",
           description: "WhatsApp Cloud API conectado com sucesso!",
         });
+        // Atualizar status após conexão
+        checkMetaConnectionStatus();
       } else {
-        throw new Error('Falha ao conectar WhatsApp Cloud API');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao conectar WhatsApp Cloud API');
       }
     } catch (error) {
       console.error('Erro ao conectar Meta WhatsApp:', error);
       toast({
         title: "Erro",
-        description: "Falha ao conectar WhatsApp Cloud API",
+        description: `Falha ao conectar WhatsApp Cloud API: ${error.message}`,
         variant: "destructive",
       });
     } finally {
