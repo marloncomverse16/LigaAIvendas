@@ -189,11 +189,22 @@ async function saveIncomingMessage(message: any, metadata: any) {
       console.log(`Chat atualizado para ${remoteJid}`);
     }
 
-    // Salvar a mensagem usando uma abordagem simples e direta
-    const insertResult = await db.execute(`
-      INSERT INTO whatsapp_cloud_messages (user_id, chat_id, message_id, remote_jid, content, message_type, from_me, timestamp, status, created_at)
-      VALUES (${userId}, ${existingChat.id}, '${messageId}', '${remoteJid}', '${content.replace(/'/g, "''")}', '${messageType}', false, '${timestamp.toISOString()}', 'delivered', NOW())
-    `);
+    // Salvar a mensagem usando Drizzle ORM
+    const [savedMessage] = await db
+      .insert(whatsappCloudMessages)
+      .values({
+        id: messageId,
+        userId,
+        chatId: existingChat.id,
+        remoteJid,
+        messageContent: content,
+        messageType,
+        fromMe: false,
+        timestamp,
+        status: 'delivered',
+        createdAt: new Date()
+      })
+      .returning();
 
     console.log(`Mensagem salva: ${content.substring(0, 50)}...`);
 
