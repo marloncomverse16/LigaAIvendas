@@ -418,6 +418,11 @@ export class EvolutionApiService {
     return '...';
   }
 
+  // Método getChats para compatibilidade
+  public async getChats() {
+    return await this.findChats();
+  }
+
   // Formatar timestamp para exibição amigável
   private formatTime(timestamp: number): string {
     if (!timestamp) return '';
@@ -443,6 +448,9 @@ export class EvolutionApiService {
     }
   }
 }
+
+// Alias para compatibilidade
+export const DirectEvolutionService = EvolutionApiService;
 
 // Exporta uma instância padrão do serviço
 export default new EvolutionApiService();

@@ -3426,6 +3426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Buscando mensagens do Meta API para chat: ${chatId}`);
       
       // Buscar mensagens no banco de dados
+      const { whatsappCloudMessages } = await import('@shared/schema');
       const messages = await db
         .select()
         .from(whatsappCloudMessages)
