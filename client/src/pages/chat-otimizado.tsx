@@ -653,25 +653,14 @@ export default function ChatOtimizado() {
     checkConnection(evolutionService);
   }, [apiUrl, apiKey, instanceName]);
   
-  // Configuração de polling para atualização automática de mensagens
+  // Polling automático DESATIVADO para evitar scroll infinito
+  // O usuário pode atualizar manualmente se necessário
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    
-    // Se tiver um chat selecionado, configura polling
-    if (service && selectedChat && connected) {
-      // Atualiza as mensagens a cada 5 segundos
-      intervalId = setInterval(() => {
-        console.log("Atualizando mensagens automaticamente...");
-        loadMessages(selectedChat, false);
-      }, 5000);
-    }
-    
-    // Limpeza ao desmontar
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
+    // Removido o polling automático que causava problemas de scroll
+    // As mensagens são carregadas apenas quando:
+    // 1. Um chat é selecionado pela primeira vez
+    // 2. O usuário clica no botão de atualizar
+    console.log("Polling automático desativado para melhor performance");
   }, [service, selectedChat, connected]);
   
   // Verifica a conexão
