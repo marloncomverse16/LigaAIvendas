@@ -6,7 +6,8 @@
 import { db } from '../db';
 import { whatsappCloudChats, whatsappCloudMessages } from '@shared/schema';
 import { eq, desc, and } from 'drizzle-orm';
-import { userSettingsService } from './user-settings-service';
+// Importar configurações do banco de dados
+import { settings } from '@shared/schema';
 
 export class WhatsAppCloudService {
   /**
@@ -14,16 +15,20 @@ export class WhatsAppCloudService {
    */
   async getChats(userId: number) {
     try {
-      // Obter configurações do usuário
-      const settingsResult = await userSettingsService.getUserSettings(userId);
-      
-      if (!settingsResult.success || !settingsResult.data) {
+      // Obter configurações globais das Integrações
+      const userSettings = await db
+        .select()
+        .from(settings)
+        .where(eq(settings.userId, userId))
+        .limit(1);
+
+      if (!userSettings.length) {
         throw new Error('Configurações não encontradas');
       }
 
-      const settings = settingsResult.data;
+      const config = userSettings[0];
 
-      if (!settings.whatsappMetaToken || !settings.whatsappMetaBusinessId) {
+      if (!config.whatsappMetaToken || !config.whatsappMetaBusinessId) {
         throw new Error('Configurações da Meta API não encontradas');
       }
 
@@ -36,9 +41,12 @@ export class WhatsAppCloudService {
 
       console.log(`Encontradas ${existingChats.length} conversas existentes do Cloud API para usuário ${userId}`);
 
-      // Para o WhatsApp Cloud API, as conversas são criadas quando mensagens são enviadas/recebidas
-      // A Meta API não fornece uma lista de "conversas" como a Evolution API
-      // Então retornamos as conversas que já temos no banco de dados
+      // Primeiro retorna as conversas existentes do banco de dados
+      console.log(`Encontradas ${existingChats.length} conversas existentes do Cloud API para usuário ${userId}`);
+
+      // TODO: Aqui podemos implementar busca de conversas diretamente da Meta API
+      // Por enquanto, retornamos as conversas que temos no banco de dados
+      // As conversas são criadas quando mensagens são enviadas/recebidas via webhook
       
       return {
         success: true,
@@ -49,7 +57,12 @@ export class WhatsAppCloudService {
           profilePicUrl: chat.profilePicUrl || '',
           updatedAt: chat.lastMessageTime || chat.updatedAt,
           unreadCount: chat.unreadCount || 0,
-          source: 'meta' // Identificar que vem da Meta API
+          source: 'meta', // Identificar que vem da Meta API
+          lastMessage: 'Conversa via WhatsApp Cloud API',
+          lastMessageTime: new Date(chat.lastMessageTime || chat.updatedAt).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit'
+          })
         }))
       };
 
