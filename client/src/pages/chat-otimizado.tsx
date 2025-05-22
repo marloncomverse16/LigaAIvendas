@@ -1350,59 +1350,398 @@ export default function ChatOtimizado() {
 
           {/* Status Cloud API */}
           {(connectionMode === 'cloud' || connectionMode === 'both') && (
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${metaConnectionStatus?.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-sm">Cloud API: {metaConnectionStatus?.connected ? 'Conectado' : 'Desconectado'}</span>
-              {metaConnectionStatus?.connected ? (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={disconnectMetaWhatsApp}
-                  disabled={loading}
-                >
-                  Desconectar
-                </Button>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={connectMetaWhatsApp}
-                  disabled={loading}
-                >
-                  Conectar
-                </Button>
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${metaConnectionStatus?.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm">Cloud API: {metaConnectionStatus?.connected ? 'Conectado' : 'Desconectado'}</span>
+                {metaConnectionStatus?.connected ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={disconnectMetaWhatsApp}
+                    disabled={loading}
+                  >
+                    Desconectar
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={fetchMetaPhoneNumbers}
+                      disabled={loading}
+                    >
+                      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                      Buscar Números
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={connectMetaWhatsApp}
+                      disabled={loading || !selectedPhoneNumber}
+                    >
+                      Conectar
+                    </Button>
+                  </>
+                )}
+              </div>
+              
+              {/* Seletor de Números de Telefone da Meta API */}
+              {!metaConnectionStatus?.connected && availablePhoneNumbers.length > 0 && (
+                <div className="flex items-center space-x-2 ml-4">
+                  <label className="text-sm font-medium">Número:</label>
+                  <select 
+                    value={selectedPhoneNumber} 
+                    onChange={(e) => setSelectedPhoneNumber(e.target.value)}
+                    className="px-3 py-1 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 min-w-[200px]"
+                  >
+                    <option value="">Selecione um número</option>
+                    {availablePhoneNumbers.map((phone) => (
+                      <option key={phone.id} value={phone.id}>
+                        {phone.display_phone_number} ({phone.verified_name})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
+              
+              {/* Mostrar número conectado quando estiver conectado */}
+              {metaConnectionStatus?.connected && metaConnectionStatus?.phoneNumber && (
+                <div className="flex items-center space-x-2 ml-4 text-sm text-green-600">
+                  <span>📱 {metaConnectionStatus.phoneNumber}</span>
+                </div>
+              )}
+            </div>
+          )}
+        
+        {/* Mensagem explicativa sobre tipos de conexão */}
+        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            <strong>QR Code:</strong> Conecta usando WhatsApp Web (gratuito) • 
+            <strong> Cloud API:</strong> Conexão oficial Meta Business (requer configuração)
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Lista de contatos */}
+        <div className="w-1/3 border-r bg-white dark:bg-gray-900 flex flex-col">
+          <div className="p-4 border-b bg-gray-50 dark:bg-gray-800">
+            <h3 className="font-semibold">Conversas</h3>
+          </div>
+          
+          <div className="flex-1 overflow-auto">
+            {chats.map((chat, index) => {
+              const lastMessage = getLastMessage(chat);
+              const hasNewMessages = hasUnreadMessages(chat);
+              
+              return (
+                <div 
+                  key={chat.id || `chat-${index}`}
+                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                    selectedChat?.id === chat.id ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-l-blue-500' : ''
+                  }`}
+                  onClick={() => selectChat(chat)}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                      <span className="text-lg font-medium text-gray-600 dark:text-gray-300">
+                        {getChatName(chat).charAt(0).toUpperCase() || '?'}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-medium truncate text-gray-900 dark:text-gray-100">
+                          {getChatName(chat) || 'Contato'}
+                        </h4>
+                        {lastMessage && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatMessageTime(lastMessage.messageTimestamp)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 truncate">
+                          {lastMessage ? getMessageContent(lastMessage) : 'Nenhuma mensagem'}
+                        </p>
+                        {hasNewMessages && (
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="p-4 border-t">
+            {!connected && !metaConnectionStatus?.connected && (
+              <div className="text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Conecte-se ao WhatsApp para ver suas conversas
+                </p>
+                <Button 
+                  onClick={() => checkConnection()} 
+                  variant="outline" 
+                  className="mt-2"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verificando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Verificar Conexão
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+            {!loading && (connected || metaConnectionStatus?.connected) && chats.length === 0 && (
+              <Button 
+                onClick={loadChats} 
+                variant="default"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Carregar Contatos
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Área de mensagens */}
+        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900">
+          {selectedChat ? (
+            <>
+              {/* Cabeçalho do chat */}
+              <div className="p-4 border-b bg-white dark:bg-gray-800 flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                  <span className="text-lg font-medium text-gray-600 dark:text-gray-300">
+                    {getChatName(selectedChat).charAt(0).toUpperCase() || '?'}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                    {getChatName(selectedChat) || 'Contato'}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {selectedChat.remoteJid?.replace('@s.whatsapp.net', '') || 'Sem ID'}
+                  </p>
+                </div>
+                <div className="ml-auto">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => loadMessages(selectedChat.remoteJid)}
+                    disabled={loading}
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Lista de mensagens */}
+              <div className="flex-1 overflow-auto p-4 space-y-2">
+                {currentMessages.map((msg, index) => {
+                  const isOwn = isFromMe(msg);
+                  
+                  return (
+                    <div 
+                      key={msg.id || `msg-${index}`}
+                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-xs lg:max-w-md px-4 py-2 shadow-sm ${getMessageBubbleClass(msg)}`}>
+                        <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
+                          {getMessageContent(msg)}
+                        </p>
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatMessageTime(msg.messageTimestamp)}
+                          </span>
+                          {isOwn && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                              {msg.status === 'sent' && '✓'}
+                              {msg.status === 'delivered' && '✓✓'}
+                              {msg.status === 'read' && <span className="text-blue-500">✓✓</span>}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Área de digitação */}
+              <div className="p-4 bg-white dark:bg-gray-800 border-t">
+                <FormProvider {...form}>
+                  {/* Painel de mídia */}
+                  {showMediaPanel && mediaType && (
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      console.log("Formulário de mídia enviado");
+                      onSubmit(form.getValues());
+                    }} className="p-4 border rounded-md mb-2 bg-gray-50 dark:bg-gray-800">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-medium">
+                          {mediaType === "image" && "Imagem"}
+                          {mediaType === "audio" && "Áudio"}
+                          {mediaType === "video" && "Vídeo"}
+                          {mediaType === "document" && "Documento"}
+                        </h4>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => cancelMediaUpload()}
+                          type="button"
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                      
+                      {/* Preview para imagens */}
+                      {mediaType === "image" && mediaPreview && (
+                        <div className="mb-2 max-h-48 overflow-hidden rounded-md">
+                          <img src={mediaPreview} alt="Preview" className="object-contain max-w-full" />
+                        </div>
+                      )}
+                      
+                      {/* Preview para vídeos */}
+                      {mediaType === "video" && mediaPreview && (
+                        <div className="mb-2">
+                          <video src={mediaPreview} controls className="max-w-full max-h-48 rounded-md" />
+                        </div>
+                      )}
+                      
+                      {/* Ícone para áudio e documentos */}
+                      {(mediaType === "audio" || mediaType === "document") && (
+                        <div className="flex items-center justify-center h-16 mb-2 bg-gray-100 dark:bg-gray-700 rounded-md">
+                          {mediaType === "audio" ? (
+                            <FileAudio className="h-8 w-8 text-blue-500" />
+                          ) : (
+                            <div className="h-8 w-8 text-blue-500">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                                <polyline points="14 2 14 8 20 8" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Campo de legenda para mídia */}
+                      <Input
+                        placeholder="Adicionar legenda (opcional)"
+                        value={mediaCaption}
+                        onChange={(e) => setMediaCaption(e.target.value)}
+                        className="mb-2"
+                      />
+                      
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        disabled={!connected || loading || form.formState.isSubmitting}
+                      >
+                        {form.formState.isSubmitting ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4 mr-2" />
+                            Enviar
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  )}
+                
+                  {/* Campo de upload oculto */}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={(e) => handleFileSelect(e)}
+                    accept="image/*,audio/*,video/*,application/*"
+                    style={{ display: 'none' }} 
+                  />
+                
+                  {/* Formulário de mensagem principal */}
+                  {!showMediaPanel && (
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="flex space-x-2">
+                      {/* Botão de anexo */}
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={!connected || loading}
+                        className="rounded-full"
+                      >
+                        <Paperclip className="h-5 w-5 text-gray-500" />
+                      </Button>
+                      
+                      {/* Campo de texto */}
+                      <FormField
+                        control={form.control}
+                        name="message"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                placeholder="Digite sua mensagem..."
+                                disabled={!connected && !metaConnectionStatus?.connected}
+                                className="rounded-full"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    form.handleSubmit(onSubmit)();
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Botão de enviar */}
+                      <Button 
+                        type="submit" 
+                        size="icon"
+                        disabled={!connected && !metaConnectionStatus?.connected || loading || form.formState.isSubmitting}
+                        className="rounded-full bg-green-600 hover:bg-green-700"
+                      >
+                        {form.formState.isSubmitting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </form>
+                  )}
+                </FormProvider>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessagesSquare className="h-16 w-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  Selecione uma conversa
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400">
+                  Escolha uma conversa para começar a enviar mensagens
+                </p>
+              </div>
             </div>
           )}
         </div>
       </div>
-
-      <div className="flex flex-1">
-        {/* Barra lateral - lista de chats */}
-        <div className="w-1/3 border-r flex flex-col">
-          <div className="p-4 border-b bg-gray-100 dark:bg-gray-900 flex justify-between items-center">
-            <h2 className="font-semibold">WhatsApp Web</h2>
-            <div className="flex space-x-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => checkConnection()}
-                disabled={loading}
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-        
-        {/* Lista de chats */}
-        <div className="flex-1 overflow-y-auto">
-          {chats.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
-              {loading ? 'Carregando contatos...' : 'Nenhum chat encontrado'}
-            </div>
-          ) : (
-            <div className="divide-y">
-              {chats.map((chat) => (
+    </div>
+  );
+}
                 <div
                   key={chat.id || chat.remoteJid}
                   className={`p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center space-x-3 ${
