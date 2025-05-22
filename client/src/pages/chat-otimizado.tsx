@@ -537,6 +537,8 @@ export default function ChatOtimizado() {
   // Estado da UI
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [connectionMode, setConnectionMode] = useState<'qr' | 'cloud' | 'both'>('qr');
+  const [metaConnectionStatus, setMetaConnectionStatus] = useState<any>(null);
   const [showMediaPanel, setShowMediaPanel] = useState(false);
   const [mediaType, setMediaType] = useState<"image" | "audio" | "video" | "document" | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
