@@ -104,7 +104,7 @@ import { sendMetaMessageDirectly } from "./api/meta-direct-send";
 import { diagnoseMeta } from "./api/meta-diagnostic";
 import { fixMetaConfigFields } from "./api/meta-fix-fields";
 import { createMessageSendingHistory, listMessageSendingHistory, updateMessageSendingHistory } from "./api/message-sending-history";
-import userSettingsService from "./user-settings-service";
+// Removido import problemático - usando queries diretas ao banco
 import { checkMetaApiConnection } from "./meta-debug";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -2361,9 +2361,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.id;
       
       // Buscar configurações diretamente do banco de dados usando as tabelas do schema
-      const { users: usersTable, userServers: userServersTable } = await import('@shared/schema');
+      const { settings: settingsTable, userServers: userServersTable } = await import('@shared/schema');
       
-      const [userSettings] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      const [userSettings] = await db.select().from(settingsTable).where(eq(settingsTable.userId, userId)).limit(1);
       if (!userSettings || !userSettings.whatsappMetaToken || !userSettings.whatsappMetaBusinessId) {
         return res.status(400).json({ 
           error: 'Token ou Business ID da Meta API não configurados. Configure primeiro na aba "Configurações"' 
@@ -3485,7 +3485,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`DIAGNÓSTICO: Obtendo configurações Meta para usuário ${userId}`);
       
       // Buscar via serviço de usuário-settings
-      const userSettingsResult = await userSettingsService.getUserSettings(userId);
+      // Buscar configurações diretamente do banco (corrigido para não usar o serviço inexistente)
+      const userSettingsQuery = await db.select().from(settings).where(eq(settings.userId, userId)).limit(1);
+      const userSettingsResult = { 
+        success: userSettingsQuery.length > 0, 
+        data: userSettingsQuery[0] || null 
+      };
       
       // Buscar também via ORM para comparação
       const [ormSettings] = await db
