@@ -2346,8 +2346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para enviar mensagens via Meta Cloud API
-  app.post("/api/whatsapp-meta/send", async (req, res) => {
+  // Rota para enviar mensagens de texto via Meta Cloud API
+  app.post("/api/whatsapp-meta/send-text", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
@@ -2357,14 +2357,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Destinatário e mensagem são obrigatórios' });
       }
 
-      const { sendMetaMessageDirectly } = await import('./api/user-meta-connections');
-      const result = await sendMetaMessageDirectly(req.user.id, to, message);
+      // Buscar configurações da Meta API do usuário
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
       
-      if (!result.success) {
-        return res.status(500).json({ error: result.error });
+      if (!user || !user.whatsappApiToken) {
+        return res.status(400).json({ error: 'Token da Meta API não configurado' });
+      }
+
+      // Formatar número (remover caracteres especiais e garantir formato correto)
+      let phoneNumber = to.replace(/\D/g, '');
+      
+      // Garantir código do país
+      if (!phoneNumber.startsWith('55')) {
+        phoneNumber = '55' + phoneNumber;
+      }
+
+      // Preparar dados para envio
+      const metaApiUrl = `https://graph.facebook.com/v18.0/${user.metaPhoneNumberId || '01234567890123'}/messages`;
+      
+      const messageData = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: phoneNumber,
+        type: "text",
+        text: {
+          body: message
+        }
+      };
+
+      console.log(`Enviando mensagem de texto para ${phoneNumber}: ${message.substring(0, 30)}...`);
+
+      // Enviar para Meta API
+      const response = await fetch(metaApiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.whatsappApiToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(messageData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Erro da Meta API:', errorData);
+        return res.status(response.status).json({ 
+          error: errorData.error?.message || 'Erro ao enviar mensagem via Meta API' 
+        });
+      }
+
+      const result = await response.json();
+      console.log('Mensagem enviada com sucesso via Meta API:', result);
+
+      // Salvar mensagem no banco
+      try {
+        const chat = await storage.getOrCreateWhatsappCloudChat(userId, to);
+        await storage.createWhatsappCloudMessage({
+          chatId: chat.id,
+          userId: userId,
+          remoteJid: to,
+          messageContent: message,
+          messageType: 'text',
+          fromMe: true,
+          timestamp: new Date(),
+          status: 'sent',
+          metaMessageId: result.messages?.[0]?.id
+        });
+      } catch (dbError) {
+        console.log('Erro ao salvar mensagem no banco:', dbError);
+        // Não falhar o envio por erro de banco
       }
       
-      res.json(result);
+      res.json({
+        success: true,
+        messageId: result.messages?.[0]?.id,
+        result: result
+      });
     } catch (error) {
       console.error('Erro ao enviar mensagem via Meta Cloud API:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });

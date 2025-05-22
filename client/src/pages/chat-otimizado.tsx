@@ -1153,8 +1153,26 @@ export default function ChatOtimizado() {
           
           // Enviar a mensagem de texto baseado no modo de conexão
           if (connectionMode === 'cloud') {
-            // AVISO: Meta Cloud API só permite templates aprovados
-            throw new Error('⚠️ Meta Cloud API só permite envio de templates aprovados. Para mensagens livres, use o modo "QR Code" (Evolution API) ou vá para "Envio de Mensagens" para usar templates.');
+            // ENVIAR VIA META CLOUD API (mensagens livres permitidas por 24h após contato enviar mensagem)
+            console.log('Enviando mensagem via Meta Cloud API...');
+            const apiResponse = await fetch('/api/whatsapp-meta/send-text', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                to: chatId,
+                message: values.text
+              })
+            });
+            
+            if (apiResponse.ok) {
+              result = await apiResponse.json();
+              console.log("Mensagem enviada via Meta Cloud API:", result);
+            } else {
+              const errorText = await apiResponse.text();
+              throw new Error(`Erro ao enviar via Meta API: ${errorText}`);
+            }
           } else if (connectionMode === 'qr' && service) {
             // ENVIAR VIA EVOLUTION API
             console.log('Enviando mensagem via Evolution API...');
