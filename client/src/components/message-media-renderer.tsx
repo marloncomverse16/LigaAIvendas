@@ -20,7 +20,7 @@ export const MessageMediaRenderer: React.FC<MessageMediaRendererProps> = ({
 }) => {
   // Determinar o tipo de mídia baseado no mediaType ou extensão
   const getMediaType = (): 'audio' | 'video' | 'image' => {
-    const type = mediaType.toLowerCase();
+    const type = (mediaType || '').toLowerCase();
     
     if (type.includes('audio') || type.includes('ogg')) {
       return 'audio';
