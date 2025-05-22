@@ -726,26 +726,42 @@ export default function ChatOtimizado() {
     }
   };
   
-  // Carrega a lista de chats
+  // Carrega a lista de chats baseado no modo de conexão selecionado
   const loadChats = async () => {
-    if (!service) {
-      console.log("Serviço não inicializado");
-      return;
-    }
-    
     setLoading(true);
     try {
-      console.log("Tentando carregar contatos...");
+      console.log(`Carregando chats para modo: ${connectionMode}`);
       
-      const response = await service.loadChats();
-      console.log("Resposta do findChats:", response);
+      let response;
       
-      // Usa os dados brutos retornados pela API, sem normalizar
+      if (connectionMode === 'cloud' && metaConnectionStatus?.connected) {
+        // Buscar chats da Meta Cloud API
+        console.log('Buscando chats da Meta Cloud API...');
+        const apiResponse = await fetch('/api/whatsapp-cloud/chats');
+        if (apiResponse.ok) {
+          const result = await apiResponse.json();
+          response = result.data || [];
+          console.log('Resposta da Meta API:', response);
+        } else {
+          throw new Error(`Erro HTTP: ${apiResponse.status}`);
+        }
+      } else if ((connectionMode === 'qr' || connectionMode === 'both') && service && connected) {
+        // Buscar chats da Evolution API (comportamento original)
+        console.log('Buscando chats da Evolution API...');
+        response = await service.loadChats();
+        console.log('Resposta da Evolution API:', response);
+      } else {
+        console.log('Nenhuma conexão válida disponível');
+        setChats([]);
+        return;
+      }
+      
       setChats(response || []);
       
+      const apiName = connectionMode === 'cloud' ? 'Meta Cloud API' : 'Evolution API';
       toast({
         title: "Contatos carregados",
-        description: `${(response || []).length} contatos encontrados`,
+        description: `${(response || []).length} contatos encontrados da ${apiName}`,
       });
     } catch (error: any) {
       console.error("Erro ao carregar contatos:", error);
