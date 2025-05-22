@@ -423,6 +423,25 @@ export class EvolutionApiService {
     return await this.findChats();
   }
 
+  // Método checkConnection para compatibilidade
+  public async checkConnection() {
+    try {
+      const response = await this.apiRequest(`/instance/connectionState/${this.instanceName}`);
+      const isConnected = response?.instance?.state === 'open';
+      return {
+        connected: isConnected,
+        state: response?.instance?.state || 'unknown',
+        instance: this.instanceName
+      };
+    } catch (error) {
+      return {
+        connected: false,
+        error: 'Erro de conexão',
+        instance: this.instanceName
+      };
+    }
+  }
+
   // Formatar timestamp para exibição amigável
   private formatTime(timestamp: number): string {
     if (!timestamp) return '';
