@@ -189,18 +189,15 @@ async function saveIncomingMessage(message: any, metadata: any) {
       console.log(`Chat atualizado para ${remoteJid}`);
     }
 
-    // Gerar um ID numérico único baseado no timestamp
-    const numericId = Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 1000);
-    
-    // Salvar a mensagem usando apenas as colunas que existem
+    // Salvar a mensagem usando o esquema correto do banco
     await db
       .insert(whatsappCloudMessages)
       .values({
-        id: numericId.toString(),
-        chatId: existingChat.id,
         userId,
+        chatId: existingChat.id,
+        messageId: messageId,
         remoteJid,
-        messageContent: content,
+        content: content,
         messageType,
         fromMe: false,
         timestamp,
