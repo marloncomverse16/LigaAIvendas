@@ -2359,10 +2359,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Buscar configurações da Meta API do usuário
       const userId = req.user.id;
-      const user = await storage.getUser(userId);
       
-      if (!user || !user.whatsappApiToken) {
-        return res.status(400).json({ error: 'Token da Meta API não configurado' });
+      // Importar o serviço que busca as configurações da Meta API por usuário
+      const { getUserServer } = await import('./api/meta-api-service');
+      const metaConfig = await getUserServer(userId);
+      
+      if (!metaConfig.success || !metaConfig.token || !metaConfig.phoneNumberId) {
+        return res.status(400).json({ 
+          error: 'Configurações da Meta API não encontradas. Configure primeiro na aba "Conexões - WhatsApp Meta API"' 
+        });
       }
 
       // Formatar número (remover caracteres especiais e garantir formato correto)
@@ -2373,8 +2378,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         phoneNumber = '55' + phoneNumber;
       }
 
-      // Preparar dados para envio
-      const metaApiUrl = `https://graph.facebook.com/v18.0/${user.metaPhoneNumberId || '01234567890123'}/messages`;
+      // Preparar dados para envio usando as configurações personalizadas do usuário
+      const metaApiUrl = `https://graph.facebook.com/${metaConfig.apiVersion}/${metaConfig.phoneNumberId}/messages`;
       
       const messageData = {
         messaging_product: "whatsapp",
@@ -2388,11 +2393,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Enviando mensagem de texto para ${phoneNumber}: ${message.substring(0, 30)}...`);
 
-      // Enviar para Meta API
+      // Enviar para Meta API usando o token das configurações personalizadas
       const response = await fetch(metaApiUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user.whatsappApiToken}`,
+          'Authorization': `Bearer ${metaConfig.token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(messageData)
