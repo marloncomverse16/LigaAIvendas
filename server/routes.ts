@@ -2360,15 +2360,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Buscar configurações da Meta API do usuário
       const userId = req.user.id;
       
-      // Importar o serviço que busca as configurações da Meta API por usuário
-      const { getUserServer } = await import('./api/meta-api-service');
-      const metaConfig = await getUserServer(userId);
+      // Importar os serviços corretos
+      const { getUserSettings } = await import('./api/user-settings-service');
+      const { getMetaPhoneNumberId } = await import('./api/meta-api-service');
       
-      if (!metaConfig.success || !metaConfig.token || !metaConfig.phoneNumberId) {
+      // Buscar configurações do usuário
+      const settingsResult = await getUserSettings(userId);
+      if (!settingsResult.success || !settingsResult.data) {
         return res.status(400).json({ 
-          error: 'Configurações da Meta API não encontradas. Configure primeiro na aba "Conexões - WhatsApp Meta API"' 
+          error: 'Configurações não encontradas. Configure primeiro na aba "Configurações"' 
         });
       }
+      
+      const settings = settingsResult.data;
+      
+      // Verificar se as configurações da Meta API estão presentes
+      if (!settings.whatsappMetaToken || !settings.whatsappMetaBusinessId) {
+        return res.status(400).json({ 
+          error: 'Token ou Business ID da Meta API não configurados. Configure primeiro na aba "Configurações"' 
+        });
+      }
+      
+      // Buscar Phone Number ID configurado pelo usuário
+      const metaPhoneResult = await getMetaPhoneNumberId(userId);
+      if (!metaPhoneResult.success || !metaPhoneResult.phoneNumberId) {
+        return res.status(400).json({ 
+          error: 'Phone Number ID não configurado. Configure primeiro na aba "Conexões - WhatsApp Meta API"' 
+        });
+      }
+      
+      const metaConfig = {
+        token: settings.whatsappMetaToken,
+        phoneNumberId: metaPhoneResult.phoneNumberId,
+        apiVersion: settings.whatsappMetaApiVersion || 'v18.0'
+      };
 
       // Formatar número (remover caracteres especiais e garantir formato correto)
       let phoneNumber = to.replace(/\D/g, '');
