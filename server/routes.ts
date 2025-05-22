@@ -2404,11 +2404,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Erro da Meta API:', errorData);
-        return res.status(response.status).json({ 
-          error: errorData.error?.message || 'Erro ao enviar mensagem via Meta API' 
-        });
+        const errorText = await response.text();
+        console.error('Erro da Meta API - Status:', response.status);
+        console.error('Erro da Meta API - Response:', errorText);
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          return res.status(response.status).json({ 
+            error: errorData.error?.message || 'Erro ao enviar mensagem via Meta API',
+            details: errorData
+          });
+        } catch (parseError) {
+          return res.status(response.status).json({ 
+            error: 'Erro ao enviar mensagem via Meta API',
+            details: errorText,
+            parseError: 'Resposta não é JSON válido'
+          });
+        }
       }
 
       const result = await response.json();
