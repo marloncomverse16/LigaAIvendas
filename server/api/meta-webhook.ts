@@ -197,7 +197,7 @@ async function saveIncomingMessage(message: any, metadata: any) {
         chatId: existingChat.id,
         userId,
         remoteJid,
-        messageContent: content,
+        content,
         messageType,
         fromMe: false,
         timestamp,
