@@ -15,23 +15,38 @@ const WEBHOOK_VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'meu_token
  */
 export async function verifyWebhook(req: Request, res: Response) {
   try {
-    const mode = req.query['hub.mode'];
-    const token = req.query['hub.verify_token'];
-    const challenge = req.query['hub.challenge'];
+    // Aceitar tanto query params quanto body params
+    const mode = req.query['hub.mode'] || req.body?.['hub.mode'];
+    const token = req.query['hub.verify_token'] || req.body?.['hub.verify_token'];
+    const challenge = req.query['hub.challenge'] || req.body?.['hub.challenge'];
 
-    console.log('Verificação do webhook Meta:', { mode, token, challenge });
+    console.log('=== VERIFICAÇÃO WEBHOOK META ===');
+    console.log('Query params:', req.query);
+    console.log('Body params:', req.body);
+    console.log('Mode:', mode);
+    console.log('Token recebido:', token);
     console.log('Token esperado:', WEBHOOK_VERIFY_TOKEN);
+    console.log('Challenge:', challenge);
+    console.log('=================================');
 
-    if (mode === 'subscribe' && token === WEBHOOK_VERIFY_TOKEN) {
-      console.log('Webhook Meta verificado com sucesso');
-      // Retornar challenge como texto simples
-      res.status(200).type('text/plain').send(challenge);
-    } else {
-      console.log('Falha na verificação do webhook Meta - mode:', mode, 'token:', token);
-      res.status(403).send('Forbidden');
+    // Verificar se é uma requisição de verificação
+    if (mode === 'subscribe') {
+      if (token === WEBHOOK_VERIFY_TOKEN) {
+        console.log('✅ Webhook Meta verificado com sucesso');
+        // Retornar challenge sem modificação
+        return res.status(200).send(challenge);
+      } else {
+        console.log('❌ Token inválido');
+        return res.status(403).send('Forbidden');
+      }
     }
+
+    // Se não é verificação, pode ser uma mensagem normal
+    console.log('📨 Possível mensagem recebida');
+    res.status(200).send('OK');
+    
   } catch (error) {
-    console.error('Erro na verificação do webhook:', error);
+    console.error('❌ Erro na verificação do webhook:', error);
     res.status(500).send('Internal Server Error');
   }
 }
