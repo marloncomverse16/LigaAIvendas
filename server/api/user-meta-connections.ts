@@ -151,32 +151,16 @@ export async function connectWhatsAppMeta(req: Request, res: Response) {
     const apiVersion = settings.whatsappMetaApiVersion || 'v18.0';
     console.log(`Conectando com Meta API. Token: ${settings.whatsappMetaToken.substring(0, 5)}... BusinessID: ${settings.whatsappMetaBusinessId}, APIVersion: ${apiVersion}`);
     
-    // Se não fornecido o phoneNumberId, obter automaticamente da Business Account
-    if (!phoneNumberId) {
-      console.log('Phone Number ID não fornecido, obtendo automaticamente...');
-      
-      // Obter Phone Numbers da Business Account
-      const phoneNumbersResponse = await fetch(`https://graph.facebook.com/${apiVersion}/${settings.whatsappMetaBusinessId}/phone_numbers`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${settings.whatsappMetaToken}`,
-          'Content-Type': 'application/json'
-        }
+    // Verificar se já existe um Phone Number ID configurado pelo usuário
+    const metaPhoneResult = await metaApiService.getMetaPhoneNumberId(userId);
+    
+    if (metaPhoneResult.success && metaPhoneResult.phoneNumberId) {
+      phoneNumberId = metaPhoneResult.phoneNumberId;
+      console.log(`Usando Phone Number ID configurado pelo usuário: ${phoneNumberId}`);
+    } else if (!phoneNumberId) {
+      return res.status(400).json({
+        message: 'Phone Number ID não configurado. Configure primeiro na aba "Conexões - WhatsApp Meta API".'
       });
-      
-      if (phoneNumbersResponse.ok) {
-        const phoneData = await phoneNumbersResponse.json();
-        if (phoneData.data && phoneData.data.length > 0) {
-          phoneNumberId = phoneData.data[0].id;
-          console.log(`Phone Number ID obtido automaticamente: ${phoneNumberId}`);
-        }
-      }
-      
-      if (!phoneNumberId) {
-        return res.status(400).json({
-          message: 'Não foi possível obter o Phone Number ID. Verifique se sua conta Meta tem números de telefone configurados.'
-        });
-      }
     }
     
     // Verificar conexão com a Meta API diretamente
