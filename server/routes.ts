@@ -2358,28 +2358,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para buscar mensagens da Meta Cloud API
-  app.get("/api/whatsapp-meta/messages/:chatId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service');
-      const cloudService = new WhatsAppCloudService();
-      const chatId = req.params.chatId;
-      
-      const result = await cloudService.getMessages(req.user.id, chatId);
-      
-      if (!result.success) {
-        return res.status(500).json({ error: result.error });
-      }
-      
-      res.json(result.data);
-    } catch (error) {
-      console.error('Erro ao buscar mensagens da Meta Cloud API:', error);
-      res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-  });
-
   // Rota para enviar mensagens de texto via Meta Cloud API
   app.post("/api/whatsapp-meta/send-text", async (req, res) => {
     console.log("🚀🚀🚀 ROTA /api/whatsapp-meta/send-text CHAMADA! 🚀🚀🚀");
