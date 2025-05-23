@@ -2484,8 +2484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Usar SQL direto com parâmetros seguros
         const insertQuery = `
-          INSERT INTO whatsapp_messages (user_id, contact_id, message_id, content, from_me, timestamp, media_type, media_url, is_read, created_at)
-          VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, NOW())
+          INSERT INTO whatsapp_messages (user_id, contact_id, message_id, content, from_me, media_type, media_url, is_read, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
         `;
         
         await pool.query(insertQuery, [
