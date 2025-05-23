@@ -896,10 +896,26 @@ export default function ChatOtimizado() {
         // Carga inicial: ordenar e salvar todas as mensagens
         console.log(`Carregadas ${messageList.length} mensagens iniciais`);
         
+        // 🚀 CORREÇÃO: Preservar mensagens otimistas durante carga inicial
+        const optimisticMessages = existingMessages.filter(msg => 
+          msg.id && msg.id.startsWith('local-') && 
+          (msg.status === 'sending' || msg.status === 'sent')
+        );
+        
+        // Combinar mensagens do servidor com mensagens otimistas
+        const allMessages = [...messageList, ...optimisticMessages];
+        
+        // Ordenar por timestamp
+        allMessages.sort((a, b) => {
+          const tsA = Number(a.messageTimestamp) || 0;
+          const tsB = Number(b.messageTimestamp) || 0;
+          return tsA - tsB;
+        });
+        
         // Atualizar o cache de mensagens
         setMessagesByChatId(prev => ({
           ...prev,
-          [chatId]: messageList
+          [chatId]: allMessages
         }));
         
         // Atualizar mensagens visíveis
