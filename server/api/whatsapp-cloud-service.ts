@@ -309,6 +309,71 @@ export class WhatsAppCloudService {
   }
 
   /**
+   * Enviar mensagem via Meta Cloud API
+   */
+  async sendMessage(userId: number, phoneNumber: string, message: string) {
+    try {
+      // Obter configurações do usuário
+      const userSettings = await db
+        .select()
+        .from(settings)
+        .where(eq(settings.userId, userId))
+        .limit(1);
+
+      if (!userSettings.length) {
+        throw new Error('Configurações não encontradas');
+      }
+
+      const config = userSettings[0];
+
+      if (!config.whatsappMetaToken || !config.whatsappMetaBusinessId || !config.whatsappMetaPhoneNumberId) {
+        throw new Error('Configurações da Meta API não encontradas ou incompletas');
+      }
+
+      // Fazer a chamada para a Meta API
+      const apiUrl = `https://graph.facebook.com/v18.0/${config.whatsappMetaPhoneNumberId}/messages`;
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.whatsappMetaToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: phoneNumber,
+          type: 'text',
+          text: {
+            body: message
+          }
+        })
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        console.error('Erro da Meta API:', responseData);
+        throw new Error(`Erro da Meta API: ${responseData.error?.message || 'Erro desconhecido'}`);
+      }
+
+      console.log('✅ Mensagem enviada via Meta Cloud API:', responseData);
+
+      return {
+        success: true,
+        messageId: responseData.messages?.[0]?.id || `sent_${Date.now()}`,
+        response: responseData
+      };
+
+    } catch (error) {
+      console.error('Erro ao enviar mensagem via Meta API:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      };
+    }
+  }
+
+  /**
    * Buscar contatos/conversas recentes para exibir na lista
    */
   async getRecentContacts(userId: number) {
