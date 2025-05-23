@@ -1207,7 +1207,7 @@ export default function ChatOtimizado() {
           if (connectionMode === 'cloud') {
             // ENVIAR VIA META CLOUD API (mensagens livres permitidas por 24h após contato enviar mensagem)
             console.log('🚀 Enviando mensagem via Meta Cloud API...');
-            const apiResponse = await fetch('/api/whatsapp-meta/send-text', {
+            const apiResponse = await fetch('/api/whatsapp-cloud/send', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
