@@ -812,9 +812,9 @@ export default function ChatOtimizado() {
       let messageList: any[] = [];
       
       if (connectionMode === 'cloud') {
-        // BUSCAR DA META CLOUD API - ROTA CORRIGIDA
+        // BUSCAR DA META CLOUD API
         console.log('Buscando mensagens da Meta Cloud API...');
-        const apiResponse = await fetch(`/api/whatsapp-meta/messages/${chatId}`);
+        const apiResponse = await fetch(`/api/whatsapp-cloud/messages/${chatId}`);
         if (apiResponse.ok) {
           response = await apiResponse.json();
           messageList = response || [];
@@ -1168,9 +1168,7 @@ export default function ChatOtimizado() {
           // Enviar a mensagem de texto baseado no modo de conexão
           if (connectionMode === 'cloud') {
             // ENVIAR VIA META CLOUD API (mensagens livres permitidas por 24h após contato enviar mensagem)
-            console.log('🚀 Enviando mensagem via Meta Cloud API...');
-            console.log('📨 Dados sendo enviados:', { to: chatId, message: values.text });
-            
+            console.log('Enviando mensagem via Meta Cloud API...');
             const apiResponse = await fetch('/api/whatsapp-meta/send-text', {
               method: 'POST',
               headers: {
@@ -1182,15 +1180,11 @@ export default function ChatOtimizado() {
               })
             });
             
-            console.log('🔍 Status da resposta:', apiResponse.status);
-            console.log('🔍 Headers da resposta:', Object.fromEntries(apiResponse.headers.entries()));
-            
             if (apiResponse.ok) {
               result = await apiResponse.json();
-              console.log("✅ Mensagem enviada via Meta Cloud API:", result);
+              console.log("Mensagem enviada via Meta Cloud API:", result);
             } else {
               const errorText = await apiResponse.text();
-              console.log("❌ Erro na resposta:", errorText);
               throw new Error(`Erro ao enviar via Meta API: ${errorText}`);
             }
           } else if (connectionMode === 'qr' && service) {

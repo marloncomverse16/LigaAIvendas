@@ -26,7 +26,6 @@ import { getWhatsAppQrCode, getWhatsAppContacts } from "./direct-connection";
 import { serveMediaProxy } from "./api/simple-media-proxy";
 import { setupWebSocketServer, sendMessage } from "./websocket";
 import { checkMetaConnectionStatus, connectMetaWhatsApp, disconnectMetaWhatsApp } from "./api/whatsapp-meta-connection";
-import { WhatsAppCloudService } from "./api/whatsapp-cloud-service";
 import multer from "multer";
 import fs from "fs";
 import { runContactDiagnostics } from "./api/contact-diagnostics";
@@ -153,17 +152,6 @@ async function comparePasswords(supplied: string, stored: string) {
 // (definido no /server/connection.ts)
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // INTERCEPTADOR GLOBAL PARA DEBUG - vai mostrar TODAS as requisições POST
-  app.use((req, res, next) => {
-    if (req.method === 'POST') {
-      console.log(`🔍🔍🔍 REQUISIÇÃO POST INTERCEPTADA: ${req.url}`);
-      if (req.url.includes('whatsapp') || req.url.includes('send') || req.url.includes('meta')) {
-        console.log(`📋📋📋 Body WhatsApp/Meta:`, JSON.stringify(req.body, null, 2));
-      }
-    }
-    next();
-  });
-
   // Setup authentication
   setupAuth(app);
   
@@ -2360,13 +2348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rota para enviar mensagens de texto via Meta Cloud API
   app.post("/api/whatsapp-meta/send-text", async (req, res) => {
-    console.log("🚀🚀🚀 ROTA /api/whatsapp-meta/send-text CHAMADA! 🚀🚀🚀");
-    console.log("📨📨📨 Dados recebidos:", JSON.stringify(req.body, null, 2));
-    
-    if (!req.isAuthenticated()) {
-      console.log("❌ Usuário não autenticado");
-      return res.status(401).json({ message: "Não autenticado" });
-    }
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       const { to, message } = req.body;
@@ -2479,41 +2461,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await response.json();
       console.log('Mensagem enviada com sucesso via Meta API:', result);
 
-      // ✅ SALVAR MENSAGEM ENVIADA NO BANCO PARA APARECER NO CHAT
+      // Salvar mensagem no banco (opcional - não falhar se der erro)
       try {
-        const userId = (req as any).user?.id;
-        console.log(`🔧 INÍCIO DO SALVAMENTO - userId: ${userId}, phoneNumber: ${phoneNumber}`);
-        
-        const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service');
-        const whatsappCloudService = new WhatsAppCloudService();
-        
-        // Primeiro, garantir que existe uma conversa para este número
-        console.log(`📞 Garantindo conversa existe para: ${phoneNumber}`);
-        const conversationResult = await whatsappCloudService.ensureConversationExists(userId, phoneNumber, "Usuário");
-        console.log(`📞 Resultado da conversa:`, conversationResult);
-        
-        // Agora salvar a mensagem enviada com fromMe: true
-        const chatId = `chat_${phoneNumber}_${userId}`;
-        console.log(`💾 Salvando mensagem no chatId: ${chatId}`);
-        
-        const saveResult = await whatsappCloudService.saveMessage(userId, chatId, {
-          content: message,
-          remoteJid: phoneNumber,
-          fromMe: true, // 🎯 CRUCIAL: Marca como mensagem enviada por mim
-          messageType: 'text',
-          metaMessageId: result.messages?.[0]?.id
-        });
-        
-        console.log(`✅ MENSAGEM ENVIADA SALVA COM SUCESSO!`);
-        console.log(`📊 Resultado do salvamento:`, saveResult);
-        
-        // Verificar se realmente foi salva
-        const verification = await whatsappCloudService.getMessages(userId, phoneNumber);
-        console.log(`🔍 VERIFICAÇÃO - Total de mensagens após salvamento: ${verification.data?.length || 0}`);
-        
+        // Para simplificar, vamos apenas logar o sucesso por enquanto
+        console.log('Mensagem enviada com sucesso. ID da Meta:', result.messages?.[0]?.id);
       } catch (dbError) {
-        console.log('❌ ERRO CRÍTICO ao salvar mensagem enviada:', dbError);
-        console.error('Stack trace completo:', dbError.stack);
+        console.log('Nota: Erro ao salvar mensagem no banco:', dbError);
         // Não falhar o envio por erro de banco
       }
       
