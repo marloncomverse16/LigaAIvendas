@@ -2548,7 +2548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 1. BUSCAR MENSAGENS RECEBIDAS (da Meta API)
       let receivedMessages = [];
       try {
-        const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service');
+        const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service-fixed');
         const cloudService = new WhatsAppCloudService();
         const result = await cloudService.getMessages(userId, chatId);
         
