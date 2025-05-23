@@ -358,9 +358,34 @@ export class WhatsAppCloudService {
 
       console.log('✅ Mensagem enviada via Meta Cloud API:', responseData);
 
+      // 🚀 SALVAR A MENSAGEM ENVIADA NA NOVA TABELA DEDICADA PARA O CHAT
+      const messageId = responseData.messages?.[0]?.id || `sent_${Date.now()}`;
+      
+      try {
+        const { pool } = await import('../db');
+        const insertQuery = `
+          INSERT INTO chat_messages_sent (user_id, contact_phone, message, message_type, meta_message_id, status)
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `;
+        
+        await pool.query(insertQuery, [
+          userId,
+          phoneNumber,
+          message,
+          'text',
+          messageId,
+          'sent'
+        ]);
+        
+        console.log('💾 Mensagem salva na tabela chat_messages_sent:', messageId);
+      } catch (dbError) {
+        console.error('⚠️ Erro ao salvar mensagem na tabela dedicada:', dbError);
+        // Não falhar o envio por causa do erro de salvamento
+      }
+
       return {
         success: true,
-        messageId: responseData.messages?.[0]?.id || `sent_${Date.now()}`,
+        messageId: messageId,
         response: responseData
       };
 
