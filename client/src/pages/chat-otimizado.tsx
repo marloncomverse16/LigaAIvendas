@@ -653,14 +653,28 @@ export default function ChatOtimizado() {
     checkConnection(evolutionService);
   }, [apiUrl, apiKey, instanceName]);
   
-  // Polling automático DESATIVADO para evitar scroll infinito
-  // O usuário pode atualizar manualmente se necessário
+  // Polling automático ATIVADO para recebimento de mensagens em tempo real
   useEffect(() => {
-    // Removido o polling automático que causava problemas de scroll
-    // As mensagens são carregadas apenas quando:
-    // 1. Um chat é selecionado pela primeira vez
-    // 2. O usuário clica no botão de atualizar
-    console.log("Polling automático desativado para melhor performance");
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    // Se tiver chat selecionado e conectado, configura polling
+    if (service && selectedChat && connected) {
+      console.log("🔄 Ativando recebimento automático de mensagens...");
+      
+      // Atualiza as mensagens a cada 3 segundos apenas para novas mensagens
+      intervalId = setInterval(() => {
+        console.log("📱 Verificando novas mensagens automaticamente...");
+        loadMessages(selectedChat, "only_new"); // Carrega apenas mensagens novas
+      }, 3000);
+    }
+    
+    // Limpeza ao desmontar
+    return () => {
+      if (intervalId) {
+        console.log("🛑 Desativando recebimento automático");
+        clearInterval(intervalId);
+      }
+    };
   }, [service, selectedChat, connected]);
   
   // Verifica a conexão
