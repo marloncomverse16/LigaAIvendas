@@ -2482,7 +2482,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           created_at: new Date()
         };
         
-        await db.insert(whatsappMessages).values(messageToSave);
+        // Usar SQL direto para evitar problemas de schema
+        await db.execute(`
+          INSERT INTO whatsapp_messages (user_id, contact_id, message_id, content, from_me, timestamp, media_type, media_url, is_read, created_at)
+          VALUES (${userId}, null, '${result.messages?.[0]?.id || `sent_${Date.now()}`}', '${message}', true, NOW(), 'text', null, true, NOW())
+        `);
         console.log('✅ Mensagem enviada salva no banco com sucesso. ID da Meta:', result.messages?.[0]?.id);
       } catch (dbError) {
         console.log('❌ Erro ao salvar mensagem enviada no banco:', dbError);
