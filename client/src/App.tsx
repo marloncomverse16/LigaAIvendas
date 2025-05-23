@@ -27,8 +27,6 @@ import ConnectionsSettingsPage from "@/pages/connections-settings-page";
 import ContactsPage from "@/pages/contacts-page";
 import MetaTestPage from "@/pages/meta-test-page";
 import MetaDiagnosticPage from "@/pages/meta-diagnostic-page";
-import ChatDiagnosticsPage from "@/pages/chat-diagnostics-page";
-import ChatDireto from "@/pages/chat-direto-fixed";
 import ChatOtimizado from "@/pages/chat-otimizado";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -58,9 +56,6 @@ function Router() {
       <ProtectedRoute path="/servers" component={ServerManagementPage} />
       <Route path="/meta-test" component={MetaTestPage} />
       <Route path="/meta-diagnostic" component={MetaDiagnosticPage} />
-      <Route path="/chat-test" component={ChatTestPage} />
-      <ProtectedRoute path="/chat-diagnostics" component={ChatDiagnosticsPage} />
-      <ProtectedRoute path="/chat-direto" component={ChatDireto} />
       <ProtectedRoute path="/chat-otimizado" component={ChatOtimizado} />
       <Route component={NotFound} />
     </Switch>
