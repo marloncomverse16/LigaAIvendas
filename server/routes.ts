@@ -2582,9 +2582,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 🚀 SALVAR A MENSAGEM ENVIADA NO BANCO DE DADOS
       try {
         const insertQuery = `
-          INSERT INTO whatsapp_messages (user_id, contact_id, message_id, content, from_me, media_type, media_url, is_read, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+          INSERT INTO whatsapp_messages (user_id, contact_id, message_id, content, from_me, timestamp, media_type, media_url, is_read, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         `;
+        
+        const currentTimestamp = Math.floor(Date.now() / 1000); // timestamp em segundos Unix
         
         await pool.query(insertQuery, [
           userId,
@@ -2592,6 +2594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           result.messageId || `sent_${Date.now()}`,
           message,
           true, // from_me
+          currentTimestamp, // timestamp Unix
           'text', // media_type
           null, // media_url
           true // is_read
