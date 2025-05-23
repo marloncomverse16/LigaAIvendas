@@ -2559,6 +2559,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Nova rota específica para envio de mensagens de texto via Meta Cloud API
   app.post("/api/whatsapp-meta/send-text", async (req, res) => {
+    console.log("🔥 ROTA /api/whatsapp-meta/send-text CHAMADA!");
+    console.log("🔍 DEBUG: req.isAuthenticated() =", req.isAuthenticated());
+    console.log("🔍 DEBUG: req.user =", req.user ? 'Existe' : 'Null');
+    console.log("🔍 DEBUG: req.body =", req.body);
+    
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
