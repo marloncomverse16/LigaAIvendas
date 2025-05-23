@@ -2635,7 +2635,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('❌ Erro geral ao processar envio:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
-  }); API
+  });
+
+  // Rota específica APENAS para salvar mensagens na tabela chat_messages_sent
+  app.post("/api/chat-messages/save", async (req, res) => {
+    console.log("🔥 ROTA ESPECÍFICA /api/chat-messages/save CHAMADA!");
+    console.log("🔍 DEBUG: req.body =", req.body);
+    
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user.id;
+      const { contact_phone, message, message_type = 'text', status = 'sent' } = req.body;
+      
+      if (!contact_phone || !message) {
+        return res.status(400).json({ error: 'contact_phone e message são obrigatórios' });
+      }
+      
+      console.log(`💾 Salvando mensagem na tabela dedicada para usuário ${userId}, contato ${contact_phone}`);
+      
+      const insertQuery = `
+        INSERT INTO chat_messages_sent (user_id, contact_phone, message, message_type, status, created_at, sent_at)
+        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+        RETURNING id, created_at
+      `;
+      
+      const result = await pool.query(insertQuery, [
+        userId,
+        contact_phone,
+        message,
+        message_type,
+        status
+      ]);
+      
+      const savedMessage = result.rows[0];
+      console.log(`✅ Mensagem salva com sucesso! ID: ${savedMessage.id}`);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Mensagem salva com sucesso',
+        data: {
+          id: savedMessage.id,
+          user_id: userId,
+          contact_phone,
+          message,
+          message_type,
+          status,
+          created_at: savedMessage.created_at
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Erro ao salvar mensagem:', error);
+      res.status(500).json({ 
+        error: 'Erro ao salvar mensagem no banco de dados',
+        details: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+
   app.post("/api/whatsapp-meta/send-text", async (req, res) => {
     console.log("🔥 ROTA /api/whatsapp-meta/send-text CHAMADA!");
     console.log("🔍 DEBUG: req.isAuthenticated() =", req.isAuthenticated());
