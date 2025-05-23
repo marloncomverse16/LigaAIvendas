@@ -216,6 +216,47 @@ export class WhatsAppCloudService {
   }
 
   /**
+   * Garantir que existe uma conversa para um determinado número
+   */
+  async ensureConversationExists(userId: number, phoneNumber: string, contactName: string = "Usuário") {
+    try {
+      const chatId = `chat_${phoneNumber}_${userId}`;
+      
+      // Verificar se a conversa já existe
+      const existingChat = await db
+        .select()
+        .from(whatsappCloudChats)
+        .where(eq(whatsappCloudChats.id, chatId))
+        .limit(1);
+
+      if (existingChat.length > 0) {
+        console.log(`✅ Conversa já existe: ${chatId}`);
+        return { success: true, chatId, existed: true };
+      }
+
+      // Criar nova conversa
+      const newChat = await db
+        .insert(whatsappCloudChats)
+        .values({
+          id: chatId,
+          userId,
+          phoneNumber,
+          contactName,
+          lastMessageTime: new Date(),
+          unreadCount: 0
+        })
+        .returning();
+
+      console.log(`✅ Nova conversa criada: ${chatId} para ${phoneNumber}`);
+      return { success: true, chatId, existed: false, data: newChat[0] };
+
+    } catch (error) {
+      console.error('❌ Erro ao garantir conversa:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' };
+    }
+  }
+
+  /**
    * Salvar uma mensagem enviada via Meta API
    */
   async saveMessage(userId: number, chatId: string, messageData: {
