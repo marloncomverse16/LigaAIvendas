@@ -1166,9 +1166,13 @@ export default function ChatOtimizado() {
           }
           
           // Enviar a mensagem de texto baseado no modo de conexão
+          console.log(`🔍 DEBUG: connectionMode = "${connectionMode}"`);
+          console.log(`🔍 DEBUG: metaConnectionStatus =`, metaConnectionStatus);
+          console.log(`🔍 DEBUG: service =`, service ? 'Existe' : 'Null');
+          
           if (connectionMode === 'cloud') {
             // ENVIAR VIA META CLOUD API (mensagens livres permitidas por 24h após contato enviar mensagem)
-            console.log('Enviando mensagem via Meta Cloud API...');
+            console.log('🚀 Enviando mensagem via Meta Cloud API...');
             const apiResponse = await fetch('/api/whatsapp-meta/send-text', {
               method: 'POST',
               headers: {
