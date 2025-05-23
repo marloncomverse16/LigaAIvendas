@@ -3964,29 +3964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/whatsapp-cloud/messages/:chatId', async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: 'Não autenticado' });
-    }
 
-    try {
-      const userId = req.user!.id;
-      const { chatId } = req.params;
-      const limit = parseInt(req.query.limit as string) || 50;
-      
-      const { whatsappCloudService } = await import('./api/whatsapp-cloud-service');
-      const result = await whatsappCloudService.getMessages(userId, chatId, limit);
-      
-      if (result.success) {
-        res.json(result.data);
-      } else {
-        res.status(500).json({ error: result.error });
-      }
-    } catch (error) {
-      console.error('Erro ao buscar mensagens da Meta API:', error);
-      res.status(500).json({ error: 'Erro ao buscar mensagens da Meta API' });
-    }
-  });
   
   // Configure HTTP server
   const httpServer = createServer(app);
