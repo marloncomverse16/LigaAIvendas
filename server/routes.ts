@@ -2468,18 +2468,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Verificar ou criar chat
         let chatId = 1; // Por simplicidade, usar o chat ID 1 para este usuário
         
-        // Salvar a mensagem enviada no banco
+        // Salvar a mensagem enviada no banco usando os campos corretos da tabela whatsapp_messages
         const messageToSave = {
-          chatId: chatId,
-          userId: userId,
-          remoteJid: phoneNumber,
-          messageContent: message,
-          messageType: 'text',
-          fromMe: true, // Esta é uma mensagem enviada por nós
+          user_id: userId,
+          content: message,
+          from_me: true, // Esta é uma mensagem enviada por nós
           timestamp: new Date(),
-          status: 'sent',
-          metaMessageId: result.messages?.[0]?.id || null,
-          createdAt: new Date()
+          message_id: result.messages?.[0]?.id || `sent_${Date.now()}`,
+          media_type: 'text',
+          contact_id: null, // Para identificar depois o número, podemos usar contact_id
+          created_at: new Date(),
+          is_read: true // Marcamos como lida pois foi enviada por nós
         };
         
         await db.insert(whatsappMessages).values(messageToSave);
