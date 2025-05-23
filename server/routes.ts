@@ -2557,6 +2557,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Nova rota específica para envio de mensagens de texto via Meta Cloud API
+  app.post("/api/whatsapp-meta/send-text", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user.id;
+      const { to: phoneNumber, message } = req.body;
+      
+      if (!phoneNumber || !message) {
+        return res.status(400).json({ error: 'Número de telefone e mensagem são obrigatórios' });
+      }
+      
+      console.log(`📤 Enviando mensagem via Meta Cloud API para ${phoneNumber}: "${message.substring(0, 30)}..."`);
+      
+      const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service');
+      const cloudService = new WhatsAppCloudService();
+      const result = await cloudService.sendMessage(userId, phoneNumber, message);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+      
+      // 🚀 SALVAR A MENSAGEM ENVIADA NO BANCO DE DADOS
+      try {
+        const insertQuery = `
+          INSERT INTO whatsapp_messages (user_id, contact_id, message_id, content, from_me, media_type, media_url, is_read, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        `;
+        
+        await pool.query(insertQuery, [
+          userId,
+          phoneNumber, // Usar o número como contact_id
+          result.messageId || `sent_${Date.now()}`,
+          message,
+          true, // from_me
+          'text', // media_type
+          null, // media_url
+          true // is_read
+        ]);
+        console.log('✅ Mensagem enviada salva no banco com sucesso. ID da Meta:', result.messageId);
+      } catch (dbError) {
+        console.log('❌ Erro ao salvar mensagem enviada no banco:', dbError);
+        // Não falhar o envio por erro de banco
+      }
+      
+      res.json({
+        success: true,
+        messageId: result.messageId,
+        result: result
+      });
+    } catch (error) {
+      console.error('Erro ao enviar mensagem via Meta Cloud API:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
   app.post("/api/whatsapp-meta/connect", async (req, res) => {
     try {
       const { connectWhatsAppMeta } = await import('./api/user-meta-connections');
