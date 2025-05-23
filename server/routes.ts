@@ -26,6 +26,7 @@ import { getWhatsAppQrCode, getWhatsAppContacts } from "./direct-connection";
 import { serveMediaProxy } from "./api/simple-media-proxy";
 import { setupWebSocketServer, sendMessage } from "./websocket";
 import { checkMetaConnectionStatus, connectMetaWhatsApp, disconnectMetaWhatsApp } from "./api/whatsapp-meta-connection";
+import { WhatsAppCloudService } from "./api/whatsapp-cloud-service";
 import multer from "multer";
 import fs from "fs";
 import { runContactDiagnostics } from "./api/contact-diagnostics";
@@ -2461,12 +2462,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await response.json();
       console.log('Mensagem enviada com sucesso via Meta API:', result);
 
-      // Salvar mensagem no banco (opcional - não falhar se der erro)
+      // ✅ SALVAR MENSAGEM ENVIADA NO BANCO PARA APARECER NO CHAT
       try {
-        // Para simplificar, vamos apenas logar o sucesso por enquanto
-        console.log('Mensagem enviada com sucesso. ID da Meta:', result.messages?.[0]?.id);
+        const userId = (req as any).user?.id;
+        const whatsappCloudService = new WhatsAppCloudService();
+        
+        // Primeiro, garantir que existe uma conversa para este número
+        await whatsappCloudService.ensureConversationExists(userId, phoneNumber, "Usuário");
+        
+        // Agora salvar a mensagem enviada com fromMe: true
+        const chatId = `chat_${phoneNumber}_${userId}`;
+        const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        await whatsappCloudService.saveMessage(userId, chatId, {
+          content: message,
+          remoteJid: phoneNumber,
+          fromMe: true, // 🎯 CRUCIAL: Marca como mensagem enviada por mim
+          messageType: 'text',
+          metaMessageId: result.messages?.[0]?.id
+        });
+        
+        console.log('✅ Mensagem ENVIADA salva no banco e aparecerá no chat!');
       } catch (dbError) {
-        console.log('Nota: Erro ao salvar mensagem no banco:', dbError);
+        console.log('⚠️ Erro ao salvar mensagem enviada no banco:', dbError);
         // Não falhar o envio por erro de banco
       }
       
