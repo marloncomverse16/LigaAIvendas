@@ -2358,31 +2358,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para buscar mensagens da Meta Cloud API - NOVA ROTA
-  app.get("/api/meta-cloud-messages/:chatId", async (req, res) => {
-    console.log('🔍 NOVA ROTA /api/meta-cloud-messages/:chatId CHAMADA');
-    
+  // Rota para buscar mensagens da Meta Cloud API
+  app.get("/api/whatsapp-meta/messages/:chatId", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const { whatsappCloudService } = await import('./api/whatsapp-cloud-service');
+      const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service');
+      const cloudService = new WhatsAppCloudService();
       const chatId = req.params.chatId;
       
-      console.log(`🔍 Buscando mensagens para usuário ${req.user.id}, chat ${chatId}`);
-      
-      const result = await whatsappCloudService.getMessages(req.user.id, chatId);
-      
-      console.log('🔍 Resultado do serviço:', result);
+      const result = await cloudService.getMessages(req.user.id, chatId);
       
       if (!result.success) {
-        console.log('🔍 Resultado não foi sucesso, enviando erro:', result.error);
         return res.status(500).json({ error: result.error });
       }
       
-      console.log('🔍 Enviando dados:', result.data);
       res.json(result.data);
     } catch (error) {
-      console.error('🚨 Erro ao buscar mensagens da Meta Cloud API:', error);
+      console.error('Erro ao buscar mensagens da Meta Cloud API:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   });
