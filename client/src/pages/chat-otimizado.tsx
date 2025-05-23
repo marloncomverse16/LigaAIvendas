@@ -1174,6 +1174,7 @@ export default function ChatOtimizado() {
               headers: {
                 'Content-Type': 'application/json'
               },
+              credentials: 'include', // Incluir cookies de sessão para autenticação
               body: JSON.stringify({
                 to: chatId,
                 message: values.text
