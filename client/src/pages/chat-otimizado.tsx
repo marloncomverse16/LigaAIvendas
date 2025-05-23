@@ -919,7 +919,7 @@ export default function ChatOtimizado() {
         }));
         
         // Atualizar mensagens visíveis
-        setMessages(messageList);
+        setMessages(allMessages);
         
         // Rolagem automática para o final das mensagens
         setTimeout(() => {
