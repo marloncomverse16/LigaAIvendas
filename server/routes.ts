@@ -2358,9 +2358,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para buscar mensagens da Meta Cloud API
-  app.get("/api/whatsapp-meta/messages/:chatId", async (req, res) => {
-    console.log('🔍 ROTA /api/whatsapp-meta/messages/:chatId CHAMADA');
+  // Rota para buscar mensagens da Meta Cloud API - NOVA ROTA
+  app.get("/api/meta-cloud-messages/:chatId", async (req, res) => {
+    console.log('🔍 NOVA ROTA /api/meta-cloud-messages/:chatId CHAMADA');
     
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
