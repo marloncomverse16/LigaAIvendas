@@ -228,6 +228,8 @@ export class WhatsAppCloudService {
     try {
       const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+      console.log(`💾 Salvando mensagem no banco: fromMe=${messageData.fromMe}, content="${messageData.content}"`);
+      
       const message = await db
         .insert(whatsappCloudMessages)
         .values({
@@ -237,12 +239,14 @@ export class WhatsAppCloudService {
           remoteJid: messageData.remoteJid,
           messageContent: messageData.content,
           messageType: messageData.messageType || 'text',
-          fromMe: messageData.fromMe,
+          fromMe: messageData.fromMe, // 🎯 CRUCIAL: Esta propriedade deve ser salva corretamente
           timestamp: new Date(),
-          status: 'sent',
+          status: messageData.fromMe ? 'sent' : 'delivered',
           metaMessageId: messageData.metaMessageId
         })
         .returning();
+
+      console.log(`✅ Mensagem salva com sucesso! ID: ${messageId}, fromMe: ${messageData.fromMe}`);
 
       // Atualizar última mensagem da conversa
       await db
