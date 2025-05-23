@@ -814,7 +814,7 @@ export default function ChatOtimizado() {
       if (connectionMode === 'cloud') {
         // BUSCAR DA META CLOUD API
         console.log('Buscando mensagens da Meta Cloud API...');
-        const apiResponse = await fetch(`/api/whatsapp-cloud/messages/${chatId}`);
+        const apiResponse = await fetch(`/api/chat/messages/${chatId}`);
         if (apiResponse.ok) {
           response = await apiResponse.json();
           messageList = response || [];

@@ -2535,7 +2535,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para buscar mensagens da Meta Cloud API
+  // 🚀 ENDPOINT UNIFICADO - Combina mensagens recebidas e enviadas
+  app.get("/api/chat/messages/:chatId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const chatId = req.params.chatId;
+      const userId = req.user.id;
+      
+      console.log(`🔍 Buscando TODAS as mensagens para chat ${chatId} (recebidas + enviadas)`);
+      
+      // 1. BUSCAR MENSAGENS RECEBIDAS (da Meta API)
+      let receivedMessages = [];
+      try {
+        const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service');
+        const cloudService = new WhatsAppCloudService();
+        const result = await cloudService.getMessages(userId, chatId);
+        
+        if (result.success && result.data) {
+          receivedMessages = result.data.map((msg: any) => ({
+            id: `meta_${msg.id}`,
+            message: msg.body || msg.content || '',
+            type: 'text',
+            timestamp: new Date(msg.timestamp * 1000),
+            direction: 'inbound',
+            status: 'delivered',
+            fromMe: false,
+            originalData: msg
+          }));
+        }
+        console.log(`📥 Encontradas ${receivedMessages.length} mensagens recebidas`);
+      } catch (error) {
+        console.log('⚠️ Erro ao buscar mensagens recebidas:', error);
+      }
+      
+      // 2. BUSCAR MENSAGENS ENVIADAS (do banco)
+      let sentMessages = [];
+      try {
+        const sentQuery = await pool.query(
+          'SELECT id, message, message_type, created_at, status FROM chat_messages_sent WHERE user_id = $1 AND contact_phone = $2 ORDER BY created_at ASC',
+          [userId, chatId]
+        );
+        
+        sentMessages = sentQuery.rows.map((msg: any) => ({
+          id: `sent_${msg.id}`,
+          message: msg.message,
+          type: msg.message_type,
+          timestamp: new Date(msg.created_at),
+          direction: 'outbound',
+          status: msg.status,
+          fromMe: true
+        }));
+        console.log(`📤 Encontradas ${sentMessages.length} mensagens enviadas`);
+      } catch (error) {
+        console.log('⚠️ Erro ao buscar mensagens enviadas:', error);
+      }
+      
+      // 3. COMBINAR E ORDENAR POR TIMESTAMP
+      const allMessages = [...receivedMessages, ...sentMessages];
+      allMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      
+      console.log(`✅ Total combinado: ${allMessages.length} mensagens em ordem cronológica`);
+      
+      // 4. CONVERTER PARA FORMATO DO CHAT (compatível com frontend)
+      const formattedMessages = allMessages.map((msg: any) => ({
+        id: msg.id,
+        key: { 
+          id: msg.id, 
+          fromMe: msg.fromMe || msg.direction === 'outbound',
+          remoteJid: chatId 
+        },
+        message: { conversation: msg.message },
+        messageTimestamp: Math.floor(msg.timestamp.getTime() / 1000),
+        messageType: msg.type,
+        pushName: msg.direction === 'inbound' ? 'Meta Cloud API' : 'Você',
+        fromMe: msg.fromMe || msg.direction === 'outbound',
+        body: msg.message,
+        content: msg.message,
+        timestamp: Math.floor(msg.timestamp.getTime() / 1000),
+        status: msg.status
+      }));
+      
+      res.json(formattedMessages);
+      
+    } catch (error) {
+      console.error('❌ Erro no endpoint unificado:', error);
+      res.status(500).json({ error: 'Erro ao buscar mensagens unificadas' });
+    }
+  });
+
+  // Rota para buscar mensagens da Meta Cloud API (MANTIDA para compatibilidade)
   app.get("/api/whatsapp-cloud/messages/:chatId", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     

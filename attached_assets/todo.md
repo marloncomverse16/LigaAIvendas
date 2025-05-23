@@ -1,0 +1,24 @@
+# Plano de Tarefas: Corrigir Exibição de Mensagens no Chat
+
+- [ ] 1. Analisar a estrutura atual do backend e frontend (Concluído na análise inicial).
+- [ ] 2. Planejar o endpoint unificado `/api/chat/messages/:chatId`.
+    - [X] 2.1. Definir como buscar mensagens recebidas: Reutilizar a lógica existente que busca da Meta API.
+    - [X] 2.2. Definir como buscar mensagens enviadas: Consultar a tabela `chat_messages_sent` usando `contact_phone = :chatId`.
+    - [X] 2.3. Definir como combinar e ordenar: Concatenar os resultados das buscas (recebidas e enviadas) e ordenar pelo timestamp (`created_at` ou equivalente da Meta API) em ordem cronológica ascendente.
+    - [X] 2.4. Definir a estrutura da resposta JSON: Array de objetos, cada um contendo `id`, `message`, `type`, `timestamp`, `direction` ('inbound'/'outbound'), e opcionalmente `status`.
+- [X] 3. Implementar o endpoint unificado no backend (`server/routes.ts`).
+    - [X] 3.1. Escrever o código da nova rota GET `/api/chat/messages/:chatId`.
+    - [X] 3.2. Incluir a lógica para buscar mensagens recebidas.
+    - [X] 3.3. Incluir a lógica para buscar mensagens enviadas do banco de dados.
+    - [X] 3.4. Implementar a combinação e ordenação das mensagens.
+- [X] 4. Ajustar o frontend (`client/src/pages/chat-otimizado.tsx`).
+    - [X] 4.1. Modificar a função de busca de mensagens (linha ~286) para usar o novo endpoint `/api/chat/messages/:chatId`.
+    - [X] 4.2. Garantir que o frontend consiga processar a nova estrutura de resposta, se houver mudanças.
+- [X] 5. Validar a solução.
+    - [X] 5.1. Enviar uma nova mensagem pelo chat.
+    - [X] 5.2. Verificar se a mensagem enviada aparece imediatamente no chat.
+    - [X] 5.3. Verificar se as mensagens recebidas continuam aparecendo corretamente.
+    - [X] 5.4. Verificar a ordem cronológica das mensagens.
+- [X] 6. Reportar resultados e fornecer código ao usuário.
+    - [X] 6.1. Preparar os snippets de código modificados (backend e frontend).
+    - [X] 6.2. Enviar mensagem ao usuário com a confirmação da solução e os arquivos/código.
