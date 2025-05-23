@@ -103,14 +103,14 @@ export class WhatsAppCloudService {
           remoteJid: msg.remoteJid
         },
         message: {
-          conversation: msg.content || msg.messageContent
+          conversation: msg.messageContent || msg.content
         },
         messageTimestamp: Math.floor(new Date(msg.timestamp).getTime() / 1000),
         messageType: msg.messageType || 'conversation',
         pushName: 'Meta Cloud API',
         fromMe: msg.fromMe,
-        body: msg.content || msg.messageContent,
-        content: msg.content || msg.messageContent,
+        body: msg.messageContent || msg.content,
+        content: msg.messageContent || msg.content,
         timestamp: Math.floor(new Date(msg.timestamp).getTime() / 1000),
         status: msg.status || 'delivered'
       }));

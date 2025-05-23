@@ -815,12 +815,17 @@ export default function ChatOtimizado() {
         // BUSCAR DA META CLOUD API - ROTA CORRIGIDA
         console.log('Buscando mensagens da Meta Cloud API...');
         const apiResponse = await fetch(`/api/whatsapp-meta/messages/${chatId}`);
+        console.log('Status da resposta:', apiResponse.status);
+        
         if (apiResponse.ok) {
           response = await apiResponse.json();
+          console.log("Resposta JSON recebida:", response);
           messageList = response || [];
           console.log("Mensagens da Meta Cloud API carregadas:", messageList);
         } else {
-          throw new Error(`Erro HTTP: ${apiResponse.status}`);
+          const errorText = await apiResponse.text();
+          console.error('Erro na resposta:', errorText);
+          throw new Error(`Erro HTTP: ${apiResponse.status} - ${errorText}`);
         }
       } else if (connectionMode === 'qr' && service) {
         // BUSCAR DA EVOLUTION API
