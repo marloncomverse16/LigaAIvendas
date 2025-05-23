@@ -2461,12 +2461,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await response.json();
       console.log('Mensagem enviada com sucesso via Meta API:', result);
 
-      // Salvar mensagem no banco (opcional - não falhar se der erro)
+      // Salvar mensagem enviada no banco de dados
       try {
-        // Para simplificar, vamos apenas logar o sucesso por enquanto
-        console.log('Mensagem enviada com sucesso. ID da Meta:', result.messages?.[0]?.id);
+        const { whatsappMessages } = await import('@shared/schema');
+        
+        // Verificar ou criar chat
+        let chatId = 1; // Por simplicidade, usar o chat ID 1 para este usuário
+        
+        // Salvar a mensagem enviada no banco
+        const messageToSave = {
+          chatId: chatId,
+          userId: userId,
+          remoteJid: phoneNumber,
+          messageContent: message,
+          messageType: 'text',
+          fromMe: true, // Esta é uma mensagem enviada por nós
+          timestamp: new Date(),
+          status: 'sent',
+          metaMessageId: result.messages?.[0]?.id || null,
+          createdAt: new Date()
+        };
+        
+        await db.insert(whatsappMessages).values(messageToSave);
+        console.log('✅ Mensagem enviada salva no banco com sucesso. ID da Meta:', result.messages?.[0]?.id);
       } catch (dbError) {
-        console.log('Nota: Erro ao salvar mensagem no banco:', dbError);
+        console.log('❌ Erro ao salvar mensagem enviada no banco:', dbError);
         // Não falhar o envio por erro de banco
       }
       
