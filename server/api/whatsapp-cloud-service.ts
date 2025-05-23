@@ -81,8 +81,8 @@ export class WhatsAppCloudService {
     try {
       console.log(`Buscando mensagens da Meta Cloud API para usuário ${userId}, chat ${chatId}`);
 
-      // Buscar mensagens no banco de dados
-      const messages = await db
+      // Buscar mensagens recebidas via webhook (tabela whatsappCloudMessages)
+      const receivedMessages = await db
         .select()
         .from(whatsappCloudMessages)
         .where(and(
@@ -91,29 +91,60 @@ export class WhatsAppCloudService {
         ))
         .orderBy(whatsappCloudMessages.timestamp);
 
-      console.log(`Encontradas ${messages.length} mensagens da Meta Cloud API`);
-      console.log('Mensagens encontradas:', messages);
+      // Buscar mensagens enviadas (tabela whatsappMessages)
+      const { whatsappMessages } = await import('@shared/schema');
+      const sentMessages = await db
+        .select()
+        .from(whatsappMessages)
+        .where(and(
+          eq(whatsappMessages.userId, userId),
+          eq(whatsappMessages.remoteJid, chatId),
+          eq(whatsappMessages.fromMe, true)
+        ))
+        .orderBy(whatsappMessages.timestamp);
+
+      // Combinar todas as mensagens
+      const allMessages = [
+        ...receivedMessages.map(msg => ({ ...msg, source: 'webhook' })),
+        ...sentMessages.map(msg => ({ ...msg, source: 'sent' }))
+      ].sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeA - timeB;
+      });
+
+      console.log(`Encontradas ${receivedMessages.length} mensagens recebidas e ${sentMessages.length} mensagens enviadas`);
+      console.log('Total de mensagens combinadas:', allMessages.length);
 
       // Transformar para o formato esperado pelo frontend
-      const formattedMessages = messages.map(msg => ({
-        id: msg.id,
-        key: {
-          id: msg.metaMessageId || msg.id,
-          fromMe: msg.fromMe,
-          remoteJid: msg.remoteJid
-        },
-        message: {
-          conversation: msg.content || msg.messageContent
-        },
-        messageTimestamp: Math.floor(new Date(msg.timestamp).getTime() / 1000),
-        messageType: msg.messageType || 'conversation',
-        pushName: 'Meta Cloud API',
-        fromMe: msg.fromMe,
-        body: msg.content || msg.messageContent,
-        content: msg.content || msg.messageContent,
-        timestamp: Math.floor(new Date(msg.timestamp).getTime() / 1000),
-        status: msg.status || 'delivered'
-      }));
+      const formattedMessages = allMessages.map(msg => {
+        // Extrair conteúdo de forma segura
+        const messageContent = (msg as any).content || (msg as any).messageContent || '';
+        const messageTimestamp = msg.timestamp ? Math.floor(new Date(msg.timestamp).getTime() / 1000) : Date.now();
+        const messageStatus = (msg as any).status || 'delivered';
+        const messageFromMe = msg.fromMe || false;
+        const messageId = (msg as any).metaMessageId || msg.id;
+        
+        return {
+          id: msg.id,
+          key: {
+            id: messageId,
+            fromMe: messageFromMe,
+            remoteJid: msg.remoteJid
+          },
+          message: {
+            conversation: messageContent
+          },
+          messageTimestamp: messageTimestamp,
+          messageType: msg.messageType || 'text',
+          pushName: 'Meta Cloud API',
+          fromMe: messageFromMe,
+          body: messageContent,
+          content: messageContent,
+          timestamp: messageTimestamp,
+          status: messageStatus
+        };
+      });
 
       console.log('Mensagens formatadas:', formattedMessages);
 
