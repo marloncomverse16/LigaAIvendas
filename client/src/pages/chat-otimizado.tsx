@@ -1169,6 +1169,7 @@ export default function ChatOtimizado() {
           console.log(`🔍 DEBUG: connectionMode = "${connectionMode}"`);
           console.log(`🔍 DEBUG: metaConnectionStatus =`, metaConnectionStatus);
           console.log(`🔍 DEBUG: service =`, service ? 'Existe' : 'Null');
+          console.log(`🔍 DEBUG: Verificando condição connectionMode === 'cloud':`, connectionMode === 'cloud');
           
           if (connectionMode === 'cloud') {
             // ENVIAR VIA META CLOUD API (mensagens livres permitidas por 24h após contato enviar mensagem)
