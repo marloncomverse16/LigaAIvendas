@@ -81,7 +81,7 @@ export class WhatsAppCloudService {
     try {
       console.log(`Buscando mensagens da Meta Cloud API para usuário ${userId}, chat ${chatId}`);
 
-      // Usar SQL direto com a estrutura correta das tabelas
+      // Usar SQL direto simples para evitar problemas de schema
       const allMessagesResult = await db.execute(`
         -- Buscar mensagens recebidas via webhook (whatsapp_cloud_messages)
         SELECT id, user_id as "userId", remote_jid as "remoteJid", message_content as "messageContent", 
@@ -90,23 +90,23 @@ export class WhatsAppCloudService {
                message_type as "mediaType", media_url as "mediaUrl", true as "isRead", 
                created_at as "createdAt", 'webhook' as source
         FROM whatsapp_cloud_messages 
-        WHERE user_id = $1 AND remote_jid = $2
+        WHERE user_id = ${userId} AND remote_jid = '${chatId}'
         
         UNION ALL
         
         -- Buscar mensagens enviadas (whatsapp_messages)
-        SELECT id, user_id as "userId", $2 as "remoteJid", content as "messageContent", 
+        SELECT id, user_id as "userId", '${chatId}' as "remoteJid", content as "messageContent", 
                'Você' as "pushName", 'text' as "messageType", from_me as "fromMe", 
                timestamp, timestamp as "messageTimestamp", 'meta-cloud-api' as "instanceId", 
                media_type as "mediaType", media_url as "mediaUrl", is_read as "isRead", 
                created_at as "createdAt", 'sent' as source
         FROM whatsapp_messages 
-        WHERE user_id = $1 AND from_me = true
+        WHERE user_id = ${userId} AND from_me = true
         
         ORDER BY timestamp ASC
-      `, [userId, chatId]);
+      `);
 
-      const allMessages = allMessagesResult.rows || [];
+      const allMessages = Array.isArray(allMessagesResult) ? allMessagesResult : allMessagesResult.rows || [];
 
       console.log(`Encontradas ${allMessages.length} mensagens total para o usuário ${userId} e chat ${chatId}`);
 
