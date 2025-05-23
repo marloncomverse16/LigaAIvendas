@@ -91,14 +91,13 @@ export class WhatsAppCloudService {
         ))
         .orderBy(whatsappCloudMessages.timestamp);
 
-      // Buscar mensagens enviadas (tabela whatsappMessages)
+      // Buscar mensagens enviadas (tabela whatsapp_messages) usando os campos corretos
       const { whatsappMessages } = await import('@shared/schema');
       const sentMessages = await db
         .select()
         .from(whatsappMessages)
         .where(and(
           eq(whatsappMessages.userId, userId),
-          eq(whatsappMessages.remoteJid, chatId),
           eq(whatsappMessages.fromMe, true)
         ))
         .orderBy(whatsappMessages.timestamp);
@@ -118,12 +117,20 @@ export class WhatsAppCloudService {
 
       // Transformar para o formato esperado pelo frontend
       const formattedMessages = allMessages.map(msg => {
-        // Extrair conteúdo de forma segura
-        const messageContent = (msg as any).content || (msg as any).messageContent || '';
+        // Extrair conteúdo de forma segura dependendo da fonte
+        let messageContent = '';
+        if (msg.source === 'sent') {
+          // Para mensagens enviadas (tabela whatsapp_messages)
+          messageContent = (msg as any).content || '';
+        } else {
+          // Para mensagens recebidas (tabela whatsappCloudMessages)
+          messageContent = (msg as any).messageContent || '';
+        }
+        
         const messageTimestamp = msg.timestamp ? Math.floor(new Date(msg.timestamp).getTime() / 1000) : Date.now();
         const messageStatus = (msg as any).status || 'delivered';
         const messageFromMe = msg.fromMe || false;
-        const messageId = (msg as any).metaMessageId || msg.id;
+        const messageId = (msg as any).metaMessageId || (msg as any).message_id || msg.id;
         
         return {
           id: msg.id,
