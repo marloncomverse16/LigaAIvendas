@@ -854,6 +854,12 @@ export default function ChatOtimizado() {
       
       // Se for uma atualização (não inicial) e já temos mensagens existentes
       if (!isInitialLoad && existingMessages.length > 0) {
+        // 🚀 PRESERVAR mensagens otimistas SEMPRE
+        const optimisticMessages = existingMessages.filter(msg => 
+          msg.id && msg.id.startsWith('local-') && 
+          (msg.status === 'sending' || msg.status === 'sent')
+        );
+        
         // Obter IDs de mensagens existentes para evitar duplicatas
         const existingIds = new Set();
         existingMessages.forEach(msg => {
@@ -869,25 +875,36 @@ export default function ChatOtimizado() {
         
         console.log(`Encontradas ${newMessages.length} novas mensagens`);
         
+        // Combinar mensagens do servidor + mensagens otimistas + mensagens novas
+        const allMessages = [...messageList, ...optimisticMessages, ...newMessages];
+        
+        // Remover duplicatas por ID
+        const uniqueMessages = allMessages.filter((msg, index, arr) => {
+          const msgId = msg.id || (msg.key && msg.key.id);
+          return arr.findIndex(m => {
+            const mId = m.id || (m.key && m.key.id);
+            return mId === msgId;
+          }) === index;
+        });
+        
+        // Ordenar por timestamp
+        uniqueMessages.sort((a, b) => {
+          const tsA = Number(a.messageTimestamp) || 0;
+          const tsB = Number(b.messageTimestamp) || 0;
+          return tsA - tsB;
+        });
+        
+        // Atualizar o cache de mensagens
+        setMessagesByChatId(prev => ({
+          ...prev,
+          [chatId]: uniqueMessages
+        }));
+        
+        // Atualizar mensagens visíveis
+        setMessages(uniqueMessages);
+        
+        // Rolagem automática se houver mensagens novas
         if (newMessages.length > 0) {
-          // Combinar mensagens existentes com novas e ordenar
-          const combinedMessages = [...existingMessages, ...newMessages];
-          combinedMessages.sort((a, b) => {
-            const tsA = Number(a.messageTimestamp) || 0;
-            const tsB = Number(b.messageTimestamp) || 0;
-            return tsA - tsB;
-          });
-          
-          // Atualizar o cache de mensagens
-          setMessagesByChatId(prev => ({
-            ...prev,
-            [chatId]: combinedMessages
-          }));
-          
-          // Atualizar mensagens visíveis
-          setMessages(combinedMessages);
-          
-          // Rolagem automática para o final das mensagens
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
           }, 100);
