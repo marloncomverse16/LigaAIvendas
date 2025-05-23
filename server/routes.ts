@@ -2552,7 +2552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const cloudService = new WhatsAppCloudService();
         const result = await cloudService.getMessages(userId, chatId);
         
-        if (result.success && result.data) {
+        if (result.success) {
           receivedMessages = result.data.map((msg: any) => ({
             id: `meta_${msg.id}`,
             message: msg.body || msg.content || '',

@@ -94,16 +94,16 @@ export class WhatsAppCloudService {
         ORDER BY timestamp ASC
       `);
 
-      // Depois, buscar mensagens enviadas
+      // Depois, buscar mensagens enviadas da tabela correta
       const sentMessages = await db.execute(`
-        SELECT id, user_id as "userId", contact_id as "remoteJid", content as "messageContent", 
-               'Você' as "pushName", 'text' as "messageType", from_me as "fromMe", 
+        SELECT id, user_id as "userId", chat_id as "remoteJid", message as "messageContent", 
+               'Você' as "pushName", 'text' as "messageType", true as "fromMe", 
                timestamp, timestamp as "messageTimestamp", 'meta-cloud-api' as "instanceId", 
-               media_type as "mediaType", media_url as "mediaUrl", 
-               COALESCE(is_read, true) as "isRead", 
+               null as "mediaType", null as "mediaUrl", 
+               true as "isRead", 
                created_at as "createdAt", 'sent' as source
-        FROM whatsapp_messages 
-        WHERE user_id = ${userId} AND contact_id = '${chatId}' AND from_me = true
+        FROM chat_messages_sent 
+        WHERE user_id = ${userId} AND chat_id = '${chatId}'
         ORDER BY timestamp ASC
       `);
 
