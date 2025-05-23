@@ -153,6 +153,17 @@ async function comparePasswords(supplied: string, stored: string) {
 // (definido no /server/connection.ts)
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // INTERCEPTADOR GLOBAL PARA DEBUG - vai mostrar TODAS as requisições POST
+  app.use((req, res, next) => {
+    if (req.method === 'POST') {
+      console.log(`🔍🔍🔍 REQUISIÇÃO POST INTERCEPTADA: ${req.url}`);
+      if (req.url.includes('whatsapp') || req.url.includes('send') || req.url.includes('meta')) {
+        console.log(`📋📋📋 Body WhatsApp/Meta:`, JSON.stringify(req.body, null, 2));
+      }
+    }
+    next();
+  });
+
   // Setup authentication
   setupAuth(app);
   
