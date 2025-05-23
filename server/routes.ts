@@ -2465,16 +2465,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // ✅ SALVAR MENSAGEM ENVIADA NO BANCO PARA APARECER NO CHAT
       try {
         const userId = (req as any).user?.id;
+        console.log(`🔧 INÍCIO DO SALVAMENTO - userId: ${userId}, phoneNumber: ${phoneNumber}`);
+        
+        const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service');
         const whatsappCloudService = new WhatsAppCloudService();
         
         // Primeiro, garantir que existe uma conversa para este número
-        await whatsappCloudService.ensureConversationExists(userId, phoneNumber, "Usuário");
+        console.log(`📞 Garantindo conversa existe para: ${phoneNumber}`);
+        const conversationResult = await whatsappCloudService.ensureConversationExists(userId, phoneNumber, "Usuário");
+        console.log(`📞 Resultado da conversa:`, conversationResult);
         
         // Agora salvar a mensagem enviada com fromMe: true
         const chatId = `chat_${phoneNumber}_${userId}`;
-        const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`💾 Salvando mensagem no chatId: ${chatId}`);
         
-        await whatsappCloudService.saveMessage(userId, chatId, {
+        const saveResult = await whatsappCloudService.saveMessage(userId, chatId, {
           content: message,
           remoteJid: phoneNumber,
           fromMe: true, // 🎯 CRUCIAL: Marca como mensagem enviada por mim
@@ -2482,9 +2487,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           metaMessageId: result.messages?.[0]?.id
         });
         
-        console.log('✅ Mensagem ENVIADA salva no banco e aparecerá no chat!');
+        console.log(`✅ MENSAGEM ENVIADA SALVA COM SUCESSO!`);
+        console.log(`📊 Resultado do salvamento:`, saveResult);
+        
+        // Verificar se realmente foi salva
+        const verification = await whatsappCloudService.getMessages(userId, phoneNumber);
+        console.log(`🔍 VERIFICAÇÃO - Total de mensagens após salvamento: ${verification.data?.length || 0}`);
+        
       } catch (dbError) {
-        console.log('⚠️ Erro ao salvar mensagem enviada no banco:', dbError);
+        console.log('❌ ERRO CRÍTICO ao salvar mensagem enviada:', dbError);
+        console.error('Stack trace completo:', dbError.stack);
         // Não falhar o envio por erro de banco
       }
       
