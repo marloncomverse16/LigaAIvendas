@@ -799,6 +799,37 @@ export const insertUserAiAgentSchema = createInsertSchema(userAiAgents).pick({
   isDefault: true,
 });
 
+// ===== NOVA TABELA PARA MENSAGENS ENVIADAS PELO CHAT =====
+export const chatMessagesSent = pgTable("chat_messages_sent", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  contactPhone: text("contact_phone").notNull(), // Número do contato (ex: 554391142751)
+  message: text("message").notNull(), // Conteúdo da mensagem
+  messageType: text("message_type").default("text"), // Tipo: text, image, document, etc.
+  metaMessageId: text("meta_message_id"), // ID retornado pela Meta API
+  status: text("status").default("sent"), // sent, delivered, read, failed
+  createdAt: timestamp("created_at").defaultNow(),
+  sentAt: timestamp("sent_at").defaultNow(),
+});
+
+// Relação para mensagens enviadas pelo chat
+export const chatMessagesSentRelations = relations(chatMessagesSent, ({ one }) => ({
+  user: one(users, {
+    fields: [chatMessagesSent.userId],
+    references: [users.id],
+  }),
+}));
+
+// Schema para inserção de mensagens do chat
+export const insertChatMessageSentSchema = createInsertSchema(chatMessagesSent).pick({
+  userId: true,
+  contactPhone: true,
+  message: true,
+  messageType: true,
+  metaMessageId: true,
+  status: true,
+});
+
 // Tipos de conexão para envio de mensagens
 export const messageSendingConnectionTypes = ["whatsapp_qr", "whatsapp_meta_api"] as const;
 export type MessageSendingConnectionType = (typeof messageSendingConnectionTypes)[number];

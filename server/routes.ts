@@ -2579,29 +2579,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: result.error });
       }
       
-      // 🚀 SALVAR A MENSAGEM ENVIADA NO BANCO DE DADOS
+      // 🚀 SALVAR A MENSAGEM ENVIADA NA NOVA TABELA DEDICADA
       try {
         const insertQuery = `
-          INSERT INTO whatsapp_messages (user_id, contact_id, message_id, content, from_me, timestamp, media_type, media_url, is_read, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+          INSERT INTO chat_messages_sent (user_id, contact_phone, message, message_type, meta_message_id, status)
+          VALUES ($1, $2, $3, $4, $5, $6)
         `;
-        
-        const currentTimestamp = Math.floor(Date.now() / 1000); // timestamp em segundos Unix
         
         await pool.query(insertQuery, [
           userId,
-          phoneNumber, // Usar o número como contact_id
-          result.messageId || `sent_${Date.now()}`,
-          message,
-          true, // from_me
-          currentTimestamp, // timestamp Unix
-          'text', // media_type
-          null, // media_url
-          true // is_read
+          phoneNumber, // Número do contato
+          message, // Conteúdo da mensagem
+          'text', // Tipo da mensagem
+          result.messageId || `sent_${Date.now()}`, // ID da Meta
+          'sent' // Status
         ]);
-        console.log('✅ Mensagem enviada salva no banco com sucesso. ID da Meta:', result.messageId);
+        console.log('✅ Mensagem enviada salva na tabela chat_messages_sent. ID da Meta:', result.messageId);
       } catch (dbError) {
-        console.log('❌ Erro ao salvar mensagem enviada no banco:', dbError);
+        console.log('❌ Erro ao salvar mensagem enviada na nova tabela:', dbError);
         // Não falhar o envio por erro de banco
       }
       
