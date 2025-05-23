@@ -28,6 +28,7 @@ import ContactsPage from "@/pages/contacts-page";
 import MetaTestPage from "@/pages/meta-test-page";
 import MetaDiagnosticPage from "@/pages/meta-diagnostic-page";
 import ChatOtimizado from "@/pages/chat-otimizado";
+import DiagnosticoPage from "@/pages/diagnostico-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { SidebarProvider } from "@/providers/sidebar-provider";
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/meta-test" component={MetaTestPage} />
       <Route path="/meta-diagnostic" component={MetaDiagnosticPage} />
       <ProtectedRoute path="/chat-otimizado" component={ChatOtimizado} />
+      <ProtectedRoute path="/diagnostico" component={DiagnosticoPage} />
       <Route component={NotFound} />
     </Switch>
   );

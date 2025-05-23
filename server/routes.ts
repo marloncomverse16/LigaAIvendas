@@ -4218,6 +4218,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota para testar webhook de contatos
   app.get("/api/servers/:serverId/test-webhook", testContactsWebhook);
 
+  // ENDPOINTS DE DIAGNÓSTICO COMPLETO
+  app.get('/api/diagnostico/database', async (req, res) => {
+    try {
+      console.log('🔍 Executando diagnóstico do banco de dados...');
+      
+      // Verificar tabelas principais
+      const tablesCheck = await pool.query(`
+        SELECT table_name, column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name IN ('chat_messages_sent', 'whatsapp_cloud_messages', 'users', 'user_settings')
+        ORDER BY table_name, ordinal_position;
+      `);
+
+      // Contar registros em cada tabela
+      const chatMessagesSent = await pool.query('SELECT COUNT(*) as count FROM chat_messages_sent');
+      const whatsappCloudMessages = await pool.query('SELECT COUNT(*) as count FROM whatsapp_cloud_messages');
+      const users = await pool.query('SELECT COUNT(*) as count FROM users');
+      
+      // Últimas mensagens enviadas
+      const recentSent = await pool.query(`
+        SELECT id, user_id, chat_id, message, timestamp, created_at 
+        FROM chat_messages_sent 
+        ORDER BY created_at DESC 
+        LIMIT 10
+      `);
+
+      res.json({
+        success: true,
+        tables: tablesCheck.rows,
+        counts: {
+          chat_messages_sent: chatMessagesSent.rows[0]?.count || 0,
+          whatsapp_cloud_messages: whatsappCloudMessages.rows[0]?.count || 0,
+          users: users.rows[0]?.count || 0
+        },
+        recent_sent_messages: recentSent.rows,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Erro no diagnóstico do banco:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  app.get('/api/diagnostico/messages/received', async (req, res) => {
+    try {
+      console.log('🔍 Verificando mensagens recebidas...');
+      
+      const received = await pool.query(`
+        SELECT id, user_id, remote_jid, message_content, timestamp, created_at
+        FROM whatsapp_cloud_messages 
+        WHERE remote_jid = '554391142751'
+        ORDER BY timestamp DESC 
+        LIMIT 20
+      `);
+
+      res.json({
+        success: true,
+        count: received.rows.length,
+        messages: received.rows,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Erro ao verificar mensagens recebidas:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  app.get('/api/diagnostico/messages/sent', async (req, res) => {
+    try {
+      console.log('🔍 Verificando mensagens enviadas...');
+      
+      const sent = await pool.query(`
+        SELECT id, user_id, chat_id, message, timestamp, created_at, status
+        FROM chat_messages_sent 
+        WHERE chat_id = '554391142751'
+        ORDER BY timestamp DESC 
+        LIMIT 20
+      `);
+
+      res.json({
+        success: true,
+        count: sent.rows.length,
+        messages: sent.rows,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Erro ao verificar mensagens enviadas:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // ===== WEBHOOK DA META API PARA RECEBER MENSAGENS =====
   // Verificação do webhook (chamado pela Meta para validar)
   app.get('/api/webhooks/meta', async (req, res) => {
