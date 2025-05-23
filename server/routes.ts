@@ -19,7 +19,7 @@ import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { eq, and } from "drizzle-orm";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { checkConnectionStatus, disconnectWhatsApp } from "./connection";
 import * as whatsappApi from "./api/whatsapp-api";
 import { getWhatsAppQrCode, getWhatsAppContacts } from "./direct-connection";
