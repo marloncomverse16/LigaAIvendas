@@ -2557,7 +2557,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Nova rota específica para envio de mensagens de texto via Meta Cloud API
+  // Nova rota específica para envio de mensagens de texto via Meta Cloud
+  app.post("/api/whatsapp-cloud/send", async (req, res) => {
+    console.log("🚀 ROTA /api/whatsapp-cloud/send CHAMADA!");
+    console.log("🔍 DEBUG: req.body =", req.body);
+    
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user.id;
+      const { to: phoneNumber, message } = req.body;
+      
+      if (!phoneNumber || !message) {
+        return res.status(400).json({ error: 'Número de telefone e mensagem são obrigatórios' });
+      }
+      
+      console.log(`📤 Enviando mensagem via Meta Cloud API para ${phoneNumber}: "${message.substring(0, 50)}..."`);
+      
+      // Salvar mensagem ANTES de enviar para evitar condições de corrida
+      try {
+        const insertQuery = `
+          INSERT INTO chat_messages_sent (user_id, contact_phone, message, message_type, status, created_at)
+          VALUES ($1, $2, $3, $4, $5, NOW())
+          RETURNING id
+        `;
+        
+        const result = await pool.query(insertQuery, [
+          userId,
+          phoneNumber,
+          message,
+          'text',
+          'sending'
+        ]);
+        
+        const messageId = result.rows[0]?.id;
+        console.log(`💾 Mensagem salva na tabela chat_messages_sent com ID: ${messageId}`);
+        
+        // Tentar enviar via Meta Cloud API
+        const { WhatsAppCloudService } = await import('./api/whatsapp-cloud-service');
+        const cloudService = new WhatsAppCloudService();
+        const sendResult = await cloudService.sendMessage(userId, phoneNumber, message);
+        
+        if (sendResult.success) {
+          // Atualizar status para 'sent'
+          await pool.query(
+            'UPDATE chat_messages_sent SET status = $1, sent_at = NOW() WHERE id = $2',
+            ['sent', messageId]
+          );
+          console.log(`✅ Mensagem enviada com sucesso e status atualizado!`);
+          
+          return res.status(200).json({
+            success: true,
+            message: 'Mensagem enviada com sucesso',
+            messageId,
+            data: sendResult.data
+          });
+        } else {
+          // Atualizar status para 'failed'
+          await pool.query(
+            'UPDATE chat_messages_sent SET status = $1 WHERE id = $2',
+            ['failed', messageId]
+          );
+          console.log(`❌ Falha no envio, status atualizado para failed`);
+          
+          return res.status(500).json({ 
+            error: sendResult.error || 'Erro ao enviar mensagem',
+            messageId
+          });
+        }
+        
+      } catch (dbError) {
+        console.error('❌ Erro ao salvar mensagem no banco:', dbError);
+        return res.status(500).json({ error: 'Erro ao salvar mensagem no banco de dados' });
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro geral ao processar envio:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  }); API
   app.post("/api/whatsapp-meta/send-text", async (req, res) => {
     console.log("🔥 ROTA /api/whatsapp-meta/send-text CHAMADA!");
     console.log("🔍 DEBUG: req.isAuthenticated() =", req.isAuthenticated());
