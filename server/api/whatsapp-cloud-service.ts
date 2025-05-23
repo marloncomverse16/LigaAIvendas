@@ -81,31 +81,12 @@ export class WhatsAppCloudService {
     try {
       console.log(`Buscando mensagens da Meta Cloud API para usuário ${userId}, chat ${chatId}`);
 
-      // Primeiro, buscar mensagens recebidas via webhook
-      const receivedMessages = await db.execute(`
-        SELECT id, user_id as "userId", remote_jid as "remoteJid", 
-               COALESCE(content, message_content) as "messageContent", 
-               'Usuario' as "pushName", message_type as "messageType", from_me as "fromMe", 
-               timestamp, timestamp as "messageTimestamp", 'meta-cloud-api' as "instanceId", 
-               message_type as "mediaType", media_url as "mediaUrl", true as "isRead", 
-               created_at as "createdAt", 'webhook' as source
-        FROM whatsapp_cloud_messages 
-        WHERE user_id = ${userId} AND remote_jid = '${chatId}'
-        ORDER BY timestamp ASC
-      `);
-
-      // Depois, buscar mensagens enviadas da tabela correta
-      const sentMessages = await db.execute(`
-        SELECT id, user_id as "userId", chat_id as "remoteJid", message as "messageContent", 
-               'Você' as "pushName", 'text' as "messageType", true as "fromMe", 
-               timestamp, timestamp as "messageTimestamp", 'meta-cloud-api' as "instanceId", 
-               null as "mediaType", null as "mediaUrl", 
-               true as "isRead", 
-               created_at as "createdAt", 'sent' as source
-        FROM chat_messages_sent 
-        WHERE user_id = ${userId} AND chat_id = '${chatId}'
-        ORDER BY timestamp ASC
-      `);
+      // Usar consulta SQL simples para evitar erro de coluna inexistente
+      const { pool } = await import('../db');
+      const sentQuery = await pool.query(
+        'SELECT id, message, message_type, created_at, status FROM chat_messages_sent WHERE user_id = $1 AND contact_phone = $2 ORDER BY created_at ASC',
+        [userId, chatId]
+      );
 
       // Combinar os resultados
       const receivedRows = Array.isArray(receivedMessages) ? receivedMessages : receivedMessages.rows || [];
