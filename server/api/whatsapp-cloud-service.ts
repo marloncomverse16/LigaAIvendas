@@ -81,39 +81,34 @@ export class WhatsAppCloudService {
     try {
       console.log(`Buscando mensagens da Meta Cloud API para usuário ${userId}, chat ${chatId}`);
 
-      // Buscar mensagens recebidas via webhook (tabela whatsappCloudMessages)
-      const receivedMessages = await db
-        .select()
-        .from(whatsappCloudMessages)
-        .where(and(
-          eq(whatsappCloudMessages.userId, userId),
-          eq(whatsappCloudMessages.remoteJid, chatId)
-        ))
-        .orderBy(whatsappCloudMessages.timestamp);
+      // Usar SQL direto com a estrutura correta das tabelas
+      const allMessagesResult = await db.execute(`
+        -- Buscar mensagens recebidas via webhook (whatsapp_cloud_messages)
+        SELECT id, user_id as "userId", remote_jid as "remoteJid", message_content as "messageContent", 
+               'Usuario' as "pushName", message_type as "messageType", from_me as "fromMe", 
+               timestamp, timestamp as "messageTimestamp", 'meta-cloud-api' as "instanceId", 
+               message_type as "mediaType", media_url as "mediaUrl", true as "isRead", 
+               created_at as "createdAt", 'webhook' as source
+        FROM whatsapp_cloud_messages 
+        WHERE user_id = $1 AND remote_jid = $2
+        
+        UNION ALL
+        
+        -- Buscar mensagens enviadas (whatsapp_messages)
+        SELECT id, user_id as "userId", $2 as "remoteJid", content as "messageContent", 
+               'Você' as "pushName", 'text' as "messageType", from_me as "fromMe", 
+               timestamp, timestamp as "messageTimestamp", 'meta-cloud-api' as "instanceId", 
+               media_type as "mediaType", media_url as "mediaUrl", is_read as "isRead", 
+               created_at as "createdAt", 'sent' as source
+        FROM whatsapp_messages 
+        WHERE user_id = $1 AND from_me = true
+        
+        ORDER BY timestamp ASC
+      `, [userId, chatId]);
 
-      // Buscar mensagens enviadas (tabela whatsapp_messages) usando os campos corretos
-      const { whatsappMessages } = await import('@shared/schema');
-      const sentMessages = await db
-        .select()
-        .from(whatsappMessages)
-        .where(and(
-          eq(whatsappMessages.userId, userId),
-          eq(whatsappMessages.fromMe, true)
-        ))
-        .orderBy(whatsappMessages.timestamp);
+      const allMessages = allMessagesResult.rows || [];
 
-      // Combinar todas as mensagens
-      const allMessages = [
-        ...receivedMessages.map(msg => ({ ...msg, source: 'webhook' })),
-        ...sentMessages.map(msg => ({ ...msg, source: 'sent' }))
-      ].sort((a, b) => {
-        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        return timeA - timeB;
-      });
-
-      console.log(`Encontradas ${receivedMessages.length} mensagens recebidas e ${sentMessages.length} mensagens enviadas`);
-      console.log('Total de mensagens combinadas:', allMessages.length);
+      console.log(`Encontradas ${allMessages.length} mensagens total para o usuário ${userId} e chat ${chatId}`);
 
       // Transformar para o formato esperado pelo frontend
       const formattedMessages = allMessages.map(msg => {
