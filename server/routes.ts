@@ -2370,19 +2370,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Buscar Phone Number ID diretamente do banco de dados
+      // Buscar Phone Number ID diretamente do banco de dados com logs detalhados
+      console.log(`🔍 BUSCA: Procurando userServer para userId: ${userId}`);
       const [userServer] = await db.select().from(userServersTable).where(eq(userServersTable.userId, userId)).limit(1);
+      console.log(`📊 RESULTADO userServer:`, userServer);
+      
       if (!userServer || !userServer.metaPhoneNumberId) {
+        console.log(`❌ ERRO: Phone Number ID não encontrado. userServer existe: ${!!userServer}, metaPhoneNumberId: ${userServer?.metaPhoneNumberId}`);
         return res.status(400).json({ 
           error: 'Phone Number ID não configurado. Configure primeiro na aba "Conexões - WhatsApp Meta API"' 
         });
       }
+      
+      console.log(`✅ PHONE NUMBER ID ENCONTRADO: ${userServer.metaPhoneNumberId}`);
 
       const metaConfig = {
         token: userSettings.whatsappMetaToken,
         phoneNumberId: userServer.metaPhoneNumberId,
         apiVersion: userSettings.whatsappMetaApiVersion || 'v18.0'
       };
+
+      console.log('🔧 CONFIGURAÇÃO META COMPLETA:');
+      console.log(`📱 Phone Number ID: "${metaConfig.phoneNumberId}"`);
+      console.log(`🔑 Token (primeiros 30 chars): "${metaConfig.token?.substring(0, 30)}..."`);
+      console.log(`📋 API Version: "${metaConfig.apiVersion}"`);
 
       // Formatar número (remover caracteres especiais e garantir formato correto)
       let phoneNumber = to.replace(/\D/g, '');
@@ -2392,8 +2403,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         phoneNumber = '55' + phoneNumber;
       }
 
+      console.log(`📞 Número formatado: "${phoneNumber}"`);
+      console.log(`💬 Mensagem: "${message}"`);
+
       // Preparar dados para envio usando as configurações personalizadas do usuário
       const metaApiUrl = `https://graph.facebook.com/${metaConfig.apiVersion}/${metaConfig.phoneNumberId}/messages`;
+      console.log(`🌐 URL Meta API: "${metaApiUrl}"`);
       
       const messageData = {
         messaging_product: "whatsapp",
