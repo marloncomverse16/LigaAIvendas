@@ -81,32 +81,38 @@ export class WhatsAppCloudService {
     try {
       console.log(`Buscando mensagens da Meta Cloud API para usuário ${userId}, chat ${chatId}`);
 
-      // Usar SQL direto simples para evitar problemas de schema
-      const allMessagesResult = await db.execute(`
-        -- Buscar mensagens recebidas via webhook (whatsapp_cloud_messages)
-        SELECT id, user_id as "userId", sender_id as "remoteJid", content as "messageContent", 
+      // Primeiro, buscar mensagens recebidas via webhook
+      const receivedMessages = await db.execute(`
+        SELECT id, user_id as "userId", remote_jid as "remoteJid", 
+               COALESCE(content, message_content) as "messageContent", 
                'Usuario' as "pushName", message_type as "messageType", from_me as "fromMe", 
                timestamp, timestamp as "messageTimestamp", 'meta-cloud-api' as "instanceId", 
                message_type as "mediaType", media_url as "mediaUrl", true as "isRead", 
                created_at as "createdAt", 'webhook' as source
         FROM whatsapp_cloud_messages 
-        WHERE user_id = ${userId} AND sender_id = '${chatId}'
-        
-        UNION ALL
-        
-        -- Buscar mensagens enviadas (whatsapp_messages)
-        SELECT id, user_id as "userId", contact_id as "remoteJid", content as "messageContent", 
-               'Você' as "pushName", 'text' as "messageType", from_me as "fromMe", 
-               timestamp, timestamp as "messageTimestamp", 'meta-cloud-api' as "instanceId", 
-               media_type as "mediaType", media_url as "mediaUrl", is_read as "isRead", 
-               created_at as "createdAt", 'sent' as source
-        FROM whatsapp_messages 
-        WHERE user_id = ${userId} AND contact_id = '${chatId}' AND from_me = true
-        
+        WHERE user_id = ${userId} AND remote_jid = '${chatId}'
         ORDER BY timestamp ASC
       `);
 
-      const allMessages = Array.isArray(allMessagesResult) ? allMessagesResult : allMessagesResult.rows || [];
+      // Depois, buscar mensagens enviadas
+      const sentMessages = await db.execute(`
+        SELECT id, user_id as "userId", contact_id as "remoteJid", content as "messageContent", 
+               'Você' as "pushName", 'text' as "messageType", from_me as "fromMe", 
+               timestamp, timestamp as "messageTimestamp", 'meta-cloud-api' as "instanceId", 
+               media_type as "mediaType", media_url as "mediaUrl", 
+               COALESCE(is_read, true) as "isRead", 
+               created_at as "createdAt", 'sent' as source
+        FROM whatsapp_messages 
+        WHERE user_id = ${userId} AND contact_id = '${chatId}' AND from_me = true
+        ORDER BY timestamp ASC
+      `);
+
+      // Combinar os resultados
+      const receivedRows = Array.isArray(receivedMessages) ? receivedMessages : receivedMessages.rows || [];
+      const sentRows = Array.isArray(sentMessages) ? sentMessages : sentMessages.rows || [];
+      const allMessages = [...receivedRows, ...sentRows].sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
 
       console.log(`Encontradas ${allMessages.length} mensagens total para o usuário ${userId} e chat ${chatId}`);
 
