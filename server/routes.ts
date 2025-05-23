@@ -2349,10 +2349,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rota para enviar mensagens de texto via Meta Cloud API
   app.post("/api/whatsapp-meta/send-text", async (req, res) => {
-    console.log("🚀 ROTA /api/whatsapp-meta/send-text CHAMADA!");
-    console.log("📨 Dados recebidos:", req.body);
+    console.log("🚀🚀🚀 ROTA /api/whatsapp-meta/send-text CHAMADA! 🚀🚀🚀");
+    console.log("📨📨📨 Dados recebidos:", JSON.stringify(req.body, null, 2));
     
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    if (!req.isAuthenticated()) {
+      console.log("❌ Usuário não autenticado");
+      return res.status(401).json({ message: "Não autenticado" });
+    }
     
     try {
       const { to, message } = req.body;
