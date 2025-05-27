@@ -161,7 +161,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Buscar contatos do Cloud API (meta_chat_messages)
       const cloudResult = await pool.query(`
         SELECT DISTINCT 
-          contact_phone,
+          CASE 
+            WHEN contact_phone LIKE '55%' THEN SUBSTRING(contact_phone FROM 3)
+            ELSE contact_phone 
+          END as contact_phone,
           MAX(created_at) as last_activity,
           COUNT(*) as message_count
         FROM meta_chat_messages 
