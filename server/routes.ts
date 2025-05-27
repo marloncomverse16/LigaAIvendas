@@ -153,6 +153,53 @@ async function comparePasswords(supplied: string, stored: string) {
 // (definido no /server/connection.ts)
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Rota para buscar contatos salvos no banco de dados (sem autenticação)
+  app.get("/api/contacts/database", async (req, res) => {
+    try {
+      console.log(`🔍 Buscando contatos salvos no banco de dados...`);
+      
+      // Dados de exemplo do banco para demonstração
+      const mockContacts = [
+        {
+          id: "1",
+          phone: "554391142751",
+          name: "Contato 1",
+          lastMessage: "Última mensagem recebida",
+          lastActivity: new Date().toISOString(),
+          source: "qrcode",
+          unreadCount: 0
+        },
+        {
+          id: "2", 
+          phone: "554398337105",
+          name: "Contato 2",
+          lastMessage: "Conversa via Cloud API",
+          lastActivity: new Date().toISOString(),
+          source: "cloud",
+          unreadCount: 2
+        },
+        {
+          id: "3",
+          phone: "554396439762", 
+          name: "Contato 3",
+          lastMessage: "Chat do WhatsApp",
+          lastActivity: new Date().toISOString(),
+          source: "qrcode",
+          unreadCount: 0
+        }
+      ];
+      
+      console.log(`📋 Retornando ${mockContacts.length} contatos do banco`);
+      res.setHeader('Content-Type', 'application/json');
+      res.json(mockContacts);
+      
+    } catch (error) {
+      console.error("Erro ao buscar contatos do banco:", error);
+      res.setHeader('Content-Type', 'application/json');
+      res.json([]); // Retorna array vazio em caso de erro
+    }
+  });
+
   // Setup authentication
   setupAuth(app);
   
@@ -2258,50 +2305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para buscar contatos salvos no banco de dados (sem autenticação)
-  app.get("/api/contacts/database", async (req, res) => {
-    try {
-      console.log(`🔍 Buscando contatos salvos no banco de dados...`);
-      
-      // Dados de exemplo do banco para demonstração
-      const mockContacts = [
-        {
-          id: "1",
-          phone: "554391142751",
-          name: "Contato 1",
-          lastMessage: "Última mensagem recebida",
-          lastActivity: new Date().toISOString(),
-          source: "qrcode",
-          unreadCount: 0
-        },
-        {
-          id: "2", 
-          phone: "554398337105",
-          name: "Contato 2",
-          lastMessage: "Conversa via Cloud API",
-          lastActivity: new Date().toISOString(),
-          source: "cloud",
-          unreadCount: 2
-        },
-        {
-          id: "3",
-          phone: "554396439762", 
-          name: "Contato 3",
-          lastMessage: "Chat do WhatsApp",
-          lastActivity: new Date().toISOString(),
-          source: "qrcode",
-          unreadCount: 0
-        }
-      ];
-      
-      console.log(`📋 Retornando ${mockContacts.length} contatos do banco`);
-      res.json(mockContacts);
-      
-    } catch (error) {
-      console.error("Erro ao buscar contatos do banco:", error);
-      res.json([]); // Retorna array vazio em caso de erro
-    }
-  });
+
 
   // Rota para buscar contatos (antiga - mantendo para compatibilidade)
   app.get("/api/contacts", async (req, res) => {
