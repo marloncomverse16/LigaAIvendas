@@ -4359,18 +4359,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      // Retornar chats padrão por enquanto até configurar a Meta API
-      const defaultChats = [
-        {
-          id: '5511999999999',
-          name: 'Contato de Teste',
-          lastMessage: 'Mensagem de teste',
-          timestamp: Date.now(),
-          unreadCount: 0
-        }
-      ];
+      // Buscar APENAS contatos reais do banco de dados (suas mensagens)
+      console.log(`🔍 [DUPLICATA] Buscando contatos reais para usuário ${userId}...`);
       
-      res.json(defaultChats);
+      const realContacts = await pool.query(`
+        SELECT DISTINCT 
+          contact_phone as id,
+          CONCAT('Contato ', contact_phone) as name,
+          (SELECT message_content FROM meta_chat_messages m2 
+           WHERE m2.contact_phone = m1.contact_phone AND m2.user_id = $1
+           ORDER BY created_at DESC LIMIT 1) as lastMessage,
+          (SELECT EXTRACT(EPOCH FROM created_at) * 1000 
+           FROM meta_chat_messages m3 
+           WHERE m3.contact_phone = m1.contact_phone AND m3.user_id = $1
+           ORDER BY created_at DESC LIMIT 1) as timestamp
+        FROM meta_chat_messages m1
+        WHERE user_id = $1
+        ORDER BY timestamp DESC NULLS LAST
+        LIMIT 50
+      `, [userId]);
+      
+      console.log(`📋 [DUPLICATA] Contatos encontrados: ${realContacts.rows.length}`);
+      
+      const chats = realContacts.rows.map(contact => ({
+        id: contact.id,
+        name: contact.name,
+        lastMessage: contact.lastmessage || 'Nenhuma mensagem',
+        timestamp: parseInt(contact.timestamp) || Date.now(),
+        unreadCount: 0
+      }));
+      
+      res.json(chats);
     } catch (error) {
       console.error('Erro ao buscar chats da Meta API:', error);
       res.status(500).json({ error: 'Erro ao buscar chats da Meta API' });
