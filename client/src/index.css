@@ -16,40 +16,45 @@
 }
 
 /* Barras de rolagem personalizadas */
-.scrollbar-thin {
+.scrollbar-custom {
   scrollbar-width: thin;
+  scrollbar-color: #9ca3af #f3f4f6;
 }
 
-.scrollbar-thin::-webkit-scrollbar {
+.scrollbar-custom::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.scrollbar-thumb-gray-400::-webkit-scrollbar-thumb {
-  background-color: #9ca3af;
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: #f3f4f6;
   border-radius: 4px;
 }
 
-.scrollbar-track-gray-100::-webkit-scrollbar-track {
-  background-color: #f3f4f6;
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background: #9ca3af;
   border-radius: 4px;
 }
 
-.hover\:scrollbar-thumb-gray-600:hover::-webkit-scrollbar-thumb {
-  background-color: #4b5563;
+.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
 }
 
 /* Para modo escuro */
-.dark .scrollbar-track-gray-100::-webkit-scrollbar-track {
-  background-color: #374151;
+.dark .scrollbar-custom {
+  scrollbar-color: #6b7280 #374151;
 }
 
-.dark .scrollbar-thumb-gray-400::-webkit-scrollbar-thumb {
-  background-color: #6b7280;
+.dark .scrollbar-custom::-webkit-scrollbar-track {
+  background: #374151;
 }
 
-.dark .hover\:scrollbar-thumb-gray-600:hover::-webkit-scrollbar-thumb {
-  background-color: #9ca3af;
+.dark .scrollbar-custom::-webkit-scrollbar-thumb {
+  background: #6b7280;
+}
+
+.dark .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 :root {
