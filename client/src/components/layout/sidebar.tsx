@@ -73,22 +73,10 @@ export function Sidebar() {
       icon: <Bot size={collapsed ? 24 : 20} />,
       permissionKey: "accessAiAgent"
     },
-    // 6-9 - Bloco CHAT, Leads, Agendamentos, Contatos
+    // 6 - CHAT (direcionado para chat otimizado)
     { 
-      path: "/chat", 
+      path: "/chat-otimizado", 
       label: "CHAT", 
-      icon: <MessagesSquare size={collapsed ? 24 : 20} />, 
-      permissionKey: "accessWhatsapp"
-    },
-    { 
-      path: "/chat-diagnostics", 
-      label: "Diagnóstico de Contatos", 
-      icon: <MessageSquare size={collapsed ? 24 : 20} />, 
-      permissionKey: "accessWhatsapp"
-    },
-    { 
-      path: "/chat-direto", 
-      label: "Chat Direto", 
       icon: <MessagesSquare size={collapsed ? 24 : 20} />, 
       permissionKey: "accessWhatsapp"
     },
