@@ -1551,7 +1551,29 @@ export default function ChatOtimizado() {
   const formatMessageDate = (timestamp: number | string) => {
     if (!timestamp) return '';
     
-    const date = new Date(Number(timestamp) * 1000);
+    let date: Date;
+    
+    // Detectar formato do timestamp e fazer conversão apropriada
+    const numTimestamp = Number(timestamp);
+    
+    // Se o timestamp está em segundos (10 dígitos) - Evolution API
+    if (numTimestamp.toString().length === 10) {
+      date = new Date(numTimestamp * 1000);
+    }
+    // Se o timestamp está em milissegundos (13 dígitos) - Meta Cloud API
+    else if (numTimestamp.toString().length === 13) {
+      date = new Date(numTimestamp);
+    }
+    // Tentar interpretar como milissegundos por padrão
+    else {
+      date = new Date(numTimestamp);
+    }
+    
+    // Verificar se a data é válida
+    if (isNaN(date.getTime())) {
+      return '';
+    }
+    
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
