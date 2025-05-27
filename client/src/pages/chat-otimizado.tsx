@@ -1600,9 +1600,9 @@ export default function ChatOtimizado() {
   };
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* Seletor de Conexão WhatsApp */}
-      <div className="p-4 border-b bg-white dark:bg-gray-900">
+      <div className="flex-shrink-0 p-4 border-b bg-white dark:bg-gray-900">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-lg">Conexão WhatsApp</h3>
         </div>
@@ -1671,9 +1671,9 @@ export default function ChatOtimizado() {
         </div>
       </div>
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0">
         {/* Barra lateral - lista de chats */}
-        <div className="w-1/3 border-r flex flex-col">
+        <div className="w-1/3 border-r flex flex-col min-h-0">
           <div className="p-4 border-b bg-gray-100 dark:bg-gray-900 flex justify-between items-center">
             <h2 className="font-semibold">WhatsApp Web</h2>
             <div className="flex space-x-2">
@@ -1689,7 +1689,7 @@ export default function ChatOtimizado() {
           </div>
         
         {/* Lista de chats */}
-        <div className="flex-1 overflow-y-auto scrollbar-custom">
+        <div className="flex-1 overflow-y-auto scrollbar-custom max-h-full">
           {chats.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
               {loading ? 'Carregando contatos...' : 'Nenhum chat encontrado'}
@@ -1720,7 +1720,7 @@ export default function ChatOtimizado() {
       </div>
       
       {/* Área principal - mensagens */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Cabeçalho do chat */}
         {selectedChat ? (
           <>
@@ -1737,7 +1737,7 @@ export default function ChatOtimizado() {
             </div>
             
             {/* Mensagens */}
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-950 scrollbar-custom">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-950 scrollbar-custom min-h-0">
               {loading && messages.length === 0 ? (
                 <div className="flex justify-center items-center h-full">
                   <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
