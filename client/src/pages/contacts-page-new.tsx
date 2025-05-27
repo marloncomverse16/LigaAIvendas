@@ -23,11 +23,47 @@ export default function ContactsPageNew() {
   const [activeTab, setActiveTab] = useState("all");
   const { toast } = useToast();
 
-  // Buscar todos os contatos (Cloud API + QR Code)
-  const { data: contacts = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/contacts"],
-    refetchInterval: 30000, // Atualizar a cada 30 segundos
+  // Buscar contatos das mesmas APIs que o chat otimizado usa
+  const { data: cloudContacts = [], isLoading: cloudLoading, error: cloudError, refetch: refetchCloud } = useQuery({
+    queryKey: ["/api/whatsapp-cloud/chats"],
+    refetchInterval: 30000,
   });
+
+  const { data: qrContacts = [], isLoading: qrLoading, error: qrError, refetch: refetchQr } = useQuery({
+    queryKey: ["/api/evolution/findChats"],
+    refetchInterval: 30000,
+  });
+
+  // Combinar contatos das duas fontes
+  const contacts = [
+    ...(Array.isArray(cloudContacts) ? cloudContacts : []).map((chat: any) => ({
+      id: `cloud_${chat.id}`,
+      phone: chat.id || chat.name,
+      name: chat.name || chat.id,
+      lastMessage: "Chat da Meta Cloud API",
+      lastActivity: new Date(chat.timestamp || Date.now()).toISOString(),
+      source: "cloud" as const,
+      unreadCount: 0
+    })),
+    ...(Array.isArray(qrContacts) ? qrContacts : []).map((chat: any) => ({
+      id: `qr_${chat.id}`,
+      phone: chat.remoteJid?.replace('@s.whatsapp.net', '') || chat.pushName,
+      name: chat.pushName || chat.remoteJid?.replace('@s.whatsapp.net', ''),
+      lastMessage: "Chat da Evolution API",
+      lastActivity: new Date(chat.updatedAt || Date.now()).toISOString(),
+      source: "qrcode" as const,
+      unreadCount: 0,
+      profilePicUrl: chat.profilePicUrl
+    }))
+  ];
+
+  const isLoading = cloudLoading || qrLoading;
+  const error = cloudError || qrError;
+  
+  const refetch = () => {
+    refetchCloud();
+    refetchQr();
+  };
 
   // Filtrar contatos baseado na busca e aba ativa
   const filteredContacts = contacts.filter((contact: Contact) => {
@@ -79,7 +115,7 @@ export default function ContactsPageNew() {
     return phone;
   };
 
-  if (error) {
+  if (error && !isLoading) {
     return (
       <div className="container mx-auto p-6">
         <Card className="border-red-200 bg-red-50">

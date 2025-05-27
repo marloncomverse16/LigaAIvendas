@@ -2222,6 +2222,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota específica para Evolution API (usado pela página de contatos)
+  app.get("/api/evolution/findChats", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user.id;
+      const userServers = await storage.getUserServers(userId);
+      const userServer = userServers[0]; // Pegar o primeiro servidor configurado
+      
+      if (userServer?.apiUrl && userServer?.apiToken) {
+        const instanceId = userServer.instanceId || 'admin';
+        const evolutionResponse = await fetch(`${userServer.apiUrl}/chat/findChats/${instanceId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userServer.apiToken}`,
+            'apikey': userServer.apiToken
+          },
+          body: JSON.stringify({ where: {}, limit: 100 })
+        });
+        
+        if (evolutionResponse.ok) {
+          const evolutionChats = await evolutionResponse.json();
+          res.json(evolutionChats || []);
+        } else {
+          res.json([]);
+        }
+      } else {
+        res.json([]);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar contatos da Evolution API:", error);
+      res.json([]);
+    }
+  });
+
   // Rota para buscar contatos 
   app.get("/api/contacts", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
