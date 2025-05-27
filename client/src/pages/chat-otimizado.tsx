@@ -787,7 +787,7 @@ export default function ChatOtimizado() {
   
   // Carrega as mensagens de um chat
   const loadMessages = async (chat: any, isInitialLoad = true) => {
-    if (!service || !chat) return;
+    if (!chat) return;
     
     const chatId = chat.remoteJid || chat.id;
     
@@ -795,7 +795,29 @@ export default function ChatOtimizado() {
     if (isInitialLoad) {
       setLoading(true);
       setSelectedChat(chat);
+      
+      // Marcar mensagens como lidas quando abrir conversa (apenas para Cloud API)
+      if (connectionMode === 'cloud') {
+        try {
+          const response = await fetch(`/api/whatsapp-cloud/mark-read/${chatId}`, {
+            method: 'POST'
+          });
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`📖 Mensagens marcadas como lidas: ${result.markedAsRead}`);
+            
+            // Atualizar a lista de chats para remover o contador
+            setTimeout(() => {
+              loadChats();
+            }, 500);
+          }
+        } catch (error) {
+          console.error('Erro ao marcar mensagens como lidas:', error);
+        }
+      }
     }
+    
+    if (!service && connectionMode === 'qr') return;
     
     // Usar mensagens já carregadas se existirem
     const existingMessages = messagesByChatId[chatId] || [];

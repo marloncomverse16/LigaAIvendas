@@ -2538,7 +2538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
            ORDER BY created_at DESC LIMIT 1) as timestamp,
           (SELECT COUNT(*) FROM meta_chat_messages m4 
            WHERE m4.contact_phone = m1.contact_phone AND m4.user_id = $1
-           AND m4.from_me = false AND m4.created_at > NOW() - INTERVAL '24 hours') as unreadCount
+           AND m4.from_me = false AND m4.read_at IS NULL) as unreadCount
         FROM meta_chat_messages m1
         WHERE user_id = $1
         GROUP BY contact_phone
@@ -4351,6 +4351,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Erro no webhook Meta (POST):', error);
       res.status(500).send('Internal Server Error');
+    }
+  });
+
+  // Rota para marcar mensagens como lidas (resetar contador)
+  app.post('/api/whatsapp-cloud/mark-read/:contactPhone', async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id || 2;
+      const { contactPhone } = req.params;
+      
+      console.log(`📖 Marcando mensagens como lidas para ${contactPhone} do usuário ${userId}`);
+      
+      // Marcar mensagens como lidas adicionando timestamp de leitura
+      const result = await pool.query(`
+        UPDATE meta_chat_messages 
+        SET read_at = NOW() 
+        WHERE user_id = $1 
+        AND contact_phone = $2 
+        AND from_me = false 
+        AND read_at IS NULL
+      `, [userId, contactPhone]);
+      
+      console.log(`✅ ${result.rowCount} mensagens marcadas como lidas`);
+      
+      res.json({ 
+        success: true, 
+        markedAsRead: result.rowCount,
+        message: `${result.rowCount} mensagens marcadas como lidas` 
+      });
+    } catch (error) {
+      console.error('Erro ao marcar mensagens como lidas:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
     }
   });
 
