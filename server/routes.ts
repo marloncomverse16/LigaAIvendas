@@ -4350,51 +4350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rotas para WhatsApp Cloud API (Meta) - buscar conversas reais
-  app.get('/api/whatsapp-cloud/chats', async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: 'Não autenticado' });
-    }
-
-    try {
-      const userId = req.user!.id;
-      
-      // Buscar APENAS contatos reais do banco de dados (suas mensagens)
-      console.log(`🔍 [DUPLICATA] Buscando contatos reais para usuário ${userId}...`);
-      
-      const realContacts = await pool.query(`
-        SELECT DISTINCT 
-          contact_phone as id,
-          CONCAT('Contato ', contact_phone) as name,
-          (SELECT message_content FROM meta_chat_messages m2 
-           WHERE m2.contact_phone = m1.contact_phone AND m2.user_id = $1
-           ORDER BY created_at DESC LIMIT 1) as lastMessage,
-          (SELECT EXTRACT(EPOCH FROM created_at) * 1000 
-           FROM meta_chat_messages m3 
-           WHERE m3.contact_phone = m1.contact_phone AND m3.user_id = $1
-           ORDER BY created_at DESC LIMIT 1) as timestamp
-        FROM meta_chat_messages m1
-        WHERE user_id = $1
-        ORDER BY timestamp DESC NULLS LAST
-        LIMIT 50
-      `, [userId]);
-      
-      console.log(`📋 [DUPLICATA] Contatos encontrados: ${realContacts.rows.length}`);
-      
-      const chats = realContacts.rows.map(contact => ({
-        id: contact.id,
-        name: contact.name,
-        lastMessage: contact.lastmessage || 'Nenhuma mensagem',
-        timestamp: parseInt(contact.timestamp) || Date.now(),
-        unreadCount: 0
-      }));
-      
-      res.json(chats);
-    } catch (error) {
-      console.error('Erro ao buscar chats da Meta API:', error);
-      res.status(500).json({ error: 'Erro ao buscar chats da Meta API' });
-    }
-  });
+  // Rota duplicada removida - usando apenas a primeira definição
 
 
   
