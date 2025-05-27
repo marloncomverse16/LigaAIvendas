@@ -1852,7 +1852,7 @@ export default function ChatOtimizado() {
                           {getMessageContent(msg)}
                         </div>
                         <div className="text-right text-xs text-gray-500 mt-1">
-                          {formatMessageDate(msg.messageTimestamp)}
+                          {formatMessageDate(msg.messageTimestamp || msg.timestamp)}
                         </div>
                       </div>
                     </div>
