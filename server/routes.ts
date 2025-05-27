@@ -171,35 +171,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 50
       `);
 
-      // Buscar contatos do QR Code (whatsapp_contacts)
+      // Buscar contatos do QR Code (tabela contacts - dados reais)
       const qrContactsResult = await pool.query(`
         SELECT DISTINCT 
           number as contact_phone,
           MAX(COALESCE(last_activity, updated_at, created_at)) as last_activity,
-          1 as message_count
-        FROM whatsapp_contacts 
-        WHERE number IS NOT NULL AND number != ''
-        ORDER BY MAX(COALESCE(last_activity, updated_at, created_at)) DESC
-        LIMIT 50
-      `);
-
-      // Buscar contatos via mensagens QR Code (whatsapp_messages via contact_id)
-      const qrMessagesResult = await pool.query(`
-        SELECT DISTINCT 
-          wc.number as contact_phone,
-          MAX(wm.timestamp) as last_activity,
           COUNT(*) as message_count
-        FROM whatsapp_messages wm
-        JOIN whatsapp_contacts wc ON wm.contact_id = wc.contact_id
-        WHERE wc.number IS NOT NULL AND wc.number != ''
-        GROUP BY wc.number
-        ORDER BY MAX(wm.timestamp) DESC
+        FROM contacts 
+        WHERE number IS NOT NULL AND number != ''
+        GROUP BY number
+        ORDER BY MAX(COALESCE(last_activity, updated_at, created_at)) DESC
         LIMIT 50
       `);
 
       console.log(`📋 Cloud API: ${cloudResult.rows.length} contatos`);
       console.log(`📋 QR Contatos: ${qrContactsResult.rows.length} contatos`);
-      console.log(`📋 QR Mensagens: ${qrMessagesResult.rows.length} contatos`);
       
       // Combinar todos os contatos e remover duplicatas
       const allContacts = [
@@ -217,15 +203,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           phone: row.contact_phone,
           name: row.contact_phone,
           lastMessage: "Contato via QR Code",
-          lastActivity: row.last_activity || new Date().toISOString(),
-          source: "qrcode",
-          unreadCount: 0
-        })),
-        ...qrMessagesResult.rows.map((row: any, index: number) => ({
-          id: `qr_msg_${index + 1}`,
-          phone: row.contact_phone,
-          name: row.contact_phone,
-          lastMessage: "Mensagem via QR Code",
           lastActivity: row.last_activity || new Date().toISOString(),
           source: "qrcode",
           unreadCount: 0
