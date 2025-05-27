@@ -662,7 +662,7 @@ export default function ChatOtimizado() {
     
     chatsIntervalId = setInterval(() => {
       console.log("📱 Atualizando lista de contatos automaticamente...");
-      loadChats();
+      loadChats(true); // Preserva a seleção durante atualizações automáticas
     }, 5000);
     
     // Limpeza ao desmontar
@@ -751,14 +751,19 @@ export default function ChatOtimizado() {
   };
   
   // Carrega a lista de chats baseado no modo de conexão selecionado
-  const loadChats = async () => {
+  const loadChats = async (preserveSelection = false) => {
     setLoading(true);
+    
+    // Salva o chat selecionado se deve preservar
+    const currentSelectedChat = preserveSelection ? selectedChat : null;
     
     // PRIMEIRO: Limpar dados anteriores sempre que trocar de modo
     setChats([]);
-    setSelectedChat(null);
-    setMessages([]);
-    setMessagesByChatId({});
+    if (!preserveSelection) {
+      setSelectedChat(null);
+      setMessages([]);
+      setMessagesByChatId({});
+    }
     
     try {
       console.log(`Carregando chats para modo: ${connectionMode}`);
@@ -788,11 +793,25 @@ export default function ChatOtimizado() {
       
       setChats(response || []);
       
-      const apiName = connectionMode === 'cloud' ? 'Meta Cloud API' : 'Evolution API';
-      toast({
-        title: "Contatos carregados",
-        description: `${(response || []).length} contatos encontrados da ${apiName}`,
-      });
+      // Restaurar conversa selecionada se preservação estiver ativa
+      if (preserveSelection && currentSelectedChat && response) {
+        const restoredChat = response.find((chat: any) => 
+          (chat.id === currentSelectedChat.id) || 
+          (chat.remoteJid === currentSelectedChat.remoteJid)
+        );
+        if (restoredChat) {
+          setSelectedChat(restoredChat);
+        }
+      }
+      
+      // Só mostra toast na primeira carga
+      if (!preserveSelection) {
+        const apiName = connectionMode === 'cloud' ? 'Meta Cloud API' : 'Evolution API';
+        toast({
+          title: "Contatos carregados",
+          description: `${(response || []).length} contatos encontrados da ${apiName}`,
+        });
+      }
     } catch (error: any) {
       console.error("Erro ao carregar contatos:", error);
       
