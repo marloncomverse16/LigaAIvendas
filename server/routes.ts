@@ -2258,7 +2258,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para buscar contatos 
+  // Rota para buscar contatos salvos no banco de dados
+  app.get("/api/contacts/database", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user.id;
+      console.log(`🔍 Buscando contatos salvos no banco para usuário ${userId}...`);
+      
+      // Buscar contatos salvos no banco de dados
+      const savedContacts = await storage.getWhatsappContacts(userId);
+      
+      const formattedContacts = savedContacts.map((contact: any) => ({
+        id: contact.id,
+        phone: contact.number || contact.phone,
+        name: contact.name || contact.number || contact.phone,
+        lastMessage: contact.lastMessageContent || "Nenhuma mensagem",
+        lastActivity: contact.updatedAt || contact.createdAt || new Date().toISOString(),
+        source: contact.isGroup ? "qrcode" : (contact.source || "qrcode"),
+        unreadCount: contact.unreadCount || 0,
+        profilePicUrl: contact.profilePicture
+      }));
+      
+      console.log(`📋 Retornando ${formattedContacts.length} contatos salvos no banco`);
+      res.json(formattedContacts);
+      
+    } catch (error) {
+      console.error("Erro ao buscar contatos do banco:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Rota para buscar contatos (antiga - mantendo para compatibilidade)
   app.get("/api/contacts", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
