@@ -26,8 +26,8 @@ async function checkEvolutionConnection(baseUrl: string, token: string, instance
       throw new Error(`API não está respondendo: ${healthResponse.status}`);
     }
 
-    // 2. Verificar status da instância
-    const statusResponse = await fetch(`${baseUrl}/instance/connectionState/${instance}`, {
+    // 2. Verificar status da instância (usando endpoint correto)
+    const statusResponse = await fetch(`${baseUrl}/instance/fetchInstances`, {
       method: 'GET',
       headers
     });
@@ -61,7 +61,8 @@ async function checkEvolutionConnection(baseUrl: string, token: string, instance
 
 async function fetchUserServer(userId: number) {
   try {
-    return await storage.getUserServer(userId);
+    const userServers = await storage.getUserServers(userId);
+    return userServers.length > 0 ? userServers[0] : null;
   } catch (error) {
     console.error('Erro ao buscar servidor do usuário:', (error as Error).message);
     return null;
@@ -92,7 +93,8 @@ export async function checkConnectionStatus(req: Request, res: Response) {
     }
 
     // Para modo QR Code, verificar servidor Evolution API
-    const userServer = await fetchUserServer(userId);
+    const userServers = await storage.getUserServers(userId);
+    const userServer = userServers.length > 0 ? userServers[0] : null;
     
     if (!userServer?.server?.apiUrl) {
       return res.json({
