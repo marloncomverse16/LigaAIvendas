@@ -14,7 +14,7 @@ async function checkEvolutionConnection(baseUrl: string, token: string, instance
   try {
     // Formatar corretamente a URL da API
     const apiUrl = baseUrl.replace(/\/+$/, "");
-    const headers = { Authorization: `Bearer ${token}` };
+    const headers = { apikey: token };
     
     console.log(`[EVOLUTION CHECK] Verificando conexão em: ${apiUrl}`);
     
