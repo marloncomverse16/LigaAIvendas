@@ -707,6 +707,55 @@ export default function ChatOtimizado() {
   }, [apiUrl, apiKey, instanceName]);
   
   // Atualização automática dos contatos a cada 5 segundos
+  // Função específica para atualizar APENAS a lista de contatos
+  const updateContactsOnly = useCallback(async () => {
+    try {
+      console.log("📱 Atualizando APENAS lista de contatos (sem recarregar página)...");
+      
+      const currentSelectedId = selectedChat?.id || selectedChat?.remoteJid;
+      
+      if (connectionMode === 'cloud') {
+        // Busca contatos da Meta Cloud API
+        const response = await fetch('/api/whatsapp-cloud/chats');
+        if (response.ok) {
+          const newChats = await response.json();
+          console.log("✅ Lista de contatos atualizada:", newChats.length, "contatos");
+          
+          // Atualiza apenas o estado dos chats, preservando tudo mais
+          setChats(newChats);
+          
+          // Preserva a seleção do chat atual
+          if (currentSelectedId) {
+            const stillExists = newChats.find((chat: any) => 
+              chat.id === currentSelectedId || chat.remoteJid === currentSelectedId
+            );
+            if (stillExists && !selectedChat) {
+              setSelectedChat(stillExists);
+            }
+          }
+        }
+      } else if (connectionMode === 'qr' && service) {
+        // Busca contatos da Evolution API
+        const contacts = await service.findChats();
+        console.log("✅ Lista de contatos atualizada:", contacts.length, "contatos");
+        
+        setChats(contacts);
+        
+        // Preserva a seleção do chat atual
+        if (currentSelectedId) {
+          const stillExists = contacts.find((chat: any) => 
+            chat.id === currentSelectedId || chat.remoteJid === currentSelectedId
+          );
+          if (stillExists && !selectedChat) {
+            setSelectedChat(stillExists);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar lista de contatos:", error);
+    }
+  }, [connectionMode, service, selectedChat]);
+
   // 1. Atualização automática APENAS da lista de contatos (10 segundos)
   useEffect(() => {
     let contactsIntervalId: NodeJS.Timeout | null = null;
@@ -714,14 +763,8 @@ export default function ChatOtimizado() {
     if (connectionMode) {
       console.log("🔄 Ativando atualização automática da lista de contatos...");
       
-      contactsIntervalId = setInterval(async () => {
-        console.log("📱 Atualizando APENAS lista de contatos...");
-        try {
-          // Carrega contatos sem afetar o resto da página
-          await loadChats(true); // Preserva seleção
-        } catch (error) {
-          console.error("Erro na atualização automática de contatos:", error);
-        }
+      contactsIntervalId = setInterval(() => {
+        updateContactsOnly();
       }, 10000); // A cada 10 segundos
     }
     
@@ -731,7 +774,7 @@ export default function ChatOtimizado() {
         clearInterval(contactsIntervalId);
       }
     };
-  }, [connectionMode]);
+  }, [connectionMode, updateContactsOnly]);
 
   // 2. Atualização automática APENAS das mensagens do chat selecionado (5 segundos)
   useEffect(() => {
