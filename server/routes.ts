@@ -171,17 +171,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 50
       `);
 
-      // Buscar contatos do QR Code através da Evolution API (dados reais)
+      // Buscar contatos do QR Code (dados reais da tabela contacts)
       const qrContactsResult = await pool.query(`
         SELECT DISTINCT 
-          wc.number as contact_phone,
-          MAX(COALESCE(wc.last_activity, wc.updated_at, wc.created_at)) as last_activity,
-          COUNT(wm.id) as message_count
-        FROM whatsapp_contacts wc
-        LEFT JOIN whatsapp_messages wm ON wc.contact_id = wm.contact_id
-        WHERE wc.number IS NOT NULL AND wc.number != ''
-        GROUP BY wc.number, wc.contact_id
-        ORDER BY MAX(COALESCE(wc.last_activity, wc.updated_at, wc.created_at)) DESC
+          CASE 
+            WHEN number LIKE '55%' THEN '+55' || SUBSTRING(number FROM 3)
+            ELSE '+55' || number 
+          END as contact_phone,
+          MAX(COALESCE(last_activity, updated_at, created_at)) as last_activity,
+          COUNT(*) as message_count
+        FROM contacts 
+        WHERE number IS NOT NULL AND number != ''
+        GROUP BY number
+        ORDER BY MAX(COALESCE(last_activity, updated_at, created_at)) DESC
         LIMIT 50
       `);
 
