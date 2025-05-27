@@ -796,25 +796,7 @@ export default function ChatOtimizado() {
       setLoading(true);
       setSelectedChat(chat);
       
-      // Marcar mensagens como lidas quando abrir conversa (apenas para Cloud API)
-      if (connectionMode === 'cloud') {
-        try {
-          const response = await fetch(`/api/whatsapp-cloud/mark-read/${chatId}`, {
-            method: 'POST'
-          });
-          if (response.ok) {
-            const result = await response.json();
-            console.log(`📖 Mensagens marcadas como lidas: ${result.markedAsRead}`);
-            
-            // Atualizar a lista de chats para remover o contador
-            setTimeout(() => {
-              loadChats();
-            }, 500);
-          }
-        } catch (error) {
-          console.error('Erro ao marcar mensagens como lidas:', error);
-        }
-      }
+
     }
     
     if (!service && connectionMode === 'qr') return;
