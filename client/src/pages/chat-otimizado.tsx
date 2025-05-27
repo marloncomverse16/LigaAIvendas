@@ -811,7 +811,18 @@ export default function ChatOtimizado() {
       let response;
       let messageList: any[] = [];
       
-      if (connectionMode === 'qr' && service) {
+      if (connectionMode === 'cloud') {
+        // BUSCAR DA META CLOUD API
+        console.log('🌐 Buscando mensagens da Meta Cloud API...');
+        const apiResponse = await fetch(`/api/meta-cloud/messages/${chatId}`);
+        if (apiResponse.ok) {
+          response = await apiResponse.json();
+          messageList = response || [];
+          console.log("✅ Mensagens da Meta Cloud API carregadas:", messageList);
+        } else {
+          throw new Error(`Erro HTTP: ${apiResponse.status}`);
+        }
+      } else if (connectionMode === 'qr' && service) {
         // BUSCAR DA EVOLUTION API
         console.log('Buscando mensagens da Evolution API...');
         response = await service.loadMessages(chatId, lastTimestamp > 0 ? lastTimestamp : undefined);
@@ -1193,7 +1204,33 @@ export default function ChatOtimizado() {
           console.log(`🔍 DEBUG: service =`, service ? 'Existe' : 'Null');
           console.log(`🔍 DEBUG: Verificando condição connectionMode === 'cloud':`, connectionMode === 'cloud');
           
-          if (connectionMode === 'qr' && service) {
+          if (connectionMode === 'cloud') {
+            // ENVIAR VIA META CLOUD API
+            console.log('🌐 Enviando mensagem via Meta Cloud API...');
+            const response = await fetch('/api/meta-cloud/send-message', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                phoneNumber: chatId,
+                message: values.text,
+              }),
+            });
+            
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Erro ao enviar mensagem via Meta Cloud API');
+            }
+            
+            result = await response.json();
+            console.log("✅ Mensagem enviada via Meta Cloud API:", result);
+            
+            toast({
+              title: "Mensagem enviada",
+              description: "Mensagem enviada com sucesso via Meta Cloud API",
+            });
+          } else if (connectionMode === 'qr' && service) {
             // ENVIAR VIA EVOLUTION API
             console.log('Enviando mensagem via Evolution API...');
             result = await service.sendMessage(chatId, values.text);

@@ -4368,6 +4368,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   
+  // === NOVAS ROTAS META CLOUD API - LIMPAS E FUNCIONAIS ===
+  
+  // Enviar mensagem via Meta Cloud API
+  app.post("/api/meta-cloud/send-message", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { phoneNumber, message } = req.body;
+      const userId = req.user.id;
+      
+      if (!phoneNumber || !message) {
+        return res.status(400).json({ error: 'Número de telefone e mensagem são obrigatórios' });
+      }
+      
+      const { MetaCloudChatService } = await import('./api/meta-cloud-chat');
+      const chatService = new MetaCloudChatService();
+      
+      const result = await chatService.sendMessage(userId, phoneNumber, message);
+      
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
+          message: 'Mensagem enviada com sucesso',
+          data: result.data
+        });
+      } else {
+        return res.status(500).json({ error: result.error });
+      }
+      
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      return res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
+  // Buscar mensagens de uma conversa
+  app.get("/api/meta-cloud/messages/:phoneNumber", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const phoneNumber = req.params.phoneNumber;
+      const userId = req.user.id;
+      
+      const { MetaCloudChatService } = await import('./api/meta-cloud-chat');
+      const chatService = new MetaCloudChatService();
+      
+      const result = await chatService.getMessages(userId, phoneNumber);
+      
+      if (result.success) {
+        return res.status(200).json(result.data);
+      } else {
+        return res.status(500).json({ error: result.error });
+      }
+      
+    } catch (error) {
+      console.error("Erro ao buscar mensagens:", error);
+      return res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
   // Configure HTTP server
   const httpServer = createServer(app);
   
