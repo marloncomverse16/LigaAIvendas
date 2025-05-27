@@ -2,7 +2,7 @@
  * Versão otimizada da página de Chat que implementa o acesso direto à Evolution API
  * Com melhorias para gerenciamento eficiente de mensagens e evitar recarregamentos completos
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -34,6 +34,40 @@ const sendFormSchema = z.object({
 });
 
 type SendFormValues = z.infer<typeof sendFormSchema>;
+
+// Componente memorizado para o campo de entrada que não é afetado por atualizações
+const MessageInput = React.memo(({ 
+  value, 
+  onChange, 
+  onSubmit, 
+  disabled, 
+  inputRef 
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  disabled: boolean;
+  inputRef: React.RefObject<HTMLInputElement>;
+}) => {
+  return (
+    <Input
+      ref={inputRef}
+      placeholder="Digite uma mensagem"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (value.trim()) {
+            onSubmit();
+          }
+        }
+      }}
+      autoComplete="off"
+    />
+  );
+});
 
 // Classe de serviço que encapsula as chamadas à Evolution API
 class DirectEvolutionService {
@@ -553,6 +587,7 @@ export default function ChatOtimizado() {
   
   // Estado para preservar o texto digitado durante atualizações
   const [inputText, setInputText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   
   // Formulário definido uma única vez para evitar re-renderização
   const form = useForm<SendFormValues>({
@@ -1785,22 +1820,19 @@ export default function ChatOtimizado() {
                       </Button>
                       
                       <div className="flex-1">
-                        <Input
-                          placeholder="Digite uma mensagem"
+                        <MessageInput
                           value={inputText}
-                          onChange={(e) => {
-                            setInputText(e.target.value);
-                            form.setValue("text", e.target.value);
+                          onChange={(newValue) => {
+                            setInputText(newValue);
+                            form.setValue("text", newValue);
                           }}
-                          disabled={!connected || loading}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              if (inputText.trim()) {
-                                form.handleSubmit(onSubmit)();
-                              }
+                          onSubmit={() => {
+                            if (inputText.trim()) {
+                              form.handleSubmit(onSubmit)();
                             }
                           }}
+                          disabled={!connected || loading}
+                          inputRef={inputRef}
                         />
                       </div>
                       
