@@ -49,7 +49,7 @@ export class MetaCloudChatService {
       const { pool } = await import('../db');
       // Buscar mensagens recentes agrupadas por contato usando SQL nativo
       const result = await pool.query(`
-        SELECT DISTINCT 
+        SELECT 
           contact_phone as id,
           contact_phone as name,
           (SELECT message_content FROM meta_chat_messages m2 
@@ -64,6 +64,7 @@ export class MetaCloudChatService {
            AND m4.from_me = false AND m4.created_at > NOW() - INTERVAL '24 hours') as unreadCount
         FROM meta_chat_messages m1
         WHERE user_id = $1
+        GROUP BY contact_phone
         ORDER BY timestamp DESC
         LIMIT 50
       `, [userId]);
