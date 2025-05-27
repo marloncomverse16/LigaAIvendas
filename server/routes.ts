@@ -14,7 +14,6 @@ import {
   insertUserSchema, ConnectionStatus, insertServerSchema,
   userAiAgents, serverAiAgents
 } from "@shared/schema";
-import * as schema from "@shared/schema";
 import { z } from "zod";
 import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -153,79 +152,6 @@ async function comparePasswords(supplied: string, stored: string) {
 // (definido no /server/connection.ts)
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Rota para buscar contatos salvos no banco de dados (sem autenticação)
-  app.get("/api/contacts/database", async (req, res) => {
-    try {
-      console.log(`🔍 Buscando contatos reais do banco de dados...`);
-      
-      // Buscar contatos do Cloud API (meta_chat_messages)
-      const cloudResult = await pool.query(`
-        SELECT DISTINCT 
-          '+55' || contact_phone as contact_phone,
-          MAX(created_at) as last_activity,
-          COUNT(*) as message_count
-        FROM meta_chat_messages 
-        WHERE contact_phone IS NOT NULL
-        GROUP BY contact_phone
-        ORDER BY MAX(created_at) DESC
-        LIMIT 50
-      `);
-
-      // Buscar contatos do QR Code (dados reais da tabela chat_messages_sent)
-      const qrContactsResult = await pool.query(`
-        SELECT DISTINCT 
-          '+55' || contact_phone as contact_phone,
-          MAX(created_at) as last_activity,
-          COUNT(*) as message_count
-        FROM chat_messages_sent 
-        WHERE contact_phone IS NOT NULL AND contact_phone != ''
-        GROUP BY contact_phone
-        ORDER BY MAX(created_at) DESC
-        LIMIT 50
-      `);
-
-      console.log(`📋 Cloud API: ${cloudResult.rows.length} contatos`);
-      console.log(`📋 QR Contatos: ${qrContactsResult.rows.length} contatos`);
-      
-      // Combinar todos os contatos e remover duplicatas
-      const allContacts = [
-        ...cloudResult.rows.map((row: any, index: number) => ({
-          id: `cloud_${index + 1}`,
-          phone: row.contact_phone,
-          name: row.contact_phone,
-          lastMessage: "Mensagem via Cloud API",
-          lastActivity: row.last_activity || new Date().toISOString(),
-          source: "cloud",
-          unreadCount: 0
-        })),
-        ...qrContactsResult.rows.map((row: any, index: number) => ({
-          id: `qr_contact_${index + 1}`,
-          phone: row.contact_phone,
-          name: row.contact_phone,
-          lastMessage: "Contato via QR Code",
-          lastActivity: row.last_activity || new Date().toISOString(),
-          source: "qrcode",
-          unreadCount: 0
-        }))
-      ];
-
-      // Remover duplicatas por telefone
-      const uniqueContacts = allContacts.filter((contact, index, self) => 
-        index === self.findIndex(c => c.phone === contact.phone)
-      );
-
-      console.log(`📋 Total de contatos únicos: ${uniqueContacts.length}`);
-      
-      res.setHeader('Content-Type', 'application/json');
-      res.json(uniqueContacts);
-      
-    } catch (error) {
-      console.error("Erro ao buscar contatos do banco:", error);
-      res.setHeader('Content-Type', 'application/json');
-      res.json([]); // Retorna array vazio em caso de erro
-    }
-  });
-
   // Setup authentication
   setupAuth(app);
   
@@ -2295,117 +2221,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Rota específica para Evolution API (usado pela página de contatos)
-  app.get("/api/evolution/findChats", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const userId = req.user.id;
-      const userServers = await storage.getUserServers(userId);
-      const userServer = userServers[0]; // Pegar o primeiro servidor configurado
-      
-      if (userServer?.apiUrl && userServer?.apiToken) {
-        const instanceId = userServer.instanceId || 'admin';
-        const evolutionResponse = await fetch(`${userServer.apiUrl}/chat/findChats/${instanceId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userServer.apiToken}`,
-            'apikey': userServer.apiToken
-          },
-          body: JSON.stringify({ where: {}, limit: 100 })
-        });
-        
-        if (evolutionResponse.ok) {
-          const evolutionChats = await evolutionResponse.json();
-          res.json(evolutionChats || []);
-        } else {
-          res.json([]);
-        }
-      } else {
-        res.json([]);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar contatos da Evolution API:", error);
-      res.json([]);
-    }
-  });
-
-
-
-  // Rota para buscar contatos (antiga - mantendo para compatibilidade)
+  // Endpoint para obter contatos sincronizados (para compatibilidade com o frontend)
   app.get("/api/contacts", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       const userId = req.user.id;
-      console.log(`🔍 Buscando contatos para usuário ${userId}...`);
+      console.log(`🔍 Buscando todos os contatos (Cloud API + QR Code) para usuário ${userId}...`);
       
-      // Buscar contatos das duas fontes que o chat otimizado usa
-      let allContacts: any[] = [];
+      // Buscar contatos do Cloud API salvos no banco
+      const cloudContacts = await db.select()
+        .from(whatsappContacts)
+        .where(eq(whatsappContacts.userId, userId))
+        .orderBy(whatsappContacts.lastActivity);
       
-      try {
-        // 1. Buscar da Meta Cloud API (mesma rota do chat otimizado)
-        const cloudResponse = await fetch(`${req.protocol}://${req.get('host')}/api/whatsapp-cloud/chats`);
-        if (cloudResponse.ok) {
-          const cloudChats = await cloudResponse.json();
-          const cloudContacts = cloudChats.map((chat: any) => ({
-            id: `cloud_${chat.id}`,
-            phone: chat.id || chat.name,
-            name: chat.name || chat.id,
-            lastMessage: "Chat da Meta Cloud API",
-            lastActivity: new Date(chat.timestamp || Date.now()).toISOString(),
-            source: "cloud",
-            unreadCount: 0
-          }));
-          allContacts.push(...cloudContacts);
+      console.log(`☁️ Contatos Cloud API encontrados: ${cloudContacts.length}`);
+      
+      // Buscar contatos do QR Code (Evolution API) salvos no banco
+      const qrContacts = await db.select()
+        .from(whatsappContacts)
+        .where(eq(whatsappContacts.userId, userId))
+        .orderBy(whatsappContacts.lastActivity);
+      
+      console.log(`📱 Contatos QR Code encontrados: ${qrContacts.length}`);
+      
+      // Combinar e remover duplicatas baseado no número de telefone
+      const allContacts = [...cloudContacts];
+      const existingNumbers = new Set(cloudContacts.map(c => c.number));
+      
+      qrContacts.forEach(contact => {
+        if (!existingNumbers.has(contact.number)) {
+          allContacts.push(contact);
         }
-      } catch (error) {
-        console.log("Erro ao buscar contatos da Meta Cloud API:", error);
-      }
+      });
       
-      try {
-        // 2. Buscar da Evolution API (usando findChats como no chat otimizado)
-        const userServer = await storage.getUserServer(userId);
-        if (userServer?.apiUrl && userServer?.apiToken) {
-          const instanceId = userServer.instanceId || 'admin';
-          const evolutionResponse = await fetch(`${userServer.apiUrl}/chat/findChats/${instanceId}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${userServer.apiToken}`,
-              'apikey': userServer.apiToken
-            },
-            body: JSON.stringify({ where: {}, limit: 100 })
-          });
-          
-          if (evolutionResponse.ok) {
-            const evolutionChats = await evolutionResponse.json();
-            const evolutionContacts = (evolutionChats || []).map((chat: any) => ({
-              id: `qr_${chat.id}`,
-              phone: chat.remoteJid?.replace('@s.whatsapp.net', '') || chat.pushName,
-              name: chat.pushName || chat.remoteJid?.replace('@s.whatsapp.net', ''),
-              lastMessage: "Chat da Evolution API",
-              lastActivity: new Date(chat.updatedAt || Date.now()).toISOString(),
-              source: "qrcode",
-              unreadCount: 0,
-              profilePicUrl: chat.profilePicUrl
-            }));
-            allContacts.push(...evolutionContacts);
-          }
-        }
-      } catch (error) {
-        console.log("Erro ao buscar contatos da Evolution API:", error);
-      }
+      console.log(`📋 Total de contatos únicos: ${allContacts.length}`);
       
-      const formattedContacts = allContacts;
+      // Transformar para o formato esperado pelo frontend
+      const formattedContacts = allContacts.map(contact => ({
+        id: contact.id,
+        contactId: contact.contactId,
+        name: contact.name || contact.number,
+        number: contact.number,
+        profilePicture: contact.profilePicture,
+        isGroup: contact.isGroup || false,
+        lastActivity: contact.lastActivity,
+        lastMessageContent: contact.lastMessageContent,
+        unreadCount: contact.unreadCount || 0,
+        createdAt: contact.createdAt,
+        updatedAt: contact.updatedAt
+      }));
       
-      console.log(`📋 Retornando ${formattedContacts.length} contatos`);
-      res.json(formattedContacts);
+      res.json({
+        success: true,
+        contacts: formattedContacts,
+        total: formattedContacts.length,
+        cloudApiCount: cloudContacts.length,
+        qrCodeCount: qrContacts.length
+      });
       
     } catch (error) {
       console.error('Erro ao obter contatos:', error);
-      res.status(500).json([]);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao obter contatos do WhatsApp',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
     }
   });
   
@@ -3228,23 +3109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = (req.user as Express.User).id;
-      // Retornar contatos formatados do sistema
-      const contacts = [
-        {
-          id: "whatsapp_1",
-          phone: "5511999998888",
-          name: "João Silva - WhatsApp",
-          lastMessage: "Oi, como posso ajudar?",
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: "whatsapp_2", 
-          phone: "5511999997777",
-          name: "Maria Santos - WhatsApp",
-          lastMessage: "Obrigada pelo suporte!",
-          timestamp: new Date(Date.now() - 3600000).toISOString()
-        }
-      ];
+      const contacts = await storage.getWhatsappContacts(userId);
       res.json(contacts);
     } catch (error) {
       console.error("Erro ao buscar contatos do WhatsApp:", error);
