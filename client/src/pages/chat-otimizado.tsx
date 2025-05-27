@@ -781,42 +781,13 @@ export default function ChatOtimizado() {
   useEffect(() => {
     if (connectionMode) {
       console.log(`🔄 Modo de conexão alterado para: ${connectionMode}`);
+      console.log("🔄 Carregando contatos automaticamente...");
       
       // Pequeno delay para garantir que o serviço está inicializado
-      setTimeout(async () => {
+      setTimeout(() => {
         if (connectionMode === 'cloud') {
-          console.log("☁️ Tentando conectar automaticamente ao Meta Cloud API...");
-          
-          try {
-            // Tenta verificar se já está conectado ou conectar automaticamente
-            const response = await fetch('/api/meta/connection-status');
-            const connectionStatus = await response.json();
-            
-            if (connectionStatus.connected) {
-              console.log("✅ Meta Cloud API já conectado!");
-              setConnected(true);
-              toast({
-                title: "Conectado",
-                description: "Meta Cloud API conectado automaticamente",
-                variant: "default"
-              });
-            } else {
-              console.log("⚠️ Meta Cloud API não conectado, mas tentando carregar contatos...");
-              setConnected(false);
-            }
-            
-            // Carrega contatos independente do status da conexão
-            console.log("🔄 Carregando contatos automaticamente...");
-            loadChats();
-            
-          } catch (error) {
-            console.error("Erro ao verificar conexão Meta Cloud API:", error);
-            console.log("🔄 Carregando contatos mesmo assim...");
-            loadChats();
-          }
-          
+          loadChats();
         } else if (connectionMode === 'qr' && service) {
-          console.log("🔄 Carregando contatos automaticamente...");
           loadChats();
         }
       }, 500);
