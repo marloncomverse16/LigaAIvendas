@@ -12,8 +12,9 @@ import {
   insertLeadInteractionSchema, insertLeadRecommendationSchema,
   insertProspectingSearchSchema, insertProspectingResultSchema,
   insertUserSchema, ConnectionStatus, insertServerSchema,
-  userAiAgents, serverAiAgents, whatsappContacts, whatsappCloudChats
+  userAiAgents, serverAiAgents
 } from "@shared/schema";
+import * as schema from "@shared/schema";
 import { z } from "zod";
 import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -2230,18 +2231,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🔍 Buscando todos os contatos (Cloud API + QR Code) para usuário ${userId}...`);
       
       // Buscar contatos do Cloud API salvos no banco
-      const cloudContacts = await db.select()
-        .from(whatsappCloudChats)
-        .where(eq(whatsappCloudChats.userId, userId))
-        .orderBy(whatsappCloudChats.lastMessageTime);
+      const cloudContacts = await db.query.whatsappCloudChats.findMany({
+        where: (chats, { eq }) => eq(chats.userId, userId),
+        orderBy: (chats, { desc }) => [desc(chats.lastMessageTime)]
+      });
       
       console.log(`☁️ Contatos Cloud API encontrados: ${cloudContacts.length}`);
       
       // Buscar contatos do QR Code (Evolution API) salvos no banco
-      const qrContacts = await db.select()
-        .from(whatsappContacts)
-        .where(eq(whatsappContacts.userId, userId))
-        .orderBy(whatsappContacts.lastActivity);
+      const qrContacts = await db.query.whatsappContacts.findMany({
+        where: (contacts, { eq }) => eq(contacts.userId, userId),
+        orderBy: (contacts, { desc }) => [desc(contacts.lastActivity)]
+      });
       
       console.log(`📱 Contatos QR Code encontrados: ${qrContacts.length}`);
       
