@@ -757,9 +757,9 @@ export default function ChatOtimizado() {
     // Salva o chat selecionado se deve preservar
     const currentSelectedChat = preserveSelection ? selectedChat : null;
     
-    // PRIMEIRO: Limpar dados anteriores sempre que trocar de modo
-    setChats([]);
+    // Só limpa dados quando trocar de modo (não durante atualizações automáticas)
     if (!preserveSelection) {
+      setChats([]);
       setSelectedChat(null);
       setMessages([]);
       setMessagesByChatId({});
@@ -791,17 +791,43 @@ export default function ChatOtimizado() {
         return;
       }
       
-      setChats(response || []);
-      
-      // Restaurar conversa selecionada se preservação estiver ativa
-      if (preserveSelection && currentSelectedChat && response) {
-        const restoredChat = response.find((chat: any) => 
-          (chat.id === currentSelectedChat.id) || 
-          (chat.remoteJid === currentSelectedChat.remoteJid)
-        );
-        if (restoredChat) {
-          setSelectedChat(restoredChat);
+      // Se preserva seleção, atualiza inteligentemente os contatos
+      if (preserveSelection) {
+        setChats(prevChats => {
+          if (!response) return prevChats;
+          
+          // Mapa dos contatos existentes por ID
+          const existingChatsMap = new Map(prevChats.map(chat => [chat.id, chat]));
+          
+          // Atualiza ou adiciona novos contatos
+          const updatedChats = [...prevChats];
+          response.forEach((newChat: any) => {
+            const existingIndex = updatedChats.findIndex(chat => chat.id === newChat.id);
+            if (existingIndex >= 0) {
+              // Atualiza contato existente
+              updatedChats[existingIndex] = newChat;
+            } else {
+              // Adiciona novo contato
+              updatedChats.push(newChat);
+            }
+          });
+          
+          return updatedChats;
+        });
+        
+        // Restaurar conversa selecionada se preservação estiver ativa
+        if (currentSelectedChat && response) {
+          const restoredChat = response.find((chat: any) => 
+            (chat.id === currentSelectedChat.id) || 
+            (chat.remoteJid === currentSelectedChat.remoteJid)
+          );
+          if (restoredChat) {
+            setSelectedChat(restoredChat);
+          }
         }
+      } else {
+        // Na primeira carga, substitui completamente
+        setChats(response || []);
       }
       
       // Só mostra toast na primeira carga
