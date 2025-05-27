@@ -707,11 +707,57 @@ export default function ChatOtimizado() {
   }, [apiUrl, apiKey, instanceName]);
   
   // Atualização automática dos contatos a cada 5 segundos
-  // Removido: Atualização automática de contatos que interferia na página toda
-  // Agora os contatos são atualizados apenas quando necessário via botão manual
+  // 1. Atualização automática APENAS da lista de contatos (10 segundos)
+  useEffect(() => {
+    let contactsIntervalId: NodeJS.Timeout | null = null;
+    
+    if (connectionMode) {
+      console.log("🔄 Ativando atualização automática da lista de contatos...");
+      
+      contactsIntervalId = setInterval(async () => {
+        console.log("📱 Atualizando APENAS lista de contatos...");
+        try {
+          // Carrega contatos sem afetar o resto da página
+          await loadChats(true); // Preserva seleção
+        } catch (error) {
+          console.error("Erro na atualização automática de contatos:", error);
+        }
+      }, 10000); // A cada 10 segundos
+    }
+    
+    return () => {
+      if (contactsIntervalId) {
+        console.log("🛑 Desativando atualização automática de contatos");
+        clearInterval(contactsIntervalId);
+      }
+    };
+  }, [connectionMode]);
 
-  // Removido: Polling automático que interferia no campo de entrada
-  // As mensagens são atualizadas apenas quando necessário ou via WebSocket
+  // 2. Atualização automática APENAS das mensagens do chat selecionado (5 segundos)
+  useEffect(() => {
+    let messagesIntervalId: NodeJS.Timeout | null = null;
+    
+    if (selectedChat && (connected || connectionMode === 'cloud')) {
+      console.log("🔄 Ativando atualização automática de mensagens...");
+      
+      messagesIntervalId = setInterval(async () => {
+        console.log("💬 Atualizando APENAS mensagens do chat selecionado...");
+        try {
+          // Carrega apenas mensagens sem afetar o campo de entrada
+          await loadMessages(selectedChat, false); // Não é carregamento inicial
+        } catch (error) {
+          console.error("Erro na atualização automática de mensagens:", error);
+        }
+      }, 5000); // A cada 5 segundos
+    }
+    
+    return () => {
+      if (messagesIntervalId) {
+        console.log("🛑 Desativando atualização automática de mensagens");
+        clearInterval(messagesIntervalId);
+      }
+    };
+  }, [selectedChat, connected, connectionMode]);
   
   // Verifica a conexão
   const checkConnection = async (serviceInstance?: DirectEvolutionService) => {
