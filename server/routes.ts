@@ -2226,60 +2226,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const userId = req.user.id;
-      console.log(`🔍 Buscando todos os contatos (Cloud API + QR Code) para usuário ${userId}...`);
-      
-      // Buscar contatos do Cloud API salvos no banco
-      const cloudContacts = await db.select()
-        .from(whatsappContacts)
-        .where(eq(whatsappContacts.userId, userId))
-        .orderBy(whatsappContacts.lastActivity);
-      
-      console.log(`☁️ Contatos Cloud API encontrados: ${cloudContacts.length}`);
-      
-      // Buscar contatos do QR Code (Evolution API) salvos no banco
-      const qrContacts = await db.select()
-        .from(whatsappContacts)
-        .where(eq(whatsappContacts.userId, userId))
-        .orderBy(whatsappContacts.lastActivity);
-      
-      console.log(`📱 Contatos QR Code encontrados: ${qrContacts.length}`);
-      
-      // Combinar e remover duplicatas baseado no número de telefone
-      const allContacts = [...cloudContacts];
-      const existingNumbers = new Set(cloudContacts.map(c => c.number));
-      
-      qrContacts.forEach(contact => {
-        if (!existingNumbers.has(contact.number)) {
-          allContacts.push(contact);
-        }
-      });
-      
-      console.log(`📋 Total de contatos únicos: ${allContacts.length}`);
-      
-      // Transformar para o formato esperado pelo frontend
-      const formattedContacts = allContacts.map(contact => ({
-        id: contact.id,
-        contactId: contact.contactId,
-        name: contact.name || contact.number,
-        number: contact.number,
-        profilePicture: contact.profilePicture,
-        isGroup: contact.isGroup || false,
-        lastActivity: contact.lastActivity,
-        lastMessageContent: contact.lastMessageContent,
-        unreadCount: contact.unreadCount || 0,
-        createdAt: contact.createdAt,
-        updatedAt: contact.updatedAt
-      }));
-      
-      res.json({
-        success: true,
-        contacts: formattedContacts,
-        total: formattedContacts.length,
-        cloudApiCount: cloudContacts.length,
-        qrCodeCount: qrContacts.length
-      });
-      
+      // Usar a nova implementação baseada na documentação oficial
+      const { findContacts } = await import('./api/evolution-chat');
+      await findContacts(req, res);
     } catch (error) {
       console.error('Erro ao obter contatos:', error);
       res.status(500).json({
