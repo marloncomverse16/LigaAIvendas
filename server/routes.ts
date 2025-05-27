@@ -2532,17 +2532,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (contactsResult.success && contactsResult.data) {
         res.json(contactsResult.data);
       } else {
-        // Se não conseguir buscar da Meta API, retornar contatos padrão
-        const defaultChats = [
-          {
-            id: '5511999999999',
-            name: 'Contato de Teste',
-            lastMessage: 'Mensagem de teste',
-            timestamp: Date.now(),
-            unreadCount: 0
-          }
-        ];
-        res.json(defaultChats);
+        // Buscar contatos reais do banco de dados
+        const realContacts = await pool.query(`
+          SELECT DISTINCT 
+            contact_phone as id,
+            CONCAT('Contato ', contact_phone) as name,
+            (SELECT message_content FROM meta_chat_messages m2 
+             WHERE m2.contact_phone = m1.contact_phone 
+             ORDER BY created_at DESC LIMIT 1) as lastMessage,
+            (SELECT EXTRACT(EPOCH FROM created_at) * 1000 
+             FROM meta_chat_messages m3 
+             WHERE m3.contact_phone = m1.contact_phone 
+             ORDER BY created_at DESC LIMIT 1) as timestamp
+          FROM meta_chat_messages m1
+          WHERE user_id = $1
+          ORDER BY timestamp DESC
+          LIMIT 50
+        `, [userId]);
+        
+        const chats = realContacts.rows.map(contact => ({
+          id: contact.id,
+          name: contact.name,
+          lastMessage: contact.lastmessage || 'Nenhuma mensagem',
+          timestamp: parseInt(contact.timestamp) || Date.now(),
+          unreadCount: 0
+        }));
+        
+        res.json(chats);
       }
     } catch (error) {
       console.error('Erro ao buscar chats da Meta Cloud API:', error);
@@ -4411,16 +4427,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const phoneNumber = req.params.phoneNumber;
       const userId = req.user.id;
       
-      const { MetaCloudChatService } = await import('./api/meta-cloud-chat');
-      const chatService = new MetaCloudChatService();
+      console.log(`📥 Buscando mensagens para: ${phoneNumber}`);
       
-      const result = await chatService.getMessages(userId, phoneNumber);
+      // Buscar diretamente da tabela meta_chat_messages
+      const result = await pool.query(`
+        SELECT 
+          id,
+          message_content as content,
+          from_me as "fromMe",
+          message_type as type,
+          EXTRACT(EPOCH FROM created_at) * 1000 as timestamp,
+          status
+        FROM meta_chat_messages 
+        WHERE user_id = $1 AND contact_phone = $2
+        ORDER BY created_at ASC
+      `, [userId, phoneNumber]);
       
-      if (result.success) {
-        return res.status(200).json(result.data);
-      } else {
-        return res.status(500).json({ error: result.error });
-      }
+      console.log(`✅ Encontradas ${result.rows.length} mensagens`);
+      
+      const messages = result.rows.map(row => ({
+        id: row.id.toString(),
+        content: row.content,
+        fromMe: row.fromMe,
+        type: row.type,
+        timestamp: parseInt(row.timestamp),
+        status: row.status || 'delivered'
+      }));
+      
+      return res.status(200).json(messages);
       
     } catch (error) {
       console.error("Erro ao buscar mensagens:", error);
