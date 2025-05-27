@@ -12,7 +12,7 @@ import {
   insertLeadInteractionSchema, insertLeadRecommendationSchema,
   insertProspectingSearchSchema, insertProspectingResultSchema,
   insertUserSchema, ConnectionStatus, insertServerSchema,
-  userAiAgents, serverAiAgents
+  userAiAgents, serverAiAgents, whatsappContacts, whatsappCloudChats
 } from "@shared/schema";
 import { z } from "zod";
 import axios from "axios";
@@ -2231,9 +2231,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Buscar contatos do Cloud API salvos no banco
       const cloudContacts = await db.select()
-        .from(whatsappContacts)
-        .where(eq(whatsappContacts.userId, userId))
-        .orderBy(whatsappContacts.lastActivity);
+        .from(whatsappCloudChats)
+        .where(eq(whatsappCloudChats.userId, userId))
+        .orderBy(whatsappCloudChats.lastMessageTime);
       
       console.log(`☁️ Contatos Cloud API encontrados: ${cloudContacts.length}`);
       
@@ -2245,21 +2245,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📱 Contatos QR Code encontrados: ${qrContacts.length}`);
       
-      // Combinar e remover duplicatas baseado no número de telefone
-      const allContacts = [...cloudContacts];
-      const existingNumbers = new Set(cloudContacts.map(c => c.number));
+      // Transformar contatos do Cloud API para formato unificado
+      const cloudFormatted = cloudContacts.map(contact => ({
+        id: `cloud_${contact.id}`,
+        contactId: contact.id,
+        name: contact.pushName || contact.phoneNumber || contact.remoteJid,
+        number: contact.phoneNumber || contact.remoteJid,
+        profilePicture: contact.profilePicUrl,
+        isGroup: false,
+        lastActivity: contact.lastMessageTime,
+        lastMessageContent: null,
+        unreadCount: contact.unreadCount || 0,
+        createdAt: contact.createdAt,
+        updatedAt: contact.updatedAt,
+        source: 'cloud'
+      }));
       
-      qrContacts.forEach(contact => {
-        if (!existingNumbers.has(contact.number)) {
-          allContacts.push(contact);
-        }
-      });
-      
-      console.log(`📋 Total de contatos únicos: ${allContacts.length}`);
-      
-      // Transformar para o formato esperado pelo frontend
-      const formattedContacts = allContacts.map(contact => ({
-        id: contact.id,
+      // Transformar contatos do QR Code para formato unificado
+      const qrFormatted = qrContacts.map(contact => ({
+        id: `qr_${contact.id}`,
         contactId: contact.contactId,
         name: contact.name || contact.number,
         number: contact.number,
@@ -2269,13 +2273,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastMessageContent: contact.lastMessageContent,
         unreadCount: contact.unreadCount || 0,
         createdAt: contact.createdAt,
-        updatedAt: contact.updatedAt
+        updatedAt: contact.updatedAt,
+        source: 'qrcode'
       }));
+      
+      // Combinar todos os contatos
+      const allContacts = [...cloudFormatted, ...qrFormatted];
+      
+      // Remover duplicatas baseado no número de telefone (manter o mais recente)
+      const uniqueContacts = new Map();
+      allContacts.forEach(contact => {
+        const cleanNumber = contact.number.replace(/\D/g, '');
+        const existing = uniqueContacts.get(cleanNumber);
+        
+        if (!existing || new Date(contact.lastActivity || 0) > new Date(existing.lastActivity || 0)) {
+          uniqueContacts.set(cleanNumber, contact);
+        }
+      });
+      
+      const finalContacts = Array.from(uniqueContacts.values())
+        .sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime());
+      
+      console.log(`📋 Total de contatos únicos: ${finalContacts.length}`);
       
       res.json({
         success: true,
-        contacts: formattedContacts,
-        total: formattedContacts.length,
+        contacts: finalContacts,
+        total: finalContacts.length,
         cloudApiCount: cloudContacts.length,
         qrCodeCount: qrContacts.length
       });
