@@ -11,6 +11,102 @@ interface MetaApiResponse {
 
 export class MetaCloudChatService {
   /**
+   * Buscar conversas/contatos via Meta Cloud API
+   */
+  async getChats(userId: number): Promise<MetaApiResponse> {
+    try {
+      // Buscar configurações do usuário no banco
+      const userSettings = await this.getUserMetaSettings(userId);
+      if (!userSettings.phoneNumberId || !userSettings.token) {
+        return {
+          success: false,
+          error: 'Configurações Meta API não encontradas para este usuário'
+        };
+      }
+
+      // Para a Meta API, não existe um endpoint direto para listar conversas
+      // Vamos retornar contatos salvos do banco de dados
+      const savedContacts = await this.getSavedContacts(userId);
+      
+      return {
+        success: true,
+        data: savedContacts
+      };
+    } catch (error) {
+      console.error('Erro ao buscar chats Meta Cloud API:', error);
+      return {
+        success: false,
+        error: 'Erro ao buscar conversas'
+      };
+    }
+  }
+
+  /**
+   * Buscar contatos salvos no banco de dados
+   */
+  private async getSavedContacts(userId: number) {
+    try {
+      const { db } = await import('../db');
+      const { sql } = await import('drizzle-orm');
+      
+      // Buscar mensagens recentes agrupadas por contato
+      const contacts = await db.execute(sql`
+        SELECT DISTINCT 
+          contact_phone as id,
+          contact_phone as name,
+          message_content as lastMessage,
+          EXTRACT(EPOCH FROM created_at) * 1000 as timestamp,
+          0 as unreadCount
+        FROM meta_cloud_messages 
+        WHERE user_id = ${userId}
+        ORDER BY created_at DESC
+        LIMIT 50
+      `);
+
+      return contacts.rows.map((contact: any) => ({
+        id: contact.id,
+        name: contact.name || contact.id,
+        lastMessage: contact.lastmessage || 'Nenhuma mensagem',
+        timestamp: parseInt(contact.timestamp) || Date.now(),
+        unreadCount: 0
+      }));
+    } catch (error) {
+      console.error('Erro ao buscar contatos salvos:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Buscar configurações Meta do usuário
+   */
+  private async getUserMetaSettings(userId: number) {
+    try {
+      const { db } = await import('../db');
+      const { userServers } = await import('../../shared/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      const [userServer] = await db
+        .select()
+        .from(userServers)
+        .where(eq(userServers.userId, userId))
+        .limit(1);
+
+      return {
+        phoneNumberId: userServer?.metaPhoneNumberId || null,
+        token: process.env.META_API_TOKEN || null,
+        businessId: process.env.META_BUSINESS_ID || null
+      };
+    } catch (error) {
+      console.error('Erro ao buscar configurações Meta:', error);
+      return {
+        phoneNumberId: null,
+        token: null,
+        businessId: null
+      };
+    }
+  }
+
+  /**
    * Enviar mensagem via Meta Cloud API
    */
   async sendMessage(userId: number, phoneNumber: string, message: string): Promise<MetaApiResponse> {
