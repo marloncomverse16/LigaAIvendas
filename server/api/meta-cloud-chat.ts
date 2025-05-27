@@ -53,12 +53,15 @@ export class MetaCloudChatService {
           contact_phone as id,
           contact_phone as name,
           (SELECT message_content FROM meta_chat_messages m2 
-           WHERE m2.contact_phone = m1.contact_phone 
+           WHERE m2.contact_phone = m1.contact_phone AND m2.user_id = $1
            ORDER BY created_at DESC LIMIT 1) as lastMessage,
           (SELECT EXTRACT(EPOCH FROM created_at) * 1000 
            FROM meta_chat_messages m3 
-           WHERE m3.contact_phone = m1.contact_phone 
-           ORDER BY created_at DESC LIMIT 1) as timestamp
+           WHERE m3.contact_phone = m1.contact_phone AND m3.user_id = $1
+           ORDER BY created_at DESC LIMIT 1) as timestamp,
+          (SELECT COUNT(*) FROM meta_chat_messages m4 
+           WHERE m4.contact_phone = m1.contact_phone AND m4.user_id = $1
+           AND m4.from_me = false AND m4.created_at > NOW() - INTERVAL '24 hours') as unreadCount
         FROM meta_chat_messages m1
         WHERE user_id = $1
         ORDER BY timestamp DESC
@@ -73,7 +76,7 @@ export class MetaCloudChatService {
         name: contact.id,
         lastMessage: contact.lastmessage || 'Nenhuma mensagem',
         timestamp: parseInt(contact.timestamp) || Date.now(),
-        unreadCount: 0
+        unreadCount: parseInt(contact.unreadcount) || 0
       }));
     } catch (error) {
       console.error('Erro ao buscar contatos salvos:', error);
