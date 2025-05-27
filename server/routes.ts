@@ -158,8 +158,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`🔍 Buscando contatos reais do banco de dados...`);
       
-      // Buscar contatos apenas da tabela meta_chat_messages (que sabemos que funciona)
-      const result = await pool.query(`
+      // Buscar contatos do Cloud API (meta_chat_messages)
+      const cloudResult = await pool.query(`
         SELECT DISTINCT 
           contact_phone,
           MAX(created_at) as last_activity,
@@ -171,23 +171,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 50
       `);
 
-      console.log(`📋 Consulta executada. Resultados encontrados: ${result.rows.length}`);
-      
-      // Formatar os contatos para a interface
-      const contacts = result.rows.map((row: any, index: number) => ({
-        id: `contact_${index + 1}`,
-        phone: row.contact_phone,
-        name: row.contact_phone,
-        lastMessage: "Mensagem via Cloud API",
-        lastActivity: row.last_activity || new Date().toISOString(),
-        source: "cloud",
-        unreadCount: 0
-      }));
+      // Buscar contatos do QR Code (whatsapp_contacts)
+      const qrContactsResult = await pool.query(`
+        SELECT DISTINCT 
+          number as contact_phone,
+          MAX(COALESCE(last_activity, updated_at, created_at)) as last_activity,
+          1 as message_count
+        FROM whatsapp_contacts 
+        WHERE number IS NOT NULL AND number != ''
+        ORDER BY MAX(COALESCE(last_activity, updated_at, created_at)) DESC
+        LIMIT 50
+      `);
 
-      console.log(`📋 Retornando ${contacts.length} contatos formatados`);
+      // Buscar contatos via mensagens QR Code (whatsapp_messages via contact_id)
+      const qrMessagesResult = await pool.query(`
+        SELECT DISTINCT 
+          wc.number as contact_phone,
+          MAX(wm.timestamp) as last_activity,
+          COUNT(*) as message_count
+        FROM whatsapp_messages wm
+        JOIN whatsapp_contacts wc ON wm.contact_id = wc.contact_id
+        WHERE wc.number IS NOT NULL AND wc.number != ''
+        GROUP BY wc.number
+        ORDER BY MAX(wm.timestamp) DESC
+        LIMIT 50
+      `);
+
+      console.log(`📋 Cloud API: ${cloudResult.rows.length} contatos`);
+      console.log(`📋 QR Contatos: ${qrContactsResult.rows.length} contatos`);
+      console.log(`📋 QR Mensagens: ${qrMessagesResult.rows.length} contatos`);
+      
+      // Combinar todos os contatos e remover duplicatas
+      const allContacts = [
+        ...cloudResult.rows.map((row: any, index: number) => ({
+          id: `cloud_${index + 1}`,
+          phone: row.contact_phone,
+          name: row.contact_phone,
+          lastMessage: "Mensagem via Cloud API",
+          lastActivity: row.last_activity || new Date().toISOString(),
+          source: "cloud",
+          unreadCount: 0
+        })),
+        ...qrContactsResult.rows.map((row: any, index: number) => ({
+          id: `qr_contact_${index + 1}`,
+          phone: row.contact_phone,
+          name: row.contact_phone,
+          lastMessage: "Contato via QR Code",
+          lastActivity: row.last_activity || new Date().toISOString(),
+          source: "qrcode",
+          unreadCount: 0
+        })),
+        ...qrMessagesResult.rows.map((row: any, index: number) => ({
+          id: `qr_msg_${index + 1}`,
+          phone: row.contact_phone,
+          name: row.contact_phone,
+          lastMessage: "Mensagem via QR Code",
+          lastActivity: row.last_activity || new Date().toISOString(),
+          source: "qrcode",
+          unreadCount: 0
+        }))
+      ];
+
+      // Remover duplicatas por telefone
+      const uniqueContacts = allContacts.filter((contact, index, self) => 
+        index === self.findIndex(c => c.phone === contact.phone)
+      );
+
+      console.log(`📋 Total de contatos únicos: ${uniqueContacts.length}`);
       
       res.setHeader('Content-Type', 'application/json');
-      res.json(contacts);
+      res.json(uniqueContacts);
       
     } catch (error) {
       console.error("Erro ao buscar contatos do banco:", error);
