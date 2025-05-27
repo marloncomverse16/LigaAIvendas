@@ -653,6 +653,31 @@ export default function ChatOtimizado() {
     checkConnection(evolutionService);
   }, [apiUrl, apiKey, instanceName]);
   
+  // Atualização automática dos contatos a cada 5 segundos
+  useEffect(() => {
+    let chatsIntervalId: NodeJS.Timeout | null = null;
+    
+    // Atualiza a lista de contatos a cada 5 segundos se estiver conectado
+    if ((connectionMode === 'cloud' && metaConnectionStatus?.connected) || 
+        (connectionMode === 'qr' && connected) ||
+        (connectionMode === 'both' && (connected || metaConnectionStatus?.connected))) {
+      console.log("🔄 Ativando atualização automática de contatos...");
+      
+      chatsIntervalId = setInterval(() => {
+        console.log("📱 Atualizando lista de contatos automaticamente...");
+        loadChats();
+      }, 5000);
+    }
+    
+    // Limpeza ao desmontar
+    return () => {
+      if (chatsIntervalId) {
+        console.log("🛑 Desativando atualização automática de contatos");
+        clearInterval(chatsIntervalId);
+      }
+    };
+  }, [connectionMode, connected, metaConnectionStatus?.connected]);
+
   // Polling automático ATIVADO para recebimento de mensagens em tempo real
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
@@ -1439,7 +1464,11 @@ export default function ChatOtimizado() {
             <label className="text-sm font-medium">Modo:</label>
             <select 
               value={connectionMode} 
-              onChange={(e) => setConnectionMode(e.target.value as 'qr' | 'cloud' | 'both')}
+              onChange={(e) => {
+                setConnectionMode(e.target.value as 'qr' | 'cloud' | 'both');
+                // Atualizar contatos imediatamente quando trocar de modo
+                setTimeout(() => loadChats(), 100);
+              }}
               className="px-3 py-1 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600"
             >
               <option value="qr">QR Code</option>
