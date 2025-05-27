@@ -161,30 +161,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Buscar contatos reais do Cloud API (meta_chat_messages)
       const cloudContacts = await pool.query(`
         SELECT DISTINCT 
-          phone_number as phone,
-          phone_number as name,
+          contact_phone as phone,
+          contact_phone as name,
           'cloud' as source,
-          MAX(created_at) as lastActivity,
-          COUNT(*) as messageCount
+          MAX(created_at) as lastactivity,
+          COUNT(*) as messagecount
         FROM meta_chat_messages 
-        WHERE phone_number IS NOT NULL
-        GROUP BY phone_number
+        WHERE contact_phone IS NOT NULL
+        GROUP BY contact_phone
         ORDER BY MAX(created_at) DESC
         LIMIT 50
       `);
 
-      // Buscar contatos reais do QR Code (whatsapp_contacts e whatsapp_messages)
+      // Buscar contatos reais do QR Code (chat_messages_sent)
       const qrContacts = await pool.query(`
         SELECT DISTINCT 
-          w.number as phone,
-          COALESCE(w.name, w.number) as name,
+          contact_phone as phone,
+          contact_phone as name,
           'qrcode' as source,
-          MAX(COALESCE(w.updated_at, w.created_at)) as lastActivity,
-          1 as messageCount
-        FROM whatsapp_contacts w
-        WHERE w.number IS NOT NULL
-        GROUP BY w.number, w.name
-        ORDER BY MAX(COALESCE(w.updated_at, w.created_at)) DESC
+          MAX(created_at) as lastactivity,
+          COUNT(*) as messagecount
+        FROM chat_messages_sent 
+        WHERE contact_phone IS NOT NULL
+        GROUP BY contact_phone
+        ORDER BY MAX(created_at) DESC
         LIMIT 50
       `);
 
@@ -193,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...cloudContacts.rows.map((contact: any, index: number) => ({
           id: `cloud_${index + 1}`,
           phone: contact.phone,
-          name: contact.name || contact.phone,
+          name: contact.phone,
           lastMessage: "Mensagem via Cloud API",
           lastActivity: contact.lastactivity || new Date().toISOString(),
           source: "cloud",
@@ -202,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...qrContacts.rows.map((contact: any, index: number) => ({
           id: `qr_${index + 1}`,
           phone: contact.phone,
-          name: contact.name || contact.phone,
+          name: contact.phone,
           lastMessage: "Mensagem via QR Code",
           lastActivity: contact.lastactivity || new Date().toISOString(),
           source: "qrcode",
