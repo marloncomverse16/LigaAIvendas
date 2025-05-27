@@ -1552,43 +1552,9 @@ export default function ChatOtimizado() {
     if (!timestamp) return '';
     
     const date = new Date(Number(timestamp) * 1000);
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    
-    // Formatar hora (HH:mm)
-    const timeString = date.toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    
-    // Se for hoje, mostrar apenas a hora
-    if (messageDate.getTime() === today.getTime()) {
-      return timeString;
-    }
-    
-    // Se foi ontem
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (messageDate.getTime() === yesterday.getTime()) {
-      return `Ontem ${timeString}`;
-    }
-    
-    // Se foi esta semana (últimos 7 dias)
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    if (messageDate > weekAgo) {
-      const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' });
-      return `${dayName} ${timeString}`;
-    }
-    
-    // Mais de uma semana: mostrar data completa
-    return date.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+    return formatDistanceToNow(date, { 
+      addSuffix: true,
+      locale: ptBR 
     });
   };
   
