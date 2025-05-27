@@ -171,19 +171,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 50
       `);
 
-      // Buscar contatos do QR Code (dados reais da tabela contacts)
+      // Buscar contatos do QR Code (dados reais da tabela chat_messages_sent)
       const qrContactsResult = await pool.query(`
         SELECT DISTINCT 
-          CASE 
-            WHEN number LIKE '55%' THEN '+55' || SUBSTRING(number FROM 3)
-            ELSE '+55' || number 
-          END as contact_phone,
-          MAX(COALESCE(last_activity, updated_at, created_at)) as last_activity,
+          '+55' || contact_phone as contact_phone,
+          MAX(created_at) as last_activity,
           COUNT(*) as message_count
-        FROM contacts 
-        WHERE number IS NOT NULL AND number != ''
-        GROUP BY number
-        ORDER BY MAX(COALESCE(last_activity, updated_at, created_at)) DESC
+        FROM chat_messages_sent 
+        WHERE contact_phone IS NOT NULL AND contact_phone != ''
+        GROUP BY contact_phone
+        ORDER BY MAX(created_at) DESC
         LIMIT 50
       `);
 
