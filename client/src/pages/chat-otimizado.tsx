@@ -35,33 +35,43 @@ const sendFormSchema = z.object({
 
 type SendFormValues = z.infer<typeof sendFormSchema>;
 
-// Componente memorizado para o campo de entrada que não é afetado por atualizações
+// Componente isolado para o campo de entrada que mantém seu próprio estado
 const MessageInput = React.memo(({ 
-  value, 
-  onChange, 
   onSubmit, 
   disabled, 
-  inputRef 
+  inputRef,
+  chatId
 }: {
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (text: string) => void;
   disabled: boolean;
   inputRef: React.RefObject<HTMLInputElement>;
+  chatId: string | null;
 }) => {
+  const [localText, setLocalText] = useState("");
+  
+  // Limpar o campo quando trocar de chat
+  useEffect(() => {
+    setLocalText("");
+  }, [chatId]);
+  
+  const handleSubmit = () => {
+    if (localText.trim()) {
+      onSubmit(localText.trim());
+      setLocalText(""); // Limpar após enviar
+    }
+  };
+  
   return (
     <Input
       ref={inputRef}
       placeholder="Digite uma mensagem"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
+      value={localText}
+      onChange={(e) => setLocalText(e.target.value)}
       disabled={disabled}
       onKeyDown={(e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          if (value.trim()) {
-            onSubmit();
-          }
+          handleSubmit();
         }
       }}
       autoComplete="off"
@@ -1821,18 +1831,14 @@ export default function ChatOtimizado() {
                       
                       <div className="flex-1">
                         <MessageInput
-                          value={inputText}
-                          onChange={(newValue) => {
-                            setInputText(newValue);
-                            form.setValue("text", newValue);
-                          }}
-                          onSubmit={() => {
-                            if (inputText.trim()) {
-                              form.handleSubmit(onSubmit)();
-                            }
+                          onSubmit={(text) => {
+                            setInputText(text);
+                            form.setValue("text", text);
+                            form.handleSubmit(onSubmit)();
                           }}
                           disabled={!connected || loading}
                           inputRef={inputRef}
+                          chatId={selectedChat?.id || null}
                         />
                       </div>
                       
