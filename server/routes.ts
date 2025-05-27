@@ -2522,44 +2522,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      // Buscar contatos reais da Meta API e salvar no BD
-      const { MetaCloudChatService } = await import('./api/meta-cloud-chat');
-      const chatService = new MetaCloudChatService();
+      // Buscar APENAS contatos reais do banco de dados (suas mensagens)
+      console.log(`🔍 Buscando contatos reais para usuário ${userId}...`);
       
-      // Buscar contatos do usuário via Meta API
-      const contactsResult = await chatService.getChats(userId);
+      const realContacts = await pool.query(`
+        SELECT DISTINCT 
+          contact_phone as id,
+          CONCAT('Contato ', contact_phone) as name,
+          (SELECT message_content FROM meta_chat_messages m2 
+           WHERE m2.contact_phone = m1.contact_phone AND m2.user_id = $1
+           ORDER BY created_at DESC LIMIT 1) as lastMessage,
+          (SELECT EXTRACT(EPOCH FROM created_at) * 1000 
+           FROM meta_chat_messages m3 
+           WHERE m3.contact_phone = m1.contact_phone AND m3.user_id = $1
+           ORDER BY created_at DESC LIMIT 1) as timestamp
+        FROM meta_chat_messages m1
+        WHERE user_id = $1
+        ORDER BY timestamp DESC NULLS LAST
+        LIMIT 50
+      `, [userId]);
       
-      if (contactsResult.success && contactsResult.data) {
-        res.json(contactsResult.data);
-      } else {
-        // Buscar contatos reais do banco de dados
-        const realContacts = await pool.query(`
-          SELECT DISTINCT 
-            contact_phone as id,
-            CONCAT('Contato ', contact_phone) as name,
-            (SELECT message_content FROM meta_chat_messages m2 
-             WHERE m2.contact_phone = m1.contact_phone 
-             ORDER BY created_at DESC LIMIT 1) as lastMessage,
-            (SELECT EXTRACT(EPOCH FROM created_at) * 1000 
-             FROM meta_chat_messages m3 
-             WHERE m3.contact_phone = m1.contact_phone 
-             ORDER BY created_at DESC LIMIT 1) as timestamp
-          FROM meta_chat_messages m1
-          WHERE user_id = $1
-          ORDER BY timestamp DESC
-          LIMIT 50
-        `, [userId]);
-        
-        const chats = realContacts.rows.map(contact => ({
-          id: contact.id,
-          name: contact.name,
-          lastMessage: contact.lastmessage || 'Nenhuma mensagem',
-          timestamp: parseInt(contact.timestamp) || Date.now(),
-          unreadCount: 0
-        }));
-        
-        res.json(chats);
-      }
+      console.log(`📋 Contatos encontrados: ${realContacts.rows.length}`);
+      console.log(`📋 Dados: ${JSON.stringify(realContacts.rows, null, 2)}`);
+      
+      const chats = realContacts.rows.map(contact => ({
+        id: contact.id,
+        name: contact.name,
+        lastMessage: contact.lastmessage || 'Nenhuma mensagem',
+        timestamp: parseInt(contact.timestamp) || Date.now(),
+        unreadCount: 0
+      }));
+      
+      console.log(`📨 Chats retornados: ${JSON.stringify(chats, null, 2)}`);
+      res.json(chats);
     } catch (error) {
       console.error('Erro ao buscar chats da Meta Cloud API:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
