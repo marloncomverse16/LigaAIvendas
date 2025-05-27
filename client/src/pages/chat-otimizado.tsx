@@ -1119,7 +1119,7 @@ export default function ChatOtimizado() {
         setMessages(allMessages);
         
         // Rolagem automática APENAS na primeira carga da conversa
-        if (!afterTimestamp) {
+        if (!lastTimestamp) {
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
           }, 100);
