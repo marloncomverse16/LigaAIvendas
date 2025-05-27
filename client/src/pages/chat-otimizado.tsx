@@ -1077,11 +1077,17 @@ export default function ChatOtimizado() {
         // Atualizar mensagens visíveis
         setMessages(uniqueMessages);
         
-        // Rolagem automática se houver mensagens novas
+        // Rolagem automática APENAS se houver mensagens realmente novas E estiver no final
         if (newMessages.length > 0) {
-          setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-          }, 100);
+          const container = messagesEndRef.current?.parentElement;
+          if (container) {
+            const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+            if (isAtBottom) {
+              setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }, 100);
+            }
+          }
         }
       } else {
         // Carga inicial: ordenar e salvar todas as mensagens
@@ -1112,10 +1118,12 @@ export default function ChatOtimizado() {
         // Atualizar mensagens visíveis
         setMessages(allMessages);
         
-        // Rolagem automática para o final das mensagens
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+        // Rolagem automática APENAS na primeira carga da conversa
+        if (!afterTimestamp) {
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        }
       }
     } catch (error: any) {
       console.error("Erro ao carregar mensagens:", error);
