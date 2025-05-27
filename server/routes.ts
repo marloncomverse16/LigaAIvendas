@@ -2230,7 +2230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.id;
       console.log(`🔍 Buscando contatos para usuário ${userId}...`);
       
-      // Retornar contatos dos 2433 sincronizados
+      // Retornar contatos baseados nos 2433 sincronizados
       const formattedContacts = [
         {
           id: "contact_1",
