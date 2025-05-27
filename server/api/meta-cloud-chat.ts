@@ -46,7 +46,7 @@ export class MetaCloudChatService {
    */
   private async getSavedContacts(userId: number) {
     try {
-      const { db } = await import('../db');
+      const { pool } = await import('../db');
       // Buscar mensagens recentes agrupadas por contato usando SQL nativo
       const result = await pool.query(`
         SELECT DISTINCT 
@@ -65,6 +65,9 @@ export class MetaCloudChatService {
         LIMIT 50
       `, [userId]);
 
+      console.log(`📋 Contatos encontrados no banco: ${result.rows.length}`);
+      console.log('📋 Dados dos contatos:', result.rows);
+      
       return result.rows.map((contact: any) => ({
         id: contact.id,
         name: `Contato ${contact.id}`,
