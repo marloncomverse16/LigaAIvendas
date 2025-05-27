@@ -657,17 +657,13 @@ export default function ChatOtimizado() {
   useEffect(() => {
     let chatsIntervalId: NodeJS.Timeout | null = null;
     
-    // Atualiza a lista de contatos a cada 5 segundos se estiver conectado
-    if ((connectionMode === 'cloud' && metaConnectionStatus?.connected) || 
-        (connectionMode === 'qr' && connected) ||
-        (connectionMode === 'both' && (connected || metaConnectionStatus?.connected))) {
-      console.log("🔄 Ativando atualização automática de contatos...");
-      
-      chatsIntervalId = setInterval(() => {
-        console.log("📱 Atualizando lista de contatos automaticamente...");
-        loadChats();
-      }, 5000);
-    }
+    // Sempre ativa o polling independente do status de conexão
+    console.log("🔄 Ativando atualização automática de contatos...");
+    
+    chatsIntervalId = setInterval(() => {
+      console.log("📱 Atualizando lista de contatos automaticamente...");
+      loadChats();
+    }, 5000);
     
     // Limpeza ao desmontar
     return () => {
@@ -676,7 +672,7 @@ export default function ChatOtimizado() {
         clearInterval(chatsIntervalId);
       }
     };
-  }, [connectionMode, connected, metaConnectionStatus?.connected]);
+  }, [connectionMode]); // Dependência apenas do modo de conexão
 
   // Polling automático ATIVADO para recebimento de mensagens em tempo real
   useEffect(() => {
