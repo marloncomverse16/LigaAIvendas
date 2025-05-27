@@ -777,6 +777,23 @@ export default function ChatOtimizado() {
     };
   }, [connectionMode, updateContactsOnly]);
 
+  // Atualização automática quando troca de modo de conexão
+  useEffect(() => {
+    if (connectionMode) {
+      console.log(`🔄 Modo de conexão alterado para: ${connectionMode}`);
+      console.log("🔄 Carregando contatos automaticamente...");
+      
+      // Pequeno delay para garantir que o serviço está inicializado
+      setTimeout(() => {
+        if (connectionMode === 'cloud') {
+          loadChats();
+        } else if (connectionMode === 'qr' && service) {
+          loadChats();
+        }
+      }, 500);
+    }
+  }, [connectionMode, service]);
+
   // 2. Atualização automática APENAS das mensagens do chat selecionado (5 segundos)
   useEffect(() => {
     let messagesIntervalId: NodeJS.Timeout | null = null;
