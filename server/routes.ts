@@ -4362,6 +4362,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📖 Marcando mensagens como lidas para ${contactPhone} do usuário ${userId}`);
       
+      // Primeiro verificar quantas mensagens existem antes da atualização
+      const beforeResult = await pool.query(`
+        SELECT COUNT(*) as total 
+        FROM meta_chat_messages 
+        WHERE user_id = $1 AND contact_phone = $2 AND from_me = false AND read_at IS NULL
+      `, [userId, contactPhone]);
+      
+      console.log(`📋 Mensagens não lidas encontradas: ${beforeResult.rows[0].total}`);
+      
       // Marcar mensagens como lidas adicionando timestamp de leitura
       const result = await pool.query(`
         UPDATE meta_chat_messages 
@@ -4372,15 +4381,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         AND read_at IS NULL
       `, [userId, contactPhone]);
       
-      console.log(`✅ ${result.rowCount} mensagens marcadas como lidas`);
+      console.log(`✅ ${result.rowCount} mensagens marcadas como lidas de ${beforeResult.rows[0].total} encontradas`);
       
       res.json({ 
         success: true, 
         markedAsRead: result.rowCount,
+        totalFound: beforeResult.rows[0].total,
         message: `${result.rowCount} mensagens marcadas como lidas` 
       });
     } catch (error) {
-      console.error('Erro ao marcar mensagens como lidas:', error);
+      console.error('❌ Erro ao marcar mensagens como lidas:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   });
