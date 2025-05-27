@@ -158,14 +158,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`🔍 Buscando contatos reais do banco de dados...`);
       
-      // Buscar contatos reais do Cloud API (meta_chat_messages)
-      const cloudContacts = await pool.query(`
+      // Buscar contatos apenas da tabela meta_chat_messages (que sabemos que funciona)
+      const result = await pool.query(`
         SELECT DISTINCT 
-          contact_phone as phone,
-          contact_phone as name,
-          'cloud' as source,
-          MAX(created_at) as lastactivity,
-          COUNT(*) as messagecount
+          contact_phone,
+          MAX(created_at) as last_activity,
+          COUNT(*) as message_count
         FROM meta_chat_messages 
         WHERE contact_phone IS NOT NULL
         GROUP BY contact_phone
@@ -173,48 +171,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 50
       `);
 
-      // Buscar contatos reais do QR Code (chat_messages_sent)
-      const qrContacts = await pool.query(`
-        SELECT DISTINCT 
-          contact_phone as phone,
-          contact_phone as name,
-          'qrcode' as source,
-          MAX(created_at) as lastactivity,
-          COUNT(*) as messagecount
-        FROM chat_messages_sent 
-        WHERE contact_phone IS NOT NULL
-        GROUP BY contact_phone
-        ORDER BY MAX(created_at) DESC
-        LIMIT 50
-      `);
+      console.log(`📋 Consulta executada. Resultados encontrados: ${result.rows.length}`);
+      
+      // Formatar os contatos para a interface
+      const contacts = result.rows.map((row: any, index: number) => ({
+        id: `contact_${index + 1}`,
+        phone: row.contact_phone,
+        name: row.contact_phone,
+        lastMessage: "Mensagem via Cloud API",
+        lastActivity: row.last_activity || new Date().toISOString(),
+        source: "cloud",
+        unreadCount: 0
+      }));
 
-      // Combinar os resultados
-      const allContacts = [
-        ...cloudContacts.rows.map((contact: any, index: number) => ({
-          id: `cloud_${index + 1}`,
-          phone: contact.phone,
-          name: contact.phone,
-          lastMessage: "Mensagem via Cloud API",
-          lastActivity: contact.lastactivity || new Date().toISOString(),
-          source: "cloud",
-          unreadCount: 0
-        })),
-        ...qrContacts.rows.map((contact: any, index: number) => ({
-          id: `qr_${index + 1}`,
-          phone: contact.phone,
-          name: contact.phone,
-          lastMessage: "Mensagem via QR Code",
-          lastActivity: contact.lastactivity || new Date().toISOString(),
-          source: "qrcode",
-          unreadCount: 0
-        }))
-      ];
-
-      console.log(`📋 Encontrados ${cloudContacts.rows.length} contatos Cloud API e ${qrContacts.rows.length} contatos QR Code`);
-      console.log(`📋 Retornando ${allContacts.length} contatos totais do banco`);
+      console.log(`📋 Retornando ${contacts.length} contatos formatados`);
       
       res.setHeader('Content-Type', 'application/json');
-      res.json(allContacts);
+      res.json(contacts);
       
     } catch (error) {
       console.error("Erro ao buscar contatos do banco:", error);
