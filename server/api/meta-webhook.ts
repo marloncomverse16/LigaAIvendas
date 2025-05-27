@@ -3,9 +3,7 @@
  * Este webhook será chamado automaticamente quando mensagens forem recebidas
  */
 import { Request, Response } from 'express';
-import { db } from '../db';
-import { whatsappCloudChats, whatsappCloudMessages } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { pool } from '../db';
 
 // Token de verificação do webhook (deve ser configurado no Meta Developer Console)
 const WEBHOOK_VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'meu_token_webhook_123';
@@ -108,11 +106,11 @@ async function processMessageChange(value: any) {
  */
 async function saveIncomingMessage(message: any, metadata: any) {
   try {
-    const remoteJid = message.from;
+    const contactPhone = message.from;
     const messageId = message.id;
     const timestamp = new Date(parseInt(message.timestamp) * 1000);
 
-    console.log(`Salvando mensagem recebida de ${remoteJid}`);
+    console.log(`✅ Salvando mensagem recebida de ${contactPhone}`);
 
     // Extrair conteúdo da mensagem baseado no tipo
     let content = '';
@@ -133,82 +131,35 @@ async function saveIncomingMessage(message: any, metadata: any) {
     } else if (message.document) {
       content = `[Documento] ${message.document.filename || 'Arquivo'}`;
       messageType = 'document';
-    } else if (message.location) {
-      content = '[Localização]';
-      messageType = 'location';
-    } else if (message.contacts) {
-      content = '[Contato]';
-      messageType = 'contact';
     } else {
       content = '[Mensagem não suportada]';
       messageType = 'unknown';
     }
 
-    // Buscar ou criar chat
-    const phoneNumber = metadata.phone_number_id;
-    
-    // Por enquanto, vamos associar a mensagem ao usuário admin (ID: 2)
-    // TODO: Implementar lógica para identificar o usuário correto baseado no phone_number_id
+    // Usuário admin (ID: 2) - pode ser configurado posteriormente
     const userId = 2;
 
-    // Verificar se o chat já existe
-    let [existingChat] = await db
-      .select()
-      .from(whatsappCloudChats)
-      .where(and(
-        eq(whatsappCloudChats.userId, userId),
-        eq(whatsappCloudChats.remoteJid, remoteJid)
-      ));
+    // Salvar mensagem usando SQL nativo para evitar problemas do ORM
+    const query = `
+      INSERT INTO meta_chat_messages 
+      (user_id, contact_phone, message_content, meta_message_id, from_me, message_type, created_at) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `;
+    
+    await pool.query(query, [
+      userId,
+      contactPhone,
+      content,
+      messageId,
+      false,
+      messageType,
+      new Date()
+    ]);
 
-    // Se o chat não existe, criar um novo
-    if (!existingChat) {
-      [existingChat] = await db
-        .insert(whatsappCloudChats)
-        .values({
-          userId,
-          remoteJid,
-          phoneNumber: remoteJid,
-          pushName: message.from, // Pode ser melhorado com profile info
-          lastMessageTime: timestamp,
-          unreadCount: 1
-        })
-        .returning();
-
-      console.log(`Novo chat criado para ${remoteJid}`);
-    } else {
-      // Atualizar chat existente
-      await db
-        .update(whatsappCloudChats)
-        .set({
-          lastMessageTime: timestamp,
-          unreadCount: (existingChat.unreadCount || 0) + 1,
-          updatedAt: new Date()
-        })
-        .where(eq(whatsappCloudChats.id, existingChat.id));
-
-      console.log(`Chat atualizado para ${remoteJid}`);
-    }
-
-    // Salvar a mensagem usando o esquema correto do banco
-    await db
-      .insert(whatsappCloudMessages)
-      .values({
-        userId,
-        chatId: existingChat.id,
-        messageId: messageId,
-        remoteJid,
-        content: content,
-        messageContent: content, // Salvar também em message_content para compatibilidade
-        messageType,
-        fromMe: false,
-        timestamp,
-        status: 'delivered'
-      });
-
-    console.log(`Mensagem salva: ${content.substring(0, 50)}...`);
+    console.log(`🎉 Mensagem salva com sucesso: "${content.substring(0, 50)}..."`);
 
   } catch (error) {
-    console.error('Erro ao salvar mensagem recebida:', error);
+    console.error('❌ Erro ao salvar mensagem recebida:', error);
   }
 }
 
@@ -219,12 +170,14 @@ async function updateMessageStatus(status: any) {
   try {
     console.log(`Atualizando status da mensagem ${status.id} para ${status.status}`);
 
-    await db
-      .update(whatsappCloudMessages)
-      .set({
-        status: status.status
-      })
-      .where(eq(whatsappCloudMessages.messageId, status.id));
+    // Atualizar usando SQL nativo
+    const query = `
+      UPDATE meta_chat_messages 
+      SET status = $1, updated_at = $2
+      WHERE meta_message_id = $3
+    `;
+    
+    await pool.query(query, [status.status, new Date(), status.id]);
 
   } catch (error) {
     console.error('Erro ao atualizar status da mensagem:', error);
