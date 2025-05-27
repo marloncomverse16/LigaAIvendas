@@ -707,49 +707,11 @@ export default function ChatOtimizado() {
   }, [apiUrl, apiKey, instanceName]);
   
   // Atualização automática dos contatos a cada 5 segundos
-  useEffect(() => {
-    let chatsIntervalId: NodeJS.Timeout | null = null;
-    
-    // Sempre ativa o polling independente do status de conexão
-    console.log("🔄 Ativando atualização automática de contatos...");
-    
-    chatsIntervalId = setInterval(() => {
-      console.log("📱 Atualizando lista de contatos automaticamente...");
-      loadChats(true); // Preserva a seleção durante atualizações automáticas
-    }, 5000);
-    
-    // Limpeza ao desmontar
-    return () => {
-      if (chatsIntervalId) {
-        console.log("🛑 Desativando atualização automática de contatos");
-        clearInterval(chatsIntervalId);
-      }
-    };
-  }, [connectionMode]); // Dependência apenas do modo de conexão
+  // Removido: Atualização automática de contatos que interferia na página toda
+  // Agora os contatos são atualizados apenas quando necessário via botão manual
 
-  // Polling automático ATIVADO para recebimento de mensagens em tempo real
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    
-    // Se tiver chat selecionado e conectado, configura polling
-    if (service && selectedChat && connected) {
-      console.log("🔄 Ativando recebimento automático de mensagens...");
-      
-      // Atualiza as mensagens a cada 30 segundos apenas para novas mensagens
-      intervalId = setInterval(() => {
-        console.log("📱 Verificando novas mensagens automaticamente...");
-        loadMessages(selectedChat, "only_new"); // Carrega apenas mensagens novas
-      }, 30000);
-    }
-    
-    // Limpeza ao desmontar
-    return () => {
-      if (intervalId) {
-        console.log("🛑 Desativando recebimento automático");
-        clearInterval(intervalId);
-      }
-    };
-  }, [service, selectedChat, connected]);
+  // Removido: Polling automático que interferia no campo de entrada
+  // As mensagens são atualizadas apenas quando necessário ou via WebSocket
   
   // Verifica a conexão
   const checkConnection = async (serviceInstance?: DirectEvolutionService) => {
