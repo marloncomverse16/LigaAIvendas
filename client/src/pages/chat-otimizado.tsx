@@ -734,9 +734,10 @@ export default function ChatOtimizado() {
             }
           }
         }
-      } else if (connectionMode === 'qr' && service) {
+      } else if (connectionMode === 'qr' && service && connected) {
         // Busca contatos da Evolution API
-        const contacts = await service.findChats();
+        const response = await service.loadChats();
+        const contacts = service.normalizeChats(response);
         console.log("✅ Lista de contatos atualizada:", contacts.length, "contatos");
         
         setChats(contacts);
