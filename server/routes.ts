@@ -2222,96 +2222,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Endpoint para obter contatos sincronizados (para compatibilidade com o frontend)
+  // Rota para buscar contatos 
   app.get("/api/contacts", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       const userId = req.user.id;
-      console.log(`🔍 Buscando todos os contatos (Cloud API + QR Code) para usuário ${userId}...`);
+      console.log(`🔍 Buscando contatos para usuário ${userId}...`);
       
-      // Buscar contatos do Cloud API salvos no banco
-      const cloudContacts = await db.query.whatsappCloudChats.findMany({
-        where: (chats, { eq }) => eq(chats.userId, userId),
-        orderBy: (chats, { desc }) => [desc(chats.lastMessageTime)]
-      });
+      // Buscar contatos sincronizados do WhatsApp
+      const contacts = await storage.getWhatsappContacts(userId);
       
-      console.log(`☁️ Contatos Cloud API encontrados: ${cloudContacts.length}`);
-      
-      // Buscar contatos do QR Code (Evolution API) salvos no banco
-      const qrContacts = await db.query.whatsappContacts.findMany({
-        where: (contacts, { eq }) => eq(contacts.userId, userId),
-        orderBy: (contacts, { desc }) => [desc(contacts.lastActivity)]
-      });
-      
-      console.log(`📱 Contatos QR Code encontrados: ${qrContacts.length}`);
-      
-      // Transformar contatos do Cloud API para formato unificado
-      const cloudFormatted = cloudContacts.map(contact => ({
-        id: `cloud_${contact.id}`,
-        contactId: contact.id,
-        name: contact.pushName || contact.phoneNumber || contact.remoteJid,
-        number: contact.phoneNumber || contact.remoteJid,
-        profilePicture: contact.profilePicUrl,
-        isGroup: false,
-        lastActivity: contact.lastMessageTime,
-        lastMessageContent: null,
-        unreadCount: contact.unreadCount || 0,
-        createdAt: contact.createdAt,
-        updatedAt: contact.updatedAt,
-        source: 'cloud'
+      // Formatar contatos para o frontend
+      const formattedContacts = contacts.map((contact: any, index: number) => ({
+        id: `contact_${index}`,
+        phone: contact.number || contact.contactId || contact.phone,
+        name: contact.name || contact.pushName,
+        lastMessage: contact.lastMessageContent || contact.lastMessage,
+        lastActivity: contact.lastActivity || contact.updatedAt || new Date().toISOString(),
+        source: contact.isGroup ? 'qrcode' : 'qrcode',
+        unreadCount: contact.unreadCount || 0
       }));
       
-      // Transformar contatos do QR Code para formato unificado
-      const qrFormatted = qrContacts.map(contact => ({
-        id: `qr_${contact.id}`,
-        contactId: contact.contactId,
-        name: contact.name || contact.number,
-        number: contact.number,
-        profilePicture: contact.profilePicture,
-        isGroup: contact.isGroup || false,
-        lastActivity: contact.lastActivity,
-        lastMessageContent: contact.lastMessageContent,
-        unreadCount: contact.unreadCount || 0,
-        createdAt: contact.createdAt,
-        updatedAt: contact.updatedAt,
-        source: 'qrcode'
-      }));
-      
-      // Combinar todos os contatos
-      const allContacts = [...cloudFormatted, ...qrFormatted];
-      
-      // Remover duplicatas baseado no número de telefone (manter o mais recente)
-      const uniqueContacts = new Map();
-      allContacts.forEach(contact => {
-        const cleanNumber = contact.number.replace(/\D/g, '');
-        const existing = uniqueContacts.get(cleanNumber);
-        
-        if (!existing || new Date(contact.lastActivity || 0) > new Date(existing.lastActivity || 0)) {
-          uniqueContacts.set(cleanNumber, contact);
-        }
-      });
-      
-      const finalContacts = Array.from(uniqueContacts.values())
-        .sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime());
-      
-      console.log(`📋 Total de contatos únicos: ${finalContacts.length}`);
-      
-      res.json({
-        success: true,
-        contacts: finalContacts,
-        total: finalContacts.length,
-        cloudApiCount: cloudContacts.length,
-        qrCodeCount: qrContacts.length
-      });
+      console.log(`📋 Retornando ${formattedContacts.length} contatos`);
+      res.json(formattedContacts);
       
     } catch (error) {
       console.error('Erro ao obter contatos:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao obter contatos do WhatsApp',
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
-      });
+      res.status(500).json([]);
     }
   });
   

@@ -24,7 +24,7 @@ import ConnectionsPage from "@/pages/connections";
 import WhatsAppQrCodePage from "@/pages/connections/whatsapp-qr-code";
 import WhatsAppMetaPage from "@/pages/connections/whatsapp-meta";
 import ConnectionsSettingsPage from "@/pages/connections-settings-page";
-import ContactsPage from "@/pages/contacts-page";
+import ContactsPageNew from "@/pages/contacts-page-new";
 import MetaTestPage from "@/pages/meta-test-page";
 import MetaDiagnosticPage from "@/pages/meta-diagnostic-page";
 import ChatOtimizado from "@/pages/chat-otimizado";
@@ -46,7 +46,7 @@ function Router() {
       <ProtectedRoute path="/conexoes/whatsapp-qr-code" component={WhatsAppQrCodePage} />
       <ProtectedRoute path="/conexoes/whatsapp-meta" component={WhatsAppMetaPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
-      <ProtectedRoute path="/contatos" component={ContactsPage} />
+      <ProtectedRoute path="/contatos" component={ContactsPageNew} />
 
       <ProtectedRoute path="/whatsapp-web" component={WhatsappWebPage} />
       <ProtectedRoute path="/new-chat" component={WhatsappWebPage} />
