@@ -661,11 +661,11 @@ export default function ChatOtimizado() {
     if (service && selectedChat && connected) {
       console.log("🔄 Ativando recebimento automático de mensagens...");
       
-      // Atualiza as mensagens a cada 5 segundos apenas para novas mensagens
+      // Atualiza as mensagens a cada 30 segundos apenas para novas mensagens
       intervalId = setInterval(() => {
         console.log("📱 Verificando novas mensagens automaticamente...");
         loadMessages(selectedChat, "only_new"); // Carrega apenas mensagens novas
-      }, 5000);
+      }, 30000);
     }
     
     // Limpeza ao desmontar
