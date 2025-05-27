@@ -1517,7 +1517,7 @@ export default function ChatOtimizado() {
               {chats.map((chat) => (
                 <div
                   key={chat.id || chat.remoteJid}
-                  className={`p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center space-x-3 ${
+                  className={`p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center space-x-3 relative ${
                     selectedChat && (selectedChat.id === chat.id || selectedChat.remoteJid === chat.remoteJid)
                       ? 'bg-gray-200 dark:bg-gray-700'
                       : ''
@@ -1528,13 +1528,20 @@ export default function ChatOtimizado() {
                     {getChatName(chat).charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start">
                       <span className="font-medium truncate">{getChatName(chat)}</span>
-                      {chat.lastMessageTimestamp && (
-                        <span className="text-xs text-gray-500">
-                          {formatMessageDate(chat.lastMessageTimestamp)}
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end space-y-1">
+                        {chat.lastMessageTimestamp && (
+                          <span className="text-xs text-gray-500">
+                            {formatMessageDate(chat.lastMessageTimestamp)}
+                          </span>
+                        )}
+                        {chat.unreadCount && chat.unreadCount > 0 && (
+                          <div className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                            {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {chat.lastMessage && (
                       <p className="text-sm text-gray-500 truncate">
