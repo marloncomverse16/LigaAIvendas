@@ -551,6 +551,17 @@ export default function ChatOtimizado() {
   const [lastMessageTimestamp, setLastMessageTimestamp] = useState<Record<string, number>>({});
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
   
+  // Formulário definido uma única vez para evitar re-renderização
+  const form = useForm<SendFormValues>({
+    resolver: zodResolver(sendFormSchema),
+    defaultValues: {
+      text: "",
+      mediaType: undefined,
+      mediaUrl: "",
+      caption: ""
+    }
+  });
+  
   const { toast } = useToast();
 
   // Funções para WhatsApp Cloud API - usando as mesmas rotas que funcionam na aba Conexões
@@ -633,13 +644,7 @@ export default function ChatOtimizado() {
     }
   };
   
-  // Inicializa o formulário para envio de mensagens
-  const form = useForm<SendFormValues>({
-    resolver: zodResolver(sendFormSchema),
-    defaultValues: {
-      text: ''
-    }
-  });
+
   
   // Inicializa o serviço quando o componente é montado
   useEffect(() => {
