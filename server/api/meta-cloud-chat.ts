@@ -70,7 +70,7 @@ export class MetaCloudChatService {
       
       return result.rows.map((contact: any) => ({
         id: contact.id,
-        name: `Contato ${contact.id}`,
+        name: contact.id,
         lastMessage: contact.lastmessage || 'Nenhuma mensagem',
         timestamp: parseInt(contact.timestamp) || Date.now(),
         unreadCount: 0
