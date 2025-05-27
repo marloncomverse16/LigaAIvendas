@@ -174,7 +174,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Buscar contatos do QR Code (tabela contacts - dados reais)
       const qrContactsResult = await pool.query(`
         SELECT 
-          number as contact_phone,
+          CASE 
+            WHEN number LIKE '55%' THEN SUBSTRING(number FROM 3)
+            ELSE number 
+          END as contact_phone,
           MAX(COALESCE(last_activity, updated_at, created_at)) as last_activity,
           COUNT(*) as message_count
         FROM contacts 
