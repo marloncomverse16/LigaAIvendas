@@ -581,7 +581,7 @@ export default function ChatOtimizado() {
   // Estado da UI
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<'qr' | 'cloud' | 'both'>('cloud');
+  const [connectionMode, setConnectionMode] = useState<'qr' | 'cloud'>('cloud');
   const [metaConnectionStatus, setMetaConnectionStatus] = useState<any>(null);
   const [showMediaPanel, setShowMediaPanel] = useState(false);
   const [mediaType, setMediaType] = useState<"image" | "audio" | "video" | "document" | null>(null);
@@ -1760,7 +1760,7 @@ export default function ChatOtimizado() {
             <select 
               value={connectionMode} 
               onChange={(e) => {
-                setConnectionMode(e.target.value as 'qr' | 'cloud' | 'both');
+                setConnectionMode(e.target.value as 'qr' | 'cloud');
                 // Atualizar contatos imediatamente quando trocar de modo
                 setTimeout(() => loadChats(), 100);
               }}
@@ -1768,12 +1768,11 @@ export default function ChatOtimizado() {
             >
               <option value="qr">QR Code</option>
               <option value="cloud">Cloud API</option>
-              <option value="both">Ambos</option>
             </select>
           </div>
 
           {/* Status QR Code */}
-          {(connectionMode === 'qr' || connectionMode === 'both') && (
+          {connectionMode === 'qr' && (
             <div className="flex items-center space-x-2">
               <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="text-sm">QR Code: {connected ? 'Conectado' : 'Desconectado'}</span>
@@ -1789,7 +1788,7 @@ export default function ChatOtimizado() {
           )}
 
           {/* Status Cloud API */}
-          {(connectionMode === 'cloud' || connectionMode === 'both') && (
+          {connectionMode === 'cloud' && (
             <div className="flex items-center space-x-2">
               <div className={`w-3 h-3 rounded-full ${metaConnectionStatus?.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="text-sm">Cloud API: {metaConnectionStatus?.connected ? 'Conectado' : 'Desconectado'}</span>
