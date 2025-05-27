@@ -161,10 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Buscar contatos do Cloud API (meta_chat_messages)
       const cloudResult = await pool.query(`
         SELECT DISTINCT 
-          CASE 
-            WHEN contact_phone LIKE '55%' THEN SUBSTRING(contact_phone FROM 3)
-            ELSE contact_phone 
-          END as contact_phone,
+          '+55' || contact_phone as contact_phone,
           MAX(created_at) as last_activity,
           COUNT(*) as message_count
         FROM meta_chat_messages 
@@ -174,19 +171,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 50
       `);
 
-      // Buscar contatos do QR Code (tabela contacts - dados reais)
+      // Buscar contatos do QR Code através da Evolution API (dados reais)
       const qrContactsResult = await pool.query(`
-        SELECT 
-          CASE 
-            WHEN number LIKE '55%' THEN SUBSTRING(number FROM 3)
-            ELSE number 
-          END as contact_phone,
-          MAX(COALESCE(last_activity, updated_at, created_at)) as last_activity,
-          COUNT(*) as message_count
-        FROM contacts 
-        WHERE number IS NOT NULL AND number != ''
-        GROUP BY number
-        ORDER BY MAX(COALESCE(last_activity, updated_at, created_at)) DESC
+        SELECT DISTINCT 
+          wc.number as contact_phone,
+          MAX(COALESCE(wc.last_activity, wc.updated_at, wc.created_at)) as last_activity,
+          COUNT(wm.id) as message_count
+        FROM whatsapp_contacts wc
+        LEFT JOIN whatsapp_messages wm ON wc.contact_id = wm.contact_id
+        WHERE wc.number IS NOT NULL AND wc.number != ''
+        GROUP BY wc.number, wc.contact_id
+        ORDER BY MAX(COALESCE(wc.last_activity, wc.updated_at, wc.created_at)) DESC
         LIMIT 50
       `);
 
