@@ -1689,7 +1689,7 @@ export default function ChatOtimizado() {
           </div>
         
         {/* Lista de chats */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-600">
           {chats.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
               {loading ? 'Carregando contatos...' : 'Nenhum chat encontrado'}
@@ -1737,7 +1737,7 @@ export default function ChatOtimizado() {
             </div>
             
             {/* Mensagens */}
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-950">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-950 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-600">
               {loading && messages.length === 0 ? (
                 <div className="flex justify-center items-center h-full">
                   <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
