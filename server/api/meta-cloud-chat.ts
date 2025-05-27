@@ -47,25 +47,27 @@ export class MetaCloudChatService {
   private async getSavedContacts(userId: number) {
     try {
       const { db } = await import('../db');
-      const { sql } = await import('drizzle-orm');
-      
-      // Buscar mensagens recentes agrupadas por contato
-      const contacts = await db.execute(sql`
+      // Buscar mensagens recentes agrupadas por contato usando SQL nativo
+      const result = await pool.query(`
         SELECT DISTINCT 
           contact_phone as id,
           contact_phone as name,
-          message_content as lastMessage,
-          EXTRACT(EPOCH FROM created_at) * 1000 as timestamp,
-          0 as unreadCount
-        FROM meta_cloud_messages 
-        WHERE user_id = ${userId}
-        ORDER BY created_at DESC
+          (SELECT message_content FROM meta_chat_messages m2 
+           WHERE m2.contact_phone = m1.contact_phone 
+           ORDER BY created_at DESC LIMIT 1) as lastMessage,
+          (SELECT EXTRACT(EPOCH FROM created_at) * 1000 
+           FROM meta_chat_messages m3 
+           WHERE m3.contact_phone = m1.contact_phone 
+           ORDER BY created_at DESC LIMIT 1) as timestamp
+        FROM meta_chat_messages m1
+        WHERE user_id = $1
+        ORDER BY timestamp DESC
         LIMIT 50
-      `);
+      `, [userId]);
 
-      return contacts.rows.map((contact: any) => ({
+      return result.rows.map((contact: any) => ({
         id: contact.id,
-        name: contact.name || contact.id,
+        name: `Contato ${contact.id}`,
         lastMessage: contact.lastmessage || 'Nenhuma mensagem',
         timestamp: parseInt(contact.timestamp) || Date.now(),
         unreadCount: 0
