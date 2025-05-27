@@ -156,42 +156,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota para buscar contatos salvos no banco de dados (sem autenticação)
   app.get("/api/contacts/database", async (req, res) => {
     try {
-      console.log(`🔍 Buscando contatos salvos no banco de dados...`);
+      console.log(`🔍 Buscando contatos reais do banco de dados...`);
       
-      // Dados de exemplo do banco para demonstração
-      const mockContacts = [
-        {
-          id: "1",
-          phone: "554391142751",
-          name: "Contato 1",
-          lastMessage: "Última mensagem recebida",
-          lastActivity: new Date().toISOString(),
-          source: "qrcode",
-          unreadCount: 0
-        },
-        {
-          id: "2", 
-          phone: "554398337105",
-          name: "Contato 2",
-          lastMessage: "Conversa via Cloud API",
-          lastActivity: new Date().toISOString(),
+      // Buscar contatos reais do Cloud API (meta_chat_messages)
+      const cloudContacts = await pool.query(`
+        SELECT DISTINCT 
+          phone_number as phone,
+          phone_number as name,
+          'cloud' as source,
+          MAX(created_at) as lastActivity,
+          COUNT(*) as messageCount
+        FROM meta_chat_messages 
+        WHERE phone_number IS NOT NULL
+        GROUP BY phone_number
+        ORDER BY MAX(created_at) DESC
+        LIMIT 50
+      `);
+
+      // Buscar contatos reais do QR Code (whatsapp_contacts e whatsapp_messages)
+      const qrContacts = await pool.query(`
+        SELECT DISTINCT 
+          w.number as phone,
+          COALESCE(w.name, w.number) as name,
+          'qrcode' as source,
+          MAX(COALESCE(w.updated_at, w.created_at)) as lastActivity,
+          1 as messageCount
+        FROM whatsapp_contacts w
+        WHERE w.number IS NOT NULL
+        GROUP BY w.number, w.name
+        ORDER BY MAX(COALESCE(w.updated_at, w.created_at)) DESC
+        LIMIT 50
+      `);
+
+      // Combinar os resultados
+      const allContacts = [
+        ...cloudContacts.rows.map((contact: any, index: number) => ({
+          id: `cloud_${index + 1}`,
+          phone: contact.phone,
+          name: contact.name || contact.phone,
+          lastMessage: "Mensagem via Cloud API",
+          lastActivity: contact.lastactivity || new Date().toISOString(),
           source: "cloud",
-          unreadCount: 2
-        },
-        {
-          id: "3",
-          phone: "554396439762", 
-          name: "Contato 3",
-          lastMessage: "Chat do WhatsApp",
-          lastActivity: new Date().toISOString(),
+          unreadCount: 0
+        })),
+        ...qrContacts.rows.map((contact: any, index: number) => ({
+          id: `qr_${index + 1}`,
+          phone: contact.phone,
+          name: contact.name || contact.phone,
+          lastMessage: "Mensagem via QR Code",
+          lastActivity: contact.lastactivity || new Date().toISOString(),
           source: "qrcode",
           unreadCount: 0
-        }
+        }))
       ];
+
+      console.log(`📋 Encontrados ${cloudContacts.rows.length} contatos Cloud API e ${qrContacts.rows.length} contatos QR Code`);
+      console.log(`📋 Retornando ${allContacts.length} contatos totais do banco`);
       
-      console.log(`📋 Retornando ${mockContacts.length} contatos do banco`);
       res.setHeader('Content-Type', 'application/json');
-      res.json(mockContacts);
+      res.json(allContacts);
       
     } catch (error) {
       console.error("Erro ao buscar contatos do banco:", error);
