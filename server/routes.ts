@@ -2528,7 +2528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const realContacts = await pool.query(`
         SELECT DISTINCT 
           contact_phone as id,
-          CONCAT('Contato ', contact_phone) as name,
+          contact_phone as name,
           (SELECT message_content FROM meta_chat_messages m2 
            WHERE m2.contact_phone = m1.contact_phone AND m2.user_id = $1
            ORDER BY created_at DESC LIMIT 1) as lastMessage,
