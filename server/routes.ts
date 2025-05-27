@@ -2230,20 +2230,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.id;
       console.log(`🔍 Buscando contatos para usuário ${userId}...`);
       
-      // Buscar contatos reais do banco de dados
-      const contacts = await storage.getWhatsappContacts(userId);
+      // Buscar contatos das duas fontes que o chat otimizado usa
+      let allContacts: any[] = [];
       
-      // Formatar contatos para o frontend
-      const formattedContacts = contacts.map((contact: any) => ({
-        id: `contact_${contact.id}`,
-        phone: contact.number,
-        name: contact.name || contact.number,
-        lastMessage: contact.lastMessageContent || "Sem mensagens",
-        lastActivity: contact.updatedAt || contact.createdAt || new Date().toISOString(),
-        source: contact.isGroup ? "qrcode" : "qrcode",
-        unreadCount: contact.unreadCount || 0,
-        profilePicUrl: contact.profilePicture
-      }));
+      try {
+        // 1. Buscar da Meta Cloud API (mesma rota do chat otimizado)
+        const cloudResponse = await fetch(`${req.protocol}://${req.get('host')}/api/whatsapp-cloud/chats`);
+        if (cloudResponse.ok) {
+          const cloudChats = await cloudResponse.json();
+          const cloudContacts = cloudChats.map((chat: any) => ({
+            id: `cloud_${chat.id}`,
+            phone: chat.id || chat.name,
+            name: chat.name || chat.id,
+            lastMessage: "Chat da Meta Cloud API",
+            lastActivity: new Date(chat.timestamp || Date.now()).toISOString(),
+            source: "cloud",
+            unreadCount: 0
+          }));
+          allContacts.push(...cloudContacts);
+        }
+      } catch (error) {
+        console.log("Erro ao buscar contatos da Meta Cloud API:", error);
+      }
+      
+      try {
+        // 2. Buscar da Evolution API (usando findChats como no chat otimizado)
+        const userServer = await storage.getUserServer(userId);
+        if (userServer?.apiUrl && userServer?.apiToken) {
+          const instanceId = userServer.instanceId || 'admin';
+          const evolutionResponse = await fetch(`${userServer.apiUrl}/chat/findChats/${instanceId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${userServer.apiToken}`,
+              'apikey': userServer.apiToken
+            },
+            body: JSON.stringify({ where: {}, limit: 100 })
+          });
+          
+          if (evolutionResponse.ok) {
+            const evolutionChats = await evolutionResponse.json();
+            const evolutionContacts = (evolutionChats || []).map((chat: any) => ({
+              id: `qr_${chat.id}`,
+              phone: chat.remoteJid?.replace('@s.whatsapp.net', '') || chat.pushName,
+              name: chat.pushName || chat.remoteJid?.replace('@s.whatsapp.net', ''),
+              lastMessage: "Chat da Evolution API",
+              lastActivity: new Date(chat.updatedAt || Date.now()).toISOString(),
+              source: "qrcode",
+              unreadCount: 0,
+              profilePicUrl: chat.profilePicUrl
+            }));
+            allContacts.push(...evolutionContacts);
+          }
+        }
+      } catch (error) {
+        console.log("Erro ao buscar contatos da Evolution API:", error);
+      }
+      
+      const formattedContacts = allContacts;
       
       console.log(`📋 Retornando ${formattedContacts.length} contatos`);
       res.json(formattedContacts);
