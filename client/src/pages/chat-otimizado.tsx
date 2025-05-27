@@ -551,6 +551,9 @@ export default function ChatOtimizado() {
   const [lastMessageTimestamp, setLastMessageTimestamp] = useState<Record<string, number>>({});
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
   
+  // Estado para preservar o texto digitado durante atualizações
+  const [inputText, setInputText] = useState("");
+  
   // Formulário definido uma única vez para evitar re-renderização
   const form = useForm<SendFormValues>({
     resolver: zodResolver(sendFormSchema),
@@ -1382,11 +1385,15 @@ export default function ChatOtimizado() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 50);
       
-      // Limpa o formulário imediatamente para melhor experiência do usuário
+      // Limpa o formulário e o campo de texto local imediatamente para melhor experiência do usuário
       form.reset();
+      setInputText("");
       
       // Focar no campo de texto para permitir enviar outra mensagem
-      form.setFocus("text");
+      const inputElement = document.querySelector('input[placeholder="Digite uma mensagem"]') as HTMLInputElement;
+      if (inputElement) {
+        inputElement.focus();
+      }
       
       // Verificar se houve erro no envio
       if (result && result.success === false) {
@@ -1777,22 +1784,25 @@ export default function ChatOtimizado() {
                         <Paperclip className="h-5 w-5 text-gray-500" />
                       </Button>
                       
-                      <FormField
-                        control={form.control}
-                        name="text"
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormControl>
-                              <Input
-                                placeholder="Digite uma mensagem"
-                                {...field}
-                                disabled={!connected || loading}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Digite uma mensagem"
+                          value={inputText}
+                          onChange={(e) => {
+                            setInputText(e.target.value);
+                            form.setValue("text", e.target.value);
+                          }}
+                          disabled={!connected || loading}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              if (inputText.trim()) {
+                                form.handleSubmit(onSubmit)();
+                              }
+                            }
+                          }}
+                        />
+                      </div>
                       
                       <Button 
                         type="submit" 
