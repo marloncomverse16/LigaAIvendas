@@ -24,10 +24,10 @@ export async function getWhatsAppContacts(req: Request, res: Response) {
     }
 
     // Dados necessários para a conexão
-    const { apiUrl, apiToken } = server;
+    const { apiUrl, apiToken, instanceId } = server;
     const baseUrl = apiUrl.replace(/\/+$/, '');
     const token = apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
-    const instance = req.user?.username || 'admin';
+    const instance = instanceId || req.user?.username || 'admin';
     
     console.log(`Verificando contatos para a instância ${instance} em ${apiUrl}`);
     
@@ -90,10 +90,10 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
     }
 
     // Dados necessários para a conexão
-    const { apiUrl, apiToken } = server;
+    const { apiUrl, apiToken, instanceId } = server;
     const baseUrl = apiUrl.replace(/\/+$/, '');
     const token = apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
-    const instance = req.user?.username || 'admin';
+    const instance = instanceId || req.user?.username || 'admin';
     
     console.log(`Tentando conexão direta:
       URL: ${baseUrl}
