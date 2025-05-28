@@ -168,7 +168,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registrar rotas de conexão
   app.get("/api/connections/status", checkConnectionStatusNew);
-  app.get("/api/connections/qrcode", getQrCode);
+  app.get("/api/connections/qrcode", async (req, res) => {
+    const { generateQrCodeFixed } = await import('./api/qr-code-fixed');
+    return generateQrCodeFixed(req, res);
+  });
   
   // Temporariamente desativado para evitar problemas de conexão
   // app.use("/api/evolution-webhook", evolutionWebhookRoutes);
