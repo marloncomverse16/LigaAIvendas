@@ -786,7 +786,15 @@ export default function ChatOtimizado() {
       // Pequeno delay para garantir que o serviço está inicializado
       setTimeout(() => {
         if (connectionMode === 'cloud') {
-          loadChats();
+          console.log("☁️ Tentando conectar automaticamente ao Meta Cloud API...");
+          // Conecta automaticamente ao Cloud API
+          if (!metaConnectionStatus?.connected) {
+            console.log("🔘 Clicando automaticamente no botão 'Conectar' do Cloud API...");
+            connectMetaWhatsApp();
+          } else {
+            console.log("✅ Cloud API já está conectado, carregando contatos...");
+            loadChats();
+          }
         } else if (connectionMode === 'qr' && service) {
           loadChats();
         }
