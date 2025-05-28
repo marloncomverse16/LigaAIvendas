@@ -80,19 +80,13 @@ export class EvolutionApiClient {
       const createInstanceBody = {
         instanceName: this.instance,
         token: this.token,
-        webhook: null, // Podemos deixar webhook nulo por enquanto
-        webhookByEvents: false, // Podemos adicionar eventos específicos mais tarde
-        integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
-        language: "pt-BR",
+        number: "", // String vazia conforme exigido pela API
         qrcode: true,
-        qrcodeImage: true,
-        // Parâmetros adicionais
-        reject_call: false,
-        events_message: false,
-        ignore_group: false,
-        ignore_broadcast: false,
-        save_message: true,
-        webhook_base64: true
+        webhookUrl: "",
+        webhookByEvents: false,
+        markMessagesRead: false,
+        markPresence: false,
+        syncFullHistory: false
       };
       
       // Na versão 2.x, o endpoint para criar instância é /instance/create
