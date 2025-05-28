@@ -581,7 +581,7 @@ export default function ChatOtimizado() {
   // Estado da UI
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<'qr' | 'cloud'>('cloud');
+  const [connectionMode, setConnectionMode] = useState<'qr' | 'cloud' | 'both'>('cloud');
   const [metaConnectionStatus, setMetaConnectionStatus] = useState<any>(null);
   const [showMediaPanel, setShowMediaPanel] = useState(false);
   const [mediaType, setMediaType] = useState<"image" | "audio" | "video" | "document" | null>(null);
@@ -788,13 +788,15 @@ export default function ChatOtimizado() {
         if (connectionMode === 'cloud') {
           console.log("☁️ Tentando conectar automaticamente ao Meta Cloud API...");
           // Conecta automaticamente ao Cloud API
-          if (!metaConnectionStatus?.connected) {
-            console.log("🔘 Clicando automaticamente no botão 'Conectar' do Cloud API...");
-            connectMetaWhatsApp();
-          } else {
-            console.log("✅ Cloud API já está conectado, carregando contatos...");
+          checkConnection().then((isConnected) => {
+            if (!isConnected) {
+              console.log("🔄 Carregando contatos mesmo assim...");
+            }
             loadChats();
-          }
+          }).catch(() => {
+            console.log("❌ Erro ao verificar conexão Meta Cloud API");
+            loadChats();
+          });
         } else if (connectionMode === 'qr' && service) {
           loadChats();
         }
@@ -1551,66 +1553,10 @@ export default function ChatOtimizado() {
   const formatMessageDate = (timestamp: number | string) => {
     if (!timestamp) return '';
     
-    let date: Date;
-    
-    // Detectar formato do timestamp e fazer conversão apropriada
-    const numTimestamp = Number(timestamp);
-    
-    // Se o timestamp está em segundos (10 dígitos) - Evolution API
-    if (numTimestamp.toString().length === 10) {
-      date = new Date(numTimestamp * 1000);
-    }
-    // Se o timestamp está em milissegundos (13 dígitos) - Meta Cloud API
-    else if (numTimestamp.toString().length === 13) {
-      date = new Date(numTimestamp);
-    }
-    // Tentar interpretar como milissegundos por padrão
-    else {
-      date = new Date(numTimestamp);
-    }
-    
-    // Verificar se a data é válida
-    if (isNaN(date.getTime())) {
-      return '';
-    }
-    
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    
-    // Formatar hora (HH:mm)
-    const timeString = date.toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    
-    // Se for hoje, mostrar apenas a hora
-    if (messageDate.getTime() === today.getTime()) {
-      return timeString;
-    }
-    
-    // Se foi ontem
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (messageDate.getTime() === yesterday.getTime()) {
-      return `Ontem ${timeString}`;
-    }
-    
-    // Se foi esta semana (últimos 7 dias)
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    if (messageDate > weekAgo) {
-      const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' });
-      return `${dayName} ${timeString}`;
-    }
-    
-    // Mais de uma semana: mostrar data completa
-    return date.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+    const date = new Date(Number(timestamp) * 1000);
+    return formatDistanceToNow(date, { 
+      addSuffix: true,
+      locale: ptBR 
     });
   };
   
@@ -1689,62 +1635,6 @@ export default function ChatOtimizado() {
       : 'bg-white dark:bg-gray-800 mr-auto rounded-br-lg rounded-tr-lg rounded-tl-lg';
   };
 
-  // Função para agrupar mensagens por data
-  const groupMessagesByDate = (messages: any[]) => {
-    const groups: { [key: string]: any[] } = {};
-    
-    messages.forEach(msg => {
-      const timestamp = msg.messageTimestamp || msg.timestamp;
-      if (!timestamp) return;
-      
-      let date: Date;
-      const numTimestamp = Number(timestamp);
-      
-      // Detectar formato do timestamp
-      if (numTimestamp.toString().length === 10) {
-        date = new Date(numTimestamp * 1000);
-      } else {
-        date = new Date(numTimestamp);
-      }
-      
-      if (isNaN(date.getTime())) return;
-      
-      const dateKey = date.toLocaleDateString('pt-BR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-      
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
-      }
-      groups[dateKey].push(msg);
-    });
-    
-    return groups;
-  };
-
-  // Formatar o cabeçalho da data
-  const formatDateHeader = (dateString: string) => {
-    const [day, month, year] = dateString.split('/');
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const dateToCheck = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const todayToCheck = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const yesterdayToCheck = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
-    
-    if (dateToCheck.getTime() === todayToCheck.getTime()) {
-      return 'Hoje';
-    } else if (dateToCheck.getTime() === yesterdayToCheck.getTime()) {
-      return 'Ontem';
-    } else {
-      return dateString;
-    }
-  };
-
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Seletor de Conexão WhatsApp */}
@@ -1760,7 +1650,7 @@ export default function ChatOtimizado() {
             <select 
               value={connectionMode} 
               onChange={(e) => {
-                setConnectionMode(e.target.value as 'qr' | 'cloud');
+                setConnectionMode(e.target.value as 'qr' | 'cloud' | 'both');
                 // Atualizar contatos imediatamente quando trocar de modo
                 setTimeout(() => loadChats(), 100);
               }}
@@ -1768,11 +1658,12 @@ export default function ChatOtimizado() {
             >
               <option value="qr">QR Code</option>
               <option value="cloud">Cloud API</option>
+              <option value="both">Ambos</option>
             </select>
           </div>
 
           {/* Status QR Code */}
-          {connectionMode === 'qr' && (
+          {(connectionMode === 'qr' || connectionMode === 'both') && (
             <div className="flex items-center space-x-2">
               <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="text-sm">QR Code: {connected ? 'Conectado' : 'Desconectado'}</span>
@@ -1788,7 +1679,7 @@ export default function ChatOtimizado() {
           )}
 
           {/* Status Cloud API */}
-          {connectionMode === 'cloud' && (
+          {(connectionMode === 'cloud' || connectionMode === 'both') && (
             <div className="flex items-center space-x-2">
               <div className={`w-3 h-3 rounded-full ${metaConnectionStatus?.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="text-sm">Cloud API: {metaConnectionStatus?.connected ? 'Conectado' : 'Desconectado'}</span>
@@ -1893,38 +1784,22 @@ export default function ChatOtimizado() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {Object.entries(groupMessagesByDate(messages))
-                    .sort(([a], [b]) => new Date(a.split('/').reverse().join('-')).getTime() - new Date(b.split('/').reverse().join('-')).getTime())
-                    .map(([dateKey, dateMessages]) => (
-                    <div key={dateKey}>
-                      {/* Separador de data */}
-                      <div className="flex justify-center my-4">
-                        <div className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-600 dark:text-gray-300">
-                          {formatDateHeader(dateKey)}
-                        </div>
-                      </div>
-                      
-                      {/* Mensagens do dia */}
-                      <div className="space-y-4">
-                        {dateMessages.map((msg, index) => (
-                          <div key={msg.id || msg.key?.id || index} className="flex flex-col">
-                            <div 
-                              className={`${getMessageBubbleClass(msg)} p-3 max-w-[70%] shadow-sm`}
-                            >
-                              {!isFromMe(msg) && (selectedChat.isGroup || selectedChat.participant) && (
-                                <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">
-                                  {getMessageSender(msg)}
-                                </div>
-                              )}
-                              <div className="text-sm whitespace-pre-wrap break-words">
-                                {getMessageContent(msg)}
-                              </div>
-                              <div className="text-right text-xs text-gray-500 mt-1">
-                                {formatMessageDate(msg.messageTimestamp || msg.timestamp)}
-                              </div>
-                            </div>
+                  {messages.map((msg, index) => (
+                    <div key={msg.id || msg.key?.id || index} className="flex flex-col">
+                      <div 
+                        className={`${getMessageBubbleClass(msg)} p-3 max-w-[70%] shadow-sm`}
+                      >
+                        {!isFromMe(msg) && (selectedChat.isGroup || selectedChat.participant) && (
+                          <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">
+                            {getMessageSender(msg)}
                           </div>
-                        ))}
+                        )}
+                        <div className="text-sm whitespace-pre-wrap break-words">
+                          {getMessageContent(msg)}
+                        </div>
+                        <div className="text-right text-xs text-gray-500 mt-1">
+                          {formatMessageDate(msg.messageTimestamp)}
+                        </div>
                       </div>
                     </div>
                   ))}
