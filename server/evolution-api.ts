@@ -959,24 +959,25 @@ export class EvolutionApiClient {
    */
   getHeaders() {
     // Priorizar token do ambiente, depois o token do construtor
-    const token = process.env.EVOLUTION_API_TOKEN || 
-      this.token || 
-      '4db623449606bcf2814521b73657dbc0'; // default fallback conhecido por funcionar
+    const token = process.env.EVOLUTION_API_TOKEN || this.token;
+    
+    if (!token) {
+      console.error('❌ NENHUM TOKEN DISPONÍVEL - Verifique se EVOLUTION_API_TOKEN está configurado');
+      throw new Error('Token de autenticação não configurado');
+    }
     
     // Registrar a fonte do token para diagnóstico
-    const source = process.env.EVOLUTION_API_TOKEN ? 'ambiente' : 
-      this.token ? 'construtor' : 
-      'fallback';
+    const source = process.env.EVOLUTION_API_TOKEN ? 'ambiente' : 'construtor';
     
-    console.log(`Usando token nos headers: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'NENHUM TOKEN'} (origem: ${source})`);
+    console.log(`Usando token nos headers: ${token.substring(0, 5)}...${token.substring(token.length - 5)} (origem: ${source})`);
     
-    // De acordo com a documentação da Evolution API (v2.2.3),
-    // o cabeçalho correto é 'apikey', mas vamos manter os outros para compatibilidade
+    // Testar diferentes formatos de autenticação para a Evolution API
     const headers = {
       'Content-Type': 'application/json',
-      'apikey': token, // Este é o formato correto documentado para v2.2.3
-      'Authorization': `Bearer ${token}`,  // Para versões anteriores
-      'AUTHENTICATION_API_KEY': token      // Para algumas instalações em Portainer.io
+      'apikey': token, // Formato principal da Evolution API v2.2.3
+      'Authorization': `Bearer ${token}`,  // Formato alternativo
+      'X-API-KEY': token, // Formato usado por algumas versões
+      'Authentication': token // Formato simplificado
     };
     
     console.log('Headers de autenticação configurados:', Object.keys(headers).join(', '));
