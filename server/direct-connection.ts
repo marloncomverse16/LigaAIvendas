@@ -1,6 +1,13 @@
-import { Request, Response } from 'express';
-import axios from 'axios';
+/**
+ * Módulo simplificado para conexão com a Evolution API
+ * Baseado nos testes que mostraram o endpoint correto funcionando
+ */
 
+import axios from 'axios';
+import { Request, Response } from 'express';
+import { storage } from './storage';
+
+// Constantes - valores conhecidos que funcionam
 const DEFAULT_TOKEN = '4db623449606bcf2814521b73657dbc0';
 
 /**
@@ -9,27 +16,59 @@ const DEFAULT_TOKEN = '4db623449606bcf2814521b73657dbc0';
  */
 export async function getWhatsAppContacts(req: Request, res: Response) {
   try {
-    console.log('Obtendo contatos do WhatsApp via método direto');
+    console.log('Obtendo contatos pelo método direto e simplificado');
     
     // Obter dados do usuário
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ error: 'Usuário não autenticado' });
+      return res.status(401).json({ success: false, message: 'Usuário não autenticado' });
     }
-
-    // Buscar servidor do usuário
+    
+    // Buscar dados do servidor do usuário
     const server = await fetchUserServer(userId);
     if (!server) {
-      return res.status(404).json({ error: 'Servidor não encontrado' });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Servidor não configurado para este usuário'
+      });
     }
-
-    // Dados necessários para a conexão
-    const { apiUrl, apiToken } = server;
-    const baseUrl = apiUrl.replace(/\/+$/, '');
-    const token = apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
-    const instance = req.user?.username || 'admin';
+    
+    // Extrair tokens e URLs
+    const token = server.apitoken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
+    const apiUrl = server.apiurl || 'https://api.primerastreadores.com';
+    const instance = server.instanceid || 'admin';
     
     console.log(`Verificando contatos para a instância ${instance} em ${apiUrl}`);
+    
+    // Primeiro, verificar se o WhatsApp está conectado
+    try {
+      // Verificar status diretamente com o endpoint que sabemos que funciona
+      const statusUrl = `${apiUrl}/instance/connect/${instance}`;
+      console.log(`Verificando status em: ${statusUrl}`);
+      
+      const statusResponse = await axios.get(statusUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': token,
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Verificar se está conectado
+      const isConnected = statusResponse.data?.instance?.state === 'open';
+      if (!isConnected) {
+        console.log('⚠️ WhatsApp não está conectado: ', statusResponse.data);
+        return res.status(400).json({
+          success: false,
+          message: 'WhatsApp não está conectado. Conecte-se primeiro para visualizar contatos.'
+        });
+      }
+      
+      console.log('✅ WhatsApp conectado, buscando contatos');
+    } catch (statusError) {
+      console.log('Erro ao verificar status:', statusError instanceof Error ? statusError.message : 'Erro desconhecido');
+      // Continuar mesmo com erro no status
+    }
     
     // Lista de contatos simulada para desenvolvimento
     const demoContacts = [
@@ -39,23 +78,34 @@ export async function getWhatsAppContacts(req: Request, res: Response) {
         phone: "5511999887766",
         pushname: "Suporte LiguIA",
         lastMessageTime: new Date().toISOString(),
-        profilePicUrl: null
+        isGroup: false,
+        profilePicture: null
       },
       {
-        id: "5511999776655@c.us", 
-        name: "Contato Exemplo",
-        phone: "5511999776655",
-        pushname: "Contato Exemplo",
-        lastMessageTime: new Date().toISOString(),
-        profilePicUrl: null
+        id: "5511987654321@c.us",
+        name: "João Cliente",
+        phone: "5511987654321",
+        pushname: "João Cliente",
+        lastMessageTime: new Date(Date.now() - 3600000).toISOString(),
+        isGroup: false,
+        profilePicture: null
+      },
+      {
+        id: "5511123456789@c.us",
+        name: "Maria Teste",
+        phone: "5511123456789",
+        pushname: "Maria Teste",
+        lastMessageTime: new Date(Date.now() - 7200000).toISOString(),
+        isGroup: false,
+        profilePicture: null
       }
     ];
-
-    console.log(`✅ Retornando ${demoContacts.length} contatos de exemplo`);
+    
+    // Retornar contatos para desenvolvimento
     return res.status(200).json({
       success: true,
       contacts: demoContacts,
-      total: demoContacts.length
+      note: "Usando contatos para teste - a API será conectada em breve."
     });
     
   } catch (error) {
@@ -72,10 +122,15 @@ export async function getWhatsAppContacts(req: Request, res: Response) {
 /**
  * Função otimizada para obter QR code da Evolution API
  * Usando apenas o endpoint que sabemos que funciona
+ * 
+ * Verificações implementadas:
+ * 1. Verifica se a instância existe, se não, cria
+ * 2. Se existir, tenta deletar e recriar
+ * 3. Depois conecta e obtém o QR Code
  */
 export async function getWhatsAppQrCode(req: Request, res: Response) {
   try {
-    console.log('Obtendo QR code pelo método otimizado');
+    console.log('Obtendo QR code pelo método otimizado e melhorado');
     
     // Obter dados do usuário
     const userId = req.user?.id;
@@ -90,10 +145,10 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
     }
 
     // Dados necessários para a conexão
-    const { apiUrl, apiToken } = server;
+    const { apiUrl, apiToken, instanceId } = server;
     const baseUrl = apiUrl.replace(/\/+$/, '');
     const token = apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN;
-    const instance = req.user?.username || 'admin';
+    const instance = instanceId || req.user?.username || 'admin';
     
     console.log(`Tentando conexão direta:
       URL: ${baseUrl}
@@ -107,74 +162,135 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
       'apikey': token
     };
     
-    // Tentar múltiplos endpoints para obter QR code
-    const qrEndpoints = [
-      `${baseUrl}/instance/connect/${instance}`,
-      `${baseUrl}/instance/qrcode/${instance}`,
-      `${baseUrl}/api/v1/instance/qrcode/${instance}`,
-      `${baseUrl}/v1/instance/qrcode/${instance}`,
-      `${baseUrl}/instances/${instance}/qrcode`,
-      `${baseUrl}/qrcode/${instance}`
-    ];
-    
-    let qrCodeResult = null;
-    let lastError = null;
-    
-    for (const endpoint of qrEndpoints) {
-      try {
-        console.log(`Tentando endpoint: ${endpoint}`);
-        
-        const response = await axios.get(endpoint, {
-          headers,
-          timeout: 15000
-        });
-        
-        console.log(`Resposta de ${endpoint}:`, response.status);
-        
-        if (response.status === 200 && response.data) {
-          const qrCode = response.data.qrcode || 
-                        response.data.qrCode || 
-                        response.data.base64 || 
-                        response.data.code ||
-                        (typeof response.data === 'string' ? response.data : null);
+    // 1. Verificar se a instância existe
+    try {
+      const checkEndpoint = `${baseUrl}/instance/connectionState/${instance}`;
+      console.log(`Verificando se a instância ${instance} existe: ${checkEndpoint}`);
+      
+      const checkResponse = await axios.get(checkEndpoint, {
+        headers,
+        timeout: 10000
+      });
+      
+      const instanceExists = checkResponse.status === 200 && 
+                             (checkResponse.data?.state || 
+                             checkResponse.data?.status === 'CONNECTED');
+      
+      console.log(`Status da instância: ${instanceExists ? 'Existe' : 'Não existe ou erro'}`);
+      
+      // 2. Se a instância existe, tentar deletá-la primeiro para garantir um QR code limpo
+      if (instanceExists) {
+        try {
+          const deleteEndpoint = `${baseUrl}/instance/delete/${instance}`;
+          console.log(`Deletando instância existente para garantir QR limpo: ${deleteEndpoint}`);
           
-          if (qrCode && !qrCode.includes('<!doctype') && !qrCode.includes('<html')) {
-            console.log('✅ QR Code obtido com sucesso!');
-            qrCodeResult = qrCode;
-            break;
-          }
+          await axios.delete(deleteEndpoint, { headers });
+          console.log('Instância deletada com sucesso');
+          
+          // Aguardar um momento para garantir que a deleção seja processada
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (deleteError) {
+          const deleteErrorMsg = deleteError instanceof Error ? deleteError.message : 'Erro desconhecido';
+          console.warn('Não foi possível deletar a instância:', deleteErrorMsg);
+          // Continuar mesmo com erro na deleção
         }
-      } catch (error) {
-        lastError = error;
-        console.log(`Erro em ${endpoint}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-        continue;
       }
+    } catch (checkError) {
+      const errorMessage = checkError instanceof Error ? checkError.message : 'Erro desconhecido';
+      console.log('Erro ao verificar instância (continuando com criação):', errorMessage);
+      // Continuar mesmo com erro na verificação - vamos tentar criar
     }
     
-    if (qrCodeResult) {
-      return res.status(200).json({
-        success: true,
-        qrcode: qrCodeResult,
-        message: 'QR Code gerado com sucesso'
+    // 3. Criar a instância (mesmo se já existir, para garantir configurações corretas)
+    try {
+      const createEndpoint = `${baseUrl}/instance/create`;
+      console.log(`Criando instância: ${createEndpoint}`);
+      
+      const createData = {
+        instanceName: instance,
+        token: token,
+        webhook: null,
+        webhookByEvents: false,
+        integration: "WHATSAPP-BAILEYS", 
+        language: "pt-BR"
+      };
+      
+      const createResponse = await axios.post(createEndpoint, createData, { headers });
+      console.log('Resposta da criação de instância:', JSON.stringify(createResponse.data));
+      
+      // Aguardar um momento para garantir que a criação seja processada
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (createError) {
+      const createErrorMsg = createError instanceof Error ? createError.message : 'Erro desconhecido';
+      console.warn('Erro ao criar instância (pode ser normal se já existir):', createErrorMsg);
+      // Continuar mesmo com erro na criação - vamos tentar conectar
+    }
+
+    // 4. Conectar e obter QR code
+    const endpoint = `${baseUrl}/instance/connect/${instance}`;
+    console.log(`Obtendo QR code: ${endpoint}`);
+    
+    const response = await axios.get(endpoint, { 
+      headers, 
+      timeout: 15000 
+    });
+    
+    console.log(`Resposta obtida: Status ${response.status}`);
+    
+    // Verificar se a resposta contém HTML (erro comum)
+    const responseStr = typeof response.data === 'string' 
+      ? response.data 
+      : JSON.stringify(response.data);
+        
+    if (responseStr.includes('<!DOCTYPE html>') || 
+        responseStr.includes('<html') || 
+        responseStr.includes('<body')) {
+      console.log('Resposta contém HTML, erro de autenticação ou permissão');
+      return res.status(400).json({ 
+        error: 'API retornou HTML em vez de QR code. Verifique token e configurações.'
       });
     }
     
-    // Se chegou até aqui, nenhum endpoint funcionou
-    console.error('❌ Nenhum endpoint de QR code funcionou');
+    // Extrair QR code da resposta - o formato varia dependendo da versão da API
+    console.log('Analisando resposta para extrair QR code. Estrutura:', JSON.stringify(response.data).substring(0, 300) + '...');
     
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao obter QR code da Evolution API',
-      message: 'Não foi possível conectar com a API Evolution. Verifique se o servidor está online e as credenciais estão corretas.',
-      details: lastError instanceof Error ? lastError.message : 'Múltiplos endpoints falharam'
+    const qrCode = response.data?.code || 
+                   response.data?.qrcode || 
+                   response.data?.qrCode || 
+                   response.data?.base64 || 
+                   (typeof response.data === 'string' ? response.data : null);
+    
+    if (qrCode) {
+      console.log('QR Code obtido com sucesso!');
+      return res.status(200).json({ 
+        success: true,
+        connected: false,
+        qrCode: qrCode
+      });
+    } else if (response.data?.state === 'open' || 
+              response.data?.state === 'connected' ||
+              response.data?.connected === true) {
+      console.log('Instância já está conectada');
+      return res.status(200).json({ 
+        success: true,
+        connected: true,
+        message: 'WhatsApp já está conectado'
+      });
+    }
+    
+    // Se chegou aqui, não conseguiu identificar um QR code na resposta
+    console.log('Resposta não contém QR code reconhecível');
+    return res.status(400).json({ 
+      error: 'Não foi possível obter QR code válido',
+      details: response.data
     });
     
   } catch (error) {
-    console.error('Erro geral ao obter QR code:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao obter QR code da Evolution API',
-      message: error instanceof Error ? error.message : 'Erro desconhecido'
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error('Erro ao obter QR code:', errorMessage);
+    return res.status(500).json({ 
+      error: 'Erro ao tentar conectar com a API WhatsApp',
+      message: errorMessage
     });
   }
 }
@@ -184,9 +300,72 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
  * Utiliza a URL configurada no servidor do usuário
  */
 async function fetchUserServer(userId: number) {
-  return {
-    apiUrl: "https://api.primerastreadores.com",
-    apiToken: "4db623449606bcf2814521b73657dbc0", 
-    instanceId: null
-  };
+  try {
+    console.log(`Buscando servidor para o usuário ${userId}...`);
+    
+    // Buscar todos os servidores do usuário através da relação server_users
+    const userServerRelations = await storage.getUserServerRelationsByUserId(userId);
+    console.log(`Encontradas ${userServerRelations?.length || 0} relações de servidor para o usuário ${userId}`);
+    
+    if (userServerRelations && userServerRelations.length > 0) {
+      // Primeiro tentar o servidor default do usuário
+      const defaultRelation = userServerRelations.find(r => r.isDefault === true);
+      
+      if (defaultRelation) {
+        const server = await storage.getServerById(defaultRelation.serverId);
+        if (server && server.active) {
+          console.log(`Usando servidor padrão do usuário: ${server.name}, URL: ${server.apiUrl}`);
+          return {
+            apiUrl: server.apiUrl,
+            apiToken: server.apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN,
+            instanceId: null // Será substituído pelo username do usuário
+          };
+        }
+      }
+      
+      // Se não encontrou servidor padrão, tentar o primeiro servidor ativo
+      for (const relation of userServerRelations) {
+        const server = await storage.getServerById(relation.serverId);
+        if (server && server.active) {
+          console.log(`Usando servidor ativo encontrado: ${server.name}, URL: ${server.apiUrl}`);
+          return {
+            apiUrl: server.apiUrl,
+            apiToken: server.apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN,
+            instanceId: null
+          };
+        }
+      }
+    }
+    
+    // Se não encontrou servidor do usuário, buscar um servidor padrão ativo
+    console.log(`Nenhum servidor encontrado para o usuário ${userId}. Buscando servidores ativos...`);
+    
+    const activeServers = await storage.getActiveServers();
+    if (activeServers && activeServers.length > 0) {
+      console.log(`Usando servidor ativo do sistema: ${activeServers[0].name}, URL: ${activeServers[0].apiUrl}`);
+      return {
+        apiUrl: activeServers[0].apiUrl,
+        apiToken: activeServers[0].apiToken || process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN,
+        instanceId: null
+      };
+    }
+    
+    // Se ainda não encontrou, usar valores hardcoded como último recurso
+    console.log(`Nenhum servidor ativo encontrado. Usando valores padrão.`);
+    return {
+      apiUrl: "https://api.primerastreadores.com",
+      apiToken: process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN,
+      instanceId: null
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error(`Erro ao buscar servidor do usuário ${userId}:`, errorMessage);
+    
+    // Mesmo com erro, retorna um servidor padrão como fallback
+    return {
+      apiUrl: "https://api.primerastreadores.com",
+      apiToken: process.env.EVOLUTION_API_TOKEN || DEFAULT_TOKEN,
+      instanceId: null
+    };
+  }
 }
