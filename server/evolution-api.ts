@@ -63,19 +63,34 @@ export class EvolutionApiClient {
    */
   async listInstances(): Promise<any> {
     try {
-      const response = await axios.get(`${this.baseUrl}/instances`, {
+      console.log(`Listando instâncias no endpoint: ${this.baseUrl}/instance/fetchInstances`);
+      const response = await axios.get(`${this.baseUrl}/instance/fetchInstances`, {
         headers: this.getHeaders()
       });
       
+      console.log(`Resposta da listagem de instâncias:`, response.data);
+      
+      // A resposta pode ser um array de strings ou um objeto com as instâncias
+      let instances = [];
+      if (Array.isArray(response.data)) {
+        instances = response.data;
+      } else if (response.data && response.data.instances) {
+        instances = response.data.instances;
+      } else if (response.data && typeof response.data === 'object') {
+        instances = Object.keys(response.data);
+      }
+
       return {
         success: true,
-        instances: response.data?.instances || response.data || []
+        instances: instances,
+        data: response.data
       };
     } catch (error) {
       console.error('Erro ao listar instâncias:', error.message);
       return {
         success: false,
-        error: error.message
+        error: error.message,
+        instances: []
       };
     }
   }
@@ -148,23 +163,16 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando criar a instância...");
       
-      // Formatar o corpo da requisição baseado na versão 2.2.3 da Evolution API
+      // Formatar o corpo da requisição conforme a documentação da Evolution API
       const createInstanceBody = {
         instanceName: this.instance,
-        token: this.token,
-        webhook: null, // Podemos deixar webhook nulo por enquanto
-        webhookByEvents: false, // Podemos adicionar eventos específicos mais tarde
-        integration: "WHATSAPP-BAILEYS", // Este parâmetro é CRÍTICO para a versão 2.x da API
-        language: "pt-BR",
         qrcode: true,
-        qrcodeImage: true,
-        // Parâmetros adicionais
-        reject_call: false,
-        events_message: false,
-        ignore_group: false,
-        ignore_broadcast: false,
-        save_message: true,
-        webhook_base64: true
+        integration: "WHATSAPP-BAILEYS",
+        webhook: {
+          url: "",
+          byEvents: false,
+          base64: true
+        }
       };
       
       // Na versão 2.x, o endpoint correto é /instance/create (testado e funcionando)
