@@ -81,22 +81,25 @@ async function checkEvolutionConnection(baseUrl: string, token: string, instance
         console.log(`[EVOLUTION CHECK] Resposta:`, stateResponse.data);
         
         // Verificar se está conectado usando todos os formatos possíveis
+        const instanceState = stateResponse.data.instance?.state || stateResponse.data.state;
         const isConnected = 
-          stateResponse.data.state === 'open' || 
-          stateResponse.data.state === 'CONNECTED' ||
-          stateResponse.data.state === 'connected' ||
-          stateResponse.data.state === 'CONNECTION' ||
+          instanceState === 'open' || 
+          instanceState === 'CONNECTED' ||
+          instanceState === 'connected' ||
+          instanceState === 'CONNECTION' ||
           stateResponse.data.connected === true ||
+          stateResponse.data.instance?.connected === true ||
           (stateResponse.data.status && 
             (stateResponse.data.status.includes('connect') || 
              stateResponse.data.status.includes('CONNECT')));
         
+        console.log(`[EVOLUTION CHECK] Estado da instância: ${instanceState}`);
         console.log(`[EVOLUTION CHECK] Status: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'}`);
         
         return {
           api_online: true,
           connected: isConnected,
-          state: stateResponse.data.state || 'unknown',
+          state: instanceState || 'unknown',
           status: stateResponse.data.status || null,
           data: stateResponse.data,
           timestamp: new Date().toISOString()
@@ -232,50 +235,6 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         // Verificar a conexão diretamente usando os dados do servidor
         console.log(`[CONNECTION] Verificando conexão diretamente para o usuário ${userId}`);
         
-        try {
-          // Definir os headers para a requisição
-          const headers = { 
-            'Authorization': `Bearer ${userServer.server.apiToken || process.env.EVOLUTION_API_TOKEN || '4db623449606bcf2814521b73657dbc0'}`,
-            'Content-Type': 'application/json'
-          };
-          
-          // Verificar estado da conexão usando API
-          const connectionUrl = `${userServer.server.apiUrl}/instance/connectionState/${user.username}`;
-          console.log(`[CONNECTION] Verificando em: ${connectionUrl}`);
-          
-          const stateResponse = await axios.get(connectionUrl, { headers });
-          console.log(`[CONNECTION] Resposta:`, stateResponse.data);
-          
-          // Atualizar status com os dados reais
-          connectionStatus[userId] = {
-            ...connectionStatus[userId],
-            connected: true, // Forçando como conectado para permitir testes
-            state: stateResponse.data.state || 'connected',
-            qrCode: null,
-            lastCheckedWith: "direct_api",
-            lastUpdated: new Date()
-          };
-          
-          console.log(`[CONNECTION] Status definido como CONECTADO`);
-          return res.json(connectionStatus[userId]);
-        } catch (directError) {
-          console.error(`[CONNECTION] Erro ao verificar diretamente:`, directError.message);
-          
-          // Mesmo com erro, forçar como conectado para testes
-          connectionStatus[userId] = {
-            ...connectionStatus[userId],
-            connected: true,
-            state: 'connected',
-            qrCode: null,
-            lastCheckedWith: "forced_override",
-            lastUpdated: new Date()
-          };
-          
-          console.log(`[CONNECTION] Status forçado como CONECTADO após erro`);
-          return res.json(connectionStatus[userId]);
-        }
-        
-        /* CÓDIGO ORIGINAL COMENTADO
         console.log(`[CONNECTION] Verificando conexão via Evolution API em: ${userServer.server.apiUrl}`);
         
         // Usar nossa nova função de verificação aprimorada
@@ -285,7 +244,10 @@ export async function checkConnectionStatus(req: Request, res: Response) {
           user.username
         );
         
-        console.log(`[CONNECTION] Resultado da verificação:`, evolutionStatus);
+        console.log(`[CONNECTION] Resultado da verificação:`, JSON.stringify(evolutionStatus, null, 2));
+        console.log(`[CONNECTION] evolutionStatus.connected === true?`, evolutionStatus.connected === true);
+        console.log(`[CONNECTION] Tipo de evolutionStatus.connected:`, typeof evolutionStatus.connected);
+        console.log(`[CONNECTION] Valor de evolutionStatus.connected:`, evolutionStatus.connected);
         
         // Atualizar status na memória
         connectionStatus[userId] = {
@@ -298,6 +260,8 @@ export async function checkConnectionStatus(req: Request, res: Response) {
           lastUpdated: new Date()
         };
         
+        console.log(`[CONNECTION] Status final definido:`, JSON.stringify(connectionStatus[userId], null, 2));
+        
         // Se conectado, registrar
         if (evolutionStatus.connected) {
           console.log(`[CONNECTION] Conexão WhatsApp DETECTADA na Evolution API`);
@@ -307,7 +271,7 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         
         // Retornar o status atualizado
         return res.json(connectionStatus[userId]);
-        */
+
       } catch (evolutionError) {
         console.error(`[CONNECTION] Erro geral na verificação via Evolution API:`, evolutionError);
       }
