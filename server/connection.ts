@@ -386,27 +386,59 @@ export async function connectWhatsApp(req: Request, res: Response) {
             
             console.log(`API online com token ${token?.substring(0, 3)}... Versão: ${apiStatus.data?.version || 'desconhecida'}`);
             
-            // PASSO CRÍTICO: Tentar criar a instância
-            console.log(`Criando instância com token ${token?.substring(0, 3)}...`);
+            // PASSO 1: Buscar instâncias existentes
+            console.log(`🔍 Buscando instâncias existentes...`);
+            const listResult = await evolutionClient.listInstances();
+            
+            if (listResult.success) {
+              const instances = listResult.instances;
+              console.log(`📋 Encontradas ${instances.length} instâncias: ${instances.join(', ')}`);
+              
+              // PASSO 2: Se existir uma instância com o nome do usuário, deletá-la
+              if (instances.includes(user.username)) {
+                console.log(`🗑️ Instância "${user.username}" já existe. Deletando...`);
+                const deleteResult = await evolutionClient.deleteInstance(user.username);
+                
+                if (deleteResult.success) {
+                  console.log(`✅ Instância "${user.username}" deletada com sucesso`);
+                } else {
+                  console.log(`⚠️ Não foi possível deletar a instância "${user.username}": ${deleteResult.error}`);
+                }
+                
+                // Aguardar um pouco para a deleção processar
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              } else {
+                console.log(`ℹ️ Nenhuma instância com o nome "${user.username}" foi encontrada`);
+              }
+            } else {
+              console.log(`⚠️ Não foi possível listar instâncias: ${listResult.error}`);
+            }
+            
+            // PASSO 3: Criar uma nova instância com o nome do usuário
+            console.log(`🆕 Criando nova instância "${user.username}"...`);
             const createResult = await evolutionClient.createInstance();
             
             if (createResult.success) {
-              console.log(`Instância criada com sucesso usando token ${token?.substring(0, 3)}...`);
+              console.log(`✅ Instância "${user.username}" criada com sucesso`);
             } else {
-              console.log(`Não foi possível criar instância com token ${token?.substring(0, 3)}..., mas continuando`);
+              console.log(`❌ Não foi possível criar instância "${user.username}": ${createResult.error}`);
+              continue; // Tentar próximo token
             }
             
-            // Solicitar QR code
-            console.log(`Obtendo QR code com token ${token?.substring(0, 3)}...`);
+            // Aguardar um pouco para a instância inicializar
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // PASSO 4: Gerar o QR code
+            console.log(`📱 Gerando QR code para a instância "${user.username}"...`);
             qrResult = await evolutionClient.getQrCode();
             
             if (qrResult.success && (qrResult.qrCode || qrResult.connected)) {
               sucessoComEvolution = true;
               tokenUsado = token;
-              console.log(`Sucesso ao obter QR code/status com token ${token?.substring(0, 3)}...`);
+              console.log(`✅ QR code gerado com sucesso para "${user.username}"`);
               break; // Sair do loop de tokens
             } else {
-              console.log(`Falha ao obter QR code com token ${token?.substring(0, 3)}...`);
+              console.log(`❌ Falha ao gerar QR code para "${user.username}": ${qrResult.error || 'Erro desconhecido'}`);
             }
           } catch (tokenError) {
             console.error(`Erro ao usar token ${token?.substring(0, 3)}...`, tokenError.message);

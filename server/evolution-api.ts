@@ -48,10 +48,82 @@ export class EvolutionApiClient {
         data: response.data,
         status: response.status
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao verificar status da API Evolution:', error);
       return {
         online: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Lista todas as instâncias disponíveis
+   * @returns Lista de instâncias
+   */
+  async listInstances(): Promise<any> {
+    try {
+      const response = await axios.get(`${this.baseUrl}/instances`, {
+        headers: this.getHeaders()
+      });
+      
+      return {
+        success: true,
+        instances: response.data?.instances || response.data || []
+      };
+    } catch (error) {
+      console.error('Erro ao listar instâncias:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Deleta uma instância específica
+   * @param instanceName Nome da instância a ser deletada
+   * @returns Resultado da deleção
+   */
+  async deleteInstance(instanceName?: string): Promise<any> {
+    const targetInstance = instanceName || this.instance;
+    
+    try {
+      // Tentar diferentes endpoints de deleção
+      const endpoints = [
+        `/instance/delete/${targetInstance}`,
+        `/instance/${targetInstance}/delete`,
+        `/instances/${targetInstance}`
+      ];
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Tentando deletar instância no endpoint: ${this.baseUrl}${endpoint}`);
+          
+          const response = await axios.delete(`${this.baseUrl}${endpoint}`, {
+            headers: this.getHeaders()
+          });
+          
+          if (response.status >= 200 && response.status < 300) {
+            console.log(`Instância ${targetInstance} deletada com sucesso`);
+            return {
+              success: true,
+              data: response.data
+            };
+          }
+        } catch (endpointError) {
+          console.log(`Endpoint ${endpoint} falhou: ${endpointError.message}`);
+        }
+      }
+      
+      return {
+        success: false,
+        error: "Não foi possível deletar a instância com nenhum dos endpoints testados"
+      };
+    } catch (error) {
+      console.error('Erro ao deletar instância:', error.message);
+      return {
+        success: false,
         error: error.message
       };
     }
