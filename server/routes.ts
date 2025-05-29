@@ -168,6 +168,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registrar rotas de conexão
   app.get("/api/connections/status", checkConnectionStatusNew);
+  
+  // Nova rota para buscar configurações da Evolution API
+  app.get("/api/connections/evolution-config", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Não autenticado" });
+      }
+
+      const user = req.user as any;
+      
+      // Buscar o servidor padrão do usuário
+      const { userServers, servers } = await import("@shared/schema");
+      const userServerQuery = await db.select()
+        .from(userServers)
+        .innerJoin(servers, eq(userServers.serverId, servers.id))
+        .where(eq(userServers.userId, user.id))
+        .limit(1);
+
+      if (!userServerQuery.length) {
+        return res.status(404).json({ 
+          error: "Nenhum servidor configurado",
+          message: "Configure um servidor na aba Conexões primeiro" 
+        });
+      }
+
+      const server = userServerQuery[0].servers;
+      
+      res.json({
+        apiUrl: server.apiUrl,
+        apiToken: server.apiToken,
+        instanceName: user.username || 'admin'
+      });
+    } catch (error) {
+      console.error("Erro ao buscar configurações da Evolution API:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
   app.post("/api/connections/qrcode", async (req: Request, res: Response) => {
     try {
       console.log("🔍 Solicitação de QR Code recebida");

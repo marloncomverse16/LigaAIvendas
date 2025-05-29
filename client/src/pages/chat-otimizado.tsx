@@ -569,10 +569,10 @@ class DirectEvolutionService {
 }
 
 export default function ChatOtimizado() {
-  // Estado para armazenar dados da API
-  const [apiUrl, setApiUrl] = useState('https://api.primerastreadores.com');
-  const [apiKey, setApiKey] = useState('4db623449606bcf2814521b73657dbc0');
-  const [instanceName, setInstanceName] = useState('admin');
+  // Estado para armazenar dados da API (serão carregados dinamicamente)
+  const [apiUrl, setApiUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [instanceName, setInstanceName] = useState('');
   
   // Referência para o serviço
   const [service, setService] = useState<DirectEvolutionService | null>(null);
@@ -731,10 +731,48 @@ export default function ChatOtimizado() {
   
 
   
-  // Inicializa o serviço quando o componente é montado - APENAS para modo QR
+  // Carregar configurações da Evolution API dinamicamente
   useEffect(() => {
-    // Só criar o serviço Evolution API se modo QR estiver selecionado
     if (connectionMode === 'qr') {
+      const loadEvolutionConfig = async () => {
+        try {
+          console.log("Carregando configurações da Evolution API da aba Conexões...");
+          const response = await fetch('/api/connections/evolution-config');
+          
+          if (response.ok) {
+            const config = await response.json();
+            console.log("Configurações Evolution carregadas:", config);
+            
+            setApiUrl(config.apiUrl);
+            setApiKey(config.apiToken);
+            setInstanceName(config.instanceName);
+          } else {
+            const error = await response.json();
+            console.error("Erro ao carregar configurações:", error.message);
+            toast({
+              title: "Erro de configuração",
+              description: error.message || "Configure um servidor na aba Conexões primeiro",
+              variant: "destructive"
+            });
+          }
+        } catch (error) {
+          console.error("Erro ao buscar configurações da Evolution API:", error);
+          toast({
+            title: "Erro de conexão",
+            description: "Não foi possível carregar as configurações da Evolution API",
+            variant: "destructive"
+          });
+        }
+      };
+      
+      loadEvolutionConfig();
+    }
+  }, [connectionMode]);
+
+  // Inicializa o serviço quando as configurações são carregadas
+  useEffect(() => {
+    // Só criar o serviço Evolution API se modo QR estiver selecionado e configurações carregadas
+    if (connectionMode === 'qr' && apiUrl && apiKey && instanceName) {
       console.log("Inicializando serviço Evolution API para modo QR:", { apiUrl, apiKey, instanceName });
       
       // Criar instância do serviço
@@ -743,7 +781,7 @@ export default function ChatOtimizado() {
       
       // Verificar conexão imediatamente
       checkConnection(evolutionService);
-    } else {
+    } else if (connectionMode !== 'qr') {
       // Limpar serviço se não for modo QR
       setService(null);
       setConnected(false);
