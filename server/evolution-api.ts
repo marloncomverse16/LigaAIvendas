@@ -167,8 +167,7 @@ export class EvolutionApiClient {
         webhook_base64: true
       };
       
-      // Na versão 2.x, o endpoint para criar instância é /instance/create
-      // ou /instance/create/instance_name
+      // Na versão 2.x, o endpoint correto é /instance/create (testado e funcionando)
       try {
         console.log(`Tentando criar instância no endpoint: ${this.baseUrl}/instance/create`);
         console.log(`Dados enviados:`, JSON.stringify(createInstanceBody));
@@ -298,23 +297,23 @@ export class EvolutionApiClient {
       }
       
       if (response.status === 200 || response.status === 201) {
-        // Verificar se a resposta contém um QR code válido
-        // A documentação menciona que o QR code está na propriedade 'qrcode'
-        if (response.data && response.data.qrcode) {
-          console.log("QR Code obtido com sucesso!");
+        // Baseado no teste bem-sucedido: a Evolution API retorna o QR code diretamente como string base64
+        if (typeof response.data === 'string' && response.data.startsWith('data:image/png;base64,')) {
+          console.log("QR Code obtido com sucesso (formato direto)!");
           return {
             success: true,
-            qrCode: response.data.qrcode,
+            qrCode: response.data,
             endpoint: connectEndpoint,
             method: 'GET'
           };
-        } 
-        // Verificar formatos alternativos com base em testes
-        else {
-          // Tentar encontrar o QR code em diferentes formatos de resposta
-          const qrCode = response.data?.qrCode || 
-                       response.data?.base64 || 
-                       response.data?.code ||
+        }
+        
+        // Verificar se a resposta contém um QR code em propriedades aninhadas (fallback)
+        if (response.data && typeof response.data === 'object') {
+          const qrCode = response.data.qrcode || 
+                       response.data.qrCode || 
+                       response.data.base64 || 
+                       response.data.code ||
                        response.data?.result?.qrcode ||
                        response.data?.data?.qrcode ||
                        response.data?.response?.qrcode;
