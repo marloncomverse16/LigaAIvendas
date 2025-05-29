@@ -1989,10 +1989,10 @@ export default function ChatOtimizado() {
               <p className="text-gray-500 mb-8">
                 Selecione um contato na barra lateral para iniciar uma conversa.
               </p>
-              {!connected && (
+              {!connected && connectionMode === 'qr' && (
                 <div className="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg mb-4">
                   <p className="text-yellow-800 dark:text-yellow-200">
-                    Você está desconectado do WhatsApp. Verifique sua conexão.
+                    Você está desconectado do WhatsApp QR Code. Verifique sua conexão.
                   </p>
                   <Button 
                     onClick={() => checkConnection()} 
@@ -2008,7 +2008,33 @@ export default function ChatOtimizado() {
                     ) : (
                       <>
                         <RefreshCw className="mr-2 h-4 w-4" />
-                        Verificar Conexão
+                        Verificar Conexão QR
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+              
+              {!connected && connectionMode === 'cloud' && (
+                <div className="bg-blue-100 dark:bg-blue-900 p-4 rounded-lg mb-4">
+                  <p className="text-blue-800 dark:text-blue-200">
+                    Conectando automaticamente ao WhatsApp Cloud API...
+                  </p>
+                  <Button 
+                    onClick={() => connectMetaWhatsApp()} 
+                    variant="outline" 
+                    className="mt-2"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Conectando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Reconectar Meta API
                       </>
                     )}
                   </Button>
