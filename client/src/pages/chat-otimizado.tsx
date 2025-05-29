@@ -590,6 +590,7 @@ export default function ChatOtimizado() {
   const [lastMessageTimestamp, setLastMessageTimestamp] = useState<Record<string, number>>({});
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
   const [unreadMessages, setUnreadMessages] = useState<Record<string, number>>({});
+  const [lastReadTimestamp, setLastReadTimestamp] = useState<Record<string, number>>({});
   
   // Estado para preservar o texto digitado durante atualizações
   const [inputText, setInputText] = useState("");
@@ -607,20 +608,30 @@ export default function ChatOtimizado() {
 
   // Função para contar mensagens não lidas de um chat
   const countUnreadMessages = (chatId: string) => {
-    const chatMessages = messagesByChatId[chatId] || [];
-    return chatMessages.filter(msg => !msg.fromMe && !msg.read).length;
+    return unreadMessages[chatId] || 0;
   };
 
   // Função para marcar mensagens como lidas quando abrir a conversa
   const markMessagesAsRead = (chatId: string) => {
-    setMessagesByChatId(prev => ({
-      ...prev,
-      [chatId]: (prev[chatId] || []).map(msg => ({ ...msg, read: true }))
-    }));
     setUnreadMessages(prev => ({
       ...prev,
       [chatId]: 0
     }));
+  };
+
+  // Função para calcular mensagens não lidas quando novas mensagens chegarem
+  const updateUnreadCount = (chatId: string, newMessages: any[]) => {
+    // Contar apenas mensagens recebidas (não enviadas por mim)
+    const incomingMessages = newMessages.filter(msg => !msg.fromMe);
+    const currentUnread = unreadMessages[chatId] || 0;
+    
+    // Se há novas mensagens recebidas e o chat não está selecionado, aumentar contador
+    if (incomingMessages.length > 0 && (!selectedChat || (selectedChat.id !== chatId && selectedChat.remoteJid !== chatId))) {
+      setUnreadMessages(prev => ({
+        ...prev,
+        [chatId]: currentUnread + incomingMessages.length
+      }));
+    }
   };
 
   // Função para formatar data e hora das mensagens
@@ -1305,11 +1316,15 @@ export default function ChatOtimizado() {
           [chatId]: messagesWithReadStatus
         }));
         
-        // Contar mensagens não lidas (apenas mensagens recebidas)
-        const unreadCount = messagesWithReadStatus.filter(msg => !msg.fromMe && !msg.read).length;
+        // Para a primeira carga, definir um número inicial de mensagens não lidas
+        // baseado nas mensagens recebidas mais recentes
+        const recentIncomingMessages = messagesWithReadStatus
+          .filter(msg => !msg.fromMe)
+          .slice(-5); // Últimas 5 mensagens recebidas consideradas não lidas
+        
         setUnreadMessages(prev => ({
           ...prev,
-          [chatId]: unreadCount
+          [chatId]: recentIncomingMessages.length
         }));
         
         // Atualizar mensagens visíveis
