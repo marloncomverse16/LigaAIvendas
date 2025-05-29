@@ -2702,7 +2702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               SELECT s.*, us.* 
               FROM user_servers us
               JOIN servers s ON us.server_id = s.id
-              WHERE us.user_id = $1 AND us.is_default = true
+              WHERE us.user_id = $1
               LIMIT 1
             `;
             const userServerResult = await pool.query(userServerQuery, [userId]);
