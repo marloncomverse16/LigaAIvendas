@@ -435,7 +435,7 @@ export class EvolutionApiClient {
         `${secureManagerUrl}/status/${this.instance}`,
         // Endpoints alternativos
         `${this.baseUrl}/instance/connectionState/${this.instance}`,
-        `${this.baseUrl}/manager/instance/connectionState/${this.instance}`
+        `${this.baseUrl}/instance/connectionState/${this.instance}`
       ];
       
       // Tentar cada endpoint
@@ -524,7 +524,7 @@ export class EvolutionApiClient {
         // Abordagem alternativa com endpoints padrão
         const endpoints = [
           `${this.baseUrl}/instance/delete/${this.instance}`,
-          `${this.baseUrl}/manager/instance/delete/${this.instance}`
+          `${this.baseUrl}/instance/delete/${this.instance}`
         ];
         
         let anySuccess = false;
@@ -632,7 +632,7 @@ export class EvolutionApiClient {
         const endpoints = [
           `${this.baseUrl}/instance/logout/${this.instance}`,
           `${this.baseUrl}/instance/delete/${this.instance}`,
-          `${this.baseUrl}/manager/instance/logout/${this.instance}`,
+          `${this.baseUrl}/instance/logout/${this.instance}`,
           `${this.baseUrl}/disconnect/${this.instance}`
         ];
         

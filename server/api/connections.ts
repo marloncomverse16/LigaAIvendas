@@ -49,7 +49,7 @@ export async function checkConnectionStatus(req: Request, res: Response) {
     
     try {
       const statusResponse = await axios.get(
-        `${server.apiUrl}/manager/instance/connectionState/${instanceName}`,
+        `${server.apiUrl}/instance/connectionState/${instanceName}`,
         { headers }
       );
       
@@ -59,7 +59,7 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         success: true,
         connected: statusResponse.data?.state === 'open' || statusResponse.data?.connected,
         data: statusResponse.data,
-        endpoint: `${server.apiUrl}/manager/instance/connectionState/${instanceName}`
+        endpoint: `${server.apiUrl}/instance/connectionState/${instanceName}`
       };
       
       // Se recebermos HTML em vez de JSON (comum em algumas versões da Evolution API)
