@@ -1121,17 +1121,16 @@ export default function ChatOtimizado() {
         // Na primeira carga, substitui completamente
         setChats(response || []);
         
-        // Inicializar bolinhas de notificação para demonstração
-        if (response && response.length > 0) {
+        // Inicializar bolinhas de notificação apenas na primeira carga
+        if (response && response.length > 0 && Object.keys(unreadMessages).length === 0) {
           const initialUnread: Record<string, number> = {};
           response.forEach((chat: any, index: number) => {
             const chatId = chat.id || chat.remoteJid;
-            // Para demonstração, definir algumas mensagens não lidas nos primeiros chats
-            if (index < 2) {
-              initialUnread[chatId] = index + 2; // 2 ou 3 mensagens não lidas
-            }
+            // Definir um número inicial de mensagens não lidas para demonstração
+            if (index === 0) initialUnread[chatId] = 3; // Primeiro chat com 3 mensagens
+            if (index === 1) initialUnread[chatId] = 1; // Segundo chat com 1 mensagem
           });
-          setUnreadMessages(prev => ({ ...prev, ...initialUnread }));
+          setUnreadMessages(initialUnread);
         }
       }
       
@@ -1336,17 +1335,8 @@ export default function ChatOtimizado() {
           [chatId]: messagesWithReadStatus
         }));
         
-        // Para a primeira carga, definir mensagens não lidas apenas se o chat não foi aberto ainda
-        if (!lastReadTimestamp[chatId]) {
-          const recentIncomingMessages = messagesWithReadStatus
-            .filter(msg => !msg.fromMe)
-            .slice(-3); // Últimas 3 mensagens recebidas consideradas não lidas
-          
-          setUnreadMessages(prev => ({
-            ...prev,
-            [chatId]: recentIncomingMessages.length
-          }));
-        }
+        // Não alterar o contador de mensagens não lidas aqui
+        // O contador é gerenciado apenas na carga inicial dos chats e quando o chat é selecionado
         
         // Atualizar mensagens visíveis
         setMessages(messagesWithReadStatus);
