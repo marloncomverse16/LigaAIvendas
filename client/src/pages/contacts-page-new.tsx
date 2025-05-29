@@ -64,12 +64,16 @@ export default function ContactsPageNew() {
   const { data: contactsResponse, isLoading } = useQuery({
     queryKey: ['/api/contacts'],
     queryFn: async () => {
+      console.log("📋 Buscando contatos da API...");
       const response = await apiRequest('GET', '/api/contacts');
-      return await response.json();
+      const data = await response.json();
+      console.log("📊 Resposta da API contatos:", data);
+      return data;
     }
   });
 
   const contacts: Contact[] = contactsResponse?.contacts || [];
+  console.log("📋 Contatos processados no frontend:", contacts);
 
   // Filtrar contatos
   const filteredContacts = contacts.filter(contact => {

@@ -2289,18 +2289,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = req.user!.id;
+      const { pool } = await import('./db');
       
-      // Buscar contatos do banco de dados
-      const userContacts = await db.select().from(contacts)
-        .where(eq(contacts.userId, userId))
-        .orderBy(desc(contacts.lastMessageTime));
+      console.log(`📋 Buscando contatos para usuário ${userId}...`);
+      
+      // Verificar se a tabela contacts existe e tem dados
+      const checkTableQuery = `
+        SELECT COUNT(*) as total 
+        FROM contacts 
+        WHERE user_id = $1
+      `;
+      
+      const checkResult = await pool.query(checkTableQuery, [userId]);
+      console.log(`📊 Total de contatos na tabela para usuário ${userId}: ${checkResult.rows[0].total}`);
+      
+      // Buscar contatos do banco de dados usando SQL nativo
+      const contactsQuery = `
+        SELECT id, user_id, phone_number, name, profile_picture, 
+               last_message_time, last_message, source, server_id, 
+               is_active, notes, tags, created_at, updated_at
+        FROM contacts 
+        WHERE user_id = $1 
+        ORDER BY last_message_time DESC NULLS LAST, created_at DESC
+      `;
+      
+      const contactsResult = await pool.query(contactsQuery, [userId]);
+      console.log(`📋 Contatos encontrados: ${contactsResult.rows.length}`);
+      
+      if (contactsResult.rows.length > 0) {
+        console.log('📋 Primeiros 3 contatos:', contactsResult.rows.slice(0, 3));
+      }
       
       res.json({
         success: true,
-        contacts: userContacts
+        contacts: contactsResult.rows
       });
     } catch (error) {
-      console.error('Erro ao buscar contatos:', error);
+      console.error('❌ Erro ao buscar contatos:', error);
       res.status(500).json({
         success: false,
         message: 'Erro ao buscar contatos',
@@ -2414,6 +2439,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { pool } = await import('./db');
       
+      console.log(`🔄 Iniciando sincronização QR Code para usuário ${userId}`);
+      
+      // Primeiro, verificar se a tabela whatsapp_messages existe e tem dados
+      const checkTableQuery = `
+        SELECT COUNT(*) as total 
+        FROM whatsapp_messages 
+        WHERE user_id = $1
+      `;
+      
+      const checkResult = await pool.query(checkTableQuery, [userId]);
+      console.log(`📊 Total de mensagens na tabela whatsapp_messages para usuário ${userId}: ${checkResult.rows[0].total}`);
+      
       // Buscar contatos únicos da tabela whatsapp_messages usando SQL nativo
       const qrContactsQuery = `
         SELECT DISTINCT 
@@ -2426,10 +2463,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
       
       const qrResult = await pool.query(qrContactsQuery, [userId]);
+      console.log(`📋 Contatos únicos encontrados no QR Code: ${qrResult.rows.length}`);
+      
+      if (qrResult.rows.length > 0) {
+        console.log('📋 Primeiros 5 contatos QR encontrados:', qrResult.rows.slice(0, 5));
+      }
+      
       let syncedCount = 0;
       
       for (const row of qrResult.rows) {
         const contactId = row.contact_id;
+        console.log(`📞 Processando contato QR: ${contactId}`);
         
         // Extrair número de telefone do contactId
         let phoneNumber = contactId.replace('@c.us', '').replace('@s.whatsapp.net', '');
@@ -2442,6 +2486,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name = parts[1];
         }
         
+        console.log(`📱 Telefone extraído: ${phoneNumber}, Nome: ${name || 'N/A'}`);
+        
         // Verificar se o contato já existe
         const existingContactQuery = `
           SELECT id FROM contacts 
@@ -2452,6 +2498,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingResult = await pool.query(existingContactQuery, [userId, phoneNumber]);
         
         if (existingResult.rows.length === 0) {
+          console.log(`➕ Criando novo contato QR: ${phoneNumber}`);
+          
           // Criar novo contato
           const insertQuery = `
             INSERT INTO contacts (user_id, phone_number, name, source, is_active, last_message_time, created_at)
@@ -2466,16 +2514,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ]);
           
           syncedCount++;
+        } else {
+          console.log(`⏭️  Contato QR já existe: ${phoneNumber}`);
         }
       }
+      
+      console.log(`✅ Sincronização QR concluída: ${syncedCount} novos contatos`);
       
       res.json({
         success: true,
         message: `${syncedCount} contatos sincronizados do QR Code`,
-        syncedCount
+        syncedCount,
+        totalFound: qrResult.rows.length
       });
     } catch (error) {
-      console.error('Erro ao sincronizar contatos QR:', error);
+      console.error('❌ Erro ao sincronizar contatos QR:', error);
       res.status(500).json({
         success: false,
         message: 'Erro ao sincronizar contatos do QR Code',
@@ -2492,6 +2545,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { pool } = await import('./db');
       
+      console.log(`🔄 Iniciando sincronização Cloud API para usuário ${userId}`);
+      
+      // Primeiro, verificar se a tabela meta_chat_messages existe e tem dados
+      const checkTableQuery = `
+        SELECT COUNT(*) as total 
+        FROM meta_chat_messages 
+        WHERE user_id = $1
+      `;
+      
+      const checkResult = await pool.query(checkTableQuery, [userId]);
+      console.log(`📊 Total de mensagens na tabela meta_chat_messages para usuário ${userId}: ${checkResult.rows[0].total}`);
+      
       // Buscar contatos únicos da tabela meta_chat_messages usando SQL nativo
       const cloudContactsQuery = `
         SELECT 
@@ -2504,10 +2569,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
       
       const cloudResult = await pool.query(cloudContactsQuery, [userId]);
+      console.log(`📋 Contatos únicos encontrados no Cloud API: ${cloudResult.rows.length}`);
+      
+      if (cloudResult.rows.length > 0) {
+        console.log('📋 Primeiros 5 contatos Cloud encontrados:', cloudResult.rows.slice(0, 5));
+      }
+      
       let syncedCount = 0;
       
       for (const row of cloudResult.rows) {
         const contactPhone = row.contact_phone;
+        console.log(`📞 Processando contato Cloud: ${contactPhone}`);
         
         // Verificar se o contato já existe
         const existingContactQuery = `
@@ -2519,6 +2591,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingResult = await pool.query(existingContactQuery, [userId, contactPhone]);
         
         if (existingResult.rows.length === 0) {
+          console.log(`➕ Criando novo contato Cloud: ${contactPhone}`);
+          
           // Criar novo contato
           const insertQuery = `
             INSERT INTO contacts (user_id, phone_number, name, source, is_active, last_message_time, created_at)
@@ -2533,16 +2607,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ]);
           
           syncedCount++;
+        } else {
+          console.log(`⏭️  Contato Cloud já existe: ${contactPhone}`);
         }
       }
+      
+      console.log(`✅ Sincronização Cloud concluída: ${syncedCount} novos contatos`);
       
       res.json({
         success: true,
         message: `${syncedCount} contatos sincronizados do Cloud API`,
-        syncedCount
+        syncedCount,
+        totalFound: cloudResult.rows.length
       });
     } catch (error) {
-      console.error('Erro ao sincronizar contatos Cloud:', error);
+      console.error('❌ Erro ao sincronizar contatos Cloud:', error);
       res.status(500).json({
         success: false,
         message: 'Erro ao sincronizar contatos do Cloud API',
