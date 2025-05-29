@@ -942,9 +942,26 @@ export async function disconnectWhatsApp(req: Request, res: Response) {
       connectionStatus[userId].disconnectionSuccessful = true;
     }
     
-    res.json(connectionStatus[userId]);
+    // Garantir que a resposta seja JSON válido
+    const response = {
+      success: true,
+      connected: false,
+      disconnectedAt: new Date(),
+      lastUpdated: new Date(),
+      disconnectionSuccessful: disconnectionSuccessful || false,
+      message: disconnectionSuccessful ? "Desconectado com sucesso" : "Desconexão solicitada"
+    };
+    
+    console.log("Enviando resposta de desconexão:", response);
+    res.json(response);
   } catch (error) {
     console.error("Erro ao desconectar:", error);
-    res.status(500).json({ message: "Erro ao desconectar" });
+    const errorResponse = { 
+      success: false,
+      message: "Erro ao desconectar",
+      error: error instanceof Error ? error.message : "Erro desconhecido"
+    };
+    console.log("Enviando resposta de erro:", errorResponse);
+    res.status(500).json(errorResponse);
   }
 }
