@@ -731,17 +731,22 @@ export default function ChatOtimizado() {
   
 
   
-  // Inicializa o serviço quando o componente é montado
+  // Inicializa o serviço quando o componente é montado - APENAS para modo QR
   useEffect(() => {
-    console.log("Inicializando serviço com:", { apiUrl, apiKey, instanceName });
-    
-    // Criar instância do serviço
-    const evolutionService = new DirectEvolutionService(apiUrl, apiKey, instanceName);
-    setService(evolutionService);
-    
-    // Só verificar conexão Evolution API se o modo QR estiver selecionado
+    // Só criar o serviço Evolution API se modo QR estiver selecionado
     if (connectionMode === 'qr') {
+      console.log("Inicializando serviço Evolution API para modo QR:", { apiUrl, apiKey, instanceName });
+      
+      // Criar instância do serviço
+      const evolutionService = new DirectEvolutionService(apiUrl, apiKey, instanceName);
+      setService(evolutionService);
+      
+      // Verificar conexão imediatamente
       checkConnection(evolutionService);
+    } else {
+      // Limpar serviço se não for modo QR
+      setService(null);
+      setConnected(false);
     }
   }, [apiUrl, apiKey, instanceName, connectionMode]);
   
@@ -834,12 +839,17 @@ export default function ChatOtimizado() {
             console.log("✅ Cloud API já está conectado, carregando contatos...");
             loadChats();
           }
-        } else if (connectionMode === 'qr' && service) {
+        } else if (connectionMode === 'qr' && service && connected) {
+          // Só carregar chats QR se estiver conectado
+          console.log("🔄 Modo QR selecionado e conectado, carregando contatos...");
           loadChats();
+        } else if (connectionMode === 'qr' && service && !connected) {
+          console.log("🔄 Modo QR selecionado mas não conectado, verificando conexão...");
+          // Só verificar conexão se modo QR estiver selecionado
         }
       }, 500);
     }
-  }, [connectionMode, service]);
+  }, [connectionMode, service, connected, metaConnectionStatus]);
 
   // 2. Atualização automática APENAS das mensagens do chat selecionado (5 segundos)
   useEffect(() => {
