@@ -53,12 +53,21 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       
       console.log(`Status obtido com sucesso: ${JSON.stringify(statusResponse.data).substring(0, 100)}...`);
       
+      // Verificar se está conectado corretamente
+      const instanceState = statusResponse.data?.instance?.state || statusResponse.data?.state;
+      const isConnected = instanceState === 'open' || 
+                         instanceState === 'connected' || 
+                         statusResponse.data?.connected === true ||
+                         statusResponse.data?.instance?.connected === true;
+      
       const status = {
         success: true,
-        connected: statusResponse.data?.state === 'open' || statusResponse.data?.connected,
+        connected: isConnected,
         data: statusResponse.data,
         endpoint: `${server.apiUrl}/instance/connectionState/${instanceName}`
       };
+      
+      console.log(`Estado da instância: ${instanceState}, Conectado: ${isConnected}`);
       
       // Se recebermos HTML em vez de JSON (comum em algumas versões da Evolution API)
       if (typeof statusResponse.data === 'string' && statusResponse.data.includes('<!doctype html>')) {
@@ -91,8 +100,8 @@ export async function checkConnectionStatus(req: Request, res: Response) {
           console.log(`Erro ao verificar status direto: ${directError.message}`);
         }
       } 
-      else if (statusResponse.data?.state === 'open' || statusResponse.data?.connected) {
-        console.log("🟢 CONECTADO: Estado 'open' na resposta JSON");
+      else if (isConnected) {
+        console.log("🟢 CONECTADO: Estado detectado corretamente");
         console.log("Estado final da conexão: ✅ CONECTADO");
         
         return res.status(200).json({
