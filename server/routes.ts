@@ -2800,11 +2800,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     
                     console.log(`🔍 Processando contato QR: ${phoneNumber} | Nome: ${contactName || 'N/A'} | Fonte: ${contactsMap.has(phoneNumber) ? 'Contatos' : 'Chat'}`);
                     
-                    // Sincronizar para a tabela contacts
-                    const existingQuery = `SELECT id FROM contacts WHERE user_id = $1 AND phone_number = $2 AND source = 'qr_code'`;
+                    // Verificar se já existe contato com esse número (qualquer fonte)
+                    const existingQuery = `SELECT id, source, name FROM contacts WHERE user_id = $1 AND phone_number = $2`;
                     const existing = await pool.query(existingQuery, [userId, phoneNumber]);
                     
                     if (existing.rows.length === 0) {
+                      // Criar novo contato
                       const insertQuery = `
                         INSERT INTO contacts (user_id, phone_number, name, source, is_active, profile_picture, created_at)
                         VALUES ($1, $2, $3, 'qr_code', true, $4, NOW())
@@ -2812,17 +2813,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       await pool.query(insertQuery, [
                         userId, 
                         phoneNumber, 
-                        contactName || phoneNumber, // Usar nome identificado ou telefone como fallback
+                        contactName || phoneNumber,
                         profilePic || null
                       ]);
                       qrSynced++;
                       console.log(`💾 Novo contato QR sincronizado: ${phoneNumber} | Nome: ${contactName || 'N/A'}`);
                     } else {
-                      // Atualizar nome se melhorou
-                      if (contactName) {
-                        const updateQuery = `UPDATE contacts SET name = $1, profile_picture = $2, updated_at = NOW() WHERE user_id = $3 AND phone_number = $4 AND source = 'qr_code'`;
+                      // Atualizar contato existente se melhorou o nome
+                      const existingContact = existing.rows[0];
+                      const shouldUpdate = contactName && (
+                        isPhoneNumber(existingContact.name) || // Nome atual é apenas número
+                        contactName !== existingContact.name   // Nome diferente
+                      );
+                      
+                      if (shouldUpdate) {
+                        const updateQuery = `
+                          UPDATE contacts 
+                          SET name = $1, profile_picture = $2, source = 'qr_code', updated_at = NOW() 
+                          WHERE user_id = $3 AND phone_number = $4
+                        `;
                         await pool.query(updateQuery, [contactName, profilePic, userId, phoneNumber]);
-                        console.log(`📝 Nome atualizado para contato QR: ${phoneNumber} -> ${contactName}`);
+                        console.log(`📝 Nome atualizado: ${phoneNumber} -> ${contactName} (${existingContact.source} -> qr_code)`);
                       }
                     }
                   }
