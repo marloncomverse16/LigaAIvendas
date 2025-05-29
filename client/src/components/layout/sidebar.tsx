@@ -75,7 +75,7 @@ export function Sidebar() {
     },
     // 6-9 - Bloco CHAT, Leads, Agendamentos, Contatos
     { 
-      path: "/chat", 
+      path: "/chat-otimizado", 
       label: "CHAT", 
       icon: <MessagesSquare size={collapsed ? 24 : 20} />, 
       permissionKey: "accessWhatsapp"
