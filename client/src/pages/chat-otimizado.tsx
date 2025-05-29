@@ -630,7 +630,7 @@ export default function ChatOtimizado() {
     try {
       setLoading(true);
       
-      // Primeiro, buscar as configurações do usuário para obter phoneNumberId e businessId
+      // Buscar configurações do usuário (token e businessId estão em settings)
       console.log('🔍 Buscando configurações do usuário...');
       const settingsResponse = await fetch('/api/settings');
       if (!settingsResponse.ok) {
@@ -638,19 +638,29 @@ export default function ChatOtimizado() {
       }
       
       const settings = await settingsResponse.json();
+      
+      // Buscar configurações Meta (phoneNumberId está em user_servers)
+      console.log('🔍 Buscando configurações Meta do usuário...');
+      const metaResponse = await fetch('/api/meta-connections/status');
+      if (!metaResponse.ok) {
+        throw new Error('Não foi possível carregar as configurações Meta');
+      }
+      
+      const metaConfig = await metaResponse.json();
       console.log('📋 Configurações carregadas:', {
-        hasPhoneNumberId: !!settings.whatsappMetaPhoneNumberId,
+        hasPhoneNumberId: !!metaConfig.phoneNumberId,
         hasBusinessId: !!settings.whatsappMetaBusinessId,
         hasToken: !!settings.whatsappMetaToken,
-        phoneNumberIdValue: settings.whatsappMetaPhoneNumberId,
+        phoneNumberIdValue: metaConfig.phoneNumberId,
         businessIdValue: settings.whatsappMetaBusinessId,
-        allSettings: Object.keys(settings)
+        settingsKeys: Object.keys(settings),
+        metaConfigKeys: Object.keys(metaConfig)
       });
       
       // Verificar se as configurações Meta estão disponíveis
-      if (!settings.whatsappMetaPhoneNumberId || !settings.whatsappMetaBusinessId) {
+      if (!metaConfig.phoneNumberId || !settings.whatsappMetaBusinessId) {
         console.error('❌ Configurações Meta não encontradas:', {
-          phoneNumberId: settings.whatsappMetaPhoneNumberId,
+          phoneNumberId: metaConfig.phoneNumberId,
           businessId: settings.whatsappMetaBusinessId
         });
         throw new Error('Configure primeiro as credenciais do WhatsApp Meta API em Configurações > Integrações');
@@ -663,7 +673,7 @@ export default function ChatOtimizado() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          phoneNumberId: settings.whatsappMetaPhoneNumberId,
+          phoneNumberId: metaConfig.phoneNumberId,
           businessId: settings.whatsappMetaBusinessId
         })
       });
