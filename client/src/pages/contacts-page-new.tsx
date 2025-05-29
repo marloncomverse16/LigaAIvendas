@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { Sidebar } from "@/components/layout/sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -219,295 +219,294 @@ export default function ContactsPageNew() {
   };
 
   return (
-    <SidebarInset>
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-        </div>
-      </header>
-      <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Contatos</h1>
-            <p className="text-muted-foreground">Gerencie seus contatos do WhatsApp</p>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button onClick={exportContacts} variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Exportar CSV
-            </Button>
-            
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => { resetForm(); setEditingContact(null); }}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Contato
-                </Button>
-              </DialogTrigger>
-              
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingContact ? 'Editar Contato' : 'Novo Contato'}
-                  </DialogTitle>
-                </DialogHeader>
-                
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="phoneNumber">Telefone *</Label>
-                    <Input
-                      id="phoneNumber"
-                      value={formData.phoneNumber}
-                      onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                      placeholder="5511999998888"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="name">Nome</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Nome do contato"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="source">Fonte *</Label>
-                    <Select 
-                      value={formData.source} 
-                      onValueChange={(value: 'qr_code' | 'cloud_api') => 
-                        setFormData({ ...formData, source: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="qr_code">QR Code</SelectItem>
-                        <SelectItem value="cloud_api">Cloud API</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="tags">Tags (separadas por vírgula)</Label>
-                    <Input
-                      id="tags"
-                      value={formData.tags}
-                      onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                      placeholder="cliente, vip, importante"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="notes">Notas</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      placeholder="Informações adicionais sobre o contato"
-                      rows={3}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                    />
-                    <Label htmlFor="isActive">Contato ativo</Label>
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit" disabled={saveContactMutation.isPending}>
-                      {saveContactMutation.isPending ? 'Salvando...' : 'Salvar'}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-
-        {/* Filtros */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar por nome ou telefone..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              
-              <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as fontes</SelectItem>
-                  <SelectItem value="qr_code">QR Code</SelectItem>
-                  <SelectItem value="cloud_api">Cloud API</SelectItem>
-                </SelectContent>
-              </Select>
+    <div className="flex h-screen bg-background">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-auto p-6 space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Contatos</h1>
+              <p className="text-muted-foreground">Gerencie seus contatos do WhatsApp</p>
             </div>
-          </CardContent>
-        </Card>
+            
+            <div className="flex gap-2">
+              <Button onClick={exportContacts} variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Exportar CSV
+              </Button>
+              
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => { resetForm(); setEditingContact(null); }}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo Contato
+                  </Button>
+                </DialogTrigger>
+                
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingContact ? 'Editar Contato' : 'Novo Contato'}
+                    </DialogTitle>
+                  </DialogHeader>
+                  
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="phoneNumber">Telefone *</Label>
+                      <Input
+                        id="phoneNumber"
+                        value={formData.phoneNumber}
+                        onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                        placeholder="5511999998888"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="name">Nome</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Nome do contato"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="source">Fonte *</Label>
+                      <Select 
+                        value={formData.source} 
+                        onValueChange={(value: 'qr_code' | 'cloud_api') => 
+                          setFormData({ ...formData, source: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="qr_code">QR Code</SelectItem>
+                          <SelectItem value="cloud_api">Cloud API</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="tags">Tags (separadas por vírgula)</Label>
+                      <Input
+                        id="tags"
+                        value={formData.tags}
+                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                        placeholder="cliente, vip, importante"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="notes">Notas</Label>
+                      <Textarea
+                        id="notes"
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        placeholder="Informações adicionais sobre o contato"
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isActive"
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      />
+                      <Label htmlFor="isActive">Contato ativo</Label>
+                    </div>
+                    
+                    <div className="flex justify-end space-x-2">
+                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                        Cancelar
+                      </Button>
+                      <Button type="submit" disabled={saveContactMutation.isPending}>
+                        {saveContactMutation.isPending ? 'Salvando...' : 'Salvar'}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
 
-        {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Filtros */}
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-blue-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Total de Contatos</p>
-                  <p className="text-2xl font-bold">{contacts.length}</p>
+            <CardContent className="pt-6">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome ou telefone..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
+                
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as fontes</SelectItem>
+                    <SelectItem value="qr_code">QR Code</SelectItem>
+                    <SelectItem value="cloud_api">Cloud API</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <Phone className="h-4 w-4 text-green-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">QR Code</p>
-                  <p className="text-2xl font-bold">
-                    {contacts.filter(c => c.source === 'qr_code').length}
-                  </p>
+
+          {/* Estatísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <User className="h-4 w-4 text-blue-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total de Contatos</p>
+                    <p className="text-2xl font-bold">{contacts.length}</p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <MessageCircle className="h-4 w-4 text-purple-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Cloud API</p>
-                  <p className="text-2xl font-bold">
-                    {contacts.filter(c => c.source === 'cloud_api').length}
-                  </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <Phone className="h-4 w-4 text-green-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">QR Code</p>
+                    <p className="text-2xl font-bold">
+                      {contacts.filter(c => c.source === 'qr_code').length}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-orange-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Ativos</p>
-                  <p className="text-2xl font-bold">
-                    {contacts.filter(c => c.isActive).length}
-                  </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <MessageCircle className="h-4 w-4 text-purple-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cloud API</p>
+                    <p className="text-2xl font-bold">
+                      {contacts.filter(c => c.source === 'cloud_api').length}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <User className="h-4 w-4 text-orange-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Ativos</p>
+                    <p className="text-2xl font-bold">
+                      {contacts.filter(c => c.isActive).length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tabela de Contatos */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Lista de Contatos ({filteredContacts.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <p>Carregando contatos...</p>
+                </div>
+              ) : filteredContacts.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Nenhum contato encontrado</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead>Fonte</TableHead>
+                        <TableHead>Última Mensagem</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Tags</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredContacts.map((contact) => (
+                        <TableRow key={contact.id}>
+                          <TableCell className="font-medium">
+                            {contact.name || 'Sem nome'}
+                          </TableCell>
+                          <TableCell>{contact.phoneNumber}</TableCell>
+                          <TableCell>{getSourceBadge(contact.source)}</TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {contact.lastMessage || '-'}
+                          </TableCell>
+                          <TableCell>{formatDate(contact.lastMessageTime)}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {contact.tags.map((tag, index) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={contact.isActive ? "default" : "secondary"}>
+                              {contact.isActive ? 'Ativo' : 'Inativo'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEdit(contact)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDelete(contact.id)}
+                                disabled={deleteContactMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
-
-        {/* Tabela de Contatos */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Lista de Contatos ({filteredContacts.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">
-                <p>Carregando contatos...</p>
-              </div>
-            ) : filteredContacts.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Nenhum contato encontrado</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead>Fonte</TableHead>
-                      <TableHead>Última Mensagem</TableHead>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Tags</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredContacts.map((contact) => (
-                      <TableRow key={contact.id}>
-                        <TableCell className="font-medium">
-                          {contact.name || 'Sem nome'}
-                        </TableCell>
-                        <TableCell>{contact.phoneNumber}</TableCell>
-                        <TableCell>{getSourceBadge(contact.source)}</TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {contact.lastMessage || '-'}
-                        </TableCell>
-                        <TableCell>{formatDate(contact.lastMessageTime)}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {contact.tags.map((tag, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={contact.isActive ? "default" : "secondary"}>
-                            {contact.isActive ? 'Ativo' : 'Inativo'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(contact)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDelete(contact.id)}
-                              disabled={deleteContactMutation.isPending}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
-    </Layout>
+    </div>
   );
 }
