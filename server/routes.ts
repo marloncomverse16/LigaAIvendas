@@ -2412,59 +2412,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = req.user!.id;
+      const { pool } = await import('./db');
       
-      // Buscar contatos do QR Code da tabela whatsapp_messages
-      const qrMessages = await db.select({
-        contactId: whatsappMessages.contactId,
-        timestamp: whatsappMessages.timestamp
-      }).from(whatsappMessages)
-        .where(eq(whatsappMessages.userId, userId))
-        .groupBy(whatsappMessages.contactId, whatsappMessages.timestamp)
-        .orderBy(desc(whatsappMessages.timestamp));
+      // Buscar contatos únicos da tabela whatsapp_messages usando SQL nativo
+      const qrContactsQuery = `
+        SELECT DISTINCT 
+          contact_id,
+          MAX(timestamp) as last_timestamp
+        FROM whatsapp_messages 
+        WHERE user_id = $1 AND contact_id IS NOT NULL AND contact_id != ''
+        GROUP BY contact_id
+        ORDER BY last_timestamp DESC
+      `;
       
+      const qrResult = await pool.query(qrContactsQuery, [userId]);
       let syncedCount = 0;
-      const processedContacts = new Set();
       
-      for (const message of qrMessages) {
-        if (!message.contactId || processedContacts.has(message.contactId)) continue;
+      for (const row of qrResult.rows) {
+        const contactId = row.contact_id;
         
-        processedContacts.add(message.contactId);
-        
-        // Extrair número de telefone e nome do contactId
-        let phoneNumber = message.contactId.replace('@c.us', '').replace('@s.whatsapp.net', '');
+        // Extrair número de telefone do contactId
+        let phoneNumber = contactId.replace('@c.us', '').replace('@s.whatsapp.net', '');
         let name = null;
         
         // Se o contactId contém nome, extrair
-        if (message.contactId.includes('~')) {
-          const parts = message.contactId.split('~');
+        if (contactId.includes('~')) {
+          const parts = contactId.split('~');
           phoneNumber = parts[0].replace('@c.us', '').replace('@s.whatsapp.net', '');
           name = parts[1];
         }
         
         // Verificar se o contato já existe
-        const existingContact = await db.select().from(contacts)
-          .where(and(
-            eq(contacts.userId, userId),
-            eq(contacts.phoneNumber, phoneNumber),
-            eq(contacts.source, 'qr_code')
-          ))
-          .limit(1);
+        const existingContactQuery = `
+          SELECT id FROM contacts 
+          WHERE user_id = $1 AND phone_number = $2 AND source = 'qr_code'
+          LIMIT 1
+        `;
         
-        if (existingContact.length === 0) {
+        const existingResult = await pool.query(existingContactQuery, [userId, phoneNumber]);
+        
+        if (existingResult.rows.length === 0) {
           // Criar novo contato
-          await db.insert(contacts).values({
+          const insertQuery = `
+            INSERT INTO contacts (user_id, phone_number, name, source, is_active, last_message_time, created_at)
+            VALUES ($1, $2, $3, 'qr_code', true, $4, NOW())
+          `;
+          
+          await pool.query(insertQuery, [
             userId,
             phoneNumber,
             name,
-            profilePicture: null,
-            lastMessageTime: message.timestamp ? new Date(message.timestamp * 1000) : null,
-            lastMessage: null,
-            source: 'qr_code',
-            serverId: null,
-            isActive: true,
-            notes: null,
-            tags: []
-          });
+            row.last_timestamp ? new Date(row.last_timestamp) : null
+          ]);
+          
           syncedCount++;
         }
       }
@@ -2490,49 +2490,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = req.user!.id;
+      const { pool } = await import('./db');
       
-      // Buscar chats diretamente do banco whatsapp_cloud_chats
-      const cloudChats = await db.select().from(whatsappCloudChats)
-        .where(eq(whatsappCloudChats.userId, userId))
-        .orderBy(desc(whatsappCloudChats.lastMessageAt));
+      // Buscar contatos únicos da tabela meta_chat_messages usando SQL nativo
+      const cloudContactsQuery = `
+        SELECT 
+          contact_phone,
+          MAX(created_at) as last_message_time
+        FROM meta_chat_messages 
+        WHERE user_id = $1 AND contact_phone IS NOT NULL AND contact_phone != ''
+        GROUP BY contact_phone
+        ORDER BY last_message_time DESC
+      `;
       
+      const cloudResult = await pool.query(cloudContactsQuery, [userId]);
       let syncedCount = 0;
       
-      for (const chat of cloudChats) {
-        // Verificar se o contato já existe
-        const existingContact = await db.select().from(contacts)
-          .where(and(
-            eq(contacts.userId, userId),
-            eq(contacts.phoneNumber, chat.contactPhone),
-            eq(contacts.source, 'cloud_api')
-          ))
-          .limit(1);
+      for (const row of cloudResult.rows) {
+        const contactPhone = row.contact_phone;
         
-        if (existingContact.length === 0) {
+        // Verificar se o contato já existe
+        const existingContactQuery = `
+          SELECT id FROM contacts 
+          WHERE user_id = $1 AND phone_number = $2 AND source = 'cloud_api'
+          LIMIT 1
+        `;
+        
+        const existingResult = await pool.query(existingContactQuery, [userId, contactPhone]);
+        
+        if (existingResult.rows.length === 0) {
           // Criar novo contato
-          await db.insert(contacts).values({
+          const insertQuery = `
+            INSERT INTO contacts (user_id, phone_number, name, source, is_active, last_message_time, created_at)
+            VALUES ($1, $2, $3, 'cloud_api', true, $4, NOW())
+          `;
+          
+          await pool.query(insertQuery, [
             userId,
-            phoneNumber: chat.contactPhone,
-            name: chat.contactName && chat.contactName !== chat.contactPhone ? chat.contactName : null,
-            profilePicture: null,
-            lastMessageTime: chat.lastMessageAt,
-            lastMessage: null,
-            source: 'cloud_api',
-            serverId: null,
-            isActive: true,
-            notes: null,
-            tags: []
-          });
+            contactPhone,
+            contactPhone, // Usar o telefone como nome inicial
+            row.last_message_time
+          ]);
+          
           syncedCount++;
-        } else {
-          // Atualizar contato existente
-          await db.update(contacts)
-            .set({
-              name: (chat.contactName && chat.contactName !== chat.contactPhone) ? chat.contactName : existingContact[0].name,
-              lastMessageTime: chat.lastMessageAt || existingContact[0].lastMessageTime,
-              updatedAt: new Date()
-            })
-            .where(eq(contacts.id, existingContact[0].id));
         }
       }
       
