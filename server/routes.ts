@@ -191,6 +191,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para desconectar o WhatsApp
+  app.post("/api/connections/disconnect", disconnectWhatsApp);
+  
   // Temporariamente desativado para evitar problemas de conexão
   // app.use("/api/evolution-webhook", evolutionWebhookRoutes);
   // app.use("/api/evolution-webhook-receiver", evolutionWebhookReceiver);
