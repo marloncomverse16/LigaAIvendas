@@ -2745,9 +2745,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Se a tabela local estiver vazia, tentar buscar da API e salvar na tabela local
               console.log(`🔄 Tabela whatsapp_contacts vazia, buscando da Evolution API...`);
               
-              // Fazer requisição direta à Evolution API para obter contatos
-              const { getUserServer } = await import('./storage');
-              const userServer = await getUserServer(userId);
+              // Buscar configuração do servidor para este usuário
+              const userServerQuery = `
+                SELECT s.*, us.* 
+                FROM user_servers us
+                JOIN servers s ON us.server_id = s.id
+                WHERE us.user_id = $1 AND us.is_default = true
+                LIMIT 1
+              `;
+              const userServerResult = await pool.query(userServerQuery, [userId]);
+              const userServer = userServerResult.rows[0];
               
               if (userServer && userServer.apiUrl && userServer.apiToken) {
                 const response = await fetch(`${userServer.apiUrl}/chat/findChats/admin`, {
