@@ -1361,10 +1361,16 @@ export default function ChatOtimizado() {
 
   // Envia uma mensagem com sistema de UI otimista
   const onSubmit = async (values: SendFormValues) => {
-    if (!service || !selectedChat) {
+    // Verificar se temos conexão válida (QR ou Cloud API)
+    const hasValidConnection = (connectionMode === 'qr' && service) || 
+                              (connectionMode === 'cloud' && metaConnectionStatus?.connected);
+    
+    if (!hasValidConnection || !selectedChat) {
       toast({
         title: "Erro",
-        description: "Serviço não inicializado ou nenhum chat selecionado",
+        description: connectionMode === 'cloud' 
+          ? "WhatsApp Cloud API não conectado ou nenhum chat selecionado"
+          : "Serviço não inicializado ou nenhum chat selecionado",
         variant: "destructive"
       });
       return;
