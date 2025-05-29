@@ -220,6 +220,12 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
     const server = userServer[0].server;
     const instanceName = user.username; // Usa o nome do usuário como instância
     
+    console.log(`📋 QR Code - Dados do servidor encontrado para o usuário ${user.username}:`);
+    console.log(`   - Nome: ${server.name}`);
+    console.log(`   - ID: ${server.id}`);
+    console.log(`   - API URL: ${server.apiUrl}`);
+    console.log(`   - API Token: ${server.apiToken?.substring(0, 5)}...${server.apiToken?.substring(server.apiToken.length - 4)}`);
+    
     // Verificar se temos as informações necessárias para conectar
     if (!server.apiUrl || !server.apiToken) {
       return res.status(400).json({ 
