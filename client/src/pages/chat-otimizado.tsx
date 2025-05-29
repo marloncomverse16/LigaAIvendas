@@ -1120,6 +1120,19 @@ export default function ChatOtimizado() {
       } else {
         // Na primeira carga, substitui completamente
         setChats(response || []);
+        
+        // Inicializar bolinhas de notificação para demonstração
+        if (response && response.length > 0) {
+          const initialUnread: Record<string, number> = {};
+          response.forEach((chat: any, index: number) => {
+            const chatId = chat.id || chat.remoteJid;
+            // Para demonstração, definir algumas mensagens não lidas nos primeiros chats
+            if (index < 2) {
+              initialUnread[chatId] = index + 2; // 2 ou 3 mensagens não lidas
+            }
+          });
+          setUnreadMessages(prev => ({ ...prev, ...initialUnread }));
+        }
       }
       
       // Só mostra toast na primeira carga
@@ -1316,16 +1329,17 @@ export default function ChatOtimizado() {
           [chatId]: messagesWithReadStatus
         }));
         
-        // Para a primeira carga, definir um número inicial de mensagens não lidas
-        // baseado nas mensagens recebidas mais recentes
-        const recentIncomingMessages = messagesWithReadStatus
-          .filter(msg => !msg.fromMe)
-          .slice(-5); // Últimas 5 mensagens recebidas consideradas não lidas
-        
-        setUnreadMessages(prev => ({
-          ...prev,
-          [chatId]: recentIncomingMessages.length
-        }));
+        // Para a primeira carga, definir mensagens não lidas apenas se o chat não foi aberto ainda
+        if (!lastReadTimestamp[chatId]) {
+          const recentIncomingMessages = messagesWithReadStatus
+            .filter(msg => !msg.fromMe)
+            .slice(-3); // Últimas 3 mensagens recebidas consideradas não lidas
+          
+          setUnreadMessages(prev => ({
+            ...prev,
+            [chatId]: recentIncomingMessages.length
+          }));
+        }
         
         // Atualizar mensagens visíveis
         setMessages(messagesWithReadStatus);
