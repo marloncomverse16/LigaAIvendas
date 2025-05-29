@@ -1351,266 +1351,112 @@ export default function ChatOtimizado() {
       });
       return;
     }
+
+    // Verificar se há texto para enviar
+    if (!values.text || values.text.trim().length === 0) {
+      toast({
+        title: "Mensagem vazia",
+        description: "Digite uma mensagem para enviar",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
+      setLoading(true);
       const chatId = selectedChat.remoteJid || selectedChat.id;
-      const timestamp = Math.floor(Date.now() / 1000);
-      const localMsgId = `local-${Date.now()}`;
-      let optimisticMsg;
-      let result;
+      const messageText = values.text.trim();
+      const timestamp = Date.now();
+      const localMsgId = `local-${timestamp}`;
       
-      // Verifica se estamos enviando mídia ou mensagem de texto
-      if (showMediaPanel && mediaType && mediaBase64) {
-        console.log(`Enviando ${mediaType} para ${chatId}`);
-        
-        // Texto da legenda (pode vir do campo de mídia ou do campo de texto)
-        const caption = mediaCaption || values.text || '';
-        
-        // Criar uma mensagem otimista para mostrar imediatamente na interface
-        // Estrutura adaptada para mostrar que é uma mídia
-        optimisticMsg = {
-          id: localMsgId,
-          key: {
-            id: localMsgId,
-            fromMe: true,
-            remoteJid: chatId
-          },
-          message: {
-            // A mensagem vai conter uma indicação do tipo de mídia
-            conversation: `[${mediaType.toUpperCase()}]${caption ? ' ' + caption : ''}`
-          },
-          messageTimestamp: timestamp,
-          fromMe: true,
-          status: 'sending',
-          // Propriedades adicionais para identificar que é uma mídia
-          isMedia: true,
-          mediaType: mediaType
-        };
-        
-        try {
-          console.log(`Preparando envio de ${mediaType} para ${chatId} (tamanho base64: ${mediaBase64.length} caracteres)`);
-          
-          // Envia a mídia para o servidor de acordo com o tipo
-          switch (mediaType) {
-            case "image":
-              result = await service.sendMedia(chatId, "image", mediaBase64, caption);
-              console.log(`Imagem enviada com sucesso para ${chatId}`);
-              break;
-            case "audio":
-              result = await service.sendWhatsAppAudio(chatId, mediaBase64);
-              console.log(`Áudio enviado com sucesso para ${chatId}`);
-              break;
-            case "video":
-              result = await service.sendMedia(chatId, "video", mediaBase64, caption);
-              console.log(`Vídeo enviado com sucesso para ${chatId}`);
-              break;
-            case "document":
-              result = await service.sendMedia(chatId, "document", mediaBase64, caption);
-              console.log(`Documento enviado com sucesso para ${chatId}`);
-              break;
-          }
-          
-          // Limpar o estado de mídia após o envio
-          setShowMediaPanel(false);
-          setMediaType(null);
-          setMediaPreview(null);
-          setMediaBase64(null);
-          setMediaCaption('');
-        } catch (error) {
-          console.error(`Erro ao enviar ${mediaType}:`, error);
-          toast({
-            title: `Erro ao enviar ${mediaType}`,
-            description: error instanceof Error ? error.message : String(error),
-            variant: "destructive"
-          });
-          
-          // Buscar a mensagem e atualizar o status
-          const existingMessages = messagesByChatId[chatId] || [];
-          const messageIndex = existingMessages.findIndex(m => m.id === localMsgId);
-          
-          if (messageIndex !== -1) {
-            const updatedMessages = [...existingMessages];
-            updatedMessages[messageIndex] = {
-              ...updatedMessages[messageIndex], 
-              status: 'failed'
-            };
-            
-            setMessages(updatedMessages);
-            setMessagesByChatId(prev => ({
-              ...prev,
-              [chatId]: updatedMessages
-            }));
-          }
-          
-          return; // Encerra o processamento em caso de erro
-        }
-      } else {
-        // Envio normal de mensagem de texto
-        if (!values.text || values.text.trim() === '') {
-          console.log("Mensagem vazia, ignorando envio");
-          return;
-        }
-        
-        console.log(`Enviando mensagem para ${chatId}: "${values.text}"`);
-        
-        // Criar uma mensagem otimista para mostrar imediatamente na interface
-        optimisticMsg = {
-          id: localMsgId,
-          key: {
-            id: localMsgId,
-            fromMe: true,
-            remoteJid: chatId
-          },
-          message: {
-            conversation: values.text
-          },
-          messageTimestamp: timestamp,
-          fromMe: true,
-          status: 'sending'
-        };
-        
-        try {
-          // Verificar se o texto está definido
-          if (!values.text) {
-            throw new Error("Texto da mensagem não pode ser vazio");
-          }
-          
-          // Enviar a mensagem de texto baseado no modo de conexão
-          console.log(`🔍 DEBUG: connectionMode = "${connectionMode}"`);
-          console.log(`🔍 DEBUG: metaConnectionStatus =`, metaConnectionStatus);
-          console.log(`🔍 DEBUG: service =`, service ? 'Existe' : 'Null');
-          console.log(`🔍 DEBUG: Verificando condição connectionMode === 'cloud':`, connectionMode === 'cloud');
-          
-          if (connectionMode === 'cloud') {
-            // ENVIAR VIA META CLOUD API
-            console.log('🌐 Enviando mensagem via Meta Cloud API...');
-            const response = await fetch('/api/meta-cloud/send-message', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                phoneNumber: chatId,
-                message: values.text,
-              }),
-            });
-            
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.error || 'Erro ao enviar mensagem via Meta Cloud API');
-            }
-            
-            result = await response.json();
-            console.log("✅ Mensagem enviada via Meta Cloud API:", result);
-            
-            toast({
-              title: "Mensagem enviada",
-              description: "Mensagem enviada com sucesso via Meta Cloud API",
-            });
-          } else if (connectionMode === 'qr' && service) {
-            // ENVIAR VIA EVOLUTION API
-            console.log('Enviando mensagem via Evolution API...');
-            result = await service.sendMessage(chatId, values.text);
-            console.log("Mensagem enviada via Evolution API:", result);
-          } else {
-            throw new Error('Nenhuma conexão válida disponível para envio');
-          }
-        } catch (error) {
-          console.error("Erro ao enviar mensagem:", error);
-          
-          // Melhor tratamento de erro para evitar erro vazio
-          let errorMessage = "Erro desconhecido ao enviar mensagem";
-          
-          if (error instanceof Error) {
-            errorMessage = error.message;
-          } else if (typeof error === 'string') {
-            errorMessage = error;
-          } else if (error && typeof error === 'object') {
-            errorMessage = JSON.stringify(error);
-          }
-          
-          // Se ainda estiver vazio, usar mensagem padrão
-          if (!errorMessage || errorMessage === '{}' || errorMessage.trim() === '') {
-            errorMessage = "Falha na comunicação com o servidor";
-          }
-          
-          toast({
-            title: "Erro ao enviar mensagem",
-            description: errorMessage,
-            variant: "destructive"
-          });
-          
-          // Buscar a mensagem e atualizar o status
-          const existingMessages = messagesByChatId[chatId] || [];
-          const messageIndex = existingMessages.findIndex(m => m.id === localMsgId);
-          
-          if (messageIndex !== -1) {
-            const updatedMessages = [...existingMessages];
-            updatedMessages[messageIndex] = {
-              ...updatedMessages[messageIndex], 
-              status: 'failed'
-            };
-            
-            setMessages(updatedMessages);
-            setMessagesByChatId(prev => ({
-              ...prev,
-              [chatId]: updatedMessages
-            }));
-          }
-          
-          return; // Encerra o processamento em caso de erro
-        }
-      }
+      // Criar mensagem otimista
+      const optimisticMsg = {
+        id: localMsgId,
+        content: messageText,
+        fromMe: true,
+        timestamp: timestamp,
+        status: 'sending',
+        type: 'text'
+      };
       
-      // Adicionar a mensagem otimista ao estado local
+      // Adicionar mensagem otimista à UI
       const existingMessages = messagesByChatId[chatId] || [];
       const updatedMessages = [...existingMessages, optimisticMsg];
-      
-      // Atualizar as mensagens exibidas imediatamente
       setMessages(updatedMessages);
       setMessagesByChatId(prev => ({
         ...prev,
         [chatId]: updatedMessages
       }));
       
-      // Atualizar o último timestamp para evitar recarregar a mensagem que acabamos de adicionar
-      setLastMessageTimestamp(prev => ({
-        ...prev,
-        [chatId]: timestamp
-      }));
-      
-      // Rolar para a nova mensagem
+      // Scroll automático
       scrollToBottom();
       
-      // Limpa o formulário e o campo de texto local imediatamente para melhor experiência do usuário
+      let result;
+      
+      if (connectionMode === 'qr' && service) {
+        // Envio via Evolution API
+        result = await service.sendMessage(chatId, messageText);
+      } else if (connectionMode === 'cloud') {
+        // Envio via Meta Cloud API
+        const response = await fetch('/api/whatsapp-cloud/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phoneNumber: chatId,
+            message: messageText
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(`Erro HTTP ${response.status}: ${errorData}`);
+        }
+        
+        result = await response.json();
+      }
+      
+      // Atualizar status da mensagem para enviada
+      if (result) {
+        const messageIndex = updatedMessages.findIndex(m => m.id === localMsgId);
+        if (messageIndex !== -1) {
+          const finalMessages = [...updatedMessages];
+          finalMessages[messageIndex] = {
+            ...finalMessages[messageIndex],
+            status: 'sent',
+            id: result.id || localMsgId
+          };
+          
+          setMessages(finalMessages);
+          setMessagesByChatId(prev => ({
+            ...prev,
+            [chatId]: finalMessages
+          }));
+        }
+      }
+      
+      // Limpar formulário
       form.reset();
-      setInputText("");
+      setInputText('');
       
-      // Focar no campo de texto para permitir enviar outra mensagem
-      const inputElement = document.querySelector('input[placeholder="Digite uma mensagem"]') as HTMLInputElement;
-      if (inputElement) {
-        inputElement.focus();
-      }
-      
-      // Verificar se houve erro no envio
-      if (result && result.success === false) {
-        throw new Error(result.error || "Falha no envio da mensagem");
-      }
-      
-      // Atualizar mensagens para obter o status real da mensagem enviada
-      // Mas com um pequeno atraso para não interferir na experiência
-      setTimeout(() => {
-        loadMessages(selectedChat, false);
-      }, 500);
-      
-    } catch (error: any) {
+    } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
+      
+      // Remover mensagem otimista em caso de erro
+      const existingMessages = messagesByChatId[selectedChat.remoteJid || selectedChat.id] || [];
+      const failedMessages = existingMessages.filter(m => m.id !== `local-${Date.now()}`);
+      setMessages(failedMessages);
+      setMessagesByChatId(prev => ({
+        ...prev,
+        [selectedChat.remoteJid || selectedChat.id]: failedMessages
+      }));
       
       toast({
         title: "Erro ao enviar mensagem",
-        description: error.message || "Não foi possível enviar a mensagem",
+        description: error instanceof Error ? error.message : "Não foi possível enviar a mensagem",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
   
