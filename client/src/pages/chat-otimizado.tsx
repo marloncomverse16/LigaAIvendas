@@ -634,11 +634,7 @@ export default function ChatOtimizado() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phoneNumberId: '629117870289911',
-          businessId: '650175278335138'
-        })
+        }
       });
       
       if (response.ok) {
@@ -669,7 +665,7 @@ export default function ChatOtimizado() {
   const disconnectMetaWhatsApp = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/whatsapp-meta/disconnect', {
+      const response = await fetch('/api/meta-connections/disconnect', {
         method: 'POST',
       });
       
