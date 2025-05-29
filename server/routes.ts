@@ -2635,48 +2635,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
+      const userId = req.user!.id;
+      const { pool } = await import('./db');
+      
+      console.log(`🔄 Iniciando sincronização completa para usuário ${userId}`);
+      
       let totalSynced = 0;
       const results = [];
       
-      // Sincronizar QR Code
+      // === SINCRONIZAR QR CODE ===
+      console.log(`🔄 Sincronizando QR Code...`);
       try {
-        const qrResponse = await fetch('/api/contacts/sync-qr', {
-          method: 'POST',
-          headers: {
-            'Cookie': req.headers.cookie || ''
-          }
-        });
+        // Verificar dados QR
+        const checkQrQuery = `SELECT COUNT(*) as total FROM whatsapp_messages WHERE user_id = $1`;
+        const qrCheck = await pool.query(checkQrQuery, [userId]);
+        console.log(`📊 Mensagens QR encontradas: ${qrCheck.rows[0].total}`);
         
-        if (qrResponse.ok) {
-          const qrResult = await qrResponse.json();
-          totalSynced += qrResult.syncedCount || 0;
-          results.push({ source: 'QR Code', synced: qrResult.syncedCount || 0, success: true });
+        if (qrCheck.rows[0].total > 0) {
+          const qrContactsQuery = `
+            SELECT DISTINCT 
+              contact_id,
+              MAX(timestamp) as last_timestamp
+            FROM whatsapp_messages 
+            WHERE user_id = $1 AND contact_id IS NOT NULL AND contact_id != ''
+            GROUP BY contact_id
+          `;
+          
+          const qrResult = await pool.query(qrContactsQuery, [userId]);
+          let qrSynced = 0;
+          
+          for (const row of qrResult.rows) {
+            const contactId = row.contact_id;
+            let phoneNumber = contactId.replace('@c.us', '').replace('@s.whatsapp.net', '');
+            let name = null;
+            
+            if (contactId.includes('~')) {
+              const parts = contactId.split('~');
+              phoneNumber = parts[0].replace('@c.us', '').replace('@s.whatsapp.net', '');
+              name = parts[1];
+            }
+            
+            const existingQuery = `SELECT id FROM contacts WHERE user_id = $1 AND phone_number = $2 AND source = 'qr_code'`;
+            const existing = await pool.query(existingQuery, [userId, phoneNumber]);
+            
+            if (existing.rows.length === 0) {
+              const insertQuery = `
+                INSERT INTO contacts (user_id, phone_number, name, source, is_active, last_message_time, created_at)
+                VALUES ($1, $2, $3, 'qr_code', true, $4, NOW())
+              `;
+              await pool.query(insertQuery, [userId, phoneNumber, name, row.last_timestamp ? new Date(row.last_timestamp) : null]);
+              qrSynced++;
+            }
+          }
+          
+          results.push({ source: 'QR Code', synced: qrSynced, success: true, totalFound: qrResult.rows.length });
+          totalSynced += qrSynced;
+          console.log(`✅ QR Code: ${qrSynced} contatos sincronizados`);
         } else {
-          results.push({ source: 'QR Code', synced: 0, success: false, error: 'Erro na sincronização' });
+          results.push({ source: 'QR Code', synced: 0, success: true, totalFound: 0 });
+          console.log(`ℹ️  QR Code: nenhuma mensagem encontrada`);
         }
-      } catch (error) {
-        results.push({ source: 'QR Code', synced: 0, success: false, error: 'QR Code não conectado' });
+      } catch (qrError) {
+        console.error('❌ Erro sincronização QR:', qrError);
+        results.push({ source: 'QR Code', synced: 0, success: false, error: 'Erro na sincronização QR' });
       }
       
-      // Sincronizar Cloud API
+      // === SINCRONIZAR CLOUD API ===
+      console.log(`🔄 Sincronizando Cloud API...`);
       try {
-        const cloudResponse = await fetch('/api/contacts/sync-cloud', {
-          method: 'POST',
-          headers: {
-            'Cookie': req.headers.cookie || ''
-          }
-        });
+        // Verificar dados Cloud
+        const checkCloudQuery = `SELECT COUNT(*) as total FROM meta_chat_messages WHERE user_id = $1`;
+        const cloudCheck = await pool.query(checkCloudQuery, [userId]);
+        console.log(`📊 Mensagens Cloud encontradas: ${cloudCheck.rows[0].total}`);
         
-        if (cloudResponse.ok) {
-          const cloudResult = await cloudResponse.json();
-          totalSynced += cloudResult.syncedCount || 0;
-          results.push({ source: 'Cloud API', synced: cloudResult.syncedCount || 0, success: true });
+        if (cloudCheck.rows[0].total > 0) {
+          const cloudContactsQuery = `
+            SELECT 
+              contact_phone,
+              MAX(created_at) as last_message_time
+            FROM meta_chat_messages 
+            WHERE user_id = $1 AND contact_phone IS NOT NULL AND contact_phone != ''
+            GROUP BY contact_phone
+          `;
+          
+          const cloudResult = await pool.query(cloudContactsQuery, [userId]);
+          let cloudSynced = 0;
+          
+          for (const row of cloudResult.rows) {
+            const contactPhone = row.contact_phone;
+            
+            const existingQuery = `SELECT id FROM contacts WHERE user_id = $1 AND phone_number = $2 AND source = 'cloud_api'`;
+            const existing = await pool.query(existingQuery, [userId, contactPhone]);
+            
+            if (existing.rows.length === 0) {
+              const insertQuery = `
+                INSERT INTO contacts (user_id, phone_number, name, source, is_active, last_message_time, created_at)
+                VALUES ($1, $2, $3, 'cloud_api', true, $4, NOW())
+              `;
+              await pool.query(insertQuery, [userId, contactPhone, contactPhone, row.last_message_time]);
+              cloudSynced++;
+            }
+          }
+          
+          results.push({ source: 'Cloud API', synced: cloudSynced, success: true, totalFound: cloudResult.rows.length });
+          totalSynced += cloudSynced;
+          console.log(`✅ Cloud API: ${cloudSynced} contatos sincronizados`);
         } else {
-          results.push({ source: 'Cloud API', synced: 0, success: false, error: 'Erro na sincronização' });
+          results.push({ source: 'Cloud API', synced: 0, success: true, totalFound: 0 });
+          console.log(`ℹ️  Cloud API: nenhuma mensagem encontrada`);
         }
-      } catch (error) {
-        results.push({ source: 'Cloud API', synced: 0, success: false, error: 'Cloud API não conectado' });
+      } catch (cloudError) {
+        console.error('❌ Erro sincronização Cloud:', cloudError);
+        results.push({ source: 'Cloud API', synced: 0, success: false, error: 'Erro na sincronização Cloud' });
       }
+      
+      console.log(`✅ Sincronização completa: ${totalSynced} contatos sincronizados`);
       
       res.json({
         success: true,
@@ -2685,7 +2758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         results
       });
     } catch (error) {
-      console.error('Erro ao sincronizar todos os contatos:', error);
+      console.error('❌ Erro ao sincronizar todos os contatos:', error);
       res.status(500).json({
         success: false,
         message: 'Erro ao sincronizar contatos',
