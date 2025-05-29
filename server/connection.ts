@@ -42,7 +42,7 @@ async function checkEvolutionConnection(baseUrl: string, token: string, instance
     
     // PASSO 2: Verificar se a instância existe
     try {
-      const instancesResponse = await axios.get(`${apiUrl}/instances`, { headers });
+      const instancesResponse = await axios.get(`${apiUrl}/instance/fetchInstances`, { headers });
       const instances = instancesResponse.data?.instances || [];
       const instanceExists = instances.includes(instance);
       
