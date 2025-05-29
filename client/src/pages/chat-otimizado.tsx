@@ -1142,8 +1142,8 @@ export default function ChatOtimizado() {
     if (isInitialLoad) {
       setLoading(true);
       setSelectedChat(chat);
-      
-
+      // Marcar mensagens como lidas quando abrir a conversa
+      markMessagesAsRead(chatId);
     }
     
     if (!service && connectionMode === 'qr') return;
@@ -1286,8 +1286,14 @@ export default function ChatOtimizado() {
         // Combinar mensagens do servidor com mensagens otimistas
         const allMessages = [...messageList, ...optimisticMessages];
         
+        // Marcar mensagens como não lidas inicialmente (apenas mensagens recebidas)
+        const messagesWithReadStatus = allMessages.map(msg => ({
+          ...msg,
+          read: msg.fromMe || false // Mensagens enviadas por mim são sempre lidas
+        }));
+        
         // Ordenar por timestamp
-        allMessages.sort((a, b) => {
+        messagesWithReadStatus.sort((a, b) => {
           const tsA = Number(a.messageTimestamp) || 0;
           const tsB = Number(b.messageTimestamp) || 0;
           return tsA - tsB;
@@ -1296,11 +1302,18 @@ export default function ChatOtimizado() {
         // Atualizar o cache de mensagens
         setMessagesByChatId(prev => ({
           ...prev,
-          [chatId]: allMessages
+          [chatId]: messagesWithReadStatus
+        }));
+        
+        // Contar mensagens não lidas (apenas mensagens recebidas)
+        const unreadCount = messagesWithReadStatus.filter(msg => !msg.fromMe && !msg.read).length;
+        setUnreadMessages(prev => ({
+          ...prev,
+          [chatId]: unreadCount
         }));
         
         // Atualizar mensagens visíveis
-        setMessages(allMessages);
+        setMessages(messagesWithReadStatus);
         
         // Rolagem automática APENAS na primeira carga da conversa (isInitialLoad = true)
         if (isInitialLoad && !lastTimestamp) {
@@ -1671,12 +1684,22 @@ export default function ChatOtimizado() {
                   }`}
                   onClick={() => loadMessages(chat)}
                 >
-                  <div className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-lg font-semibold">
+                  <div className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-lg font-semibold relative">
                     {getChatName(chat).charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="font-medium truncate">{getChatName(chat)}</span>
                   </div>
+                  {/* Bolinha de notificação para mensagens não lidas */}
+                  {(() => {
+                    const chatId = chat.id || chat.remoteJid;
+                    const unreadCount = countUnreadMessages(chatId);
+                    return unreadCount > 0 ? (
+                      <div className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               ))}
             </div>
