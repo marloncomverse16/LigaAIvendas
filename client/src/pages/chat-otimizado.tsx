@@ -1207,9 +1207,13 @@ export default function ChatOtimizado() {
           if (msgId) existingIds.add(msgId);
         });
         
-        // Filtrar apenas mensagens novas
+        // Filtrar apenas mensagens novas - excluindo mensagens otimistas locais
         const newMessages = messageList.filter((msg: any) => {
           const msgId = msg.id || (msg.key && msg.key.id);
+          // Ignorar mensagens locais/otimistas
+          if (msgId && msgId.toString().startsWith('local-')) {
+            return false;
+          }
           return msgId && !existingIds.has(msgId);
         });
         
@@ -1245,6 +1249,7 @@ export default function ChatOtimizado() {
         
         // Rolagem automática APENAS se houver mensagens realmente novas E estiver no final
         if (newMessages.length > 0) {
+          console.log(`🔽 Rolando para baixo devido a ${newMessages.length} novas mensagens`);
           const container = messagesEndRef.current?.parentElement;
           if (container) {
             const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
@@ -1254,6 +1259,8 @@ export default function ChatOtimizado() {
               }, 100);
             }
           }
+        } else {
+          console.log(`📋 Nenhuma mensagem nova, sem rolagem automática`);
         }
       } else {
         // Carga inicial: ordenar e salvar todas as mensagens
