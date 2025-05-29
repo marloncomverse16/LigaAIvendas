@@ -2693,37 +2693,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results.push({ source: 'QR Code', synced: qrSynced, success: true, totalFound: qrResult.rows.length });
           console.log(`✅ QR Code (local): ${qrSynced} contatos sincronizados`);
         } else {
-          // Buscar contatos diretamente da Evolution API se não há dados locais
-          console.log(`🔄 Buscando contatos diretamente da Evolution API...`);
+          // Sincronizar contatos usando dados da tabela whatsapp_contacts (banco Evolution)
+          console.log(`🔄 Buscando contatos da tabela whatsapp_contacts...`);
           
           try {
-            // Importar o módulo de chat existente que já funciona
-            const evolutionChat = await import('./api/evolution-chat');
+            // Verificar se existem contatos na tabela whatsapp_contacts
+            const qrContactsQuery = `
+              SELECT 
+                contact_id,
+                name,
+                number,
+                profile_picture,
+                MAX(last_activity) as last_activity
+              FROM whatsapp_contacts 
+              WHERE user_id = $1 AND contact_id IS NOT NULL AND contact_id != ''
+              GROUP BY contact_id, name, number, profile_picture
+            `;
             
-            // Simular uma requisição para obter chats (que são nossos contatos)
-            const mockReq = { 
-              user: { id: userId }, 
-              isAuthenticated: () => true,
-              body: { where: {}, limit: 100 }
-            } as any;
+            const qrResult = await pool.query(qrContactsQuery, [userId]);
+            console.log(`📋 Contatos encontrados na tabela whatsapp_contacts: ${qrResult.rows.length}`);
             
-            let chatData = null;
-            const mockRes = {
-              json: (data: any) => { chatData = data; return data; },
-              status: (code: number) => ({ 
-                json: (data: any) => { chatData = data; return data; }
-              })
-            } as any;
-            
-            // Usar a função findChats que já está funcionando
-            await evolutionChat.findChats(mockReq, mockRes);
-            
-            if (chatData && Array.isArray(chatData)) {
-              console.log(`📋 Encontrados ${chatData.length} chats na Evolution API`);
-              
-              for (const chat of chatData) {
-                // Extrair número de telefone do remoteJid
-                let phoneNumber = chat.remoteJid || chat.id;
+            if (qrResult.rows.length > 0) {
+              for (const row of qrResult.rows) {
+                let phoneNumber = row.number || row.contact_id;
                 if (phoneNumber) {
                   phoneNumber = phoneNumber.replace('@c.us', '').replace('@s.whatsapp.net', '');
                   
@@ -2732,29 +2724,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   if (existing.rows.length === 0) {
                     const insertQuery = `
-                      INSERT INTO contacts (user_id, phone_number, name, source, is_active, created_at)
-                      VALUES ($1, $2, $3, 'qr_code', true, NOW())
+                      INSERT INTO contacts (user_id, phone_number, name, source, is_active, profile_picture, last_message_time, created_at)
+                      VALUES ($1, $2, $3, 'qr_code', true, $4, $5, NOW())
                     `;
                     await pool.query(insertQuery, [
                       userId, 
                       phoneNumber, 
-                      chat.pushName || phoneNumber
+                      row.name || phoneNumber,
+                      row.profile_picture,
+                      row.last_activity
                     ]);
                     qrSynced++;
                   }
                 }
               }
               
-              results.push({ source: 'QR Code', synced: qrSynced, success: true, totalFound: chatData.length });
-              console.log(`✅ QR Code (API): ${qrSynced} contatos sincronizados`);
+              results.push({ source: 'QR Code', synced: qrSynced, success: true, totalFound: qrResult.rows.length });
+              console.log(`✅ QR Code (local): ${qrSynced} contatos sincronizados da tabela`);
             } else {
-              results.push({ source: 'QR Code', synced: 0, success: true, totalFound: 0 });
-              console.log(`ℹ️  QR Code: nenhum chat encontrado na API`);
+              // Se a tabela local estiver vazia, tentar buscar da API e salvar na tabela local
+              console.log(`🔄 Tabela whatsapp_contacts vazia, buscando da Evolution API...`);
+              
+              // Fazer requisição direta à Evolution API para obter contatos
+              const { getUserServer } = await import('./storage');
+              const userServer = await getUserServer(userId);
+              
+              if (userServer && userServer.apiUrl && userServer.apiToken) {
+                const response = await fetch(`${userServer.apiUrl}/chat/findChats/admin`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': userServer.apiToken
+                  },
+                  body: JSON.stringify({ where: {}, limit: 100 })
+                });
+                
+                if (response.ok) {
+                  const chats = await response.json();
+                  console.log(`📋 Contatos obtidos da Evolution API: ${chats.length}`);
+                  
+                  for (const chat of chats) {
+                    let phoneNumber = chat.remoteJid;
+                    if (phoneNumber) {
+                      phoneNumber = phoneNumber.replace('@c.us', '').replace('@s.whatsapp.net', '');
+                      
+                      // Verificar se o contato já existe na tabela whatsapp_contacts
+                      const existingContactQuery = `SELECT id FROM whatsapp_contacts WHERE user_id = $1 AND contact_id = $2`;
+                      const existingContact = await pool.query(existingContactQuery, [userId, chat.remoteJid]);
+                      
+                      if (existingContact.rows.length === 0) {
+                        // Salvar na tabela whatsapp_contacts apenas se não existir
+                        const insertContactQuery = `
+                          INSERT INTO whatsapp_contacts (user_id, contact_id, name, number, profile_picture, last_activity, created_at)
+                          VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                        `;
+                        
+                        await pool.query(insertContactQuery, [
+                          userId,
+                          chat.remoteJid,
+                          chat.pushName || phoneNumber,
+                          phoneNumber,
+                          chat.profilePicUrl,
+                          chat.updatedAt ? new Date(chat.updatedAt) : new Date()
+                        ]);
+                      }
+                      
+                      // Sincronizar para a tabela contacts
+                      const existingQuery = `SELECT id FROM contacts WHERE user_id = $1 AND phone_number = $2 AND source = 'qr_code'`;
+                      const existing = await pool.query(existingQuery, [userId, phoneNumber]);
+                      
+                      if (existing.rows.length === 0) {
+                        const insertQuery = `
+                          INSERT INTO contacts (user_id, phone_number, name, source, is_active, profile_picture, created_at)
+                          VALUES ($1, $2, $3, 'qr_code', true, $4, NOW())
+                        `;
+                        await pool.query(insertQuery, [
+                          userId, 
+                          phoneNumber, 
+                          chat.pushName || phoneNumber,
+                          chat.profilePicUrl
+                        ]);
+                        qrSynced++;
+                      }
+                    }
+                  }
+                  
+                  results.push({ source: 'QR Code', synced: qrSynced, success: true, totalFound: chats.length });
+                  console.log(`✅ QR Code (API): ${qrSynced} contatos sincronizados e salvos localmente`);
+                } else {
+                  console.log(`❌ Erro na requisição à Evolution API: ${response.status}`);
+                  results.push({ source: 'QR Code', synced: 0, success: false, error: 'Erro na API Evolution' });
+                }
+              } else {
+                console.log(`❌ Configuração do servidor QR Code não encontrada`);
+                results.push({ source: 'QR Code', synced: 0, success: false, error: 'Servidor não configurado' });
+              }
             }
           } catch (apiError) {
-            console.error('❌ Erro ao buscar chats da Evolution API:', apiError);
-            results.push({ source: 'QR Code', synced: 0, success: true, totalFound: 0 });
-            console.log(`ℹ️  QR Code: falha na API, nenhum contato sincronizado`);
+            console.error('❌ Erro na sincronização QR Code:', apiError);
+            results.push({ source: 'QR Code', synced: 0, success: false, error: 'Erro na sincronização' });
           }
         }
         
