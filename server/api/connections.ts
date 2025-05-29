@@ -241,10 +241,34 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
     console.log(`Usando token nos headers: ${server.apiToken.substring(0, 5)}...${server.apiToken.substring(server.apiToken.length - 4)} (origem: ambiente)`);
     console.log(`Headers de autenticação configurados: ${Object.keys(headers).join(', ')}`);
     
-    // Tentamos usar a Rota /qr da Evolution API
+    // Primeiro precisamos criar a instância seguindo a documentação da Evolution API
+    console.log(`Criando instância '${instanceName}' na Evolution API...`);
+    
     try {
+      // 1. Criar a instância primeiro (POST /instance/create)
+      const createInstanceData = {
+        instanceName: instanceName,
+        token: workingToken,
+        qrcode: true,
+        integration: "WHATSAPP-BAILEYS",
+        webhook: {
+          url: "",
+          byEvents: false,
+          base64: true
+        }
+      };
+      
+      const createResponse = await axios.post(
+        `${server.apiUrl}/instance/create`,
+        createInstanceData,
+        { headers }
+      );
+      
+      console.log(`Instância '${instanceName}' criada com sucesso:`, createResponse.data);
+      
+      // 2. Agora conectar a instância para obter o QR Code (GET /instance/connect/{instance})
       const connectResponse = await axios.get(
-        `${server.apiUrl}/instance/qrcode/${instanceName}`,
+        `${server.apiUrl}/instance/connect/${instanceName}`,
         { headers }
       );
       
