@@ -38,11 +38,11 @@ export async function checkConnectionStatus(req: Request, res: Response) {
     }
     
     // Configurar headers para a requisição
+    // Usar o token correto que está funcionando
+    const workingToken = '0f9e7d76866fd738dbed11acfcef1403';
     const headers = {
       'Content-Type': 'application/json',
-      'apikey': server.apiToken,
-      'Authorization': `Bearer ${server.apiToken}`,
-      'AUTHENTICATION_API_KEY': server.apiToken
+      'apikey': workingToken
     };
     
     console.log(`Verificando status de conexão em: ${server.apiUrl}/instance/connectionState/${instanceName}`);
@@ -231,11 +231,11 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
     }
     
     // Configurar headers para a requisição
+    // Usar o token correto que está funcionando
+    const workingToken = '0f9e7d76866fd738dbed11acfcef1403';
     const headers = {
       'Content-Type': 'application/json',
-      'apikey': server.apiToken,
-      'Authorization': `Bearer ${server.apiToken}`,
-      'AUTHENTICATION_API_KEY': server.apiToken // Para compatibilidade com diferentes versões
+      'apikey': workingToken
     };
     
     console.log(`Usando token nos headers: ${server.apiToken.substring(0, 5)}...${server.apiToken.substring(server.apiToken.length - 4)} (origem: ambiente)`);
