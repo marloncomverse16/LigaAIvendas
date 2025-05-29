@@ -37,12 +37,10 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       });
     }
     
-    // Configurar headers para a requisição
-    // Usar o token correto que está funcionando
-    const workingToken = '0f9e7d76866fd738dbed11acfcef1403';
+    // Configurar headers para a requisição usando o token do servidor
     const headers = {
       'Content-Type': 'application/json',
-      'apikey': workingToken
+      'apikey': server.apiToken
     };
     
     console.log(`Verificando status de conexão em: ${server.apiUrl}/instance/connectionState/${instanceName}`);
@@ -230,15 +228,13 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
       });
     }
     
-    // Configurar headers para a requisição
-    // Usar o token correto que está funcionando
-    const workingToken = '0f9e7d76866fd738dbed11acfcef1403';
+    // Configurar headers para a requisição usando o token do servidor
     const headers = {
       'Content-Type': 'application/json',
-      'apikey': workingToken
+      'apikey': server.apiToken
     };
     
-    console.log(`Usando token nos headers: ${server.apiToken.substring(0, 5)}...${server.apiToken.substring(server.apiToken.length - 4)} (origem: ambiente)`);
+    console.log(`Usando token nos headers: ${server.apiToken.substring(0, 5)}...${server.apiToken.substring(server.apiToken.length - 4)} (origem: servidor)`);
     console.log(`Headers de autenticação configurados: ${Object.keys(headers).join(', ')}`);
     
     // Primeiro precisamos criar a instância seguindo a documentação da Evolution API
@@ -248,7 +244,7 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
       // 1. Criar a instância primeiro (POST /instance/create)
       const createInstanceData = {
         instanceName: instanceName,
-        token: workingToken,
+        token: server.apiToken,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS",
         webhook: {
