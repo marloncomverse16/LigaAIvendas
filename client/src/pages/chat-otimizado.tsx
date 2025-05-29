@@ -739,9 +739,11 @@ export default function ChatOtimizado() {
     const evolutionService = new DirectEvolutionService(apiUrl, apiKey, instanceName);
     setService(evolutionService);
     
-    // Verificar conexão inicial
-    checkConnection(evolutionService);
-  }, [apiUrl, apiKey, instanceName]);
+    // Só verificar conexão Evolution API se o modo QR estiver selecionado
+    if (connectionMode === 'qr') {
+      checkConnection(evolutionService);
+    }
+  }, [apiUrl, apiKey, instanceName, connectionMode]);
   
   // Atualização automática dos contatos a cada 5 segundos
   // Função específica para atualizar APENAS a lista de contatos
