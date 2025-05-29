@@ -1166,6 +1166,13 @@ export default function ChatOtimizado() {
     if (isInitialLoad) {
       setLoading(true);
       setSelectedChat(chat);
+      
+      // Zerar contador de mensagens não lidas quando o chat é selecionado
+      setUnreadMessages(prev => ({
+        ...prev,
+        [chatId]: 0
+      }));
+      
       // Marcar mensagens como lidas quando abrir a conversa
       markMessagesAsRead(chatId);
     }
