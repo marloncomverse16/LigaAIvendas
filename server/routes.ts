@@ -20,7 +20,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { eq, and } from "drizzle-orm";
 import { db, pool } from "./db";
-import { checkConnectionStatus, disconnectWhatsApp } from "./connection";
+import { checkConnectionStatus, disconnectWhatsApp, connectWhatsApp } from "./connection";
 import * as whatsappApi from "./api/whatsapp-api";
 import { getWhatsAppQrCode, getWhatsAppContacts } from "./direct-connection";
 import { serveMediaProxy } from "./api/simple-media-proxy";
@@ -168,7 +168,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registrar rotas de conexão
   app.get("/api/connections/status", checkConnectionStatusNew);
-  app.get("/api/connections/qrcode", getQrCode);
+  app.post("/api/connections/qrcode", async (req: Request, res: Response) => {
+    try {
+      console.log("🔍 Solicitação de QR Code recebida");
+      
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Não autenticado" });
+      }
+
+      // Chamar a função connectWhatsApp com modo QR
+      const result = await connectWhatsApp(req, res);
+      
+      // A função connectWhatsApp já responde diretamente, então não precisamos fazer mais nada
+      return result;
+      
+    } catch (error) {
+      console.error("Erro ao gerar QR Code:", error);
+      return res.status(500).json({ 
+        error: "Falha ao gerar QR Code",
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
   
   // Temporariamente desativado para evitar problemas de conexão
   // app.use("/api/evolution-webhook", evolutionWebhookRoutes);
