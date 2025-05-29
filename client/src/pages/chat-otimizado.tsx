@@ -583,12 +583,7 @@ export default function ChatOtimizado() {
   const [loading, setLoading] = useState(false);
   const [connectionMode, setConnectionMode] = useState<'qr' | 'cloud' | 'both'>('cloud');
   const [metaConnectionStatus, setMetaConnectionStatus] = useState<any>(null);
-  const [showMediaPanel, setShowMediaPanel] = useState(false);
-  const [mediaType, setMediaType] = useState<"image" | "audio" | "video" | "document" | null>(null);
-  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-  const [mediaCaption, setMediaCaption] = useState('');
-  const [mediaBase64, setMediaBase64] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [chats, setChats] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [messagesByChatId, setMessagesByChatId] = useState<Record<string, any[]>>({});
@@ -603,10 +598,7 @@ export default function ChatOtimizado() {
   const form = useForm<SendFormValues>({
     resolver: zodResolver(sendFormSchema),
     defaultValues: {
-      text: "",
-      mediaType: undefined,
-      mediaUrl: "",
-      caption: ""
+      text: ""
     }
   });
   
@@ -1318,83 +1310,7 @@ export default function ChatOtimizado() {
     }
   };
   
-  // Função para converter arquivo para Base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          // Remover prefixo data:image/jpeg;base64, para obter apenas o base64
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        } else {
-          reject(new Error('Erro ao converter arquivo para base64'));
-        }
-      };
-      reader.onerror = error => reject(error);
-    });
-  };
 
-  // Função para lidar com a seleção de arquivos
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      // Determinar o tipo de mídia com base no tipo MIME
-      let mediaType: "image" | "audio" | "video" | "document" | null = null;
-      
-      if (file.type.startsWith('image/')) {
-        mediaType = "image";
-      } else if (file.type.startsWith('audio/')) {
-        mediaType = "audio";
-      } else if (file.type.startsWith('video/')) {
-        mediaType = "video";
-      } else {
-        mediaType = "document";
-      }
-      
-      setMediaType(mediaType);
-      
-      // Converter para base64
-      const base64Data = await fileToBase64(file);
-      setMediaBase64(base64Data);
-      
-      // Criar URL para preview (apenas para imagens e vídeos)
-      if (mediaType === "image" || mediaType === "video") {
-        const previewUrl = URL.createObjectURL(file);
-        setMediaPreview(previewUrl);
-      } else {
-        setMediaPreview(null);
-      }
-      
-      // Mostrar painel de mídia com opção para adicionar legenda
-      setShowMediaPanel(true);
-      
-      // Resetar o input para permitir selecionar o mesmo arquivo novamente
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      
-    } catch (error) {
-      console.error("Erro ao processar arquivo:", error);
-      toast({
-        title: "Erro ao processar arquivo",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Função para cancelar o envio de mídia
-  const cancelMediaUpload = () => {
-    setShowMediaPanel(false);
-    setMediaType(null);
-    setMediaPreview(null);
-    setMediaBase64(null);
-    setMediaCaption('');
-  };
   
   // Função auxiliar para atualizar mensagens otimistas
   const updateOptimisticMessage = (messageId: string, updates: Partial<any>) => {
@@ -1965,154 +1881,45 @@ export default function ChatOtimizado() {
               <Form {...form}>
                 {/* Conteúdo do formulário */}
                 <div>
-                  {/* Painel de mídia */}
-                  {showMediaPanel && (
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      console.log("Formulário de mídia enviado");
-                      onSubmit(form.getValues());
-                    }} className="p-4 border rounded-md mb-2 bg-gray-50 dark:bg-gray-800">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium">
-                          {mediaType === "image" && "Imagem"}
-                          {mediaType === "audio" && "Áudio"}
-                          {mediaType === "video" && "Vídeo"}
-                          {mediaType === "document" && "Documento"}
-                        </h4>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => cancelMediaUpload()}
-                          type="button"
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                      
-                      {/* Preview para imagens */}
-                      {mediaType === "image" && mediaPreview && (
-                        <div className="mb-2 max-h-48 overflow-hidden rounded-md">
-                          <img src={mediaPreview} alt="Preview" className="object-contain max-w-full" />
-                        </div>
-                      )}
-                      
-                      {/* Preview para vídeos */}
-                      {mediaType === "video" && mediaPreview && (
-                        <div className="mb-2">
-                          <video src={mediaPreview} controls className="max-w-full max-h-48 rounded-md" />
-                        </div>
-                      )}
-                      
-                      {/* Ícone para áudio e documentos */}
-                      {(mediaType === "audio" || mediaType === "document") && (
-                        <div className="flex items-center justify-center h-16 mb-2 bg-gray-100 dark:bg-gray-700 rounded-md">
-                          {mediaType === "audio" ? (
-                            <FileAudio className="h-8 w-8 text-blue-500" />
-                          ) : (
-                            <div className="h-8 w-8 text-blue-500">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                                <polyline points="14 2 14 8 20 8" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Campo de legenda para mídia */}
-                      <Input
-                        placeholder="Adicionar legenda (opcional)"
-                        value={mediaCaption}
-                        onChange={(e) => setMediaCaption(e.target.value)}
-                        className="mb-2"
-                      />
-                      
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-green-600 hover:bg-green-700 text-white"
-                        disabled={
-                          (connectionMode === 'qr' && !connected) || 
-                          (connectionMode === 'cloud' && !metaConnectionStatus?.connected) ||
-                          loading || 
-                          form.formState.isSubmitting
-                        }
-                      >
-                        {form.formState.isSubmitting ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <>
-                            <Send className="h-4 w-4 mr-2" />
-                            Enviar
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  )}
-                
-                  {/* Campo de upload oculto */}
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={(e) => handleFileSelect(e)}
-                    accept="image/*,audio/*,video/*,application/*"
-                    style={{ display: 'none' }} 
-                  />
+
                 
                   {/* Formulário de mensagem principal */}
-                  {!showMediaPanel && (
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="flex space-x-2">
-                      {/* Botão de anexo */}
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => fileInputRef.current?.click()}
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="flex space-x-2">
+                    <div className="flex-1">
+                      <MessageInput
+                        onSubmit={(text) => {
+                          setInputText(text);
+                          form.setValue("text", text);
+                          form.handleSubmit(onSubmit)();
+                        }}
                         disabled={
                           (connectionMode === 'qr' && !connected) || 
                           (connectionMode === 'cloud' && !metaConnectionStatus?.connected) ||
                           loading
                         }
-                        className="rounded-full"
-                      >
-                        <Paperclip className="h-5 w-5 text-gray-500" />
-                      </Button>
-                      
-                      <div className="flex-1">
-                        <MessageInput
-                          onSubmit={(text) => {
-                            setInputText(text);
-                            form.setValue("text", text);
-                            form.handleSubmit(onSubmit)();
-                          }}
-                          disabled={
-                            (connectionMode === 'qr' && !connected) || 
-                            (connectionMode === 'cloud' && !metaConnectionStatus?.connected) ||
-                            loading
-                          }
-                          inputRef={inputRef}
-                          chatId={selectedChat?.id || null}
-                        />
-                      </div>
-                      
-                      <Button 
-                        type="submit" 
-                        size="icon" 
-                        disabled={
-                          (connectionMode === 'qr' && !connected) || 
-                          (connectionMode === 'cloud' && !metaConnectionStatus?.connected) ||
-                          loading || 
-                          form.formState.isSubmitting
-                        }
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        {form.formState.isSubmitting ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-white" />
-                        ) : (
-                          <Send className="h-4 w-4 text-white" />
-                        )}
-                      </Button>
-                    </form>
-                  )}
+                        inputRef={inputRef}
+                        chatId={selectedChat?.id || null}
+                      />
+                    </div>
+                    
+                    <Button 
+                      type="submit" 
+                      size="icon" 
+                      disabled={
+                        (connectionMode === 'qr' && !connected) || 
+                        (connectionMode === 'cloud' && !metaConnectionStatus?.connected) ||
+                        loading || 
+                        form.formState.isSubmitting
+                      }
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {form.formState.isSubmitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      ) : (
+                        <Send className="h-4 w-4 text-white" />
+                      )}
+                    </Button>
+                  </form>
                 </div>
               </Form>
             </div>
