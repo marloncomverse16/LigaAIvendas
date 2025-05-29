@@ -2777,8 +2777,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
                 for (const chat of chats) {
                   let phoneNumber = chat.remoteJid;
-                  if (phoneNumber) {
-                    phoneNumber = phoneNumber.replace('@c.us', '').replace('@s.whatsapp.net', '');
+                  if (phoneNumber && phoneNumber !== 'status@broadcast') {
+                    // Extrair número de telefone corretamente
+                    phoneNumber = phoneNumber.replace('@c.us', '').replace('@s.whatsapp.net', '').replace('@g.us', '');
+                    
+                    // Pular números inválidos (grupos, status, etc)
+                    if (phoneNumber === '0' || phoneNumber.includes('-') || !phoneNumber.match(/^\d+$/)) {
+                      console.log(`⏭️ Pulando contato inválido: ${phoneNumber}`);
+                      continue;
+                    }
                     
                     // Primeiro, verificar no mapeamento de contatos detalhados
                     let contactName = null;
@@ -2798,14 +2805,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       profilePic = chat.profilePicUrl;
                     }
                     
-                    console.log(`🔍 Processando contato QR: ${phoneNumber} | Nome: ${contactName || 'N/A'} | Fonte: ${contactsMap.has(phoneNumber) ? 'Contatos' : 'Chat'}`);
+                    console.log(`🔍 Processando contato QR: ${phoneNumber} | Nome: ${contactName || 'N/A'} | pushName: ${chat.pushName || 'N/A'}`);
                     
                     // Verificar se já existe contato com esse número (qualquer fonte)
                     const existingQuery = `SELECT id, source, name FROM contacts WHERE user_id = $1 AND phone_number = $2`;
                     const existing = await pool.query(existingQuery, [userId, phoneNumber]);
                     
-                    if (existing.rows.length === 0) {
-                      // Criar novo contato
+                    if (existing.rows.length === 0 && contactName) {
+                      // Criar novo contato apenas se temos um nome válido
                       const insertQuery = `
                         INSERT INTO contacts (user_id, phone_number, name, source, is_active, profile_picture, created_at)
                         VALUES ($1, $2, $3, 'qr_code', true, $4, NOW())
@@ -2813,12 +2820,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       await pool.query(insertQuery, [
                         userId, 
                         phoneNumber, 
-                        contactName || phoneNumber,
+                        contactName,
                         profilePic || null
                       ]);
                       qrSynced++;
-                      console.log(`💾 Novo contato QR sincronizado: ${phoneNumber} | Nome: ${contactName || 'N/A'}`);
-                    } else {
+                      console.log(`💾 Novo contato QR sincronizado: ${phoneNumber} | Nome: ${contactName}`);
+                    } else if (existing.rows.length > 0 && contactName) {
                       // Atualizar contato existente se melhorou o nome
                       const existingContact = existing.rows[0];
                       const shouldUpdate = contactName && (
@@ -2833,6 +2840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           WHERE user_id = $3 AND phone_number = $4
                         `;
                         await pool.query(updateQuery, [contactName, profilePic, userId, phoneNumber]);
+                        qrSynced++;
                         console.log(`📝 Nome atualizado: ${phoneNumber} -> ${contactName} (${existingContact.source} -> qr_code)`);
                       }
                     }
