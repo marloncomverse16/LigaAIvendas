@@ -631,15 +631,28 @@ export default function ChatOtimizado() {
       setLoading(true);
       
       // Primeiro, buscar as configurações do usuário para obter phoneNumberId e businessId
+      console.log('🔍 Buscando configurações do usuário...');
       const settingsResponse = await fetch('/api/settings');
       if (!settingsResponse.ok) {
         throw new Error('Não foi possível carregar as configurações');
       }
       
       const settings = await settingsResponse.json();
+      console.log('📋 Configurações carregadas:', {
+        hasPhoneNumberId: !!settings.whatsappMetaPhoneNumberId,
+        hasBusinessId: !!settings.whatsappMetaBusinessId,
+        hasToken: !!settings.whatsappMetaToken,
+        phoneNumberIdValue: settings.whatsappMetaPhoneNumberId,
+        businessIdValue: settings.whatsappMetaBusinessId,
+        allSettings: Object.keys(settings)
+      });
       
       // Verificar se as configurações Meta estão disponíveis
       if (!settings.whatsappMetaPhoneNumberId || !settings.whatsappMetaBusinessId) {
+        console.error('❌ Configurações Meta não encontradas:', {
+          phoneNumberId: settings.whatsappMetaPhoneNumberId,
+          businessId: settings.whatsappMetaBusinessId
+        });
         throw new Error('Configure primeiro as credenciais do WhatsApp Meta API em Configurações > Integrações');
       }
       
