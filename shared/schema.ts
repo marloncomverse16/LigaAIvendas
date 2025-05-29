@@ -643,6 +643,8 @@ export type InsertWhatsappContact = z.infer<typeof insertWhatsappContactSchema>;
 export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
 export type InsertWhatsappMessage = z.infer<typeof insertWhatsappMessageSchema>;
 
+
+
 // Tabela para servidores
 export const servers = pgTable("servers", {
   id: serial("id").primaryKey(),
@@ -697,6 +699,24 @@ export const userAiAgents = pgTable("user_ai_agents", {
   isDefault: boolean("is_default").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
+});
+
+// Tabela de contatos unificada (QR Code + Cloud API)
+export const contacts = pgTable("contacts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  phoneNumber: text("phone_number").notNull(),
+  name: text("name"),
+  profilePicture: text("profile_picture"),
+  lastMessageTime: timestamp("last_message_time"),
+  lastMessage: text("last_message"),
+  source: text("source").notNull(), // 'qr_code' ou 'cloud_api'
+  serverId: integer("server_id").references(() => servers.id),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  tags: text("tags").array().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
 });
 
 // Relação entre usuários e servidores
