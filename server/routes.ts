@@ -2413,18 +2413,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      // Buscar contatos do QR Code (Evolution API)
-      const { getWhatsAppContacts } = await import('./direct-connection');
-      const qrContacts = await getWhatsAppContacts(userId);
+      // Buscar contatos do QR Code da tabela whatsapp_messages
+      const qrMessages = await db.select({
+        contactId: whatsappMessages.contactId,
+        timestamp: whatsappMessages.timestamp
+      }).from(whatsappMessages)
+        .where(eq(whatsappMessages.userId, userId))
+        .groupBy(whatsappMessages.contactId, whatsappMessages.timestamp)
+        .orderBy(desc(whatsappMessages.timestamp));
       
       let syncedCount = 0;
+      const processedContacts = new Set();
       
-      for (const contact of qrContacts) {
+      for (const message of qrMessages) {
+        if (!message.contactId || processedContacts.has(message.contactId)) continue;
+        
+        processedContacts.add(message.contactId);
+        
+        // Extrair número de telefone e nome do contactId
+        let phoneNumber = message.contactId.replace('@c.us', '').replace('@s.whatsapp.net', '');
+        let name = null;
+        
+        // Se o contactId contém nome, extrair
+        if (message.contactId.includes('~')) {
+          const parts = message.contactId.split('~');
+          phoneNumber = parts[0].replace('@c.us', '').replace('@s.whatsapp.net', '');
+          name = parts[1];
+        }
+        
         // Verificar se o contato já existe
         const existingContact = await db.select().from(contacts)
           .where(and(
             eq(contacts.userId, userId),
-            eq(contacts.phoneNumber, contact.id.replace('@c.us', '')),
+            eq(contacts.phoneNumber, phoneNumber),
             eq(contacts.source, 'qr_code')
           ))
           .limit(1);
@@ -2433,10 +2454,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Criar novo contato
           await db.insert(contacts).values({
             userId,
-            phoneNumber: contact.id.replace('@c.us', ''),
-            name: contact.name || contact.pushname || null,
-            profilePicture: contact.profilePicUrl || null,
-            lastMessageTime: contact.lastMessageTime ? new Date(contact.lastMessageTime * 1000) : null,
+            phoneNumber,
+            name,
+            profilePicture: null,
+            lastMessageTime: message.timestamp ? new Date(message.timestamp * 1000) : null,
             lastMessage: null,
             source: 'qr_code',
             serverId: null,
@@ -2445,16 +2466,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tags: []
           });
           syncedCount++;
-        } else {
-          // Atualizar contato existente
-          await db.update(contacts)
-            .set({
-              name: contact.name || contact.pushname || existingContact[0].name,
-              profilePicture: contact.profilePicUrl || existingContact[0].profilePicture,
-              lastMessageTime: contact.lastMessageTime ? new Date(contact.lastMessageTime * 1000) : existingContact[0].lastMessageTime,
-              updatedAt: new Date()
-            })
-            .where(eq(contacts.id, existingContact[0].id));
         }
       }
       
