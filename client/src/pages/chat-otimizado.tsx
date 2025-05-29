@@ -1121,17 +1121,7 @@ export default function ChatOtimizado() {
         // Na primeira carga, substitui completamente
         setChats(response || []);
         
-        // Inicializar bolinhas de notificação apenas na primeira carga
-        if (response && response.length > 0 && Object.keys(unreadMessages).length === 0) {
-          const initialUnread: Record<string, number> = {};
-          response.forEach((chat: any, index: number) => {
-            const chatId = chat.id || chat.remoteJid;
-            // Definir um número inicial de mensagens não lidas para demonstração
-            if (index === 0) initialUnread[chatId] = 3; // Primeiro chat com 3 mensagens
-            if (index === 1) initialUnread[chatId] = 1; // Segundo chat com 1 mensagem
-          });
-          setUnreadMessages(initialUnread);
-        }
+        // Inicialização de bolinhas temporariamente desativada
       }
       
       // Só mostra toast na primeira carga
@@ -1166,14 +1156,8 @@ export default function ChatOtimizado() {
       setLoading(true);
       setSelectedChat(chat);
       
-      // Zerar contador de mensagens não lidas quando o chat é selecionado
-      setUnreadMessages(prev => ({
-        ...prev,
-        [chatId]: 0
-      }));
-      
-      // Marcar mensagens como lidas quando abrir a conversa
-      markMessagesAsRead(chatId);
+      // Marcar mensagens como lidas quando abrir a conversa (notificações desativadas)
+      // markMessagesAsRead(chatId);
     }
     
     if (!service && connectionMode === 'qr') return;
@@ -1288,21 +1272,7 @@ export default function ChatOtimizado() {
         // Atualizar mensagens visíveis
         setMessages(uniqueMessages);
         
-        // Atualizar bolinhas de notificação para mensagens novas recebidas
-        if (newMessages.length > 0) {
-          const newIncomingMessages = newMessages.filter(msg => !isFromMe(msg));
-          
-          // Se há mensagens recebidas e este chat não está selecionado, incrementar contador
-          if (newIncomingMessages.length > 0 && 
-              chatId !== selectedChat?.id && 
-              chatId !== selectedChat?.remoteJid) {
-            setUnreadMessages(prev => ({
-              ...prev,
-              [chatId]: (prev[chatId] || 0) + newIncomingMessages.length
-            }));
-            console.log(`📍 ${newIncomingMessages.length} mensagens não lidas adicionadas ao chat ${chatId}`);
-          }
-        }
+        // Lógica de notificações temporariamente desativada
 
         // Rolagem automática APENAS se houver mensagens realmente novas E estiver no final
         if (newMessages.length > 0) {
@@ -1732,16 +1702,7 @@ export default function ChatOtimizado() {
                   <div className="flex-1 min-w-0">
                     <span className="font-medium truncate">{getChatName(chat)}</span>
                   </div>
-                  {/* Bolinha de notificação para mensagens não lidas */}
-                  {(() => {
-                    const chatId = chat.id || chat.remoteJid;
-                    const unreadCount = countUnreadMessages(chatId);
-                    return unreadCount > 0 ? (
-                      <div className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </div>
-                    ) : null;
-                  })()}
+                  {/* Bolinha de notificação temporariamente desativada */}
                 </div>
               ))}
             </div>
