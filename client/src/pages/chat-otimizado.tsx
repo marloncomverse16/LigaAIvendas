@@ -612,6 +612,59 @@ export default function ChatOtimizado() {
   
   const { toast } = useToast();
 
+  // Função para formatar data e hora das mensagens
+  const formatMessageDateTime = (timestamp: any) => {
+    if (!timestamp) return '';
+    
+    try {
+      // Converter timestamp para número se necessário
+      const ts = typeof timestamp === 'string' ? parseInt(timestamp) : timestamp;
+      
+      // Verificar se o timestamp está em milissegundos ou segundos
+      const date = new Date(ts > 1000000000000 ? ts : ts * 1000);
+      
+      if (isNaN(date.getTime())) return '';
+      
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      
+      // Se foi hoje, mostrar apenas a hora
+      if (diff < 24 * 60 * 60 * 1000 && now.getDate() === date.getDate()) {
+        return date.toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+      
+      // Se foi ontem
+      if (diff < 48 * 60 * 60 * 1000 && now.getDate() - 1 === date.getDate()) {
+        return `Ontem ${date.toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })}`;
+      }
+      
+      // Caso contrário, mostrar data e hora
+      return date.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Erro ao formatar data e hora:', error);
+      return '';
+    }
+  };
+
+  // Função para rolar automaticamente para a última mensagem
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
   // Funções para WhatsApp Cloud API - usando as mesmas rotas que funcionam na aba Conexões
   const checkMetaConnectionStatus = async () => {
     try {
@@ -1604,9 +1657,7 @@ export default function ChatOtimizado() {
       }));
       
       // Rolar para a nova mensagem
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 50);
+      scrollToBottom();
       
       // Limpa o formulário e o campo de texto local imediatamente para melhor experiência do usuário
       form.reset();
@@ -1888,8 +1939,11 @@ export default function ChatOtimizado() {
                         <div className="text-sm whitespace-pre-wrap break-words">
                           {getMessageContent(msg)}
                         </div>
-                        <div className="text-right text-xs text-gray-500 mt-1">
-                          {formatMessageDate(msg.messageTimestamp)}
+                        <div className="text-right text-xs text-gray-500 mt-1 flex justify-end items-center space-x-1">
+                          <span>{formatMessageDateTime(msg.timestamp || msg.messageTimestamp)}</span>
+                          {isFromMe(msg) && (
+                            <span className="text-green-500">✓</span>
+                          )}
                         </div>
                       </div>
                     </div>
