@@ -2406,6 +2406,204 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Sincronizar contatos do QR Code para a tabela contacts
+  app.post("/api/contacts/sync-qr", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user!.id;
+      
+      // Buscar contatos do QR Code (Evolution API)
+      const { getWhatsAppContacts } = await import('./direct-connection');
+      const qrContacts = await getWhatsAppContacts(userId);
+      
+      let syncedCount = 0;
+      
+      for (const contact of qrContacts) {
+        // Verificar se o contato já existe
+        const existingContact = await db.select().from(contacts)
+          .where(and(
+            eq(contacts.userId, userId),
+            eq(contacts.phoneNumber, contact.id.replace('@c.us', '')),
+            eq(contacts.source, 'qr_code')
+          ))
+          .limit(1);
+        
+        if (existingContact.length === 0) {
+          // Criar novo contato
+          await db.insert(contacts).values({
+            userId,
+            phoneNumber: contact.id.replace('@c.us', ''),
+            name: contact.name || contact.pushname || null,
+            profilePicture: contact.profilePicUrl || null,
+            lastMessageTime: contact.lastMessageTime ? new Date(contact.lastMessageTime * 1000) : null,
+            lastMessage: null,
+            source: 'qr_code',
+            serverId: null,
+            isActive: true,
+            notes: null,
+            tags: []
+          });
+          syncedCount++;
+        } else {
+          // Atualizar contato existente
+          await db.update(contacts)
+            .set({
+              name: contact.name || contact.pushname || existingContact[0].name,
+              profilePicture: contact.profilePicUrl || existingContact[0].profilePicture,
+              lastMessageTime: contact.lastMessageTime ? new Date(contact.lastMessageTime * 1000) : existingContact[0].lastMessageTime,
+              updatedAt: new Date()
+            })
+            .where(eq(contacts.id, existingContact[0].id));
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `${syncedCount} contatos sincronizados do QR Code`,
+        syncedCount
+      });
+    } catch (error) {
+      console.error('Erro ao sincronizar contatos QR:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao sincronizar contatos do QR Code',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Sincronizar contatos do Cloud API para a tabela contacts
+  app.post("/api/contacts/sync-cloud", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user!.id;
+      
+      // Buscar chats diretamente do banco whatsapp_cloud_chats
+      const cloudChats = await db.select().from(whatsappCloudChats)
+        .where(eq(whatsappCloudChats.userId, userId))
+        .orderBy(desc(whatsappCloudChats.lastMessageAt));
+      
+      let syncedCount = 0;
+      
+      for (const chat of cloudChats) {
+        // Verificar se o contato já existe
+        const existingContact = await db.select().from(contacts)
+          .where(and(
+            eq(contacts.userId, userId),
+            eq(contacts.phoneNumber, chat.contactPhone),
+            eq(contacts.source, 'cloud_api')
+          ))
+          .limit(1);
+        
+        if (existingContact.length === 0) {
+          // Criar novo contato
+          await db.insert(contacts).values({
+            userId,
+            phoneNumber: chat.contactPhone,
+            name: chat.contactName && chat.contactName !== chat.contactPhone ? chat.contactName : null,
+            profilePicture: null,
+            lastMessageTime: chat.lastMessageAt,
+            lastMessage: null,
+            source: 'cloud_api',
+            serverId: null,
+            isActive: true,
+            notes: null,
+            tags: []
+          });
+          syncedCount++;
+        } else {
+          // Atualizar contato existente
+          await db.update(contacts)
+            .set({
+              name: (chat.contactName && chat.contactName !== chat.contactPhone) ? chat.contactName : existingContact[0].name,
+              lastMessageTime: chat.lastMessageAt || existingContact[0].lastMessageTime,
+              updatedAt: new Date()
+            })
+            .where(eq(contacts.id, existingContact[0].id));
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `${syncedCount} contatos sincronizados do Cloud API`,
+        syncedCount
+      });
+    } catch (error) {
+      console.error('Erro ao sincronizar contatos Cloud:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao sincronizar contatos do Cloud API',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Sincronizar todos os contatos (QR Code + Cloud API)
+  app.post("/api/contacts/sync-all", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      let totalSynced = 0;
+      const results = [];
+      
+      // Sincronizar QR Code
+      try {
+        const qrResponse = await fetch('/api/contacts/sync-qr', {
+          method: 'POST',
+          headers: {
+            'Cookie': req.headers.cookie || ''
+          }
+        });
+        
+        if (qrResponse.ok) {
+          const qrResult = await qrResponse.json();
+          totalSynced += qrResult.syncedCount || 0;
+          results.push({ source: 'QR Code', synced: qrResult.syncedCount || 0, success: true });
+        } else {
+          results.push({ source: 'QR Code', synced: 0, success: false, error: 'Erro na sincronização' });
+        }
+      } catch (error) {
+        results.push({ source: 'QR Code', synced: 0, success: false, error: 'QR Code não conectado' });
+      }
+      
+      // Sincronizar Cloud API
+      try {
+        const cloudResponse = await fetch('/api/contacts/sync-cloud', {
+          method: 'POST',
+          headers: {
+            'Cookie': req.headers.cookie || ''
+          }
+        });
+        
+        if (cloudResponse.ok) {
+          const cloudResult = await cloudResponse.json();
+          totalSynced += cloudResult.syncedCount || 0;
+          results.push({ source: 'Cloud API', synced: cloudResult.syncedCount || 0, success: true });
+        } else {
+          results.push({ source: 'Cloud API', synced: 0, success: false, error: 'Erro na sincronização' });
+        }
+      } catch (error) {
+        results.push({ source: 'Cloud API', synced: 0, success: false, error: 'Cloud API não conectado' });
+      }
+      
+      res.json({
+        success: true,
+        message: `Total de ${totalSynced} contatos sincronizados`,
+        totalSynced,
+        results
+      });
+    } catch (error) {
+      console.error('Erro ao sincronizar todos os contatos:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao sincronizar contatos',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
   // Exportar contatos para CSV
   app.get("/api/contacts/export", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });

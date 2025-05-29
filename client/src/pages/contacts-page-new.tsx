@@ -139,6 +139,28 @@ export default function ContactsPageNew() {
     }
   });
 
+  // Sincronizar contatos
+  const syncContactsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/contacts/sync-all');
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
+      toast({
+        title: "Sincronização concluída",
+        description: `${data.totalSynced} contatos sincronizados com sucesso!`
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: "Erro ao sincronizar contatos",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Exportar contatos
   const exportContacts = async () => {
     try {
@@ -231,6 +253,14 @@ export default function ContactsPageNew() {
             </div>
             
             <div className="flex gap-2">
+              <Button 
+                onClick={() => syncContactsMutation.mutate()} 
+                disabled={syncContactsMutation.isPending}
+                variant="outline"
+              >
+                {syncContactsMutation.isPending ? 'Sincronizando...' : 'Sincronizar Contatos'}
+              </Button>
+              
               <Button onClick={exportContacts} variant="outline">
                 <Download className="w-4 h-4 mr-2" />
                 Exportar CSV
