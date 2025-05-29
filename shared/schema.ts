@@ -867,5 +867,22 @@ export type InsertServerAiAgent = z.infer<typeof insertServerAiAgentSchema>;
 export type UserAiAgent = typeof userAiAgents.$inferSelect;
 export type InsertUserAiAgent = z.infer<typeof insertUserAiAgentSchema>;
 
+// Schema para inserção de contatos
+export const insertContactSchema = createInsertSchema(contacts).pick({
+  phoneNumber: true,
+  name: true,
+  profilePicture: true,
+  lastMessageTime: true,
+  lastMessage: true,
+  source: true,
+  serverId: true,
+  isActive: true,
+  notes: true,
+  tags: true,
+});
+
+export type Contact = typeof contacts.$inferSelect;
+export type InsertContact = z.infer<typeof insertContactSchema>;
+
 // Tabela para armazenar mensagens de WhatsApp
 

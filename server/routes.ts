@@ -12,13 +12,13 @@ import {
   insertLeadInteractionSchema, insertLeadRecommendationSchema,
   insertProspectingSearchSchema, insertProspectingResultSchema,
   insertUserSchema, ConnectionStatus, insertServerSchema,
-  userAiAgents, serverAiAgents
+  userAiAgents, serverAiAgents, contacts, insertContactSchema
 } from "@shared/schema";
 import { z } from "zod";
 import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db, pool } from "./db";
 import { checkConnectionStatus, disconnectWhatsApp, connectWhatsApp } from "./connection";
 import * as whatsappApi from "./api/whatsapp-api";
@@ -2283,19 +2283,166 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Endpoint para obter contatos sincronizados (para compatibilidade com o frontend)
+  // Nova API de contatos - busca diretamente do banco de dados
   app.get("/api/contacts", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Usar a nova implementação baseada na documentação oficial
-      const { findContacts } = await import('./api/evolution-chat');
-      await findContacts(req, res);
+      const userId = req.user!.id;
+      
+      // Buscar contatos do banco de dados
+      const userContacts = await db.select().from(contacts)
+        .where(eq(contacts.userId, userId))
+        .orderBy(desc(contacts.lastMessageTime));
+      
+      res.json({
+        success: true,
+        contacts: userContacts
+      });
     } catch (error) {
-      console.error('Erro ao obter contatos:', error);
+      console.error('Erro ao buscar contatos:', error);
       res.status(500).json({
         success: false,
-        message: 'Erro ao obter contatos do WhatsApp',
+        message: 'Erro ao buscar contatos',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Criar novo contato
+  app.post("/api/contacts", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user!.id;
+      const contactData = insertContactSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const [newContact] = await db.insert(contacts)
+        .values({ ...contactData, userId })
+        .returning();
+      
+      res.json({
+        success: true,
+        contact: newContact
+      });
+    } catch (error) {
+      console.error('Erro ao criar contato:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao criar contato',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Atualizar contato
+  app.put("/api/contacts/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user!.id;
+      const contactId = parseInt(req.params.id);
+      const updateData = insertContactSchema.partial().parse(req.body);
+      
+      const [updatedContact] = await db.update(contacts)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(and(eq(contacts.id, contactId), eq(contacts.userId, userId)))
+        .returning();
+      
+      if (!updatedContact) {
+        return res.status(404).json({
+          success: false,
+          message: 'Contato não encontrado'
+        });
+      }
+      
+      res.json({
+        success: true,
+        contact: updatedContact
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar contato:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao atualizar contato',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Deletar contato
+  app.delete("/api/contacts/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user!.id;
+      const contactId = parseInt(req.params.id);
+      
+      const [deletedContact] = await db.delete(contacts)
+        .where(and(eq(contacts.id, contactId), eq(contacts.userId, userId)))
+        .returning();
+      
+      if (!deletedContact) {
+        return res.status(404).json({
+          success: false,
+          message: 'Contato não encontrado'
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Contato deletado com sucesso'
+      });
+    } catch (error) {
+      console.error('Erro ao deletar contato:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao deletar contato',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
+  // Exportar contatos para CSV
+  app.get("/api/contacts/export", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user!.id;
+      
+      // Buscar todos os contatos do usuário
+      const userContacts = await db.select().from(contacts)
+        .where(eq(contacts.userId, userId))
+        .orderBy(contacts.name);
+      
+      // Gerar CSV
+      const csvHeaders = 'Nome,Telefone,Fonte,Última Mensagem,Data da Última Mensagem,Notas,Tags,Ativo\n';
+      const csvData = userContacts.map(contact => {
+        const name = (contact.name || '').replace(/"/g, '""');
+        const phone = contact.phoneNumber;
+        const source = contact.source === 'qr_code' ? 'QR Code' : 'Cloud API';
+        const lastMessage = (contact.lastMessage || '').replace(/"/g, '""');
+        const lastMessageTime = contact.lastMessageTime ? new Date(contact.lastMessageTime).toLocaleString('pt-BR') : '';
+        const notes = (contact.notes || '').replace(/"/g, '""');
+        const tags = (contact.tags || []).join(', ');
+        const isActive = contact.isActive ? 'Sim' : 'Não';
+        
+        return `"${name}","${phone}","${source}","${lastMessage}","${lastMessageTime}","${notes}","${tags}","${isActive}"`;
+      }).join('\n');
+      
+      const csv = csvHeaders + csvData;
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="contatos.csv"');
+      res.send('\uFEFF' + csv); // BOM para UTF-8
+    } catch (error) {
+      console.error('Erro ao exportar contatos:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao exportar contatos',
         error: error instanceof Error ? error.message : 'Erro desconhecido'
       });
     }
