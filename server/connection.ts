@@ -115,6 +115,13 @@ async function checkEvolutionConnection(baseUrl: string, token: string, instance
             instanceName: instance,
             qrcode: true,
             integration: "WHATSAPP-BAILEYS",
+            rejectCall: true,
+            msgCall: "Esta é uma ligação automática",
+            groupsIgnore: false,
+            alwaysOnline: true,
+            readMessages: false,
+            readStatus: false,
+            syncFullHistory: false,
             webhook: {
               url: "",
               byEvents: false,
