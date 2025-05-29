@@ -142,17 +142,17 @@ const WhatsAppQrCodePage = () => {
     mutationFn: async () => {
       setLoading(true);
       try {
-        const response = await apiRequest("POST", "/api/connections/disconnect");
-        const data = await response.json();
+        console.log("Solicitando desconexão do WhatsApp...");
+        const response = await apiRequest("POST", "/api/connections/disconnect", { mode: "disconnect" });
         
-        // Se a resposta contém um erro, lançá-lo para ser capturado pelo onError
         if (!response.ok) {
-          throw { 
-            message: "Falha ao desconectar WhatsApp", 
-            data: data 
-          };
+          const errorData = await response.json();
+          console.error("Erro do servidor na desconexão:", errorData);
+          throw new Error(errorData.error || errorData.message || "Falha ao desconectar WhatsApp");
         }
         
+        const data = await response.json();
+        console.log("Resposta da desconexão:", data);
         return data;
       } catch (error) {
         console.error("Erro ao desconectar WhatsApp:", error);
