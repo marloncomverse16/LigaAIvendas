@@ -1288,6 +1288,22 @@ export default function ChatOtimizado() {
         // Atualizar mensagens visíveis
         setMessages(uniqueMessages);
         
+        // Atualizar bolinhas de notificação para mensagens novas recebidas
+        if (newMessages.length > 0) {
+          const newIncomingMessages = newMessages.filter(msg => !isFromMe(msg));
+          
+          // Se há mensagens recebidas e este chat não está selecionado, incrementar contador
+          if (newIncomingMessages.length > 0 && 
+              chatId !== selectedChat?.id && 
+              chatId !== selectedChat?.remoteJid) {
+            setUnreadMessages(prev => ({
+              ...prev,
+              [chatId]: (prev[chatId] || 0) + newIncomingMessages.length
+            }));
+            console.log(`📍 ${newIncomingMessages.length} mensagens não lidas adicionadas ao chat ${chatId}`);
+          }
+        }
+
         // Rolagem automática APENAS se houver mensagens realmente novas E estiver no final
         if (newMessages.length > 0) {
           console.log(`🔽 Rolando para baixo devido a ${newMessages.length} novas mensagens`);
