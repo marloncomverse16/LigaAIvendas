@@ -381,12 +381,11 @@ export async function connectWhatsApp(req: Request, res: Response) {
     if (userServer && userServer.server && userServer.server.apiUrl) {
       try {
         console.log(`Usando Evolution API do servidor configurado: ${userServer.server.apiUrl}`);
+        console.log(`Token do servidor configurado: ${userServer.server.apiToken?.substring(0, 5)}...${userServer.server.apiToken?.substring(userServer.server.apiToken.length - 4)}`);
         
-        // Lista de tokens para tentar em ordem de prioridade
+        // Usar apenas o token configurado no servidor
         const tokens = [
-          userServer.server.apiToken,             // Token do servidor (configuração normal)
-          process.env.EVOLUTION_API_TOKEN,        // Token do ambiente (backup)
-          '4db623449606bcf2814521b73657dbc0'      // Token de fallback que sabemos que funciona
+          userServer.server.apiToken              // Token do servidor configurado em "Plataforma Saas"
         ].filter(Boolean); // Remover valores nulos ou vazios
         
         let qrResult = null;
