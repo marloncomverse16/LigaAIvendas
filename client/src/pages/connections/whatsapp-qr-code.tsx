@@ -73,17 +73,17 @@ const WhatsAppQrCodePage = () => {
     mutationFn: async () => {
       setLoading(true);
       try {
-        const response = await apiRequest("POST", "/api/connections/qrcode");
-        const data = await response.json();
+        console.log("Solicitando QR Code...");
+        const response = await apiRequest("POST", "/api/connections/qrcode", { mode: "qr" });
         
-        // Se a resposta contém um erro, lançá-lo para ser capturado pelo onError
         if (!response.ok) {
-          throw { 
-            message: "Falha ao gerar QR Code", 
-            data: data 
-          };
+          const errorData = await response.json();
+          console.error("Erro do servidor:", errorData);
+          throw new Error(errorData.error || errorData.message || "Falha ao gerar QR Code");
         }
         
+        const data = await response.json();
+        console.log("Resposta do servidor:", data);
         return data;
       } catch (error) {
         console.error("Erro ao solicitar QR Code:", error);
