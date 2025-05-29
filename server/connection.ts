@@ -447,14 +447,35 @@ export async function connectWhatsApp(req: Request, res: Response) {
               console.log(`⚠️ Não foi possível listar instâncias: ${listResult.error}`);
             }
             
-            // PASSO 3: Criar uma nova instância com o nome do usuário
+            // PASSO 3: Criar uma nova instância com o nome do usuário usando axios diretamente
             console.log(`🆕 Criando nova instância "${user.username}"...`);
-            const createResult = await evolutionClient.createInstance();
-            
-            if (createResult.success) {
-              console.log(`✅ Instância "${user.username}" criada com sucesso`);
-            } else {
-              console.log(`❌ Não foi possível criar instância "${user.username}": ${createResult.error}`);
+            try {
+              const createPayload = {
+                instanceName: user.username,
+                qrcode: true,
+                integration: "WHATSAPP-BAILEYS"
+              };
+              
+              const headers = { 
+                'Content-Type': 'application/json',
+                'apikey': token 
+              };
+              
+              const createResponse = await axios.post(
+                `${userServer.server.apiUrl}/instance/create`, 
+                createPayload, 
+                { headers }
+              );
+              
+              if (createResponse.status === 201 || createResponse.status === 200) {
+                console.log(`✅ Instância "${user.username}" criada com sucesso usando axios diretamente`);
+                console.log(`📋 Dados da instância:`, createResponse.data);
+              } else {
+                console.log(`❌ Erro ao criar instância: status ${createResponse.status}`);
+                continue;
+              }
+            } catch (createError) {
+              console.log(`❌ Não foi possível criar instância "${user.username}": ${createError.message}`);
               continue; // Tentar próximo token
             }
             
