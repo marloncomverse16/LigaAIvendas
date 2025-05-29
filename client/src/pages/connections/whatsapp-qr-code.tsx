@@ -93,14 +93,21 @@ const WhatsAppQrCodePage = () => {
       }
     },
     onSuccess: (data) => {
-      if (data.qrcode) {
-        setQrCode(data.qrcode);
+      console.log("Dados recebidos no onSuccess:", data);
+      
+      // Verificar diferentes formatos de QR code na resposta
+      const qrCodeData = data.qrCode || data.qrcode || data.base64;
+      
+      if (qrCodeData) {
+        console.log("QR Code encontrado, definindo estado...");
+        setQrCode(qrCodeData);
         toast({
           title: "QR Code gerado",
           description: "Escaneie o código QR com seu aplicativo WhatsApp",
           variant: "default"
         });
       } else {
+        console.error("QR Code não encontrado na resposta:", data);
         toast({
           title: "Erro",
           description: "Não foi possível gerar o QR Code",
