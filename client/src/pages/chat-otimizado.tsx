@@ -629,12 +629,30 @@ export default function ChatOtimizado() {
   const connectMetaWhatsApp = async () => {
     try {
       setLoading(true);
+      
+      // Primeiro, buscar as configurações do usuário para obter phoneNumberId e businessId
+      const settingsResponse = await fetch('/api/settings');
+      if (!settingsResponse.ok) {
+        throw new Error('Não foi possível carregar as configurações');
+      }
+      
+      const settings = await settingsResponse.json();
+      
+      // Verificar se as configurações Meta estão disponíveis
+      if (!settings.whatsappMetaPhoneNumberId || !settings.whatsappMetaBusinessId) {
+        throw new Error('Configure primeiro as credenciais do WhatsApp Meta API em Configurações > Integrações');
+      }
+      
       // Usar as mesmas rotas que funcionam na aba Conexões
       const response = await fetch('/api/meta-connections/connect', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+          phoneNumberId: settings.whatsappMetaPhoneNumberId,
+          businessId: settings.whatsappMetaBusinessId
+        })
       });
       
       if (response.ok) {
