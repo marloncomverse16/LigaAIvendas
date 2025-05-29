@@ -2722,6 +2722,11 @@ export class DatabaseStorage implements IStorage {
             .from(servers)
             .where(eq(servers.id, relation.serverId));
           
+          console.log(`📋 Servidor encontrado para usuário ${userId}:`);
+          console.log(`   - ID do Servidor: ${serverData?.id}`);
+          console.log(`   - Nome: ${serverData?.name}`);
+          console.log(`   - API Token: ${serverData?.apiToken?.substring(0, 5)}...${serverData?.apiToken?.substring(serverData?.apiToken.length - 4)}`);
+          
           result.push({
             ...relation,
             server: serverData || null
