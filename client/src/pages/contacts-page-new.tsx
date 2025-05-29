@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -71,6 +71,14 @@ export default function ContactsPageNew() {
       return data;
     }
   });
+
+  // Sincronização automática ao carregar a página
+  useEffect(() => {
+    if (user) {
+      console.log("🔄 Iniciando sincronização automática ao carregar página...");
+      syncContactsMutation.mutate();
+    }
+  }, [user]); // Executa apenas quando o usuário está disponível
 
   const contacts: Contact[] = contactsResponse?.contacts || [];
   console.log("📋 Contatos processados no frontend:", contacts);

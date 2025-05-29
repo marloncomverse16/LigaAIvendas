@@ -2711,6 +2711,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (userServer && userServer.api_url && userServer.api_token) {
               console.log(`📡 Conectando à Evolution API: ${userServer.api_url}`);
               
+              // Primeiro, buscar contatos detalhados da Evolution API
+              const contactsResponse = await fetch(`${userServer.api_url}/chat/findContacts/admin`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': userServer.api_token
+                },
+                body: JSON.stringify({ where: {}, limit: 100 })
+              });
+
+              let contactsData = [];
+              if (contactsResponse.ok) {
+                contactsData = await contactsResponse.json();
+                console.log(`📋 Contatos detalhados obtidos: ${contactsData.length}`);
+              }
+
+              // Depois, buscar chats para complementar
               const response = await fetch(`${userServer.api_url}/chat/findChats/admin`, {
                 method: 'POST',
                 headers: {
@@ -2724,10 +2741,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const chats = await response.json();
                 console.log(`📋 Contatos obtidos da Evolution API: ${chats.length}`);
                 
+                // Função para identificar se é número ou nome
+                const isPhoneNumber = (value) => {
+                  if (!value) return false;
+                  // Remove caracteres especiais e verifica se contém apenas números
+                  const cleaned = value.replace(/[\s\-\(\)\+]/g, '');
+                  return /^\d{10,15}$/.test(cleaned);
+                };
+
+                // Criar mapeamento de contatos detalhados (números -> nomes)
+                const contactsMap = new Map();
+                for (const contact of contactsData) {
+                  if (contact.id) {
+                    const phoneNumber = contact.id.replace('@c.us', '').replace('@s.whatsapp.net', '');
+                    let contactName = null;
+                    
+                    if (contact.name && !isPhoneNumber(contact.name)) {
+                      contactName = contact.name;
+                    } else if (contact.pushname && !isPhoneNumber(contact.pushname)) {
+                      contactName = contact.pushname;
+                    } else if (contact.short && !isPhoneNumber(contact.short)) {
+                      contactName = contact.short;
+                    }
+                    
+                    if (contactName) {
+                      contactsMap.set(phoneNumber, {
+                        name: contactName,
+                        profilePic: contact.profilePicUrl
+                      });
+                    }
+                  }
+                }
+
+                console.log(`📋 Mapeamento de contatos criado: ${contactsMap.size} contatos com nomes`);
+
                 for (const chat of chats) {
                   let phoneNumber = chat.remoteJid;
                   if (phoneNumber) {
                     phoneNumber = phoneNumber.replace('@c.us', '').replace('@s.whatsapp.net', '');
+                    
+                    // Primeiro, verificar no mapeamento de contatos detalhados
+                    let contactName = null;
+                    let profilePic = null;
+                    
+                    if (contactsMap.has(phoneNumber)) {
+                      const contactData = contactsMap.get(phoneNumber);
+                      contactName = contactData.name;
+                      profilePic = contactData.profilePic;
+                    } else {
+                      // Fallback para dados do chat
+                      if (chat.pushName && !isPhoneNumber(chat.pushName)) {
+                        contactName = chat.pushName;
+                      } else if (chat.name && !isPhoneNumber(chat.name)) {
+                        contactName = chat.name;
+                      }
+                      profilePic = chat.profilePicUrl;
+                    }
+                    
+                    console.log(`🔍 Processando contato QR: ${phoneNumber} | Nome: ${contactName || 'N/A'} | Fonte: ${contactsMap.has(phoneNumber) ? 'Contatos' : 'Chat'}`);
                     
                     // Sincronizar para a tabela contacts
                     const existingQuery = `SELECT id FROM contacts WHERE user_id = $1 AND phone_number = $2 AND source = 'qr_code'`;
@@ -2741,11 +2812,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       await pool.query(insertQuery, [
                         userId, 
                         phoneNumber, 
-                        chat.pushName || phoneNumber,
-                        chat.profilePicUrl
+                        contactName || phoneNumber, // Usar nome identificado ou telefone como fallback
+                        profilePic || null
                       ]);
                       qrSynced++;
-                      console.log(`💾 Novo contato QR sincronizado: ${phoneNumber} (${chat.pushName})`);
+                      console.log(`💾 Novo contato QR sincronizado: ${phoneNumber} | Nome: ${contactName || 'N/A'}`);
+                    } else {
+                      // Atualizar nome se melhorou
+                      if (contactName) {
+                        const updateQuery = `UPDATE contacts SET name = $1, profile_picture = $2, updated_at = NOW() WHERE user_id = $3 AND phone_number = $4 AND source = 'qr_code'`;
+                        await pool.query(updateQuery, [contactName, profilePic, userId, phoneNumber]);
+                        console.log(`📝 Nome atualizado para contato QR: ${phoneNumber} -> ${contactName}`);
+                      }
                     }
                   }
                 }
