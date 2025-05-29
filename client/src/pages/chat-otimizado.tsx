@@ -1963,7 +1963,12 @@ export default function ChatOtimizado() {
                       <Button 
                         type="submit" 
                         className="w-full bg-green-600 hover:bg-green-700 text-white"
-                        disabled={!connected || loading || form.formState.isSubmitting}
+                        disabled={
+                          (connectionMode === 'qr' && !connected) || 
+                          (connectionMode === 'cloud' && !metaConnectionStatus?.connected) ||
+                          loading || 
+                          form.formState.isSubmitting
+                        }
                       >
                         {form.formState.isSubmitting ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1995,7 +2000,11 @@ export default function ChatOtimizado() {
                         variant="ghost" 
                         size="icon"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={!connected || loading}
+                        disabled={
+                          (connectionMode === 'qr' && !connected) || 
+                          (connectionMode === 'cloud' && !metaConnectionStatus?.connected) ||
+                          loading
+                        }
                         className="rounded-full"
                       >
                         <Paperclip className="h-5 w-5 text-gray-500" />
@@ -2008,7 +2017,11 @@ export default function ChatOtimizado() {
                             form.setValue("text", text);
                             form.handleSubmit(onSubmit)();
                           }}
-                          disabled={!connected || loading}
+                          disabled={
+                            (connectionMode === 'qr' && !connected) || 
+                            (connectionMode === 'cloud' && !metaConnectionStatus?.connected) ||
+                            loading
+                          }
                           inputRef={inputRef}
                           chatId={selectedChat?.id || null}
                         />
@@ -2017,7 +2030,12 @@ export default function ChatOtimizado() {
                       <Button 
                         type="submit" 
                         size="icon" 
-                        disabled={!connected || loading || form.formState.isSubmitting}
+                        disabled={
+                          (connectionMode === 'qr' && !connected) || 
+                          (connectionMode === 'cloud' && !metaConnectionStatus?.connected) ||
+                          loading || 
+                          form.formState.isSubmitting
+                        }
                         className="bg-green-600 hover:bg-green-700"
                       >
                         {form.formState.isSubmitting ? (
