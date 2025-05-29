@@ -1037,17 +1037,14 @@ export class EvolutionApiClient {
    * Este método é público para permitir acesso em outras partes da aplicação
    */
   getHeaders() {
-    // Priorizar token do ambiente, depois o token do construtor
-    const token = process.env.EVOLUTION_API_TOKEN || 
-      this.token || 
-      '4db623449606bcf2814521b73657dbc0'; // default fallback conhecido por funcionar
+    // Usar apenas o token do construtor (vem do banco de dados)
+    const token = this.token;
     
-    // Registrar a fonte do token para diagnóstico
-    const source = process.env.EVOLUTION_API_TOKEN ? 'ambiente' : 
-      this.token ? 'construtor' : 
-      'fallback';
+    if (!token) {
+      throw new Error('Token não configurado para a Evolution API');
+    }
     
-    console.log(`Usando token nos headers: ${token ? token.substring(0, 5) + '...' + token.substring(token.length - 5) : 'NENHUM TOKEN'} (origem: ${source})`);
+    console.log(`Usando token nos headers: ${token.substring(0, 5)}...${token.substring(token.length - 4)} (origem: servidor configurado)`);
     
     // De acordo com a documentação da Evolution API (v2.2.3),
     // o cabeçalho correto é 'apikey', mas vamos manter os outros para compatibilidade
