@@ -45,7 +45,7 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       'AUTHENTICATION_API_KEY': server.apiToken
     };
     
-    console.log(`Verificando status de conexão em: ${server.apiUrl}/manager/instance/connectionState/${instanceName}`);
+    console.log(`Verificando status de conexão em: ${server.apiUrl}/instance/connectionState/${instanceName}`);
     
     try {
       const statusResponse = await axios.get(

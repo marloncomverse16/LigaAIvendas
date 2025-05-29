@@ -107,7 +107,34 @@ async function checkEvolutionConnection(baseUrl: string, token: string, instance
       
       // Tentar um endpoint alternativo como último recurso
       try {
-        const altUrl = `${apiUrl}/manager/instance/connectionState/${instance}`;
+        // Se recebemos erro 404, a instância não existe - vamos criá-la
+        if (stateError.response?.status === 404) {
+          console.log(`[EVOLUTION CHECK] Instância ${instance} não existe. Criando...`);
+          
+          const createResponse = await axios.post(`${apiUrl}/instance/create`, {
+            instanceName: instance,
+            qrcode: true,
+            integration: "WHATSAPP-BAILEYS",
+            webhook: {
+              url: "",
+              byEvents: false,
+              base64: true
+            }
+          }, { headers });
+          
+          if (createResponse.status === 201 || createResponse.status === 200) {
+            console.log(`[EVOLUTION CHECK] Instância ${instance} criada com sucesso`);
+            return {
+              api_online: true,
+              connected: false,
+              state: 'created',
+              message: 'Instância criada com sucesso',
+              timestamp: new Date().toISOString()
+            };
+          }
+        }
+        
+        const altUrl = `${apiUrl}/instance/connect/${instance}`;
         console.log(`[EVOLUTION CHECK] Tentando endpoint alternativo: ${altUrl}`);
         
         const altResponse = await axios.get(altUrl, { headers });
