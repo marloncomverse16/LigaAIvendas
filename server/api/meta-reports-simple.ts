@@ -74,7 +74,7 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
         INSERT INTO meta_conversation_reports 
         (user_id, phone_number_id, conversation_id, contact_number, conversation_type, started_at, message_count, created_at)
         VALUES ($1, 'direct_db', $2, 'aggregate_report', 'business_initiated', $3, $4, NOW())
-      `, [userId, `conv_${row.date.replace(/-/g, '')}`, row.date, row.conversations_initiated]);
+      `, [userId, `conv_${row.date.toString().replace(/-/g, '')}`, row.date, row.conversations_initiated]);
     }
 
     // Salvar relatórios de mensagens
