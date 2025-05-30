@@ -405,42 +405,42 @@ export default function SettingsPage() {
                       </Button>
                       <Button 
                         variant={activeTab === "appearance" ? "default" : "ghost"} 
-                        className="w-full justify-start"
+                        className={`w-full justify-start ${activeTab === "appearance" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("appearance")}
                       >
                         Aparência
                       </Button>
                       <Button 
                         variant={activeTab === "integrations" ? "default" : "ghost"} 
-                        className="w-full justify-start"
+                        className={`w-full justify-start ${activeTab === "integrations" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("integrations")}
                       >
                         Integrações
                       </Button>
                       <Button 
                         variant={activeTab === "notifications" ? "default" : "ghost"} 
-                        className="w-full justify-start"
+                        className={`w-full justify-start ${activeTab === "notifications" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("notifications")}
                       >
                         Notificações
                       </Button>
                       <Button 
                         variant={activeTab === "security" ? "default" : "ghost"} 
-                        className="w-full justify-start"
+                        className={`w-full justify-start ${activeTab === "security" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("security")}
                       >
                         Privacidade e Segurança
                       </Button>
                       <Button 
                         variant={activeTab === "billing" ? "default" : "ghost"} 
-                        className="w-full justify-start"
+                        className={`w-full justify-start ${activeTab === "billing" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("billing")}
                       >
                         Faturamento
                       </Button>
                       <Button 
                         variant={activeTab === "goals" ? "default" : "ghost"} 
-                        className="w-full justify-start"
+                        className={`w-full justify-start ${activeTab === "goals" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("goals")}
                       >
                         Metas
