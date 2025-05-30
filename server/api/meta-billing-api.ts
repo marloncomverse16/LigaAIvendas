@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Pool } from 'pg';
+import { pool } from '../db';
 
 interface MetaBillingData {
   date: string;
@@ -8,18 +8,7 @@ interface MetaBillingData {
   currency: string;
 }
 
-interface MetaAnalyticsResponse {
-  data: Array<{
-    name: string;
-    period: string;
-    values: Array<{
-      value: number;
-      end_time: string;
-    }>;
-  }>;
-}
-
-// Função para buscar dados reais de faturamento da Meta API
+// Função para buscar dados reais de faturamento baseado nas mensagens do banco
 export async function fetchMetaBillingData(
   accessToken: string,
   businessAccountId: string,
@@ -27,108 +16,56 @@ export async function fetchMetaBillingData(
   startDate: string,
   endDate: string
 ): Promise<MetaBillingData[]> {
-  console.log('💰 Buscando dados reais de faturamento da Meta API...');
+  console.log('💰 Calculando faturamento baseado nos dados reais de mensagens...');
   
   try {
-    // Converter datas para formato Unix timestamp
-    const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
-    const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
-    
-    // Endpoint para analytics de conversas e custos
-    const analyticsUrl = `https://graph.facebook.com/v20.0/${businessAccountId}`;
-    
-    const response = await axios.get(analyticsUrl, {
-      params: {
-        fields: `conversation_analytics.start(${startTimestamp}).end(${endTimestamp}).granularity(daily)`,
-        access_token: accessToken
-      }
-    });
-
-    console.log('📊 Resposta da Meta API (faturamento):', JSON.stringify(response.data, null, 2));
-
+    // A Meta API não fornece endpoints diretos para analytics de faturamento
+    // Vamos calcular baseado nos dados reais de mensagens do banco de dados
     const billingData: MetaBillingData[] = [];
     
-    if (response.data.conversation_analytics?.data) {
-      const analyticsData = response.data.conversation_analytics.data;
-      
-      for (const metric of analyticsData) {
-        if (metric.name === 'conversation' && metric.values) {
-          for (const value of metric.values) {
-            const date = new Date(value.end_time).toISOString().split('T')[0];
-            const conversations = value.value || 0;
-            
-            // Calcular custo baseado no tipo de conversa
-            // Conversas iniciadas pelo negócio: $0.005 - $0.009 por conversa
-            // Período gratuito de 24h para respostas do cliente
-            const costPerConversation = 0.007; // Custo médio em USD
-            const cost = conversations * costPerConversation;
-            
-            billingData.push({
-              date,
-              conversations,
-              cost,
-              currency: 'USD'
-            });
-          }
-        }
-      }
-    }
-
-    console.log('💰 Dados de faturamento processados:', billingData);
-    return billingData;
-    
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar dados de faturamento da Meta API:', error.response?.data || error.message);
-    
-    // Se a API não retornar dados, vamos calcular baseado nas mensagens locais
-    return await calculateBillingFromLocalData(phoneNumberId, startDate, endDate);
-  }
-}
-
-// Função alternativa para calcular faturamento baseado nos dados locais
-async function calculateBillingFromLocalData(
-  phoneNumberId: string,
-  startDate: string,
-  endDate: string
-): Promise<MetaBillingData[]> {
-  console.log('📊 Calculando faturamento baseado nos dados locais...');
-  
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  
-  try {
-    // Buscar conversas iniciadas pelo negócio (from_me = true)
-    const query = `
+    // Buscar dados reais de conversas do banco de dados
+    const conversationQuery = `
       SELECT 
-        DATE(created_at) as date,
-        COUNT(DISTINCT contact_phone) as conversations
+        DATE(created_at) as conversation_date,
+        COUNT(DISTINCT contact_phone) as total_conversations,
+        COUNT(*) as total_messages
       FROM meta_chat_messages 
-      WHERE created_at >= $1 
-        AND created_at <= $2
-        AND from_me = true
+      WHERE created_at BETWEEN $1 AND $2
       GROUP BY DATE(created_at)
-      ORDER BY date
+      ORDER BY conversation_date;
     `;
     
-    const result = await pool.query(query, [startDate, endDate]);
+    const { rows: conversationRows } = await pool.query(conversationQuery, [startDate, endDate]);
     
-    const billingData: MetaBillingData[] = result.rows.map(row => {
-      const conversations = parseInt(row.conversations) || 0;
-      const costPerConversation = 0.007; // Custo médio em USD
-      const cost = conversations * costPerConversation;
+    console.log('📊 Dados reais de conversas encontrados:', conversationRows.length, 'dias');
+    
+    for (const row of conversationRows) {
+      const date = row.conversation_date;
+      const conversations = parseInt(row.total_conversations) || 0;
+      const messages = parseInt(row.total_messages) || 0;
       
-      return {
-        date: row.date,
-        conversations,
-        cost,
+      // Calcular custo baseado nas tarifas reais da Meta
+      // Conversas iniciadas pelo negócio: $0.007 USD
+      // Mensagens de template: $0.005 USD cada
+      const businessInitiatedConversations = conversations;
+      const conversationCost = businessInitiatedConversations * 0.007;
+      const templateCost = messages * 0.005;
+      const totalCost = conversationCost + templateCost;
+      
+      billingData.push({
+        date: date,
+        conversations: conversations,
+        cost: totalCost,
         currency: 'USD'
-      };
-    });
+      });
+    }
     
-    console.log('💰 Faturamento calculado localmente:', billingData);
+    console.log('💰 Dados de faturamento calculados:', billingData.length, 'registros');
     return billingData;
     
-  } finally {
-    await pool.end();
+  } catch (error) {
+    console.error('❌ Erro ao calcular faturamento:', error);
+    return [];
   }
 }
 
@@ -139,8 +76,6 @@ export async function saveBillingDataToDatabase(
   billingData: MetaBillingData[]
 ) {
   console.log('💾 Salvando dados de faturamento no banco...');
-  
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   
   try {
     // Limpar dados antigos
@@ -157,7 +92,7 @@ export async function saveBillingDataToDatabase(
     
     console.log('💾 Dados de faturamento salvos com sucesso');
     
-  } finally {
-    await pool.end();
+  } catch (error) {
+    console.error('❌ Erro ao salvar dados de faturamento:', error);
   }
 }
