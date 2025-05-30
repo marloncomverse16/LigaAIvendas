@@ -5510,29 +5510,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Se conectado, buscar informações do WhatsApp usando endpoint correto
         if (qrConnected) {
           try {
-            // Usar endpoint correto para buscar números do WhatsApp
-            const infoResponse = await fetch('https://api.primerastreadores.com/chat/whatsappNumbers/admin', {
+            // Buscar perfil da instância para obter número do WhatsApp
+            const profileResponse = await fetch('https://api.primerastreadores.com/profile/fetchProfile/admin', {
               method: 'POST',
               headers: { 
                 'apikey': evolutionApiKey,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({
-                numbers: [] // Para buscar todos os números disponíveis
-              })
+              body: JSON.stringify({})
             });
-            const infoData = await infoResponse.json();
-            console.log('Números WhatsApp encontrados:', infoData);
             
-            // Extrair número do WhatsApp da resposta
-            if (infoData && Array.isArray(infoData) && infoData.length > 0) {
-              // Procurar o número 5516990687452 especificamente
-              const targetNumber = infoData.find(num => num.includes('5516990687452'));
-              qrWhatsAppNumber = targetNumber || infoData[0];
+            if (profileResponse.ok) {
+              const profileData = await profileResponse.json();
+              console.log('Perfil da instância Evolution:', profileData);
+              
+              // Extrair número do perfil
+              if (profileData && profileData.wid) {
+                qrWhatsAppNumber = profileData.wid.replace('@c.us', '');
+                // Se encontrar o número esperado 5516990687452, usar ele
+                if (qrWhatsAppNumber.includes('5516990687452')) {
+                  qrWhatsAppNumber = '5516990687452';
+                }
+              }
+            } else {
+              console.log('Erro ao buscar perfil:', profileResponse.status);
             }
           } catch (infoError) {
-            console.log('Erro ao buscar número WhatsApp:', infoError);
+            console.log('Erro ao buscar perfil WhatsApp:', infoError);
           }
+        } else {
+          // Se não conectado, definir número como null
+          qrWhatsAppNumber = null;
         }
       } catch (error) {
         qrConnected = false;
