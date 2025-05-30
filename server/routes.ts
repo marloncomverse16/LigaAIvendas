@@ -5255,7 +5255,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT s.whatsapp_meta_token, s.whatsapp_meta_business_id, s.name, s.id
         FROM servers s 
         JOIN user_servers us ON s.id = us.server_id 
-        WHERE us.user_id = $1 AND us.is_default = true
+        WHERE us.user_id = $1
+        ORDER BY us.is_default DESC NULLS LAST
+        LIMIT 1
       `;
       const serverResult = await pool.query(serverQuery, [userId]);
       
