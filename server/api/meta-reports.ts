@@ -61,10 +61,10 @@ export async function fetchConversationAnalytics(params: MetaAnalyticsParams): P
     const conversationStats = await pool.query(`
       SELECT 
         DATE(created_at) as date,
-        COUNT(DISTINCT from_phone) as initiated_conversations,
+        COUNT(DISTINCT contact_phone) as initiated_conversations,
         COUNT(*) as total_messages,
-        COUNT(CASE WHEN direction = 'outbound' THEN 1 END) as sent_messages,
-        COUNT(CASE WHEN direction = 'inbound' THEN 1 END) as received_messages
+        COUNT(CASE WHEN from_me = false THEN 1 END) as received_messages,
+        COUNT(CASE WHEN from_me = true THEN 1 END) as sent_messages
       FROM meta_chat_messages 
       WHERE created_at >= $1 
         AND created_at <= $2
@@ -112,10 +112,10 @@ export async function fetchMessageAnalytics(params: MetaAnalyticsParams): Promis
       SELECT 
         DATE(created_at) as date,
         COUNT(*) as total_messages,
-        COUNT(CASE WHEN direction = 'outbound' THEN 1 END) as sent_messages,
-        COUNT(CASE WHEN direction = 'inbound' THEN 1 END) as received_messages,
-        COUNT(CASE WHEN direction = 'outbound' AND status = 'delivered' THEN 1 END) as delivered_messages,
-        COUNT(CASE WHEN direction = 'outbound' AND status != 'delivered' THEN 1 END) as failed_messages
+        COUNT(CASE WHEN from_me = true THEN 1 END) as sent_messages,
+        COUNT(CASE WHEN from_me = false THEN 1 END) as received_messages,
+        COUNT(CASE WHEN from_me = true AND status = 'sent' THEN 1 END) as delivered_messages,
+        COUNT(CASE WHEN from_me = true AND status != 'sent' THEN 1 END) as failed_messages
       FROM meta_chat_messages 
       WHERE created_at >= $1 
         AND created_at <= $2
