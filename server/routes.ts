@@ -5492,27 +5492,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Dashboard request - User: ${userId}, Dates: ${startDate} to ${endDate}`);
 
-      // Buscar dados dos relatórios Cloud API (usando tabelas que existem)
-      const cloudMessagesQuery = `
+      // Buscar dados das mensagens Meta (usando tabelas que existem)
+      const metaMessagesQuery = `
         SELECT COUNT(*) as total_messages,
-               COUNT(CASE WHEN "fromMe" = true THEN 1 END) as sent_messages,
-               COUNT(CASE WHEN "fromMe" = false THEN 1 END) as received_messages,
-               COUNT(DISTINCT "remoteJid") as unique_contacts
-        FROM whatsapp_cloud_messages 
+               COUNT(CASE WHEN from_me = true THEN 1 END) as sent_messages,
+               COUNT(CASE WHEN from_me = false THEN 1 END) as received_messages,
+               COUNT(DISTINCT contact_phone) as unique_contacts
+        FROM meta_chat_messages 
         WHERE user_id = $1 
         ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
       `;
 
-      // Buscar dados de contatos Cloud API
-      const cloudContactsQuery = `
+      // Buscar dados de contatos WhatsApp
+      const whatsappContactsQuery = `
         SELECT COUNT(*) as total_contacts
-        FROM whatsapp_cloud_chats 
+        FROM whatsapp_contacts 
         WHERE user_id = $1 
         ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
       `;
 
-      // Buscar dados dos relatórios de Meta API (tabela de relatórios)
-      const metaReportsQuery = `
+      // Buscar dados dos relatórios de conversas Meta API
+      const metaConversationQuery = `
         SELECT COUNT(*) as total_conversations,
                SUM(CASE WHEN cost_brl IS NOT NULL THEN cost_brl ELSE 0 END) as total_cost
         FROM meta_conversation_reports 
@@ -5535,36 +5535,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Executando consultas com parâmetros:', params);
 
-      const [cloudResults, cloudContactsResults, metaReportsResults] = await Promise.all([
-        pool.query(cloudMessagesQuery, params),
-        pool.query(cloudContactsQuery, params),
-        pool.query(metaReportsQuery, params)
+      const [metaResults, contactsResults, conversationResults] = await Promise.all([
+        pool.query(metaMessagesQuery, params),
+        pool.query(whatsappContactsQuery, params),
+        pool.query(metaConversationQuery, params)
       ]);
 
-      console.log('Cloud messages results:', cloudResults.rows[0]);
-      console.log('Cloud contacts results:', cloudContactsResults.rows[0]);
-      console.log('Meta reports results:', metaReportsResults.rows[0]);
+      console.log('Meta messages results:', metaResults.rows[0]);
+      console.log('WhatsApp contacts results:', contactsResults.rows[0]);
+      console.log('Meta conversation results:', conversationResults.rows[0]);
 
-      // Processar dados Cloud API
-      const cloudTotalMessages = parseInt(cloudResults.rows[0]?.total_messages || '0');
-      const cloudSentMessages = parseInt(cloudResults.rows[0]?.sent_messages || '0');
-      const cloudReceivedMessages = parseInt(cloudResults.rows[0]?.received_messages || '0');
-      const cloudUniqueContacts = parseInt(cloudResults.rows[0]?.unique_contacts || '0');
+      // Processar dados das mensagens Meta
+      const metaTotalMessages = parseInt(metaResults.rows[0]?.total_messages || '0');
+      const metaSentMessages = parseInt(metaResults.rows[0]?.sent_messages || '0');
+      const metaReceivedMessages = parseInt(metaResults.rows[0]?.received_messages || '0');
+      const metaUniqueContacts = parseInt(metaResults.rows[0]?.unique_contacts || '0');
 
-      // Processar dados de contatos Cloud API
-      const cloudTotalContacts = parseInt(cloudContactsResults.rows[0]?.total_contacts || '0');
+      // Processar dados de contatos WhatsApp
+      const whatsappTotalContacts = parseInt(contactsResults.rows[0]?.total_contacts || '0');
 
-      // Processar dados de relatórios Meta API
-      const metaTotalConversations = parseInt(metaReportsResults.rows[0]?.total_conversations || '0');
-      const metaTotalCost = parseFloat(metaReportsResults.rows[0]?.total_cost || '0');
+      // Processar dados de relatórios de conversas
+      const conversationCount = parseInt(conversationResults.rows[0]?.total_conversations || '0');
+      const totalCostBrl = parseFloat(conversationResults.rows[0]?.total_cost || '0');
 
       // Cálculos baseados nos dados reais
-      const totalMessages = cloudTotalMessages;
-      const leadsWithResponse = cloudReceivedMessages; // Mensagens recebidas = leads que responderam
+      const totalMessages = metaTotalMessages;
+      const leadsWithResponse = metaReceivedMessages; // Mensagens recebidas = leads que responderam
       
       // Métricas de eficiência
-      const messagesPerLead = leadsWithResponse > 0 ? cloudSentMessages / leadsWithResponse : 
-                             cloudSentMessages > 0 ? cloudSentMessages / Math.max(1, Math.floor(cloudSentMessages * 0.1)) : 1;
+      const messagesPerLead = leadsWithResponse > 0 ? metaSentMessages / leadsWithResponse : 
+                             metaSentMessages > 0 ? metaSentMessages / Math.max(1, Math.floor(metaSentMessages * 0.1)) : 1;
       
       const estimatedSales = Math.floor(leadsWithResponse * 0.1); // 10% conversão padrão
       const leadsPerSale = estimatedSales > 0 ? leadsWithResponse / estimatedSales : 10;
@@ -5599,9 +5599,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastCheck: new Date().toISOString()
         },
         cloudReports: {
-          totalConversations: Math.ceil(cloudTotalMessages / 10),
-          totalMessages: cloudTotalMessages,
-          totalCost: cloudTotalMessages * 0.027, // R$ 0.027 por mensagem
+          totalConversations: conversationCount > 0 ? conversationCount : Math.ceil(metaTotalMessages / 10),
+          totalMessages: metaTotalMessages,
+          totalCost: totalCostBrl > 0 ? totalCostBrl : metaTotalMessages * 0.027,
           leadsWithResponse: leadsWithResponse
         },
         qrReports: {
