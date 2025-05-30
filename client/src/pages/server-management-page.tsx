@@ -552,7 +552,7 @@ export default function ServerManagementPage() {
   
   function getServerUserCount(serverId: number) {
     const result = allServerUsers.find((item: any) => item.serverId === serverId);
-    return result ? result.count : 0;
+    return result ? result.userCount : 0;
   }
 
   // Handlers para Agentes IA
