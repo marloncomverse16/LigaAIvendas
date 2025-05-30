@@ -45,19 +45,25 @@ export async function fetchConversationAnalytics(params: MetaAnalyticsParams): P
   // Usar o Business Account ID para obter analytics, não o Phone Number ID
   const url = `https://graph.facebook.com/v18.0/${businessAccountId}`;
   
+  // Converter datas para timestamps Unix (requerido pela Meta API)
+  const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
+  const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000);
+
   console.log('🔗 Fazendo chamada para Meta API - Conversas');
   console.log('📍 URL:', url);
   console.log('📋 Parâmetros:', {
-    fields: 'conversation_analytics.start(' + startDate + ').end(' + endDate + ').granularity(DAILY).phone_numbers([' + phoneNumberId + '])',
+    fields: 'conversation_analytics.start(' + startTimestamp + ').end(' + endTimestamp + ').granularity(DAILY).phone_numbers([' + phoneNumberId + '])',
     businessAccountId,
     phoneNumberId,
+    startTimestamp,
+    endTimestamp,
     tokenPreview: accessToken.substring(0, 20) + '...'
   });
 
   try {
     const response = await axios.get(url, {
       params: {
-        fields: 'conversation_analytics.start(' + startDate + ').end(' + endDate + ').granularity(DAILY).phone_numbers([' + phoneNumberId + '])',
+        fields: 'conversation_analytics.start(' + startTimestamp + ').end(' + endTimestamp + ').granularity(DAILY).phone_numbers([' + phoneNumberId + '])',
         access_token: accessToken
       }
     });
