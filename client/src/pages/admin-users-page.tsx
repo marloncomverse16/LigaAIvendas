@@ -73,7 +73,7 @@ export default function AdminUsersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isWhatsAppInstanceDialogOpen, setIsWhatsAppInstanceDialogOpen] = useState(false);
+
   const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [formValues, setFormValues] = useState<UserFormValues>({
@@ -100,8 +100,7 @@ export default function AdminUsersPage() {
     accessSettings: true
   });
   
-  // Estado para o formulário de criação de instância WhatsApp
-  const [instanceWebhookUrl, setInstanceWebhookUrl] = useState("");
+
   
   // Estados para gerenciar os agentes IA do usuário
   const [userAiAgents, setUserAiAgents] = useState<any[]>([]);
@@ -889,16 +888,7 @@ export default function AdminUsersPage() {
                                 Editar
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => {
-                                  setCurrentUser(user);
-                                  setInstanceWebhookUrl(user.whatsappInstanceWebhook || "");
-                                  setIsWhatsAppInstanceDialogOpen(true);
-                                }}
-                              >
-                                <span className="mr-2 h-4 w-4 flex items-center justify-center">🤖</span>
-                                Gerenciar WhatsApp
-                              </DropdownMenuItem>
+
                               <DropdownMenuItem 
                                 onClick={() => handleManagePermissions(user)}
                               >
@@ -1626,49 +1616,7 @@ export default function AdminUsersPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal para gerenciar instância WhatsApp */}
-        <Dialog open={isWhatsAppInstanceDialogOpen} onOpenChange={setIsWhatsAppInstanceDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Gerenciar WhatsApp</DialogTitle>
-              <DialogDescription>
-                Configure ou atualize a instância do WhatsApp para o usuário <strong>{currentUser?.name || currentUser?.username}</strong>.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="whatsappInstanceWebhook">URL do Webhook da Instância</Label>
-                <Input
-                  id="whatsappInstanceWebhook"
-                  value={instanceWebhookUrl}
-                  onChange={(e) => setInstanceWebhookUrl(e.target.value)}
-                  placeholder="https://example.com/webhook/instance"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsWhatsAppInstanceDialogOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleCreateWhatsappInstance}
-                disabled={createWhatsappInstanceMutation.isPending}
-              >
-                {createWhatsappInstanceMutation.isPending ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Processando...
-                  </>
-                ) : (
-                  "Salvar Configuração"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
 
         {/* Dialog para gerenciar permissões */}
         <UserPermissionsDialog
