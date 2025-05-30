@@ -5465,6 +5465,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/qr-reports/messages/:userId', getQRMessageReports);
   app.get('/api/qr-reports/contacts/:userId', getQRContactReports);
 
+  // Endpoint para dashboard completo
+  app.get('/api/dashboard/complete', async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const userId = 2; // Implementar busca do usuário autenticado
+
+      // Buscar status das conexões - Mock data até implementar corretamente
+      const metaConnection = {
+        connected: true,
+        phoneNumber: "55 43 91142751",
+        lastCheck: new Date().toISOString()
+      };
+      
+      // Verificar conexão QR Code
+      let qrConnected = false;
+      try {
+        const response = await fetch('https://api.primerastreadores.com/instance/connectionState/admin', {
+          headers: { 'apikey': '0f9e7d39-a1df-4f7d-8a65-f8d9c5b61403' }
+        });
+        const data = await response.json();
+        qrConnected = data?.instance?.state === 'open';
+      } catch (error) {
+        qrConnected = false;
+      }
+      
+      // Buscar dados dos relatórios Cloud API
+      const cloudConversationsQuery = `
+        SELECT COUNT(*) as total, 
+               SUM(CASE WHEN cost_brl IS NOT NULL THEN cost_brl::numeric ELSE 0 END) as total_cost
+        FROM meta_conversation_reports 
+        WHERE user_id = $1 
+        ${startDate && endDate ? 'AND conversation_start BETWEEN $2 AND $3' : ''}
+      `;
+      const cloudMessagesQuery = `
+        SELECT COUNT(*) as total,
+               COUNT(CASE WHEN delivery_status = 'delivered' THEN 1 END) as delivered
+        FROM meta_message_reports 
+        WHERE user_id = $1 
+        ${startDate && endDate ? 'AND sent_at BETWEEN $2 AND $3' : ''}
+      `;
+      const cloudLeadsQuery = `
+        SELECT COUNT(CASE WHEN has_response = true THEN 1 END) as responded
+        FROM meta_lead_response_reports 
+        WHERE user_id = $1 
+        ${startDate && endDate ? 'AND first_message_at BETWEEN $2 AND $3' : ''}
+      `;
+
+      // Buscar dados dos relatórios QR Code
+      const qrConversationsQuery = `
+        SELECT COUNT(DISTINCT contact_phone) as total
+        FROM evolution_messages 
+        WHERE user_id = $1 
+        ${startDate && endDate ? 'AND created_at BETWEEN $2 AND $3' : ''}
+      `;
+      const qrMessagesQuery = `
+        SELECT COUNT(*) as total
+        FROM evolution_messages 
+        WHERE user_id = $1 
+        ${startDate && endDate ? 'AND created_at BETWEEN $2 AND $3' : ''}
+      `;
+      const qrContactsQuery = `
+        SELECT COUNT(*) as total
+        FROM contacts 
+        WHERE user_id = $1 AND source = 'qr_code'
+        ${startDate && endDate ? 'AND created_at BETWEEN $2 AND $3' : ''}
+      `;
+
+      // Buscar configurações do usuário
+      const settingsQuery = `
+        SELECT revenue_goal, leads_goal 
+        FROM settings 
+        WHERE user_id = $1
+      `;
+      const settingsResult = await pool.query(settingsQuery, [userId]);
+      const userSettings = settingsResult.rows[0] || {};
+      
+      const params = startDate && endDate ? [userId, startDate, endDate] : [userId];
+
+      const [
+        cloudConversations,
+        cloudMessages, 
+        cloudLeads,
+        qrConversations,
+        qrMessages,
+        qrContacts
+      ] = await Promise.all([
+        pool.query(cloudConversationsQuery, params),
+        pool.query(cloudMessagesQuery, params),
+        pool.query(cloudLeadsQuery, params),
+        pool.query(qrConversationsQuery, params),
+        pool.query(qrMessagesQuery, params),
+        pool.query(qrContactsQuery, params)
+      ]);
+
+      // Calcular métricas
+      const totalMessages = parseInt(cloudMessages.rows[0]?.total || '0') + parseInt(qrMessages.rows[0]?.total || '0');
+      const totalLeads = parseInt(cloudLeads.rows[0]?.responded || '0');
+      const messagesPerLead = totalLeads > 0 ? totalMessages / totalLeads : 0;
+      
+      // Configurações padrão se não encontradas
+      const revenueGoal = userSettings?.revenueGoal || 10000;
+      const averageTicket = 500; // Implementar busca de vendas reais
+      const leadsPerSale = 10; // Implementar cálculo baseado em vendas reais
+      
+      const requiredSales = revenueGoal / averageTicket;
+      const requiredLeads = requiredSales * leadsPerSale;
+      const requiredMessages = requiredLeads * messagesPerLead;
+
+      const dashboardData = {
+        metaConnection: {
+          connected: metaConnection.connected,
+          phoneNumber: metaConnection.phoneNumber,
+          lastCheck: metaConnection.lastCheck
+        },
+        qrConnection: {
+          connected: qrConnected,
+          instanceName: 'admin',
+          lastCheck: new Date().toISOString()
+        },
+        cloudReports: {
+          totalConversations: parseInt(cloudConversations.rows[0]?.total || '0'),
+          totalMessages: parseInt(cloudMessages.rows[0]?.total || '0'),
+          totalCost: parseFloat(cloudConversations.rows[0]?.total_cost || '0'),
+          leadsWithResponse: totalLeads
+        },
+        qrReports: {
+          totalConversations: parseInt(qrConversations.rows[0]?.total || '0'),
+          totalMessages: parseInt(qrMessages.rows[0]?.total || '0'),
+          totalContacts: parseInt(qrContacts.rows[0]?.total || '0')
+        },
+        goals: {
+          revenue: revenueGoal,
+          averageTicket: averageTicket,
+          leadsGoal: userSettings?.leadsGoal || 100,
+          period: 'Mensal'
+        },
+        calculations: {
+          messagesPerLead: messagesPerLead,
+          leadsPerSale: leadsPerSale,
+          averageSalePrice: averageTicket,
+          requiredMessages: Math.round(requiredMessages),
+          projectedRevenue: totalLeads > 0 ? (totalLeads / leadsPerSale) * averageTicket : 0
+        }
+      };
+
+      res.json(dashboardData);
+
+    } catch (error) {
+      console.error('Erro ao buscar dados do dashboard:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
   // Configure HTTP server
   const httpServer = createServer(app);
   
