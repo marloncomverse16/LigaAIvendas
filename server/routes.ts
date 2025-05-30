@@ -5487,16 +5487,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastCheck: userServer?.meta_connected_at || new Date().toISOString()
       };
       
-      // Verificar conexão QR Code
+      // Verificar conexão QR Code e obter número do WhatsApp conectado
       let qrConnected = false;
+      let qrWhatsAppNumber = null;
+      
       try {
-        const response = await fetch('https://api.primerastreadores.com/instance/connectionState/admin', {
+        // Verificar estado da conexão
+        const stateResponse = await fetch('https://api.primerastreadores.com/instance/connectionState/admin', {
           headers: { 'apikey': '0f9e7d39-a1df-4f7d-8a65-f8d9c5b61403' }
         });
-        const data = await response.json();
-        qrConnected = data?.instance?.state === 'open';
+        const stateData = await stateResponse.json();
+        qrConnected = stateData?.instance?.state === 'open';
+        
+        // Se conectado, buscar informações do WhatsApp
+        if (qrConnected) {
+          try {
+            const infoResponse = await fetch('https://api.primerastreadores.com/chat/whatsappNumbers/admin', {
+              headers: { 'apikey': '0f9e7d39-a1df-4f7d-8a65-f8d9c5b61403' }
+            });
+            const infoData = await infoResponse.json();
+            
+            // Extrair número do WhatsApp da resposta
+            if (infoData && infoData.length > 0) {
+              qrWhatsAppNumber = infoData[0]; // Assumindo que retorna array de números
+            }
+          } catch (infoError) {
+            console.log('Erro ao buscar número WhatsApp:', infoError);
+          }
+        }
       } catch (error) {
         qrConnected = false;
+        console.log('Erro ao verificar conexão QR:', error);
       }
       
       console.log(`Dashboard request - User: ${userId}, Dates: ${startDate} to ${endDate}`);
@@ -5604,7 +5625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         qrConnection: {
           connected: qrConnected,
-          instanceName: 'admin',
+          phoneNumber: qrWhatsAppNumber || null,
           lastCheck: new Date().toISOString()
         },
         cloudReports: {
