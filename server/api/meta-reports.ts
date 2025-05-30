@@ -97,24 +97,54 @@ export async function fetchConversationAnalytics(params: MetaAnalyticsParams): P
   }
 }
 
-// Função para buscar analytics de mensagens da Meta API
+// Função para buscar analytics de mensagens baseado nos dados reais do banco
 export async function fetchMessageAnalytics(params: MetaAnalyticsParams): Promise<MessageAnalytics> {
-  const { phoneNumberId, accessToken, startDate, endDate } = params;
+  const { phoneNumberId, accessToken, businessAccountId, startDate, endDate } = params;
   
-  const url = `https://graph.facebook.com/v18.0/${phoneNumberId}`;
-  
+  console.log('📧 Gerando relatório de mensagens baseado nos dados reais do banco');
+
+  const { Pool } = await import('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
   try {
-    const response = await axios.get(url, {
-      params: {
-        fields: 'message_analytics.start(' + startDate + ').end(' + endDate + ').granularity(DAILY)',
-        access_token: accessToken
+    // Buscar estatísticas de mensagens reais do banco
+    const messageStats = await pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as total_messages,
+        COUNT(CASE WHEN direction = 'outbound' THEN 1 END) as sent_messages,
+        COUNT(CASE WHEN direction = 'inbound' THEN 1 END) as received_messages,
+        COUNT(CASE WHEN direction = 'outbound' AND status = 'delivered' THEN 1 END) as delivered_messages,
+        COUNT(CASE WHEN direction = 'outbound' AND status != 'delivered' THEN 1 END) as failed_messages
+      FROM meta_chat_messages 
+      WHERE created_at >= $1 
+        AND created_at <= $2
+      GROUP BY DATE(created_at)
+      ORDER BY date
+    `, [startDate, endDate]);
+
+    console.log('✅ Dados de mensagens obtidos do banco:', messageStats.rows);
+
+    // Formato de resposta para compatibilidade
+    const analytics = {
+      message_analytics: {
+        data: messageStats.rows.map(row => ({
+          name: 'sent_messages',
+          period: 'day',
+          values: [{
+            value: parseInt(row.sent_messages),
+            end_time: row.date
+          }]
+        }))
       }
-    });
-    
-    return response.data;
-  } catch (error) {
-    console.error('Erro ao buscar analytics de mensagens:', error);
-    throw new Error('Falha ao obter dados de mensagens da Meta API');
+    };
+
+    return analytics;
+  } catch (error: any) {
+    console.error('❌ Erro ao buscar dados de mensagens do banco:', error);
+    throw new Error('Falha ao obter dados de mensagens do banco de dados');
+  } finally {
+    await pool.end();
   }
 }
 
