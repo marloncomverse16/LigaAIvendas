@@ -411,13 +411,6 @@ export default function SettingsPage() {
                         Aparência
                       </Button>
                       <Button 
-                        variant={activeTab === "logo" ? "default" : "ghost"} 
-                        className="w-full justify-start"
-                        onClick={() => setActiveTab("logo")}
-                      >
-                        Logotipo e Marca
-                      </Button>
-                      <Button 
                         variant={activeTab === "integrations" ? "default" : "ghost"} 
                         className="w-full justify-start"
                         onClick={() => setActiveTab("integrations")}
@@ -479,7 +472,7 @@ export default function SettingsPage() {
                         <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
                           <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                             <Avatar className="w-24 h-24 text-4xl">
-                              <AvatarFallback className="bg-primary text-white">
+                              <AvatarFallback className="bg-gradient-to-br from-orange-500 to-yellow-400 text-white">
                                 {getInitials(profile?.name)}
                               </AvatarFallback>
                             </Avatar>
@@ -597,9 +590,7 @@ export default function SettingsPage() {
                 <ThemeSelector />
               )}
               
-              {activeTab === "logo" && (
-                <LogoUpload />
-              )}
+
               
               {activeTab === "integrations" && (
                 <Card>
