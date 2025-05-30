@@ -318,7 +318,7 @@ export default function ReportsPage() {
                                 </span>
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
-                                {format(new Date(conv.conversation_start), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                                {conv.conversation_start ? format(new Date(conv.conversation_start), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
                               <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(conv.cost_brl || '0').toFixed(2)}</td>
                             </tr>
@@ -370,7 +370,7 @@ export default function ReportsPage() {
                                 </span>
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
-                                {format(new Date(msg.sent_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                                {msg.sent_at ? format(new Date(msg.sent_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
                               <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(msg.cost_brl || '0').toFixed(2)}</td>
                             </tr>
@@ -413,7 +413,7 @@ export default function ReportsPage() {
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{bill.phone_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
-                                {format(new Date(bill.report_date), 'dd/MM/yyyy', { locale: ptBR })}
+                                {bill.report_date ? format(new Date(bill.report_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
                               </td>
                               <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(bill.conversation_cost || '0').toFixed(2)}</td>
                               <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(bill.message_cost || '0').toFixed(2)}</td>
@@ -457,7 +457,7 @@ export default function ReportsPage() {
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{lead.phone_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
-                                {format(new Date(lead.first_message_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                                {lead.first_message_at ? format(new Date(lead.first_message_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
                                 {lead.first_response_at ? format(new Date(lead.first_response_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
@@ -605,10 +605,10 @@ export default function ReportsPage() {
                               <td className="border border-gray-200 px-4 py-2">{conv.phone_number}</td>
                               <td className="border border-gray-200 px-4 py-2">{conv.name || 'N/A'}</td>
                               <td className="border border-gray-200 px-4 py-2">
-                                {format(new Date(conv.first_contact), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                                {conv.first_contact ? format(new Date(conv.first_contact), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
-                                {format(new Date(conv.last_contact), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                                {conv.last_contact ? format(new Date(conv.last_contact), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
                               <td className="border border-gray-200 px-4 py-2">{conv.total_messages}</td>
                             </tr>
@@ -656,7 +656,7 @@ export default function ReportsPage() {
                                 </span>
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
-                                {format(new Date(msg.sent_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                                {msg.sent_at ? format(new Date(msg.sent_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
                             </tr>
                           ))}
@@ -711,7 +711,7 @@ export default function ReportsPage() {
                                 {contact.last_message_time ? format(new Date(contact.last_message_time), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
-                                {format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                                {contact.created_at ? format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
                             </tr>
                           ))}
