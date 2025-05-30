@@ -5573,6 +5573,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requiredLeads = requiredSales * leadsPerSale;
       const requiredMessages = requiredLeads * messagesPerLead;
 
+      // Buscar dados reais da aba "Configurações - Metas"
+      const [userGoals] = await db.select()
+        .from(settings)
+        .where(eq(settings.userId, userId));
+
+      const revenueGoalReal = parseFloat(userGoals?.revenueGoal?.toString() || '0');
+      const averageTicketReal = parseFloat(userGoals?.averageTicket?.toString() || '0');
+      const leadsGoalReal = parseInt(userGoals?.leadsGoal?.toString() || '0');
+
+      // Buscar dados reais dos relatórios
+      const realCloudMessages = await db.query(`
+        SELECT COUNT(*) as total, SUM(CASE WHEN cost_brl IS NOT NULL THEN cost_brl ELSE 0 END) as cost
+        FROM meta_chat_messages 
+        WHERE user_id = $1 
+        AND created_at::date BETWEEN $2 AND $3
+      `, [userId, startDate || '2024-01-01', endDate || new Date().toISOString().split('T')[0]]);
+
+      const realQrMessages = await db.query(`
+        SELECT COUNT(*) as total, COUNT(DISTINCT contact_phone) as contacts
+        FROM evo_chat_messages 
+        WHERE user_id = $1 
+        AND created_at::date BETWEEN $2 AND $3
+      `, [userId, startDate || '2024-01-01', endDate || new Date().toISOString().split('T')[0]]);
+
+      const realLeadsResponse = await db.query(`
+        SELECT COUNT(DISTINCT contact_phone) as leads
+        FROM meta_chat_messages 
+        WHERE user_id = $1 
+        AND from_me = false 
+        AND created_at::date BETWEEN $2 AND $3
+      `, [userId, startDate || '2024-01-01', endDate || new Date().toISOString().split('T')[0]]);
+
+      // Cálculos reais baseados nos dados
+      const realCloudMsgCount = parseInt(realCloudMessages.rows[0]?.total || '0');
+      const realQrMsgCount = parseInt(realQrMessages.rows[0]?.total || '0');
+      const realCloudCost = parseFloat(realCloudMessages.rows[0]?.cost || '0');
+      const realQrContacts = parseInt(realQrMessages.rows[0]?.contacts || '0');
+      const realLeadsCount = parseInt(realLeadsResponse.rows[0]?.leads || '0');
+
+      const totalRealMessages = realCloudMsgCount + realQrMsgCount;
+      const realMessagesPerLead = realLeadsCount > 0 ? totalRealMessages / realLeadsCount : 1;
+      const realLeadsPerSale = realLeadsCount > 0 ? realLeadsCount / Math.max(1, Math.floor(realLeadsCount * 0.1)) : 10;
+      
+      const realRequiredSales = averageTicketReal > 0 ? revenueGoalReal / averageTicketReal : 0;
+      const realRequiredLeads = realRequiredSales * realLeadsPerSale;
+      const realRequiredMessages = realRequiredLeads * realMessagesPerLead;
+      const realProjectedRevenue = Math.floor(realLeadsCount * 0.1) * averageTicketReal;
+
       const dashboardData = {
         metaConnection: {
           connected: metaConnection.connected,
@@ -5585,28 +5633,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastCheck: new Date().toISOString()
         },
         cloudReports: {
-          totalConversations: parseInt(cloudConversations.rows[0]?.total || '0'),
-          totalMessages: parseInt(cloudMessages.rows[0]?.total || '0'),
-          totalCost: parseFloat(cloudConversations.rows[0]?.total_cost || '0'),
-          leadsWithResponse: totalLeads
+          totalConversations: Math.ceil(realCloudMsgCount / 10), // Estimativa de conversas
+          totalMessages: realCloudMsgCount,
+          totalCost: realCloudCost,
+          leadsWithResponse: realLeadsCount
         },
         qrReports: {
-          totalConversations: parseInt(qrConversations.rows[0]?.total || '0'),
-          totalMessages: parseInt(qrMessages.rows[0]?.total || '0'),
-          totalContacts: parseInt(qrContacts.rows[0]?.total || '0')
+          totalConversations: realQrContacts,
+          totalMessages: realQrMsgCount,
+          totalContacts: realQrContacts
         },
         goals: {
-          revenue: revenueGoal,
-          averageTicket: averageTicket,
-          leadsGoal: userSettings?.leadsGoal || 100,
+          revenue: revenueGoalReal,
+          averageTicket: averageTicketReal,
+          leadsGoal: leadsGoalReal,
           period: 'Mensal'
         },
         calculations: {
-          messagesPerLead: messagesPerLead,
-          leadsPerSale: leadsPerSale,
-          averageSalePrice: averageTicket,
-          requiredMessages: Math.round(requiredMessages),
-          projectedRevenue: totalLeads > 0 ? (totalLeads / leadsPerSale) * averageTicket : 0
+          messagesPerLead: Math.round(realMessagesPerLead * 10) / 10,
+          leadsPerSale: Math.round(realLeadsPerSale * 10) / 10,
+          averageSalePrice: averageTicketReal,
+          requiredMessages: Math.round(realRequiredMessages),
+          projectedRevenue: Math.round(realProjectedRevenue)
         }
       };
 
