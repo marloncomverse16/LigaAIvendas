@@ -403,13 +403,7 @@ export default function SettingsPage() {
                       >
                         Perfil e Conta
                       </Button>
-                      <Button 
-                        variant={activeTab === "appearance" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "appearance" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
-                        onClick={() => setActiveTab("appearance")}
-                      >
-                        Aparência
-                      </Button>
+
                       <Button 
                         variant={activeTab === "integrations" ? "default" : "ghost"} 
                         className={`w-full justify-start ${activeTab === "integrations" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
@@ -586,9 +580,7 @@ export default function SettingsPage() {
                 </Card>
               )}
               
-              {activeTab === "appearance" && (
-                <ThemeSelector />
-              )}
+
               
 
               
