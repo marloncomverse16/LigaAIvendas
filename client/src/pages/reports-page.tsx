@@ -140,7 +140,7 @@ export default function ReportsPage() {
     totalMessages: reportData.messages.length,
     deliveredMessages: reportData.messages.filter(m => m.delivery_status === 'delivered').length,
     leadsWithResponse: reportData.leads.filter(l => l.has_response).length,
-    totalCost: reportData.billing.reduce((sum, b) => sum + parseFloat(b.cost_brl || '0'), 0)
+    totalCost: reportData.billing.reduce((sum, b) => sum + parseFloat(b.total_cost || '0'), 0)
   };
 
   return (
