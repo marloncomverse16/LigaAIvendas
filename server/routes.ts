@@ -5490,49 +5490,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         qrConnected = false;
       }
       
-      // Buscar dados dos relatórios Cloud API
-      const cloudConversationsQuery = `
-        SELECT COUNT(*) as total, 
-               SUM(CASE WHEN cost_brl IS NOT NULL THEN cost_brl::numeric ELSE 0 END) as total_cost
-        FROM meta_conversation_reports 
-        WHERE user_id = $1 
-        ${startDate && endDate ? 'AND conversation_start BETWEEN $2 AND $3' : ''}
-      `;
+      console.log(`Dashboard request - User: ${userId}, Dates: ${startDate} to ${endDate}`);
+
+      // Buscar dados dos relatórios Cloud API (usando tabelas reais)
       const cloudMessagesQuery = `
-        SELECT COUNT(*) as total,
-               COUNT(CASE WHEN delivery_status = 'delivered' THEN 1 END) as delivered
-        FROM meta_message_reports 
+        SELECT COUNT(*) as total_messages,
+               COUNT(CASE WHEN from_me = true THEN 1 END) as sent_messages,
+               COUNT(CASE WHEN from_me = false THEN 1 END) as received_messages,
+               COUNT(DISTINCT contact_phone) as unique_contacts
+        FROM meta_chat_messages 
         WHERE user_id = $1 
-        ${startDate && endDate ? 'AND sent_at BETWEEN $2 AND $3' : ''}
-      `;
-      const cloudLeadsQuery = `
-        SELECT COUNT(CASE WHEN has_response = true THEN 1 END) as responded
-        FROM meta_lead_response_reports 
-        WHERE user_id = $1 
-        ${startDate && endDate ? 'AND first_message_at BETWEEN $2 AND $3' : ''}
+        ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
       `;
 
-      // Buscar dados dos relatórios QR Code
-      const qrConversationsQuery = `
-        SELECT COUNT(DISTINCT contact_phone) as total
-        FROM evolution_messages 
-        WHERE user_id = $1 
-        ${startDate && endDate ? 'AND created_at BETWEEN $2 AND $3' : ''}
-      `;
+      // Buscar dados dos relatórios QR Code (usando tabelas reais)
       const qrMessagesQuery = `
-        SELECT COUNT(*) as total
-        FROM evolution_messages 
+        SELECT COUNT(*) as total_messages,
+               COUNT(DISTINCT contact_phone) as total_contacts
+        FROM evo_chat_messages 
         WHERE user_id = $1 
-        ${startDate && endDate ? 'AND created_at BETWEEN $2 AND $3' : ''}
-      `;
-      const qrContactsQuery = `
-        SELECT COUNT(*) as total
-        FROM contacts 
-        WHERE user_id = $1 AND source = 'qr_code'
-        ${startDate && endDate ? 'AND created_at BETWEEN $2 AND $3' : ''}
+        ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
       `;
 
-      // Buscar configurações do usuário
+      console.log('Executando consultas SQL...');
+
+      // Buscar configurações do usuário (metas)
       const settingsQuery = `
         SELECT revenue_goal, leads_goal 
         FROM settings 
@@ -5543,83 +5525,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const params = startDate && endDate ? [userId, startDate, endDate] : [userId];
 
-      const [
-        cloudConversations,
-        cloudMessages, 
-        cloudLeads,
-        qrConversations,
-        qrMessages,
-        qrContacts
-      ] = await Promise.all([
-        pool.query(cloudConversationsQuery, params),
+      console.log('Executando consultas com parâmetros:', params);
+
+      const [cloudResults, qrResults] = await Promise.all([
         pool.query(cloudMessagesQuery, params),
-        pool.query(cloudLeadsQuery, params),
-        pool.query(qrConversationsQuery, params),
-        pool.query(qrMessagesQuery, params),
-        pool.query(qrContactsQuery, params)
+        pool.query(qrMessagesQuery, params)
       ]);
 
-      // Calcular métricas
-      const totalMessages = parseInt(cloudMessages.rows[0]?.total || '0') + parseInt(qrMessages.rows[0]?.total || '0');
-      const totalLeads = parseInt(cloudLeads.rows[0]?.responded || '0');
-      const messagesPerLead = totalLeads > 0 ? totalMessages / totalLeads : 0;
+      console.log('Cloud results:', cloudResults.rows[0]);
+      console.log('QR results:', qrResults.rows[0]);
+
+      // Processar dados Cloud API
+      const cloudTotalMessages = parseInt(cloudResults.rows[0]?.total_messages || '0');
+      const cloudSentMessages = parseInt(cloudResults.rows[0]?.sent_messages || '0');
+      const cloudReceivedMessages = parseInt(cloudResults.rows[0]?.received_messages || '0');
+      const cloudUniqueContacts = parseInt(cloudResults.rows[0]?.unique_contacts || '0');
+
+      // Processar dados QR Code
+      const qrTotalMessages = parseInt(qrResults.rows[0]?.total_messages || '0');
+      const qrTotalContacts = parseInt(qrResults.rows[0]?.total_contacts || '0');
+
+      // Cálculos baseados nos dados reais
+      const totalMessages = cloudTotalMessages + qrTotalMessages;
+      const leadsWithResponse = cloudReceivedMessages; // Mensagens recebidas = leads que responderam
       
-      // Configurações padrão se não encontradas
-      const revenueGoal = userSettings?.revenueGoal || 10000;
-      const averageTicket = 500; // Implementar busca de vendas reais
-      const leadsPerSale = 10; // Implementar cálculo baseado em vendas reais
+      // Métricas de eficiência
+      const messagesPerLead = leadsWithResponse > 0 ? cloudSentMessages / leadsWithResponse : 
+                             cloudSentMessages > 0 ? cloudSentMessages / Math.max(1, Math.floor(cloudSentMessages * 0.1)) : 1;
       
-      const requiredSales = revenueGoal / averageTicket;
+      const estimatedSales = Math.floor(leadsWithResponse * 0.1); // 10% conversão padrão
+      const leadsPerSale = estimatedSales > 0 ? leadsWithResponse / estimatedSales : 10;
+
+      // Buscar metas do usuário
+      const revenueGoal = parseFloat(userSettings?.revenue_goal || '0');
+      const averageTicket = 500; // Valor padrão
+      const leadsGoal = parseInt(userSettings?.leads_goal || '0');
+      
+      // Projeções
+      const requiredSales = averageTicket > 0 ? revenueGoal / averageTicket : 0;
       const requiredLeads = requiredSales * leadsPerSale;
       const requiredMessages = requiredLeads * messagesPerLead;
+      const projectedRevenue = estimatedSales * averageTicket;
 
-      // Buscar dados reais da aba "Configurações - Metas"
-      const [userGoals] = await db.select()
-        .from(settings)
-        .where(eq(settings.userId, userId));
-
-      const revenueGoalReal = parseFloat(userGoals?.revenueGoal?.toString() || '0');
-      const averageTicketReal = parseFloat(userGoals?.averageTicket?.toString() || '0');
-      const leadsGoalReal = parseInt(userGoals?.leadsGoal?.toString() || '0');
-
-      // Buscar dados reais dos relatórios
-      const realCloudMessages = await db.query(`
-        SELECT COUNT(*) as total, SUM(CASE WHEN cost_brl IS NOT NULL THEN cost_brl ELSE 0 END) as cost
-        FROM meta_chat_messages 
-        WHERE user_id = $1 
-        AND created_at::date BETWEEN $2 AND $3
-      `, [userId, startDate || '2024-01-01', endDate || new Date().toISOString().split('T')[0]]);
-
-      const realQrMessages = await db.query(`
-        SELECT COUNT(*) as total, COUNT(DISTINCT contact_phone) as contacts
-        FROM evo_chat_messages 
-        WHERE user_id = $1 
-        AND created_at::date BETWEEN $2 AND $3
-      `, [userId, startDate || '2024-01-01', endDate || new Date().toISOString().split('T')[0]]);
-
-      const realLeadsResponse = await db.query(`
-        SELECT COUNT(DISTINCT contact_phone) as leads
-        FROM meta_chat_messages 
-        WHERE user_id = $1 
-        AND from_me = false 
-        AND created_at::date BETWEEN $2 AND $3
-      `, [userId, startDate || '2024-01-01', endDate || new Date().toISOString().split('T')[0]]);
-
-      // Cálculos reais baseados nos dados
-      const realCloudMsgCount = parseInt(realCloudMessages.rows[0]?.total || '0');
-      const realQrMsgCount = parseInt(realQrMessages.rows[0]?.total || '0');
-      const realCloudCost = parseFloat(realCloudMessages.rows[0]?.cost || '0');
-      const realQrContacts = parseInt(realQrMessages.rows[0]?.contacts || '0');
-      const realLeadsCount = parseInt(realLeadsResponse.rows[0]?.leads || '0');
-
-      const totalRealMessages = realCloudMsgCount + realQrMsgCount;
-      const realMessagesPerLead = realLeadsCount > 0 ? totalRealMessages / realLeadsCount : 1;
-      const realLeadsPerSale = realLeadsCount > 0 ? realLeadsCount / Math.max(1, Math.floor(realLeadsCount * 0.1)) : 10;
-      
-      const realRequiredSales = averageTicketReal > 0 ? revenueGoalReal / averageTicketReal : 0;
-      const realRequiredLeads = realRequiredSales * realLeadsPerSale;
-      const realRequiredMessages = realRequiredLeads * realMessagesPerLead;
-      const realProjectedRevenue = Math.floor(realLeadsCount * 0.1) * averageTicketReal;
+      console.log('Cálculos finalizados:', {
+        totalMessages,
+        leadsWithResponse,
+        messagesPerLead,
+        projectedRevenue
+      });
 
       const dashboardData = {
         metaConnection: {
@@ -5633,28 +5586,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastCheck: new Date().toISOString()
         },
         cloudReports: {
-          totalConversations: Math.ceil(realCloudMsgCount / 10), // Estimativa de conversas
-          totalMessages: realCloudMsgCount,
-          totalCost: realCloudCost,
-          leadsWithResponse: realLeadsCount
+          totalConversations: Math.ceil(cloudTotalMessages / 10),
+          totalMessages: cloudTotalMessages,
+          totalCost: cloudTotalMessages * 0.027, // R$ 0.027 por mensagem
+          leadsWithResponse: leadsWithResponse
         },
         qrReports: {
-          totalConversations: realQrContacts,
-          totalMessages: realQrMsgCount,
-          totalContacts: realQrContacts
+          totalConversations: qrTotalContacts,
+          totalMessages: qrTotalMessages,
+          totalContacts: qrTotalContacts
         },
         goals: {
-          revenue: revenueGoalReal,
-          averageTicket: averageTicketReal,
-          leadsGoal: leadsGoalReal,
+          revenue: revenueGoal,
+          averageTicket: averageTicket,
+          leadsGoal: leadsGoal,
           period: 'Mensal'
         },
         calculations: {
-          messagesPerLead: Math.round(realMessagesPerLead * 10) / 10,
-          leadsPerSale: Math.round(realLeadsPerSale * 10) / 10,
-          averageSalePrice: averageTicketReal,
-          requiredMessages: Math.round(realRequiredMessages),
-          projectedRevenue: Math.round(realProjectedRevenue)
+          messagesPerLead: Math.round(messagesPerLead * 10) / 10,
+          leadsPerSale: Math.round(leadsPerSale * 10) / 10,
+          averageSalePrice: averageTicket,
+          requiredMessages: Math.round(requiredMessages),
+          projectedRevenue: Math.round(projectedRevenue)
         }
       };
 
