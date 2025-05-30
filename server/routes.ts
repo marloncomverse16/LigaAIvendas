@@ -5230,11 +5230,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🔍 Buscando configurações completas do usuário:', userId);
       const userQuery = `
         SELECT 
-          meta_phone_number_id,
-          whatsapp_meta_token,
-          whatsapp_meta_business_id
-        FROM users 
-        WHERE id = $1
+          u.meta_phone_number_id,
+          s.whatsapp_meta_token,
+          s.whatsapp_meta_business_id
+        FROM users u
+        LEFT JOIN settings s ON u.id = s.user_id
+        WHERE u.id = $1
       `;
       const userResult = await pool.query(userQuery, [userId]);
       
