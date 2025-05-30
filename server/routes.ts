@@ -5306,7 +5306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('📡 Iniciando chamadas para Meta API...');
-      const metaReports = require('./api/meta-reports');
+      const metaReports = await import('./api/meta-reports');
 
       try {
         // Sincronizar dados de conversas
