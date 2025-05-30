@@ -5288,7 +5288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { generateMetaReportsFromDatabase } = await import('./api/meta-reports-simple');
 
       try {
-        const reportsData = await generateMetaReportsFromDatabase(userId, startDate, endDate);
+        const reportsData = await generateMetaReportsFromDatabase(userId, startDate, endDate, accessToken, businessAccountId, phoneNumberId);
         console.log('✅ Relatórios Meta gerados com sucesso:', reportsData.summary);
 
         console.log('🎉 SINCRONIZAÇÃO CONCLUÍDA COM SUCESSO');

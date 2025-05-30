@@ -96,6 +96,21 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
       `, [userId, row.contact_phone, row.first_contact, row.responded, row.total_messages]);
     }
 
+    // Buscar dados reais de faturamento da Meta API se os tokens estiverem disponíveis
+    if (accessToken && businessAccountId && phoneNumberId) {
+      try {
+        console.log('💰 Buscando dados reais de faturamento da Meta API...');
+        const billingData = await fetchMetaBillingData(accessToken, businessAccountId, phoneNumberId, startDate, endDate);
+        await saveBillingDataToDatabase(userId, phoneNumberId, billingData);
+        console.log('💰 Dados de faturamento da Meta API salvos com sucesso');
+      } catch (error) {
+        console.error('❌ Erro ao buscar dados de faturamento da Meta API:', error);
+        // Continuar sem os dados de faturamento da API
+      }
+    } else {
+      console.log('⚠️ Tokens da Meta API não disponíveis, calculando faturamento baseado nos dados locais');
+    }
+
     console.log('✅ Relatórios Meta gerados com sucesso baseados nos dados reais');
 
     return {
@@ -104,8 +119,8 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
       messages: messagesResult.rows,
       leads: leadsResult.rows,
       summary: {
-        totalConversations: conversationsResult.rows.reduce((sum, row) => sum + parseInt(row.conversations_initiated), 0),
-        totalMessages: messagesResult.rows.reduce((sum, row) => sum + parseInt(row.total_sent), 0),
+        totalConversations: conversationsResult.rows.length,
+        totalMessages: messagesResult.rows.length,
         totalLeads: leadsResult.rows.length,
         respondingLeads: leadsResult.rows.filter(row => row.responded).length
       }
