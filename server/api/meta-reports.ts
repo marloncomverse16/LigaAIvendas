@@ -44,6 +44,14 @@ export async function fetchConversationAnalytics(params: MetaAnalyticsParams): P
   
   const url = `https://graph.facebook.com/v18.0/${phoneNumberId}`;
   
+  console.log('🔗 Fazendo chamada para Meta API - Conversas');
+  console.log('📍 URL:', url);
+  console.log('📋 Parâmetros:', {
+    fields: 'conversation_analytics.start(' + startDate + ').end(' + endDate + ').granularity(DAILY)',
+    phoneNumberId,
+    tokenPreview: accessToken.substring(0, 20) + '...'
+  });
+
   try {
     const response = await axios.get(url, {
       params: {
@@ -52,9 +60,20 @@ export async function fetchConversationAnalytics(params: MetaAnalyticsParams): P
       }
     });
     
+    console.log('✅ Resposta da Meta API - Conversas:', response.data);
     return response.data;
-  } catch (error) {
-    console.error('Erro ao buscar analytics de conversas:', error);
+  } catch (error: any) {
+    console.error('❌ Erro detalhado da Meta API - Conversas:', {
+      status: error?.response?.status,
+      statusText: error?.response?.statusText,
+      data: error?.response?.data,
+      message: error?.message
+    });
+    
+    if (error?.response?.data?.error) {
+      throw new Error(`Meta API Error: ${error.response.data.error.message} (Code: ${error.response.data.error.code})`);
+    }
+    
     throw new Error('Falha ao obter dados de conversas da Meta API');
   }
 }
