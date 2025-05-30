@@ -398,7 +398,7 @@ export default function SettingsPage() {
                     <div className="space-y-1 p-2">
                       <Button 
                         variant={activeTab === "profile" ? "default" : "ghost"} 
-                        className="w-full justify-start"
+                        className={`w-full justify-start ${activeTab === "profile" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("profile")}
                       >
                         Perfil e Conta
