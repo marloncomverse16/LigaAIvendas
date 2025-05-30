@@ -69,22 +69,30 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
     await pool.query('DELETE FROM meta_message_reports WHERE user_id = $1', [userId]);
     await pool.query('DELETE FROM meta_lead_response_reports WHERE user_id = $1', [userId]);
 
-    // Salvar relatórios de conversas
+    // Salvar relatórios de conversas com custos em BRL
     for (const row of conversationsResult.rows) {
+      // Calcular custo: R$ 0.038 por conversa iniciada pelo negócio + R$ 0.027 por mensagem
+      const conversationCostBRL = 0.038; // Conversão de $0.007 USD para BRL
+      const messageCostBRL = 0.027 * row.message_count; // R$ 0.027 por mensagem
+      const totalCostBRL = conversationCostBRL + messageCostBRL;
+      
       await pool.query(`
         INSERT INTO meta_conversation_reports 
-        (user_id, phone_number_id, conversation_id, contact_number, conversation_type, started_at, message_count, created_at)
-        VALUES ($1, 'direct_db', $2, $3, 'business_initiated', $4, $5, NOW())
-      `, [userId, `conv_${row.contact_phone}_${row.date.toString().replace(/-/g, '')}`, row.contact_phone, row.date, row.message_count]);
+        (user_id, phone_number_id, conversation_id, contact_number, conversation_type, started_at, message_count, cost_brl, created_at)
+        VALUES ($1, 'direct_db', $2, $3, 'business_initiated', $4, $5, $6, NOW())
+      `, [userId, `conv_${row.contact_phone}_${row.date.toString().replace(/-/g, '')}`, row.contact_phone, row.date, row.message_count, totalCostBRL.toFixed(4)]);
     }
 
-    // Salvar relatórios de mensagens
+    // Salvar relatórios de mensagens com custos em BRL
     for (const row of messagesResult.rows) {
+      // Calcular custo estimado: R$ 0.027 por mensagem de template
+      const messageCostBRL = 0.027; // Conversão de $0.005 USD para BRL
+      
       await pool.query(`
         INSERT INTO meta_message_reports 
-        (user_id, phone_number_id, message_id, contact_number, message_type, message_direction, delivery_status, sent_at, created_at)
-        VALUES ($1, 'direct_db', $2, $3, $4, 'outbound', $5, $6, NOW())
-      `, [userId, `msg_${row.contact_phone}_${Date.now()}`, row.contact_phone, row.message_type || 'text', row.delivery_status || 'delivered', row.sent_at]);
+        (user_id, phone_number_id, message_id, contact_number, message_type, message_direction, delivery_status, sent_at, cost_brl, created_at)
+        VALUES ($1, 'direct_db', $2, $3, $4, 'outbound', $5, $6, $7, NOW())
+      `, [userId, `msg_${row.contact_phone}_${Date.now()}`, row.contact_phone, row.message_type || 'text', row.delivery_status || 'delivered', row.sent_at, messageCostBRL.toFixed(4)]);
     }
 
     // Salvar relatórios de leads

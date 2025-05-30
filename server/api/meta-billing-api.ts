@@ -45,18 +45,22 @@ export async function fetchMetaBillingData(
       const messages = parseInt(row.total_messages) || 0;
       
       // Calcular custo baseado nas tarifas reais da Meta
-      // Conversas iniciadas pelo negócio: $0.007 USD
-      // Mensagens de template: $0.005 USD cada
+      // Conversas iniciadas pelo negócio: $0.007 USD = R$ 0.038 (cotação aproximada)
+      // Mensagens de template: $0.005 USD = R$ 0.027 cada
       const businessInitiatedConversations = conversations;
-      const conversationCost = businessInitiatedConversations * 0.007;
-      const templateCost = messages * 0.005;
-      const totalCost = conversationCost + templateCost;
+      const conversationCostUSD = businessInitiatedConversations * 0.007;
+      const templateCostUSD = messages * 0.005;
+      const totalCostUSD = conversationCostUSD + templateCostUSD;
+      
+      // Converter USD para BRL (cotação aproximada: 1 USD = 5.40 BRL)
+      const exchangeRate = 5.40;
+      const totalCostBRL = totalCostUSD * exchangeRate;
       
       billingData.push({
         date: date,
         conversations: conversations,
-        cost: totalCost,
-        currency: 'USD'
+        cost: totalCostBRL,
+        currency: 'BRL'
       });
     }
     
