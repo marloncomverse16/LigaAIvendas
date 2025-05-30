@@ -5458,6 +5458,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rotas para relatórios QR Code
+  const { getQRConversationReports, getQRMessageReports, getQRContactReports } = await import('./api/qr-reports');
+  
+  app.get('/api/qr-reports/conversations/:userId', getQRConversationReports);
+  app.get('/api/qr-reports/messages/:userId', getQRMessageReports);
+  app.get('/api/qr-reports/contacts/:userId', getQRContactReports);
+
   // Configure HTTP server
   const httpServer = createServer(app);
   

@@ -17,6 +17,12 @@ interface ReportData {
   leads: any[];
 }
 
+interface QRReportData {
+  conversations: any[];
+  messages: any[];
+  contacts: any[];
+}
+
 export default function ReportsPage() {
   const [startDate, setStartDate] = useState(format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -26,11 +32,56 @@ export default function ReportsPage() {
     billing: [],
     leads: []
   });
+  const [qrReportData, setQrReportData] = useState<QRReportData>({
+    conversations: [],
+    messages: [],
+    contacts: []
+  });
   const [loading, setLoading] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [activeTab, setActiveTab] = useState('meta');
   const { toast } = useToast();
 
-  // Buscar dados dos relatórios
+  // Buscar dados dos relatórios QR Code
+  const fetchQRReports = async () => {
+    setQrLoading(true);
+    try {
+      const userId = 2; // Implementar busca do usuário autenticado
+      const params = new URLSearchParams({
+        startDate,
+        endDate
+      });
+
+      const [conversationsRes, messagesRes, contactsRes] = await Promise.all([
+        fetch(`/api/qr-reports/conversations/${userId}?${params}`),
+        fetch(`/api/qr-reports/messages/${userId}?${params}`),
+        fetch(`/api/qr-reports/contacts/${userId}?${params}`)
+      ]);
+
+      const [conversations, messages, contacts] = await Promise.all([
+        conversationsRes.json(),
+        messagesRes.json(),
+        contactsRes.json()
+      ]);
+
+      setQrReportData({
+        conversations: conversations || [],
+        messages: messages || [],
+        contacts: contacts || []
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao carregar relatórios",
+        description: "Não foi possível carregar os dados dos relatórios QR Code",
+        variant: "destructive"
+      });
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  // Buscar dados dos relatórios Meta
   const fetchReports = async () => {
     setLoading(true);
     try {
@@ -145,16 +196,32 @@ export default function ReportsPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Relatórios Meta</h1>
+          <h1 className="text-3xl font-bold">Relatórios WhatsApp</h1>
           <p className="text-muted-foreground">
-            Análise detalhada das comunicações via WhatsApp Business Cloud API
+            Análise detalhada das comunicações via WhatsApp Meta API e QR Code
           </p>
         </div>
-        <Button onClick={syncMetaData} disabled={syncing} className="flex items-center gap-2">
-          <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Sincronizando...' : 'Sincronizar Meta API'}
-        </Button>
       </div>
+
+      {/* Abas principais */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="meta">Relatórios Meta API</TabsTrigger>
+          <TabsTrigger value="qr">Relatórios QR Code</TabsTrigger>
+        </TabsList>
+
+        {/* Aba Meta API */}
+        <TabsContent value="meta" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold">WhatsApp Business Cloud API</h2>
+              <p className="text-muted-foreground">Dados com custo por mensagem e conversa</p>
+            </div>
+            <Button onClick={syncMetaData} disabled={syncing} className="flex items-center gap-2">
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar Meta API'}
+            </Button>
+          </div>
 
       {/* Filtros */}
       <Card>
@@ -532,6 +599,250 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Aba QR Code */}
+        <TabsContent value="qr" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold">WhatsApp via QR Code</h2>
+              <p className="text-muted-foreground">API gratuita - sem custos por mensagem</p>
+            </div>
+            <Button onClick={fetchQRReports} disabled={qrLoading} className="flex items-center gap-2">
+              <RefreshCw className={`h-4 w-4 ${qrLoading ? 'animate-spin' : ''}`} />
+              {qrLoading ? 'Carregando...' : 'Atualizar Relatórios'}
+            </Button>
+          </div>
+
+          {/* Filtros QR Code */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Filtros
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="qrStartDate">Data Inicial</Label>
+                <Input
+                  id="qrStartDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="qrEndDate">Data Final</Label>
+                <Input
+                  id="qrEndDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Estatísticas QR Code */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Conversas</CardTitle>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{qrReportData.conversations.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  Via QR Code - Gratuito
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Mensagens</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{qrReportData.messages.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  Sem custo por mensagem
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Contatos Ativos</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{qrReportData.contacts.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  Conectados via QR Code
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Relatórios detalhados QR Code */}
+          <Tabs defaultValue="qr-conversations" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="qr-conversations">Conversas</TabsTrigger>
+              <TabsTrigger value="qr-messages">Mensagens</TabsTrigger>
+              <TabsTrigger value="qr-contacts">Contatos</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="qr-conversations">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Conversas Iniciadas via QR Code</CardTitle>
+                  <CardDescription>
+                    Lista de conversas sem custos adicionais
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {qrReportData.conversations.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="border border-gray-200 px-4 py-2 text-left">Telefone</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Nome</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Primeiro Contato</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Último Contato</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Total Mensagens</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {qrReportData.conversations.map((conv, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="border border-gray-200 px-4 py-2">{conv.phone_number}</td>
+                              <td className="border border-gray-200 px-4 py-2">{conv.name || 'N/A'}</td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                {format(new Date(conv.first_contact), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                              </td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                {format(new Date(conv.last_contact), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                              </td>
+                              <td className="border border-gray-200 px-4 py-2">{conv.total_messages}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-center text-gray-500 py-8">
+                      Nenhuma conversa encontrada no período selecionado
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="qr-messages">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Mensagens via QR Code</CardTitle>
+                  <CardDescription>
+                    Histórico de mensagens sem custos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {qrReportData.messages.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="border border-gray-200 px-4 py-2 text-left">Telefone</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Tipo</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Enviado em</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {qrReportData.messages.map((msg, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="border border-gray-200 px-4 py-2">{msg.phone_number}</td>
+                              <td className="border border-gray-200 px-4 py-2">{msg.message_type}</td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  {msg.status}
+                                </span>
+                              </td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                {format(new Date(msg.sent_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-center text-gray-500 py-8">
+                      Nenhuma mensagem encontrada no período selecionado
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="qr-contacts">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Contatos via QR Code</CardTitle>
+                  <CardDescription>
+                    Lista de contatos conectados
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {qrReportData.contacts.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="border border-gray-200 px-4 py-2 text-left">Telefone</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Nome</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Última Atividade</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Adicionado em</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {qrReportData.contacts.map((contact, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="border border-gray-200 px-4 py-2">{contact.phone_number}</td>
+                              <td className="border border-gray-200 px-4 py-2">{contact.name || 'N/A'}</td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  contact.activity_status === 'Ativo' ? 'bg-green-100 text-green-800' :
+                                  contact.activity_status === 'Recente' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {contact.activity_status}
+                                </span>
+                              </td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                {contact.last_message_time ? format(new Date(contact.last_message_time), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
+                              </td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                {format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-center text-gray-500 py-8">
+                      Nenhum contato encontrado no período selecionado
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>
