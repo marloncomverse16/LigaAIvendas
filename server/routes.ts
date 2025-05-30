@@ -5284,49 +5284,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Token ou Business Account ID da Meta não configurados nas configurações do usuário' });
       }
 
-      console.log('📡 Iniciando chamadas para Meta API...');
-      const metaReports = await import('./api/meta-reports');
+      console.log('📊 Gerando relatórios baseados nos dados reais do banco...');
+      const { generateMetaReportsFromDatabase } = await import('./api/meta-reports-simple');
 
       try {
-        // Sincronizar dados de conversas
-        console.log('📊 Buscando analytics de conversas...');
-        const conversationData = await metaReports.fetchConversationAnalytics({
-          phoneNumberId,
-          accessToken,
-          businessAccountId,
-          startDate,
-          endDate
-        });
-        console.log('✅ Analytics de conversas obtidos:', conversationData);
-        
-        console.log('💾 Salvando dados de conversas...');
-        await metaReports.saveConversationReports(pool, userId, phoneNumberId, conversationData);
-        console.log('✅ Dados de conversas salvos');
-
-        // Sincronizar dados de mensagens
-        console.log('📨 Buscando analytics de mensagens...');
-        const messageData = await metaReports.fetchMessageAnalytics({
-          phoneNumberId,
-          accessToken,
-          businessAccountId,
-          startDate,
-          endDate
-        });
-        console.log('✅ Analytics de mensagens obtidos:', messageData);
-        
-        console.log('💾 Salvando dados de mensagens...');
-        await metaReports.saveMessageReports(pool, userId, phoneNumberId, messageData);
-        console.log('✅ Dados de mensagens salvos');
-
-        // Gerar relatório de cobrança
-        console.log('💰 Gerando relatório de cobrança...');
-        await metaReports.generateBillingReport(pool, userId, phoneNumberId, startDate, endDate);
-        console.log('✅ Relatório de cobrança gerado');
-
-        // Atualizar relatórios de leads respondidos
-        console.log('👥 Atualizando relatórios de leads...');
-        await metaReports.updateLeadResponseReports(pool, userId, phoneNumberId);
-        console.log('✅ Relatórios de leads atualizados');
+        const reportsData = await generateMetaReportsFromDatabase(userId, startDate, endDate);
+        console.log('✅ Relatórios Meta gerados com sucesso:', reportsData.summary);
 
         console.log('🎉 SINCRONIZAÇÃO CONCLUÍDA COM SUCESSO');
         res.json({ 

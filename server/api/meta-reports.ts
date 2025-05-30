@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { Pool } from '@neondatabase/serverless';
+import { Pool } from 'pg';
 
 interface MetaAnalyticsParams {
   phoneNumberId: string;
@@ -51,9 +50,7 @@ export async function fetchConversationAnalytics(params: MetaAnalyticsParams): P
     tokenPreview: accessToken.substring(0, 20) + '...'
   });
 
-  // Como a Meta API não fornece analytics diretos via GraphAPI, 
-  // vamos usar os dados reais que temos no banco de dados
-  const { Pool } = await import('pg');
+  // Usar dados reais das mensagens armazenadas no banco de dados
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
   try {
