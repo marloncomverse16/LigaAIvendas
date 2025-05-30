@@ -5230,12 +5230,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🔍 Buscando configurações completas do usuário:', userId);
       const userQuery = `
         SELECT 
-          u.meta_phone_number_id,
+          us.meta_phone_number_id,
           s.whatsapp_meta_token,
           s.whatsapp_meta_business_id
-        FROM users u
-        LEFT JOIN settings s ON u.id = s.user_id
-        WHERE u.id = $1
+        FROM user_servers us
+        LEFT JOIN settings s ON us.user_id = s.user_id
+        WHERE us.user_id = $1
+        ORDER BY us.is_default DESC NULLS LAST
+        LIMIT 1
       `;
       const userResult = await pool.query(userQuery, [userId]);
       
@@ -5252,8 +5254,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       if (!userResult.rows.length) {
-        console.log('❌ Usuário não encontrado');
-        return res.status(404).json({ error: 'Usuário não encontrado' });
+        console.log('❌ Usuário não encontrado ou não possui configurações');
+        return res.status(404).json({ error: 'Usuário não encontrado ou não possui configurações de servidor' });
       }
 
       const { 

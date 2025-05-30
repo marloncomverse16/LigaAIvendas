@@ -38,16 +38,18 @@ interface MessageAnalytics {
   };
 }
 
-// Função para buscar analytics de conversas da Meta API
+// Função para buscar analytics de conversas da Meta API usando Business Account
 export async function fetchConversationAnalytics(params: MetaAnalyticsParams): Promise<ConversationAnalytics> {
-  const { phoneNumberId, accessToken, startDate, endDate } = params;
+  const { phoneNumberId, accessToken, businessAccountId, startDate, endDate } = params;
   
-  const url = `https://graph.facebook.com/v18.0/${phoneNumberId}`;
+  // Usar o Business Account ID para obter analytics, não o Phone Number ID
+  const url = `https://graph.facebook.com/v18.0/${businessAccountId}`;
   
   console.log('🔗 Fazendo chamada para Meta API - Conversas');
   console.log('📍 URL:', url);
   console.log('📋 Parâmetros:', {
-    fields: 'conversation_analytics.start(' + startDate + ').end(' + endDate + ').granularity(DAILY)',
+    fields: 'conversation_analytics.start(' + startDate + ').end(' + endDate + ').granularity(DAILY).phone_numbers([' + phoneNumberId + '])',
+    businessAccountId,
     phoneNumberId,
     tokenPreview: accessToken.substring(0, 20) + '...'
   });
@@ -55,7 +57,7 @@ export async function fetchConversationAnalytics(params: MetaAnalyticsParams): P
   try {
     const response = await axios.get(url, {
       params: {
-        fields: 'conversation_analytics.start(' + startDate + ').end(' + endDate + ').granularity(DAILY)',
+        fields: 'conversation_analytics.start(' + startDate + ').end(' + endDate + ').granularity(DAILY).phone_numbers([' + phoneNumberId + '])',
         access_token: accessToken
       }
     });
