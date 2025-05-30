@@ -68,10 +68,15 @@ export default function DashboardPage() {
   const { data: dashboardData, refetch, isLoading } = useQuery<DashboardStats>({
     queryKey: ['/api/dashboard/complete', startDate, endDate],
     queryFn: async () => {
-      const response = await fetch(`/api/dashboard/complete?startDate=${startDate}&endDate=${endDate}`);
+      const response = await fetch(`/api/dashboard/complete?startDate=${startDate}&endDate=${endDate}&_t=${Date.now()}`);
       if (!response.ok) throw new Error('Erro ao carregar dados');
       return response.json();
-    }
+    },
+    staleTime: 0, // Dados sempre considerados obsoletos
+    cacheTime: 0, // Não armazenar no cache
+    refetchOnMount: true, // Buscar dados sempre que componente montar
+    refetchOnWindowFocus: true, // Buscar dados quando janela receber foco
+    refetchInterval: 30000 // Atualizar automaticamente a cada 30 segundos
   });
 
   const refreshData = async () => {
