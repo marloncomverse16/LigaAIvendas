@@ -5226,14 +5226,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'userId, startDate e endDate são obrigatórios' });
       }
 
-      // Buscar configurações do usuário
-      console.log('🔍 Buscando configurações do usuário:', userId);
-      const userQuery = `SELECT meta_phone_number_id FROM users WHERE id = $1`;
+      // Buscar configurações do usuário (incluindo configurações Meta)
+      console.log('🔍 Buscando configurações completas do usuário:', userId);
+      const userQuery = `
+        SELECT 
+          meta_phone_number_id,
+          whatsapp_meta_token,
+          whatsapp_meta_business_id
+        FROM users 
+        WHERE id = $1
+      `;
       const userResult = await pool.query(userQuery, [userId]);
       
       console.log('👤 Resultado da consulta do usuário:', {
         rowCount: userResult.rows.length,
-        data: userResult.rows
+        data: userResult.rows.map(row => ({
+          hasPhoneNumberId: !!row.meta_phone_number_id,
+          phoneNumberIdValue: row.meta_phone_number_id,
+          hasToken: !!row.whatsapp_meta_token,
+          tokenPreview: row.whatsapp_meta_token ? row.whatsapp_meta_token.substring(0, 20) + '...' : null,
+          hasBusinessId: !!row.whatsapp_meta_business_id,
+          businessIdValue: row.whatsapp_meta_business_id
+        }))
       });
       
       if (!userResult.rows.length) {
@@ -5241,57 +5255,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Usuário não encontrado' });
       }
 
-      const phoneNumberId = userResult.rows[0].meta_phone_number_id;
-      console.log('📞 Phone Number ID encontrado:', phoneNumberId);
+      const { 
+        meta_phone_number_id: phoneNumberId,
+        whatsapp_meta_token: accessToken,
+        whatsapp_meta_business_id: businessAccountId
+      } = userResult.rows[0];
       
-      if (!phoneNumberId) {
-        console.log('❌ Phone Number ID da Meta não configurado no usuário');
-        return res.status(400).json({ error: 'Phone Number ID da Meta não configurado' });
-      }
-
-      // Buscar configurações do servidor
-      console.log('🔍 Buscando configurações do servidor para usuário:', userId);
-      const serverQuery = `
-        SELECT s.whatsapp_meta_token, s.whatsapp_meta_business_id, s.name, s.id
-        FROM servers s 
-        JOIN user_servers us ON s.id = us.server_id 
-        WHERE us.user_id = $1
-        ORDER BY us.is_default DESC NULLS LAST
-        LIMIT 1
-      `;
-      const serverResult = await pool.query(serverQuery, [userId]);
-      
-      console.log('🖥️ Resultado da consulta do servidor:', {
-        rowCount: serverResult.rows.length,
-        data: serverResult.rows.map(row => ({
-          serverId: row.id,
-          serverName: row.name,
-          hasToken: !!row.whatsapp_meta_token,
-          tokenPreview: row.whatsapp_meta_token ? row.whatsapp_meta_token.substring(0, 10) + '...' : null,
-          hasBusinessId: !!row.whatsapp_meta_business_id,
-          businessIdPreview: row.whatsapp_meta_business_id ? row.whatsapp_meta_business_id.substring(0, 10) + '...' : null
-        }))
-      });
-      
-      if (!serverResult.rows.length) {
-        console.log('❌ Nenhuma configuração de servidor encontrada');
-        
-        // Vamos também verificar se existem servidores sem o filtro de default
-        const allServersQuery = `
-          SELECT s.whatsapp_meta_token, s.whatsapp_meta_business_id, s.name, s.id, us.is_default
-          FROM servers s 
-          JOIN user_servers us ON s.id = us.server_id 
-          WHERE us.user_id = $1
-        `;
-        const allServersResult = await pool.query(allServersQuery, [userId]);
-        console.log('📊 Todos os servidores do usuário:', allServersResult.rows);
-        
-        return res.status(400).json({ error: 'Configurações da Meta API não encontradas' });
-      }
-
-      const { whatsapp_meta_token: accessToken, whatsapp_meta_business_id: businessAccountId } = serverResult.rows[0];
-
-      console.log('🔑 Tokens encontrados:', {
+      console.log('📞 Configurações Meta encontradas:', {
+        phoneNumberId,
         hasAccessToken: !!accessToken,
         accessTokenLength: accessToken ? accessToken.length : 0,
         accessTokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : null,
@@ -5299,10 +5270,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         businessAccountIdLength: businessAccountId ? businessAccountId.length : 0,
         businessAccountIdPreview: businessAccountId ? businessAccountId.substring(0, 15) + '...' : null
       });
+      
+      if (!phoneNumberId) {
+        console.log('❌ Phone Number ID da Meta não configurado no usuário');
+        return res.status(400).json({ error: 'Phone Number ID da Meta não configurado' });
+      }
 
       if (!accessToken || !businessAccountId) {
-        console.log('❌ Token ou Business Account ID ausentes');
-        return res.status(400).json({ error: 'Token ou Business Account ID da Meta não configurados' });
+        console.log('❌ Token ou Business Account ID ausentes nas configurações do usuário');
+        return res.status(400).json({ error: 'Token ou Business Account ID da Meta não configurados nas configurações do usuário' });
       }
 
       console.log('📡 Iniciando chamadas para Meta API...');
