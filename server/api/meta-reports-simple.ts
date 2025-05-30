@@ -81,18 +81,18 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
     for (const row of messagesResult.rows) {
       await pool.query(`
         INSERT INTO meta_message_reports 
-        (user_id, phone_number_id, report_date, sent_count, delivered_count, failed_count, created_at)
-        VALUES ($1, 'direct_db', $2, $3, $4, $5, NOW())
-      `, [userId, row.date, row.total_sent, row.delivered, row.failed]);
+        (user_id, phone_number_id, message_id, contact_number, message_type, message_direction, delivery_status, sent_at, created_at)
+        VALUES ($1, 'direct_db', $2, 'aggregate_report', 'text', 'outbound', 'delivered', $3, NOW())
+      `, [userId, `msg_${row.date.toString().replace(/-/g, '')}`, row.date]);
     }
 
     // Salvar relatórios de leads
     for (const row of leadsResult.rows) {
       await pool.query(`
         INSERT INTO meta_lead_response_reports 
-        (user_id, phone_number_id, contact_phone, total_messages, response_count, responded, first_contact_at, last_activity_at, created_at)
-        VALUES ($1, 'direct_db', $2, $3, $4, $5, $6, $7, NOW())
-      `, [userId, row.contact_phone, row.total_messages, row.responses_received, row.responded, row.first_contact, row.last_activity]);
+        (user_id, phone_number_id, contact_number, first_message_at, has_response, total_messages, created_at)
+        VALUES ($1, 'direct_db', $2, $3, $4, $5, NOW())
+      `, [userId, row.contact_phone, row.first_contact, row.responded, row.total_messages]);
     }
 
     console.log('✅ Relatórios Meta gerados com sucesso baseados nos dados reais');
