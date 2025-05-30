@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSidebar } from "@/providers/sidebar-provider";
+import { Logo } from "@/components/ui/logo";
 
 export function Sidebar() {
   const { user, logoutMutation } = useAuth();
@@ -140,12 +141,7 @@ export function Sidebar() {
             "flex items-center p-4",
             collapsed ? "justify-center" : "justify-start"
           )}>
-            {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="h-10" />
-            ) : (
-              <div className="flex items-center justify-center w-10 h-10 bg-sidebar-primary text-white font-bold rounded-md">L</div>
-            )}
-            {/* Nome da aplicação removido conforme solicitado */}
+            <Logo size={collapsed ? "sm" : "md"} />
           </div>
           
           {/* Toggle button */}

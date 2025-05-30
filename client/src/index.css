@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 :root {
+  --primary: #FF6600;
+  --primary-dark: #E55A00;
+  --primary-light: #FF8033;
+  --accent: #FFD700;
+  --accent-dark: #FFC300;
   --whatsapp-light: #128C7E;
   --whatsapp-dark: #075E54;
 }
@@ -13,6 +18,42 @@
 
 .bg-whatsapp-dark {
   background-color: var(--whatsapp-dark);
+}
+
+.bg-primary {
+  background-color: var(--primary);
+}
+
+.bg-primary-dark {
+  background-color: var(--primary-dark);
+}
+
+.bg-primary-light {
+  background-color: var(--primary-light);
+}
+
+.bg-accent {
+  background-color: var(--accent);
+}
+
+.text-primary {
+  color: var(--primary);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.border-primary {
+  border-color: var(--primary);
+}
+
+.hover\:bg-primary:hover {
+  background-color: var(--primary);
+}
+
+.hover\:bg-primary-dark:hover {
+  background-color: var(--primary-dark);
 }
 
 /* Barras de rolagem personalizadas */
@@ -73,13 +114,13 @@
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
   
-  --primary: 160 84% 39%;
+  --primary: 18 100% 50%;
   --primary-foreground: 210 40% 98%;
   
-  --secondary: 252 85% 60%; 
+  --secondary: 45 100% 51%; 
   --secondary-foreground: 210 40% 98%;
   
-  --accent: 326 100% 74%;
+  --accent: 45 100% 51%;
   --accent-foreground: 210 40% 98%;
   
   --destructive: 0 100% 50%;

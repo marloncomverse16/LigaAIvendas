@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/ui/logo";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -83,16 +84,10 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-10">
             <div className="flex justify-center mb-4">
-              {logoUrl ? (
-                <img src={logoUrl} alt="Logo" className="h-14" />
-              ) : (
-                <div className="flex items-center justify-center w-14 h-14 bg-primary text-white font-bold rounded-md text-2xl">
-                  L
-                </div>
-              )}
+              <Logo size="lg" />
             </div>
-            <h1 className="text-3xl font-bold text-primary">LiguIA</h1>
-            <p className="text-muted-foreground mt-2">Gerencie seus disparos e prospecções</p>
+            <h1 className="text-3xl font-bold text-orange-600">LigAI</h1>
+            <p className="text-muted-foreground mt-2">Plataforma inteligente de comunicação e prospecção</p>
           </div>
           
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register")}>
