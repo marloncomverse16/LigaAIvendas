@@ -72,9 +72,9 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
     for (const row of conversationsResult.rows) {
       await pool.query(`
         INSERT INTO meta_conversation_reports 
-        (user_id, phone_number_id, conversation_type, started_at, message_count, created_at)
-        VALUES ($1, 'direct_db', 'business_initiated', $2, $3, NOW())
-      `, [userId, row.date, row.conversations_initiated]);
+        (user_id, phone_number_id, conversation_id, contact_number, conversation_type, started_at, message_count, created_at)
+        VALUES ($1, 'direct_db', $2, 'aggregate_report', 'business_initiated', $3, $4, NOW())
+      `, [userId, `conv_${row.date.replace(/-/g, '')}`, row.date, row.conversations_initiated]);
     }
 
     // Salvar relatórios de mensagens
