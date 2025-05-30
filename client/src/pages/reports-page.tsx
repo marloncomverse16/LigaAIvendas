@@ -298,8 +298,14 @@ export default function ReportsPage() {
                     <tbody>
                       {reportData.conversations.map((conv, index) => (
                         <tr key={index}>
-                          <td className="border border-gray-200 p-2">{conv.contact_number}</td>
-                          <td className="border border-gray-200 p-2">{conv.conversation_type}</td>
+                          <td className="border border-gray-200 p-2">
+                            {conv.contact_number === 'aggregate_report' ? 'Relatório Consolidado' : conv.contact_number}
+                          </td>
+                          <td className="border border-gray-200 p-2">
+                            {conv.conversation_type === 'business_initiated' ? 'Iniciada pelo Negócio' : 
+                             conv.conversation_type === 'user_initiated' ? 'Iniciada pelo Cliente' : 
+                             conv.conversation_type}
+                          </td>
                           <td className="border border-gray-200 p-2">
                             {conv.is_free_window ? 'Sim' : 'Não'}
                           </td>
@@ -360,8 +366,16 @@ export default function ReportsPage() {
                     <tbody>
                       {reportData.messages.map((msg, index) => (
                         <tr key={index}>
-                          <td className="border border-gray-200 p-2">{msg.contact_number}</td>
-                          <td className="border border-gray-200 p-2">{msg.message_type}</td>
+                          <td className="border border-gray-200 p-2">
+                            {msg.contact_number === 'aggregate_report' ? 'Relatório Consolidado' : msg.contact_number}
+                          </td>
+                          <td className="border border-gray-200 p-2">
+                            {msg.message_type === 'text' ? 'Texto' : 
+                             msg.message_type === 'template' ? 'Template' : 
+                             msg.message_type === 'image' ? 'Imagem' : 
+                             msg.message_type === 'document' ? 'Documento' : 
+                             msg.message_type}
+                          </td>
                           <td className="border border-gray-200 p-2">{msg.template_name || '-'}</td>
                           <td className="border border-gray-200 p-2">
                             <span className={`px-2 py-1 rounded text-xs ${
@@ -369,7 +383,11 @@ export default function ReportsPage() {
                               msg.delivery_status === 'failed' ? 'bg-red-100 text-red-800' :
                               'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {msg.delivery_status}
+                              {msg.delivery_status === 'delivered' ? 'Entregue' :
+                               msg.delivery_status === 'failed' ? 'Falha' :
+                               msg.delivery_status === 'sent' ? 'Enviado' :
+                               msg.delivery_status === 'read' ? 'Lido' :
+                               msg.delivery_status}
                             </span>
                           </td>
                           <td className="border border-gray-200 p-2">
