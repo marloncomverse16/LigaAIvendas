@@ -5210,6 +5210,238 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ROTAS DOS RELATÓRIOS META =====
+  
+  // Sincronizar relatórios Meta
+  app.post('/api/meta-reports/sync/:userId', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { startDate, endDate } = req.body;
+
+      if (!userId || !startDate || !endDate) {
+        return res.status(400).json({ error: 'userId, startDate e endDate são obrigatórios' });
+      }
+
+      // Buscar configurações do usuário
+      const userQuery = `SELECT meta_phone_number_id FROM users WHERE id = $1`;
+      const userResult = await pool.query(userQuery, [userId]);
+      
+      if (!userResult.rows.length) {
+        return res.status(404).json({ error: 'Usuário não encontrado' });
+      }
+
+      const phoneNumberId = userResult.rows[0].meta_phone_number_id;
+      if (!phoneNumberId) {
+        return res.status(400).json({ error: 'Phone Number ID da Meta não configurado' });
+      }
+
+      // Buscar configurações do servidor
+      const serverQuery = `
+        SELECT s.whatsapp_meta_token, s.whatsapp_meta_business_id 
+        FROM servers s 
+        JOIN user_servers us ON s.id = us.server_id 
+        WHERE us.user_id = $1 AND us.is_default = true
+      `;
+      const serverResult = await pool.query(serverQuery, [userId]);
+      
+      if (!serverResult.rows.length) {
+        return res.status(400).json({ error: 'Configurações da Meta API não encontradas' });
+      }
+
+      const { whatsapp_meta_token: accessToken, whatsapp_meta_business_id: businessAccountId } = serverResult.rows[0];
+
+      if (!accessToken || !businessAccountId) {
+        return res.status(400).json({ error: 'Token ou Business Account ID da Meta não configurados' });
+      }
+
+      const metaReports = require('./api/meta-reports');
+
+      // Sincronizar dados de conversas
+      const conversationData = await metaReports.fetchConversationAnalytics({
+        phoneNumberId,
+        accessToken,
+        businessAccountId,
+        startDate,
+        endDate
+      });
+      
+      await metaReports.saveConversationReports(pool, userId, phoneNumberId, conversationData);
+
+      // Sincronizar dados de mensagens
+      const messageData = await metaReports.fetchMessageAnalytics({
+        phoneNumberId,
+        accessToken,
+        businessAccountId,
+        startDate,
+        endDate
+      });
+      
+      await metaReports.saveMessageReports(pool, userId, phoneNumberId, messageData);
+
+      // Gerar relatório de cobrança
+      await metaReports.generateBillingReport(pool, userId, phoneNumberId, startDate, endDate);
+
+      // Atualizar relatórios de leads respondidos
+      await metaReports.updateLeadResponseReports(pool, userId, phoneNumberId);
+
+      res.json({ 
+        success: true, 
+        message: 'Relatórios Meta sincronizados com sucesso',
+        phoneNumberId,
+        period: { startDate, endDate }
+      });
+
+    } catch (error) {
+      console.error('Erro ao sincronizar relatórios Meta:', error);
+      res.status(500).json({ 
+        error: 'Erro interno do servidor', 
+        details: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+
+  // Buscar relatórios de conversas
+  app.get('/api/meta-reports/conversations/:userId', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { startDate, endDate, phoneNumberId } = req.query;
+
+      let query = `
+        SELECT * FROM meta_conversation_reports 
+        WHERE user_id = $1
+      `;
+      const params = [userId];
+
+      if (startDate && endDate) {
+        query += ` AND started_at BETWEEN $2 AND $3`;
+        params.push(startDate as string, endDate as string);
+      }
+
+      if (phoneNumberId) {
+        query += ` AND phone_number_id = $${params.length + 1}`;
+        params.push(phoneNumberId as string);
+      }
+
+      query += ` ORDER BY started_at DESC`;
+
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+
+    } catch (error) {
+      console.error('Erro ao buscar relatórios de conversas:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
+  // Buscar relatórios de mensagens
+  app.get('/api/meta-reports/messages/:userId', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { startDate, endDate, phoneNumberId, deliveryStatus } = req.query;
+
+      let query = `
+        SELECT * FROM meta_message_reports 
+        WHERE user_id = $1
+      `;
+      const params = [userId];
+
+      if (startDate && endDate) {
+        query += ` AND sent_at BETWEEN $2 AND $3`;
+        params.push(startDate as string, endDate as string);
+      }
+
+      if (phoneNumberId) {
+        query += ` AND phone_number_id = $${params.length + 1}`;
+        params.push(phoneNumberId as string);
+      }
+
+      if (deliveryStatus) {
+        query += ` AND delivery_status = $${params.length + 1}`;
+        params.push(deliveryStatus as string);
+      }
+
+      query += ` ORDER BY sent_at DESC`;
+
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+
+    } catch (error) {
+      console.error('Erro ao buscar relatórios de mensagens:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
+  // Buscar relatórios de cobrança
+  app.get('/api/meta-reports/billing/:userId', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { startDate, endDate, phoneNumberId } = req.query;
+
+      let query = `
+        SELECT * FROM meta_billing_reports 
+        WHERE user_id = $1
+      `;
+      const params = [userId];
+
+      if (startDate && endDate) {
+        query += ` AND report_date BETWEEN $2 AND $3`;
+        params.push(startDate as string, endDate as string);
+      }
+
+      if (phoneNumberId) {
+        query += ` AND phone_number_id = $${params.length + 1}`;
+        params.push(phoneNumberId as string);
+      }
+
+      query += ` ORDER BY report_date DESC`;
+
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+
+    } catch (error) {
+      console.error('Erro ao buscar relatórios de cobrança:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
+  // Buscar relatórios de leads respondidos
+  app.get('/api/meta-reports/leads/:userId', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { startDate, endDate, phoneNumberId, hasResponse } = req.query;
+
+      let query = `
+        SELECT * FROM meta_lead_response_reports 
+        WHERE user_id = $1
+      `;
+      const params = [userId];
+
+      if (startDate && endDate) {
+        query += ` AND first_message_at BETWEEN $2 AND $3`;
+        params.push(startDate as string, endDate as string);
+      }
+
+      if (phoneNumberId) {
+        query += ` AND phone_number_id = $${params.length + 1}`;
+        params.push(phoneNumberId as string);
+      }
+
+      if (hasResponse !== undefined) {
+        query += ` AND has_response = $${params.length + 1}`;
+        params.push(hasResponse === 'true');
+      }
+
+      query += ` ORDER BY first_message_at DESC`;
+
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+
+    } catch (error) {
+      console.error('Erro ao buscar relatórios de leads:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
   // Configure HTTP server
   const httpServer = createServer(app);
   

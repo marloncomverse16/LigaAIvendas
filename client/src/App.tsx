@@ -27,6 +27,7 @@ import ConnectionsSettingsPage from "@/pages/connections-settings-page";
 import ContactsPageNew from "@/pages/contacts-page-new";
 import MetaTestPage from "@/pages/meta-test-page";
 import ChatOtimizado from "@/pages/chat-otimizado";
+import ReportsPage from "@/pages/reports-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { SidebarProvider } from "@/providers/sidebar-provider";
