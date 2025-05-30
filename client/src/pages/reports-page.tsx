@@ -140,7 +140,7 @@ export default function ReportsPage() {
     totalMessages: reportData.messages.length,
     deliveredMessages: reportData.messages.filter(m => m.delivery_status === 'delivered').length,
     leadsWithResponse: reportData.leads.filter(l => l.has_response).length,
-    totalCost: reportData.billing.reduce((sum, b) => sum + parseFloat(b.total_cost || '0'), 0)
+    totalCost: reportData.billing.reduce((sum, b) => sum + parseFloat(b.cost_brl || '0'), 0)
   };
 
   return (
@@ -245,9 +245,9 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${stats.totalCost.toFixed(4)}
+              R$ {stats.totalCost.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">USD</p>
+            <p className="text-xs text-muted-foreground">BRL</p>
           </CardContent>
         </Card>
       </div>
@@ -313,7 +313,7 @@ export default function ReportsPage() {
                             {format(new Date(conv.started_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                           </td>
                           <td className="border border-gray-200 p-2">{conv.message_count}</td>
-                          <td className="border border-gray-200 p-2">${conv.total_cost}</td>
+                          <td className="border border-gray-200 p-2">R$ {(parseFloat(conv.cost_brl) || 0.038).toFixed(3)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -396,7 +396,7 @@ export default function ReportsPage() {
                           <td className="border border-gray-200 p-2">
                             {msg.delivered_at ? format(new Date(msg.delivered_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-'}
                           </td>
-                          <td className="border border-gray-200 p-2">${msg.cost}</td>
+                          <td className="border border-gray-200 p-2">R$ {(parseFloat(msg.cost_brl) || 0.027).toFixed(3)}</td>
                         </tr>
                       ))}
                     </tbody>
