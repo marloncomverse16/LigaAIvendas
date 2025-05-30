@@ -100,7 +100,7 @@ export function Sidebar() {
     },
     // 10 - Relatórios
     { 
-      path: "/reports", 
+      path: "/relatorios", 
       label: "Relatórios", 
       icon: <Users size={collapsed ? 24 : 20} />, 
       permissionKey: "accessReports"

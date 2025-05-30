@@ -46,6 +46,7 @@ function Router() {
       <ProtectedRoute path="/conexoes/whatsapp-meta" component={WhatsAppMetaPage} />
       <ProtectedRoute path="/connection" component={ConnectionPage} />
       <ProtectedRoute path="/contatos" component={ContactsPageNew} />
+      <ProtectedRoute path="/relatorios" component={ReportsPage} />
 
       <ProtectedRoute path="/whatsapp-web" component={WhatsappWebPage} />
       <ProtectedRoute path="/new-chat" component={WhatsappWebPage} />
