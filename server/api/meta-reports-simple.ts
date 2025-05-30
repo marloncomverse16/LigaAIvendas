@@ -10,16 +10,16 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
     // 1. Relatório de Conversas Iniciadas
     const conversationsQuery = `
       SELECT 
+        contact_phone,
         DATE(created_at) as date,
-        COUNT(DISTINCT contact_phone) as conversations_initiated,
-        COUNT(CASE WHEN from_me = false THEN 1 END) as messages_received,
-        COUNT(CASE WHEN from_me = true THEN 1 END) as messages_sent
+        COUNT(*) as message_count
       FROM meta_chat_messages 
       WHERE user_id = $1
         AND created_at >= $2 
         AND created_at <= $3
-      GROUP BY DATE(created_at)
-      ORDER BY date DESC
+        AND from_me = true
+      GROUP BY contact_phone, DATE(created_at)
+      ORDER BY date DESC, contact_phone
     `;
 
     const conversationsResult = await pool.query(conversationsQuery, [userId, startDate, endDate]);
@@ -27,17 +27,17 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
     // 2. Relatório de Mensagens Entregues/Não Entregues
     const messagesQuery = `
       SELECT 
+        contact_phone,
         DATE(created_at) as date,
-        COUNT(CASE WHEN from_me = true AND status = 'delivered' THEN 1 END) as delivered,
-        COUNT(CASE WHEN from_me = true AND status != 'delivered' THEN 1 END) as failed,
-        COUNT(CASE WHEN from_me = true THEN 1 END) as total_sent
+        status as delivery_status,
+        message_type,
+        created_at as sent_at
       FROM meta_chat_messages 
       WHERE user_id = $1
         AND created_at >= $2 
         AND created_at <= $3
         AND from_me = true
-      GROUP BY DATE(created_at)
-      ORDER BY date DESC
+      ORDER BY date DESC, contact_phone
     `;
 
     const messagesResult = await pool.query(messagesQuery, [userId, startDate, endDate]);
@@ -73,8 +73,8 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
       await pool.query(`
         INSERT INTO meta_conversation_reports 
         (user_id, phone_number_id, conversation_id, contact_number, conversation_type, started_at, message_count, created_at)
-        VALUES ($1, 'direct_db', $2, 'aggregate_report', 'business_initiated', $3, $4, NOW())
-      `, [userId, `conv_${row.date.toString().replace(/-/g, '')}`, row.date, row.conversations_initiated]);
+        VALUES ($1, 'direct_db', $2, $3, 'business_initiated', $4, $5, NOW())
+      `, [userId, `conv_${row.contact_phone}_${row.date.toString().replace(/-/g, '')}`, row.contact_phone, row.date, row.message_count]);
     }
 
     // Salvar relatórios de mensagens
@@ -82,8 +82,8 @@ export async function generateMetaReportsFromDatabase(userId: number, startDate:
       await pool.query(`
         INSERT INTO meta_message_reports 
         (user_id, phone_number_id, message_id, contact_number, message_type, message_direction, delivery_status, sent_at, created_at)
-        VALUES ($1, 'direct_db', $2, 'aggregate_report', 'text', 'outbound', 'delivered', $3, NOW())
-      `, [userId, `msg_${row.date.toString().replace(/-/g, '')}`, row.date]);
+        VALUES ($1, 'direct_db', $2, $3, $4, 'outbound', $5, $6, NOW())
+      `, [userId, `msg_${row.contact_phone}_${Date.now()}`, row.contact_phone, row.message_type || 'text', row.delivery_status || 'delivered', row.sent_at]);
     }
 
     // Salvar relatórios de leads
