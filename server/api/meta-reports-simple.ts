@@ -1,7 +1,8 @@
 import { Pool } from 'pg';
+import { fetchMetaBillingData, saveBillingDataToDatabase } from './meta-billing-api';
 
 // Função para gerar relatórios baseados exclusivamente nos dados do banco
-export async function generateMetaReportsFromDatabase(userId: number, startDate: string, endDate: string) {
+export async function generateMetaReportsFromDatabase(userId: number, startDate: string, endDate: string, accessToken?: string, businessAccountId?: string, phoneNumberId?: string) {
   console.log('📊 Gerando relatórios Meta baseados nos dados reais do banco de dados');
   
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
