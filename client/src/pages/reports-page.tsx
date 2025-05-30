@@ -20,7 +20,6 @@ interface ReportData {
 export default function ReportsPage() {
   const [startDate, setStartDate] = useState(format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [phoneNumberId, setPhoneNumberId] = useState('');
   const [reportData, setReportData] = useState<ReportData>({
     conversations: [],
     messages: [],
@@ -38,8 +37,7 @@ export default function ReportsPage() {
       const userId = 2; // Implementar busca do usuário autenticado
       const params = new URLSearchParams({
         startDate,
-        endDate,
-        ...(phoneNumberId && { phoneNumberId })
+        endDate
       });
 
       const [conversationsRes, messagesRes, billingRes, leadsRes] = await Promise.all([
@@ -131,7 +129,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchReports();
-  }, [startDate, endDate, phoneNumberId]);
+  }, [startDate, endDate]);
 
   // Calcular estatísticas resumidas
   const stats = {
@@ -166,7 +164,7 @@ export default function ReportsPage() {
             Filtros
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="startDate">Data Inicial</Label>
             <Input
@@ -183,15 +181,6 @@ export default function ReportsPage() {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="phoneNumberId">Phone Number ID (Opcional)</Label>
-            <Input
-              id="phoneNumberId"
-              placeholder="Digite o Phone Number ID"
-              value={phoneNumberId}
-              onChange={(e) => setPhoneNumberId(e.target.value)}
             />
           </div>
         </CardContent>
