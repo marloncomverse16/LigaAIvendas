@@ -5471,11 +5471,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { startDate, endDate } = req.query;
       const userId = 2; // Implementar busca do usuário autenticado
 
-      // Buscar status das conexões - Mock data até implementar corretamente
+      // Buscar status das conexões Meta da tabela user_servers
+      const userServerQuery = `
+        SELECT meta_phone_number_id, meta_connected, meta_connected_at
+        FROM user_servers 
+        WHERE user_id = $1 AND meta_phone_number_id IS NOT NULL
+        LIMIT 1
+      `;
+      const userServerResult = await pool.query(userServerQuery, [userId]);
+      const userServer = userServerResult.rows[0];
+      
       const metaConnection = {
-        connected: true,
-        phoneNumber: "55 43 91142751",
-        lastCheck: new Date().toISOString()
+        connected: userServer?.meta_connected || false,
+        phoneNumber: userServer?.meta_phone_number_id || null,
+        lastCheck: userServer?.meta_connected_at || new Date().toISOString()
       };
       
       // Verificar conexão QR Code
