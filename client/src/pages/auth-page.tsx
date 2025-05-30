@@ -86,7 +86,6 @@ export default function AuthPage() {
             <div className="flex justify-center mb-4">
               <Logo size="lg" />
             </div>
-            <h1 className="text-3xl font-bold text-orange-600">LigAI</h1>
             <p className="text-muted-foreground mt-2">Plataforma inteligente de comunicação e prospecção</p>
           </div>
           
@@ -291,7 +290,7 @@ export default function AuthPage() {
       </div>
       
       <div className="hidden md:block md:w-1/2 relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-secondary/80 flex items-center justify-center">
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-500/90 to-yellow-500/90 flex items-center justify-center">
           <div className="text-white p-8 max-w-lg text-center">
             <h2 className="text-3xl font-bold mb-4">Potencialize seu negócio com automação inteligente</h2>
             <p className="text-lg mb-8">Gerencie leads, prospecções e disparos de mensagens em um só lugar de forma eficiente.</p>
