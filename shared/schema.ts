@@ -719,6 +719,75 @@ export const contacts = pgTable("contacts", {
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
+// Tabelas para relatórios Meta
+export const metaConversationReports = pgTable("meta_conversation_reports", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  phoneNumberId: text("phone_number_id").notNull(),
+  conversationId: text("conversation_id").notNull(),
+  contactNumber: text("contact_number").notNull(),
+  conversationType: text("conversation_type").notNull(), // user_initiated, business_initiated
+  isFreeWindow: boolean("is_free_window").default(false),
+  startedAt: timestamp("started_at").notNull(),
+  endedAt: timestamp("ended_at"),
+  messageCount: integer("message_count").default(0),
+  totalCost: text("total_cost").default("0"), // Custo em USD
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const metaMessageReports = pgTable("meta_message_reports", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  phoneNumberId: text("phone_number_id").notNull(),
+  messageId: text("message_id").notNull(),
+  contactNumber: text("contact_number").notNull(),
+  messageType: text("message_type").notNull(), // text, template, media
+  templateName: text("template_name"),
+  messageDirection: text("message_direction").notNull(), // inbound, outbound
+  deliveryStatus: text("delivery_status").notNull(), // sent, delivered, read, failed
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at").notNull(),
+  deliveredAt: timestamp("delivered_at"),
+  readAt: timestamp("read_at"),
+  cost: text("cost").default("0"), // Custo individual em USD
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const metaBillingReports = pgTable("meta_billing_reports", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  phoneNumberId: text("phone_number_id").notNull(),
+  reportDate: timestamp("report_date").notNull(),
+  conversationCount: integer("conversation_count").default(0),
+  freeConversationCount: integer("free_conversation_count").default(0),
+  paidConversationCount: integer("paid_conversation_count").default(0),
+  messageCount: integer("message_count").default(0),
+  templateMessageCount: integer("template_message_count").default(0),
+  totalCost: text("total_cost").default("0"), // Custo total em USD
+  currency: text("currency").default("USD"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const metaLeadResponseReports = pgTable("meta_lead_response_reports", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  phoneNumberId: text("phone_number_id").notNull(),
+  contactNumber: text("contact_number").notNull(),
+  leadSource: text("lead_source"), // prospecting, manual, webhook
+  firstMessageAt: timestamp("first_message_at").notNull(),
+  firstResponseAt: timestamp("first_response_at"),
+  responseTime: integer("response_time"), // Tempo de resposta em minutos
+  totalMessages: integer("total_messages").default(0),
+  hasResponse: boolean("has_response").default(false),
+  leadStatus: text("lead_status").default("new"), // new, responded, converted, lost
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // Relação entre usuários e servidores
 export const userServers = pgTable("user_servers", {
   id: serial("id").primaryKey(),
@@ -883,6 +952,72 @@ export const insertContactSchema = createInsertSchema(contacts).pick({
 
 export type Contact = typeof contacts.$inferSelect;
 export type InsertContact = z.infer<typeof insertContactSchema>;
+
+// Schemas para os relatórios Meta
+export const insertMetaConversationReportSchema = createInsertSchema(metaConversationReports).pick({
+  phoneNumberId: true,
+  conversationId: true,
+  contactNumber: true,
+  conversationType: true,
+  isFreeWindow: true,
+  startedAt: true,
+  endedAt: true,
+  messageCount: true,
+  totalCost: true,
+});
+
+export const insertMetaMessageReportSchema = createInsertSchema(metaMessageReports).pick({
+  phoneNumberId: true,
+  messageId: true,
+  contactNumber: true,
+  messageType: true,
+  templateName: true,
+  messageDirection: true,
+  deliveryStatus: true,
+  errorCode: true,
+  errorMessage: true,
+  sentAt: true,
+  deliveredAt: true,
+  readAt: true,
+  cost: true,
+});
+
+export const insertMetaBillingReportSchema = createInsertSchema(metaBillingReports).pick({
+  phoneNumberId: true,
+  reportDate: true,
+  conversationCount: true,
+  freeConversationCount: true,
+  paidConversationCount: true,
+  messageCount: true,
+  templateMessageCount: true,
+  totalCost: true,
+  currency: true,
+});
+
+export const insertMetaLeadResponseReportSchema = createInsertSchema(metaLeadResponseReports).pick({
+  phoneNumberId: true,
+  contactNumber: true,
+  leadSource: true,
+  firstMessageAt: true,
+  firstResponseAt: true,
+  responseTime: true,
+  totalMessages: true,
+  hasResponse: true,
+  leadStatus: true,
+});
+
+// Types para os relatórios Meta
+export type MetaConversationReport = typeof metaConversationReports.$inferSelect;
+export type InsertMetaConversationReport = z.infer<typeof insertMetaConversationReportSchema>;
+
+export type MetaMessageReport = typeof metaMessageReports.$inferSelect;
+export type InsertMetaMessageReport = z.infer<typeof insertMetaMessageReportSchema>;
+
+export type MetaBillingReport = typeof metaBillingReports.$inferSelect;
+export type InsertMetaBillingReport = z.infer<typeof insertMetaBillingReportSchema>;
+
+export type MetaLeadResponseReport = typeof metaLeadResponseReports.$inferSelect;
+export type InsertMetaLeadResponseReport = z.infer<typeof insertMetaLeadResponseReportSchema>;
 
 // Tabela para armazenar mensagens de WhatsApp
 
