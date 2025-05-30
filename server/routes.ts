@@ -5218,81 +5218,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       const { startDate, endDate } = req.body;
 
+      console.log('🔄 INICIANDO SINCRONIZAÇÃO META REPORTS');
+      console.log('📋 Parâmetros recebidos:', { userId, startDate, endDate });
+
       if (!userId || !startDate || !endDate) {
+        console.log('❌ Parâmetros obrigatórios ausentes');
         return res.status(400).json({ error: 'userId, startDate e endDate são obrigatórios' });
       }
 
       // Buscar configurações do usuário
+      console.log('🔍 Buscando configurações do usuário:', userId);
       const userQuery = `SELECT meta_phone_number_id FROM users WHERE id = $1`;
       const userResult = await pool.query(userQuery, [userId]);
       
+      console.log('👤 Resultado da consulta do usuário:', {
+        rowCount: userResult.rows.length,
+        data: userResult.rows
+      });
+      
       if (!userResult.rows.length) {
+        console.log('❌ Usuário não encontrado');
         return res.status(404).json({ error: 'Usuário não encontrado' });
       }
 
       const phoneNumberId = userResult.rows[0].meta_phone_number_id;
+      console.log('📞 Phone Number ID encontrado:', phoneNumberId);
+      
       if (!phoneNumberId) {
+        console.log('❌ Phone Number ID da Meta não configurado no usuário');
         return res.status(400).json({ error: 'Phone Number ID da Meta não configurado' });
       }
 
       // Buscar configurações do servidor
+      console.log('🔍 Buscando configurações do servidor para usuário:', userId);
       const serverQuery = `
-        SELECT s.whatsapp_meta_token, s.whatsapp_meta_business_id 
+        SELECT s.whatsapp_meta_token, s.whatsapp_meta_business_id, s.name, s.id
         FROM servers s 
         JOIN user_servers us ON s.id = us.server_id 
         WHERE us.user_id = $1 AND us.is_default = true
       `;
       const serverResult = await pool.query(serverQuery, [userId]);
       
+      console.log('🖥️ Resultado da consulta do servidor:', {
+        rowCount: serverResult.rows.length,
+        data: serverResult.rows.map(row => ({
+          serverId: row.id,
+          serverName: row.name,
+          hasToken: !!row.whatsapp_meta_token,
+          tokenPreview: row.whatsapp_meta_token ? row.whatsapp_meta_token.substring(0, 10) + '...' : null,
+          hasBusinessId: !!row.whatsapp_meta_business_id,
+          businessIdPreview: row.whatsapp_meta_business_id ? row.whatsapp_meta_business_id.substring(0, 10) + '...' : null
+        }))
+      });
+      
       if (!serverResult.rows.length) {
+        console.log('❌ Nenhuma configuração de servidor encontrada');
+        
+        // Vamos também verificar se existem servidores sem o filtro de default
+        const allServersQuery = `
+          SELECT s.whatsapp_meta_token, s.whatsapp_meta_business_id, s.name, s.id, us.is_default
+          FROM servers s 
+          JOIN user_servers us ON s.id = us.server_id 
+          WHERE us.user_id = $1
+        `;
+        const allServersResult = await pool.query(allServersQuery, [userId]);
+        console.log('📊 Todos os servidores do usuário:', allServersResult.rows);
+        
         return res.status(400).json({ error: 'Configurações da Meta API não encontradas' });
       }
 
       const { whatsapp_meta_token: accessToken, whatsapp_meta_business_id: businessAccountId } = serverResult.rows[0];
 
+      console.log('🔑 Tokens encontrados:', {
+        hasAccessToken: !!accessToken,
+        accessTokenLength: accessToken ? accessToken.length : 0,
+        accessTokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : null,
+        hasBusinessAccountId: !!businessAccountId,
+        businessAccountIdLength: businessAccountId ? businessAccountId.length : 0,
+        businessAccountIdPreview: businessAccountId ? businessAccountId.substring(0, 15) + '...' : null
+      });
+
       if (!accessToken || !businessAccountId) {
+        console.log('❌ Token ou Business Account ID ausentes');
         return res.status(400).json({ error: 'Token ou Business Account ID da Meta não configurados' });
       }
 
+      console.log('📡 Iniciando chamadas para Meta API...');
       const metaReports = require('./api/meta-reports');
 
-      // Sincronizar dados de conversas
-      const conversationData = await metaReports.fetchConversationAnalytics({
-        phoneNumberId,
-        accessToken,
-        businessAccountId,
-        startDate,
-        endDate
-      });
-      
-      await metaReports.saveConversationReports(pool, userId, phoneNumberId, conversationData);
+      try {
+        // Sincronizar dados de conversas
+        console.log('📊 Buscando analytics de conversas...');
+        const conversationData = await metaReports.fetchConversationAnalytics({
+          phoneNumberId,
+          accessToken,
+          businessAccountId,
+          startDate,
+          endDate
+        });
+        console.log('✅ Analytics de conversas obtidos:', conversationData);
+        
+        console.log('💾 Salvando dados de conversas...');
+        await metaReports.saveConversationReports(pool, userId, phoneNumberId, conversationData);
+        console.log('✅ Dados de conversas salvos');
 
-      // Sincronizar dados de mensagens
-      const messageData = await metaReports.fetchMessageAnalytics({
-        phoneNumberId,
-        accessToken,
-        businessAccountId,
-        startDate,
-        endDate
-      });
-      
-      await metaReports.saveMessageReports(pool, userId, phoneNumberId, messageData);
+        // Sincronizar dados de mensagens
+        console.log('📨 Buscando analytics de mensagens...');
+        const messageData = await metaReports.fetchMessageAnalytics({
+          phoneNumberId,
+          accessToken,
+          businessAccountId,
+          startDate,
+          endDate
+        });
+        console.log('✅ Analytics de mensagens obtidos:', messageData);
+        
+        console.log('💾 Salvando dados de mensagens...');
+        await metaReports.saveMessageReports(pool, userId, phoneNumberId, messageData);
+        console.log('✅ Dados de mensagens salvos');
 
-      // Gerar relatório de cobrança
-      await metaReports.generateBillingReport(pool, userId, phoneNumberId, startDate, endDate);
+        // Gerar relatório de cobrança
+        console.log('💰 Gerando relatório de cobrança...');
+        await metaReports.generateBillingReport(pool, userId, phoneNumberId, startDate, endDate);
+        console.log('✅ Relatório de cobrança gerado');
 
-      // Atualizar relatórios de leads respondidos
-      await metaReports.updateLeadResponseReports(pool, userId, phoneNumberId);
+        // Atualizar relatórios de leads respondidos
+        console.log('👥 Atualizando relatórios de leads...');
+        await metaReports.updateLeadResponseReports(pool, userId, phoneNumberId);
+        console.log('✅ Relatórios de leads atualizados');
 
-      res.json({ 
-        success: true, 
-        message: 'Relatórios Meta sincronizados com sucesso',
-        phoneNumberId,
-        period: { startDate, endDate }
-      });
+        console.log('🎉 SINCRONIZAÇÃO CONCLUÍDA COM SUCESSO');
+        res.json({ 
+          success: true, 
+          message: 'Relatórios Meta sincronizados com sucesso',
+          phoneNumberId,
+          period: { startDate, endDate }
+        });
+
+      } catch (metaApiError) {
+        console.error('❌ Erro nas chamadas da Meta API:', metaApiError);
+        res.status(500).json({ 
+          error: 'Erro ao acessar Meta API', 
+          details: metaApiError instanceof Error ? metaApiError.message : 'Erro na API da Meta'
+        });
+      }
 
     } catch (error) {
-      console.error('Erro ao sincronizar relatórios Meta:', error);
+      console.error('❌ ERRO GERAL na sincronização de relatórios Meta:', error);
       res.status(500).json({ 
         error: 'Erro interno do servidor', 
         details: error instanceof Error ? error.message : 'Erro desconhecido'
