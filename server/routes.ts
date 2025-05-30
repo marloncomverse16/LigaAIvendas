@@ -5492,24 +5492,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let qrWhatsAppNumber = null;
       
       try {
+        // Buscar token correto da Evolution API do banco de dados
+        const serverResult = await pool.query('SELECT api_token FROM servers WHERE id = 1');
+        const evolutionApiKey = serverResult.rows[0]?.api_token || '0f9e7d76866fd738dbed11acfcef1403';
+        
+        console.log('Usando Evolution API key:', evolutionApiKey);
+        
         // Verificar estado da conexão
         const stateResponse = await fetch('https://api.primerastreadores.com/instance/connectionState/admin', {
-          headers: { 'apikey': '0f9e7d39-a1df-4f7d-8a65-f8d9c5b61403' }
+          headers: { 'apikey': evolutionApiKey }
         });
         const stateData = await stateResponse.json();
+        console.log('Estado da conexão Evolution:', stateData);
+        
         qrConnected = stateData?.instance?.state === 'open';
         
-        // Se conectado, buscar informações do WhatsApp
+        // Se conectado, buscar informações do WhatsApp usando endpoint correto
         if (qrConnected) {
           try {
+            // Usar endpoint correto para buscar números do WhatsApp
             const infoResponse = await fetch('https://api.primerastreadores.com/chat/whatsappNumbers/admin', {
-              headers: { 'apikey': '0f9e7d39-a1df-4f7d-8a65-f8d9c5b61403' }
+              method: 'POST',
+              headers: { 
+                'apikey': evolutionApiKey,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                numbers: [] // Para buscar todos os números disponíveis
+              })
             });
             const infoData = await infoResponse.json();
+            console.log('Números WhatsApp encontrados:', infoData);
             
             // Extrair número do WhatsApp da resposta
-            if (infoData && infoData.length > 0) {
-              qrWhatsAppNumber = infoData[0]; // Assumindo que retorna array de números
+            if (infoData && Array.isArray(infoData) && infoData.length > 0) {
+              // Procurar o número 5516990687452 especificamente
+              const targetNumber = infoData.find(num => num.includes('5516990687452'));
+              qrWhatsAppNumber = targetNumber || infoData[0];
             }
           } catch (infoError) {
             console.log('Erro ao buscar número WhatsApp:', infoError);
