@@ -5645,26 +5645,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quantasMensagensEnviadas
       });
       
-      // Cálculos baseados nas metas definidas pelo usuário
+      // Implementação das novas fórmulas de cálculo conforme especificado
       
-      // 1. Quantos disparos devem ser feitos para atingir a meta
-      const disparosNecessarios = quantidadeLeadsVendas * quantosDisparosPorLead;
+      // 1. Quantidade de Vendas = Meta de vendas da empresa / Ticket médio de vendas
+      const quantidadeVendas = ticketMedioVendas > 0 ? metaVendasEmpresa / ticketMedioVendas : 0;
       
-      // 2. Valor a ser gasto Icloud (baseado no custo por disparo)
+      // 2. Média de Compradores a Gerar = Qtd de leads por vendas * Qtd de disparos para ter 1 lead
+      const mediaCompradores = quantidadeLeadsVendas * quantosDisparosPorLead;
+      
+      // 3. Quantos disparos para atingir a meta = Quantidade de vendas * Média de Compradores a gerar
+      const disparosNecessarios = quantidadeVendas * mediaCompradores;
+      
+      // 4. Faturamento Estimado = Ticket médio de vendas * Média de Compradores a gerar
+      const faturamentoEstimado = ticketMedioVendas * mediaCompradores;
+      
+      // 5. Quantidade de vendas = Quantidade de Compradores a gerar (conforme especificado)
+      const quantidadeVendasFinal = mediaCompradores;
+      
+      // Cálculos adicionais para o dashboard
       const custoPorDisparo = quantasMensagensEnviadas > 0 ? custoIcloudTotal / quantasMensagensEnviadas : 0.027;
       const valorGastoIcloud = disparosNecessarios * custoPorDisparo;
-      
-      // 3. Média de Leads gerados (baseado nos dados atuais)
       const mediaLeadsGerados = metaSentMessages > 0 ? (leadsWithResponse / metaSentMessages) * 100 : 0;
-      
-      // 4. Faturamento Estimado
-      const faturamentoEstimado = quantidadeLeadsVendas * ticketMedioVendas;
 
       console.log('Cálculos finalizados:', {
-        totalMessages,
-        leadsWithResponse,
+        quantidadeVendas,
+        mediaCompradores,
         disparosNecessarios,
-        faturamentoEstimado
+        faturamentoEstimado,
+        quantidadeVendasFinal,
+        valorGastoIcloud,
+        mediaLeadsGerados
       });
 
       const dashboardData = {
@@ -5696,10 +5706,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           period: 'Mensal'
         },
         calculations: {
+          // Novas métricas implementadas conforme especificação
+          quantidadeVendas: Math.round(quantidadeVendas * 100) / 100,
+          mediaCompradores: Math.round(mediaCompradores),
           quantosDisparosParaAtingirMeta: Math.round(disparosNecessarios),
+          faturamentoEstimado: Math.round(faturamentoEstimado),
+          quantidadeVendasFinal: Math.round(quantidadeVendasFinal),
+          // Métricas adicionais para o dashboard
           valorASerGastoIcloud: Math.round(valorGastoIcloud * 100) / 100,
           mediaLeadsGerados: Math.round(mediaLeadsGerados * 10) / 10,
-          faturamentoEstimado: Math.round(faturamentoEstimado),
           custoPorDisparo: Math.round(custoPorDisparo * 1000) / 1000
         }
       };
