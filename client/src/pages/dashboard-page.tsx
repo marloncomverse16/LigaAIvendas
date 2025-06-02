@@ -17,7 +17,8 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  ShoppingCart
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -341,45 +342,49 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* 1. Quantidade de Vendas */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-green-500" />
+                <h3 className="font-medium">Quantidade de Vendas</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                {(dashboardData?.calculations.quantidadeVendas || 0).toFixed(1)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Meta ÷ Ticket médio
+              </p>
+            </div>
+
+            {/* 2. Média de Compradores */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-blue-500" />
+                <h3 className="font-medium">Média de Compradores</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                {(dashboardData?.calculations.mediaCompradores || 0).toLocaleString('pt-BR')}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Leads × Disparos por lead
+              </p>
+            </div>
+
+            {/* 3. Disparos para atingir meta */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Target className="h-4 w-4 text-red-500" />
-                <h3 className="font-medium">Quantos disparos para atingir meta</h3>
+                <h3 className="font-medium">Disparos para atingir meta</h3>
               </div>
               <p className="text-2xl font-bold">
                 {(dashboardData?.calculations.quantosDisparosParaAtingirMeta || 0).toLocaleString('pt-BR')}
               </p>
               <p className="text-sm text-muted-foreground">
-                Disparos necessários para atingir a meta
+                Vendas × Média compradores
               </p>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-blue-500" />
-                <h3 className="font-medium">Valor a ser gasto iCloud</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                R$ {(dashboardData?.calculations.valorASerGastoIcloud || 0).toFixed(2)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Investimento estimado em mensagens
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-green-500" />
-                <h3 className="font-medium">Média de Leads gerados</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.mediaLeadsGerados || 0).toFixed(1)}%
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Taxa de conversão de mensagens em leads
-              </p>
-            </div>
-
+            {/* 4. Faturamento Estimado */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-orange-500" />
@@ -389,20 +394,35 @@ export default function DashboardPage() {
                 R$ {(dashboardData?.calculations.faturamentoEstimado || 0).toLocaleString('pt-BR')}
               </p>
               <p className="text-sm text-muted-foreground">
-                Baseado nas configurações de meta
+                Ticket médio × Média compradores
               </p>
             </div>
 
+            {/* 5. Quantidade de vendas final */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-purple-500" />
-                <h3 className="font-medium">Custo por Disparo</h3>
+                <CheckCircle className="h-4 w-4 text-purple-500" />
+                <h3 className="font-medium">Quantidade vendas final</h3>
               </div>
               <p className="text-2xl font-bold">
-                R$ {(dashboardData?.calculations.custoPorDisparo || 0).toFixed(3)}
+                {(dashboardData?.calculations.quantidadeVendasFinal || 0).toLocaleString('pt-BR')}
               </p>
               <p className="text-sm text-muted-foreground">
-                Custo médio por mensagem enviada
+                Total de vendas esperadas
+              </p>
+            </div>
+
+            {/* Métricas adicionais */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-yellow-500" />
+                <h3 className="font-medium">Valor a ser gasto iCloud</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                R$ {(dashboardData?.calculations.valorASerGastoIcloud || 0).toFixed(2)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Investimento estimado em mensagens
               </p>
             </div>
 
