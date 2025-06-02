@@ -5624,12 +5624,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const leadsWithResponse = metaReceivedMessages; // Mensagens recebidas = leads que responderam
       
       // Buscar metas do usuário (usando dados das configurações carregadas)
+      console.log('Configurações do usuário carregadas:', userSettings);
+      
       const metaVendasEmpresa = parseFloat(userSettings?.meta_vendas_empresa || '0');
       const ticketMedioVendas = parseFloat(userSettings?.ticket_medio_vendas || '0');
       const quantidadeLeadsVendas = parseInt(userSettings?.quantidade_leads_vendas || '0');
       const quantosDisparosPorLead = parseInt(userSettings?.quantos_disparos_por_lead || '1');
       const custoIcloudTotal = parseFloat(userSettings?.custo_icloud_total || '0');
       const quantasMensagensEnviadas = parseInt(userSettings?.quantas_mensagens_enviadas || '0');
+      
+      console.log('Valores das metas processados:', {
+        metaVendasEmpresa,
+        ticketMedioVendas,
+        quantidadeLeadsVendas,
+        quantosDisparosPorLead,
+        custoIcloudTotal,
+        quantasMensagensEnviadas
+      });
       
       // Cálculos baseados nas metas definidas pelo usuário
       
