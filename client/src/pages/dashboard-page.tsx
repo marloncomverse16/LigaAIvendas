@@ -51,11 +51,11 @@ interface DashboardStats {
     period: string;
   };
   calculations: {
-    messagesPerLead: number;
-    leadsPerSale: number;
-    averageSalePrice: number;
-    requiredMessages: number;
-    projectedRevenue: number;
+    quantosDisparosParaAtingirMeta: number;
+    valorASerGastoIcloud: number;
+    mediaLeadsGerados: number;
+    faturamentoEstimado: number;
+    custoPorDisparo: number;
   };
 }
 
@@ -343,66 +343,66 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-blue-500" />
-                <h3 className="font-medium">Mensagens por Lead</h3>
+                <Target className="h-4 w-4 text-red-500" />
+                <h3 className="font-medium">Quantos disparos para atingir meta</h3>
               </div>
               <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.messagesPerLead || 0).toFixed(1)}
+                {(dashboardData?.calculations.quantosDisparosParaAtingirMeta || 0).toLocaleString('pt-BR')}
               </p>
               <p className="text-sm text-muted-foreground">
-                Média de mensagens enviadas para conseguir 1 lead
+                Disparos necessários para atingir a meta
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-blue-500" />
+                <h3 className="font-medium">Valor a ser gasto iCloud</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                R$ {(dashboardData?.calculations.valorASerGastoIcloud || 0).toFixed(2)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Investimento estimado em mensagens
               </p>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-green-500" />
-                <h3 className="font-medium">Leads por Venda</h3>
+                <h3 className="font-medium">Média de Leads gerados</h3>
               </div>
               <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.leadsPerSale || 0).toFixed(1)}
+                {(dashboardData?.calculations.mediaLeadsGerados || 0).toFixed(1)}%
               </p>
               <p className="text-sm text-muted-foreground">
-                Média de leads para fechar 1 venda
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-purple-500" />
-                <h3 className="font-medium">Preço Médio de Venda</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                R$ {(dashboardData?.calculations.averageSalePrice || 0).toFixed(2)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Ticket médio por venda fechada
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-red-500" />
-                <h3 className="font-medium">Disparos Necessários</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.requiredMessages || 0).toLocaleString('pt-BR')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Para atingir a meta de faturamento
+                Taxa de conversão de mensagens em leads
               </p>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-orange-500" />
-                <h3 className="font-medium">Receita Projetada</h3>
+                <h3 className="font-medium">Faturamento Estimado</h3>
               </div>
               <p className="text-2xl font-bold">
-                R$ {(dashboardData?.calculations.projectedRevenue || 0).toLocaleString('pt-BR')}
+                R$ {(dashboardData?.calculations.faturamentoEstimado || 0).toLocaleString('pt-BR')}
               </p>
               <p className="text-sm text-muted-foreground">
-                Baseada no desempenho atual
+                Baseado nas configurações de meta
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-purple-500" />
+                <h3 className="font-medium">Custo por Disparo</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                R$ {(dashboardData?.calculations.custoPorDisparo || 0).toFixed(3)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Custo médio por mensagem enviada
               </p>
             </div>
 
@@ -412,16 +412,16 @@ export default function DashboardPage() {
                 <h3 className="font-medium">Status da Meta</h3>
               </div>
               <div className="flex items-center gap-2">
-                {(dashboardData?.calculations.projectedRevenue || 0) >= (dashboardData?.goals.revenue || 0) ? (
+                {(dashboardData?.calculations.faturamentoEstimado || 0) >= (dashboardData?.goals.revenue || 0) ? (
                   <Badge variant="default">No Alvo</Badge>
                 ) : (
                   <Badge variant="destructive">Abaixo da Meta</Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground">
-                {(dashboardData?.calculations.projectedRevenue || 0) >= (dashboardData?.goals.revenue || 0) 
-                  ? 'Projeção atinge a meta' 
-                  : 'Necessário aumentar esforços'
+                {(dashboardData?.calculations.faturamentoEstimado || 0) >= (dashboardData?.goals.revenue || 0) 
+                  ? 'Meta pode ser atingida' 
+                  : 'Ajustar configurações necessário'
                 }
               </p>
             </div>

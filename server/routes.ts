@@ -5621,33 +5621,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conversationCount = parseInt(conversationResults.rows[0]?.total_conversations || '0');
       const totalCostBrl = parseFloat(conversationResults.rows[0]?.total_cost || '0');
 
-      // Cálculos baseados nos dados reais
+      // Cálculos baseados nos dados reais e configurações do usuário
       const totalMessages = metaTotalMessages;
       const leadsWithResponse = metaReceivedMessages; // Mensagens recebidas = leads que responderam
       
-      // Métricas de eficiência
-      const messagesPerLead = leadsWithResponse > 0 ? metaSentMessages / leadsWithResponse : 
-                             metaSentMessages > 0 ? metaSentMessages / Math.max(1, Math.floor(metaSentMessages * 0.1)) : 1;
-      
-      const estimatedSales = Math.floor(leadsWithResponse * 0.1); // 10% conversão padrão
-      const leadsPerSale = estimatedSales > 0 ? leadsWithResponse / estimatedSales : 10;
-
       // Buscar metas do usuário
-      const revenueGoal = parseFloat(userSettings?.revenue_goal || '0');
-      const averageTicket = 500; // Valor padrão
-      const leadsGoal = parseInt(userSettings?.leads_goal || '0');
+      const metaVendasEmpresa = parseFloat(userSettings?.meta_vendas_empresa || '0');
+      const ticketMedioVendas = parseFloat(userSettings?.ticket_medio_vendas || '0');
+      const quantidadeLeadsVendas = parseInt(userSettings?.quantidade_leads_vendas || '0');
+      const quantosDisparosPorLead = parseInt(userSettings?.quantos_disparos_por_lead || '1');
+      const custoIcloudTotal = parseFloat(userSettings?.custo_icloud_total || '0');
+      const quantasMensagensEnviadas = parseInt(userSettings?.quantas_mensagens_enviadas || '0');
       
-      // Projeções
-      const requiredSales = averageTicket > 0 ? revenueGoal / averageTicket : 0;
-      const requiredLeads = requiredSales * leadsPerSale;
-      const requiredMessages = requiredLeads * messagesPerLead;
-      const projectedRevenue = estimatedSales * averageTicket;
+      // Cálculos baseados nas metas definidas pelo usuário
+      
+      // 1. Quantos disparos devem ser feitos para atingir a meta
+      const disparosNecessarios = quantidadeLeadsVendas * quantosDisparosPorLead;
+      
+      // 2. Valor a ser gasto Icloud (baseado no custo por disparo)
+      const custoPorDisparo = quantasMensagensEnviadas > 0 ? custoIcloudTotal / quantasMensagensEnviadas : 0.027;
+      const valorGastoIcloud = disparosNecessarios * custoPorDisparo;
+      
+      // 3. Média de Leads gerados (baseado nos dados atuais)
+      const mediaLeadsGerados = metaSentMessages > 0 ? (leadsWithResponse / metaSentMessages) * 100 : 0;
+      
+      // 4. Faturamento Estimado
+      const faturamentoEstimado = quantidadeLeadsVendas * ticketMedioVendas;
 
       console.log('Cálculos finalizados:', {
         totalMessages,
         leadsWithResponse,
-        messagesPerLead,
-        projectedRevenue
+        disparosNecessarios,
+        faturamentoEstimado
       });
 
       const dashboardData = {
@@ -5673,17 +5678,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalContacts: 0 // Será implementado quando necessário
         },
         goals: {
-          revenue: revenueGoal,
-          averageTicket: averageTicket,
-          leadsGoal: leadsGoal,
+          revenue: metaVendasEmpresa,
+          averageTicket: ticketMedioVendas,
+          leadsGoal: quantidadeLeadsVendas,
           period: 'Mensal'
         },
         calculations: {
-          messagesPerLead: Math.round(messagesPerLead * 10) / 10,
-          leadsPerSale: Math.round(leadsPerSale * 10) / 10,
-          averageSalePrice: averageTicket,
-          requiredMessages: Math.round(requiredMessages),
-          projectedRevenue: Math.round(projectedRevenue)
+          quantosDisparosParaAtingirMeta: Math.round(disparosNecessarios),
+          valorASerGastoIcloud: Math.round(valorGastoIcloud * 100) / 100,
+          mediaLeadsGerados: Math.round(mediaLeadsGerados * 10) / 10,
+          faturamentoEstimado: Math.round(faturamentoEstimado),
+          custoPorDisparo: Math.round(custoPorDisparo * 1000) / 1000
         }
       };
 
