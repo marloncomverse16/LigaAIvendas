@@ -243,9 +243,14 @@ export const insertSettingsSchema = createInsertSchema(settings).pick({
   primaryColor: true,
   secondaryColor: true,
   darkMode: true,
-  whatsappSendingGoal: true,
-  revenueGoal: true,
-  leadsGoal: true,
+  // Campos de metas
+  metaVendasEmpresa: true,
+  ticketMedioVendas: true,
+  quantidadeLeadsVendas: true,
+  quantosDisparosPorLead: true,
+  custoIcloudTotal: true,
+  quantasMensagensEnviadas: true,
+  // WhatsApp Meta API
   whatsappMetaToken: true,
   whatsappMetaBusinessId: true,
   whatsappMetaApiVersion: true,

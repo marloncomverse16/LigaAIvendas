@@ -844,7 +844,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = (req.user as Express.User).id;
+      console.log("📥 Dados recebidos no backend:", req.body);
+      
       const settingsData = insertSettingsSchema.parse(req.body);
+      console.log("✅ Dados validados pelo schema:", settingsData);
       
       // Verificar se já existe configurações para o usuário
       let settings = await storage.getSettingsByUserId(userId);

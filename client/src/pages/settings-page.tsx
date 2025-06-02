@@ -225,6 +225,9 @@ function GoalsSettings() {
   });
   
   const onGoalsSubmit = (data: GoalsFormValues) => {
+    console.log("📝 Dados do formulário de metas:", data);
+    console.log("🔧 Configurações atuais:", settings);
+    
     // Mapear corretamente os campos para o formato do backend
     const updatedSettings = {
       ...settings,
@@ -235,6 +238,8 @@ function GoalsSettings() {
       custoIcloudTotal: data.custoIcloudTotal,
       quantasMensagensEnviadas: data.quantasMensagensEnviadas,
     };
+    
+    console.log("📤 Enviando para backend:", updatedSettings);
     updateSettingsMutation.mutate(updatedSettings);
   };
   
