@@ -394,7 +394,7 @@ export default function DashboardPage() {
                 R$ {(dashboardData?.calculations.faturamentoEstimado || 0).toLocaleString('pt-BR')}
               </p>
               <p className="text-sm text-muted-foreground">
-                Ticket médio × Média compradores
+                Ticket médio × Qtd de vendas
               </p>
             </div>
 
@@ -412,7 +412,21 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Métricas adicionais */}
+            {/* Média de Leads */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-cyan-500" />
+                <h3 className="font-medium">Média de Leads</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                {(dashboardData?.calculations.mediaLeadsGerados || 0).toFixed(0)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Mensagens enviadas ÷ Disparos por lead
+              </p>
+            </div>
+
+            {/* Valor a ser gasto iCloud */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-yellow-500" />

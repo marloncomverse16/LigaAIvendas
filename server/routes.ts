@@ -5645,7 +5645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quantasMensagensEnviadas
       });
       
-      // Implementação das novas fórmulas de cálculo conforme especificado
+      // Implementação das fórmulas de cálculo conforme especificação atualizada
       
       // 1. Quantidade de Vendas = Meta de vendas da empresa / Ticket médio de vendas
       const quantidadeVendas = ticketMedioVendas > 0 ? metaVendasEmpresa / ticketMedioVendas : 0;
@@ -5656,16 +5656,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 3. Quantos disparos para atingir a meta = Quantidade de vendas * Média de Compradores a gerar
       const disparosNecessarios = quantidadeVendas * mediaCompradores;
       
-      // 4. Faturamento Estimado = Ticket médio de vendas * Média de Compradores a gerar
-      const faturamentoEstimado = ticketMedioVendas * mediaCompradores;
+      // 4. Faturamento Estimado = Ticket médio * Qtd de Vendas (CORRIGIDO)
+      const faturamentoEstimado = ticketMedioVendas * quantidadeVendas;
       
-      // 5. Quantidade de vendas = Quantidade de Compradores a gerar (conforme especificado)
-      const quantidadeVendasFinal = mediaCompradores;
+      // 5. Quantidade de vendas final = Quantidade de Vendas
+      const quantidadeVendasFinal = quantidadeVendas;
       
       // Cálculos adicionais para o dashboard
       const custoPorDisparo = quantasMensagensEnviadas > 0 ? custoIcloudTotal / quantasMensagensEnviadas : 0.027;
       const valorGastoIcloud = disparosNecessarios * custoPorDisparo;
-      const mediaLeadsGerados = metaSentMessages > 0 ? (leadsWithResponse / metaSentMessages) * 100 : 0;
+      
+      // Média de Leads = (Quantas Mensagens enviadas / Quantos disparos para ter um Lead) - CORRIGIDO
+      const mediaLeadsGerados = quantosDisparosPorLead > 0 ? (quantasMensagensEnviadas / quantosDisparosPorLead) : 0;
 
       console.log('Cálculos finalizados:', {
         quantidadeVendas,
