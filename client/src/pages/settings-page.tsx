@@ -32,12 +32,21 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 const goalsSchema = z.object({
-  whatsappSendingGoal: z.number().min(0, "Deve ser um número positivo"),
-  revenueGoal: z.string().refine(
+  metaVendasEmpresa: z.string().refine(
     (val) => !isNaN(parseFloat(val.replace(/[^0-9,.-]/g, "").replace(",", "."))),
     { message: "Valor inválido. Digite um número válido." }
   ),
-  leadsGoal: z.number().min(0, "Deve ser um número positivo"),
+  ticketMedioVendas: z.string().refine(
+    (val) => !isNaN(parseFloat(val.replace(/[^0-9,.-]/g, "").replace(",", "."))),
+    { message: "Valor inválido. Digite um número válido." }
+  ),
+  quantidadeLeadsVendas: z.number().min(0, "Deve ser um número positivo"),
+  quantosDisparosPorLead: z.number().min(1, "Deve ser pelo menos 1"),
+  custoIcloudTotal: z.string().refine(
+    (val) => !isNaN(parseFloat(val.replace(/[^0-9,.-]/g, "").replace(",", "."))),
+    { message: "Valor inválido. Digite um número válido." }
+  ),
+  quantasMensagensEnviadas: z.number().min(0, "Deve ser um número positivo"),
 });
 
 type GoalsFormValues = z.infer<typeof goalsSchema>;
@@ -198,14 +207,20 @@ function GoalsSettings() {
   const goalsForm = useForm<GoalsFormValues>({
     resolver: zodResolver(goalsSchema),
     defaultValues: {
-      whatsappSendingGoal: settings?.whatsappSendingGoal || 0,
-      revenueGoal: settings?.revenueGoal || "0",
-      leadsGoal: settings?.leadsGoal || 0,
+      metaVendasEmpresa: settings?.metaVendasEmpresa || "0",
+      ticketMedioVendas: settings?.ticketMedioVendas || "0",
+      quantidadeLeadsVendas: settings?.quantidadeLeadsVendas || 0,
+      quantosDisparosPorLead: settings?.quantosDisparosPorLead || 1,
+      custoIcloudTotal: settings?.custoIcloudTotal || "0",
+      quantasMensagensEnviadas: settings?.quantasMensagensEnviadas || 0,
     },
     values: {
-      whatsappSendingGoal: settings?.whatsappSendingGoal || 0,
-      revenueGoal: settings?.revenueGoal || "0",
-      leadsGoal: settings?.leadsGoal || 0,
+      metaVendasEmpresa: settings?.metaVendasEmpresa || "0",
+      ticketMedioVendas: settings?.ticketMedioVendas || "0",
+      quantidadeLeadsVendas: settings?.quantidadeLeadsVendas || 0,
+      quantosDisparosPorLead: settings?.quantosDisparosPorLead || 1,
+      custoIcloudTotal: settings?.custoIcloudTotal || "0",
+      quantasMensagensEnviadas: settings?.quantasMensagensEnviadas || 0,
     },
   });
   
@@ -228,81 +243,119 @@ function GoalsSettings() {
         <Form {...goalsForm}>
           <form onSubmit={goalsForm.handleSubmit(onGoalsSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Target className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-medium">Meta de Envios WhatsApp</h3>
-                </div>
-                <FormField
-                  control={goalsForm.control}
-                  name="whatsappSendingGoal"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quantidade mensal de envios</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          {...field} 
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                          value={field.value}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={goalsForm.control}
+                name="metaVendasEmpresa"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Meta de Vendas da Empresa</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="R$ 0,00" 
+                        {...field} 
+                        value={field.value}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <DollarSign className="h-5 w-5 text-emerald-600" />
-                  <h3 className="text-lg font-medium">Meta de Faturamento</h3>
-                </div>
-                <FormField
-                  control={goalsForm.control}
-                  name="revenueGoal"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Faturamento mensal desejado (R$)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="R$ 0,00" 
-                          {...field} 
-                          value={field.value}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={goalsForm.control}
+                name="ticketMedioVendas"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ticket Médio de Vendas</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="R$ 0,00" 
+                        {...field} 
+                        value={field.value}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Users className="h-5 w-5 text-blue-600" />
-                  <h3 className="text-lg font-medium">Meta de Leads</h3>
-                </div>
-                <FormField
-                  control={goalsForm.control}
-                  name="leadsGoal"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quantidade mensal de novos leads</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          {...field} 
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                          value={field.value}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={goalsForm.control}
+                name="quantidadeLeadsVendas"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantidade de Leads de Vendas</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        {...field} 
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        value={field.value}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={goalsForm.control}
+                name="quantosDisparosPorLead"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantos disparos para ter 1 Lead</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="1" 
+                        {...field} 
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        value={field.value}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={goalsForm.control}
+                name="custoIcloudTotal"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Custo Icloud Total</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="R$ 0,00" 
+                        {...field} 
+                        value={field.value}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={goalsForm.control}
+                name="quantasMensagensEnviadas"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantas mensagens enviadas</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        {...field} 
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        value={field.value}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
             
             <div className="flex justify-end">

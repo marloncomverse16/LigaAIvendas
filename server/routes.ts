@@ -5581,7 +5581,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Buscar configurações do usuário (metas)
       const settingsQuery = `
-        SELECT revenue_goal, leads_goal 
+        SELECT 
+          meta_vendas_empresa, 
+          ticket_medio_vendas, 
+          quantidade_leads_vendas, 
+          quantos_disparos_por_lead, 
+          custo_icloud_total, 
+          quantas_mensagens_enviadas
         FROM settings 
         WHERE user_id = $1
       `;

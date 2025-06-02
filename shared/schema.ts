@@ -61,9 +61,12 @@ export const settings = pgTable("settings", {
   secondaryColor: text("secondary_color").default("#4f46e5"),
   darkMode: boolean("dark_mode").default(false),
   // Metas
-  whatsappSendingGoal: integer("whatsapp_sending_goal").default(0),
-  revenueGoal: text("revenue_goal").default("0"),
-  leadsGoal: integer("leads_goal").default(0),
+  metaVendasEmpresa: text("meta_vendas_empresa").default("0"),
+  ticketMedioVendas: text("ticket_medio_vendas").default("0"),
+  quantidadeLeadsVendas: integer("quantidade_leads_vendas").default(0),
+  quantosDisparosPorLead: integer("quantos_disparos_por_lead").default(1),
+  custoIcloudTotal: text("custo_icloud_total").default("0"),
+  quantasMensagensEnviadas: integer("quantas_mensagens_enviadas").default(0),
   // WhatsApp Meta Cloud API (Específico por usuário)
   whatsappMetaToken: text("whatsapp_meta_token").notNull().default(""), // Token de acesso à API da Meta
   whatsappMetaBusinessId: text("whatsapp_meta_business_id").notNull().default(""), // ID do negócio na Meta
