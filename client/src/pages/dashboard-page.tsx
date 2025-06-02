@@ -349,24 +349,10 @@ export default function DashboardPage() {
                 <h3 className="font-medium">Quantidade de Vendas</h3>
               </div>
               <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.quantidadeVendas || 0).toFixed(1)}
+                {Math.round(dashboardData?.calculations.quantidadeVendas || 0)}
               </p>
               <p className="text-sm text-muted-foreground">
-                Meta ÷ Ticket médio
-              </p>
-            </div>
-
-            {/* 2. Média de Compradores */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-blue-500" />
-                <h3 className="font-medium">Média de Compradores</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.mediaCompradores || 0).toLocaleString('pt-BR')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Leads × Disparos por lead
+                Total de vendas esperado
               </p>
             </div>
 
@@ -398,19 +384,7 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* 5. Quantidade de vendas final */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-purple-500" />
-                <h3 className="font-medium">Quantidade vendas final</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.quantidadeVendasFinal || 0).toLocaleString('pt-BR')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Total de vendas esperadas
-              </p>
-            </div>
+
 
             {/* Média de Leads */}
             <div className="space-y-2">
