@@ -207,28 +207,33 @@ function GoalsSettings() {
   const goalsForm = useForm<GoalsFormValues>({
     resolver: zodResolver(goalsSchema),
     defaultValues: {
-      metaVendasEmpresa: settings?.metaVendasEmpresa || "0",
-      ticketMedioVendas: settings?.ticketMedioVendas || "0",
-      quantidadeLeadsVendas: settings?.quantidadeLeadsVendas || 0,
-      quantosDisparosPorLead: settings?.quantosDisparosPorLead || 1,
-      custoIcloudTotal: settings?.custoIcloudTotal || "0",
-      quantasMensagensEnviadas: settings?.quantasMensagensEnviadas || 0,
+      metaVendasEmpresa: "0",
+      ticketMedioVendas: "0",
+      quantidadeLeadsVendas: 0,
+      quantosDisparosPorLead: 1,
+      custoIcloudTotal: "0",
+      quantasMensagensEnviadas: 0,
     },
-    values: {
-      metaVendasEmpresa: settings?.metaVendasEmpresa || "0",
-      ticketMedioVendas: settings?.ticketMedioVendas || "0",
-      quantidadeLeadsVendas: settings?.quantidadeLeadsVendas || 0,
-      quantosDisparosPorLead: settings?.quantosDisparosPorLead || 1,
-      custoIcloudTotal: settings?.custoIcloudTotal || "0",
-      quantasMensagensEnviadas: settings?.quantasMensagensEnviadas || 0,
-    },
+    values: settings ? {
+      metaVendasEmpresa: settings.metaVendasEmpresa || "0",
+      ticketMedioVendas: settings.ticketMedioVendas || "0",
+      quantidadeLeadsVendas: settings.quantidadeLeadsVendas || 0,
+      quantosDisparosPorLead: settings.quantosDisparosPorLead || 1,
+      custoIcloudTotal: settings.custoIcloudTotal || "0",
+      quantasMensagensEnviadas: settings.quantasMensagensEnviadas || 0,
+    } : undefined,
   });
   
   const onGoalsSubmit = (data: GoalsFormValues) => {
-    // Preservar outros campos das configurações existentes
+    // Mapear corretamente os campos para o formato do backend
     const updatedSettings = {
       ...settings,
-      ...data,
+      metaVendasEmpresa: data.metaVendasEmpresa,
+      ticketMedioVendas: data.ticketMedioVendas,
+      quantidadeLeadsVendas: data.quantidadeLeadsVendas,
+      quantosDisparosPorLead: data.quantosDisparosPorLead,
+      custoIcloudTotal: data.custoIcloudTotal,
+      quantasMensagensEnviadas: data.quantasMensagensEnviadas,
     };
     updateSettingsMutation.mutate(updatedSettings);
   };
@@ -362,6 +367,7 @@ function GoalsSettings() {
               <Button 
                 type="submit" 
                 disabled={updateSettingsMutation.isPending}
+                className="bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-orange-600 hover:to-yellow-500 text-white"
               >
                 {updateSettingsMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
