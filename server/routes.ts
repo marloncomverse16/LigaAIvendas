@@ -5471,6 +5471,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { startDate, endDate } = req.query;
       const userId = 2; // Implementar busca do usuário autenticado
 
+      // Buscar configurações do usuário do banco de dados
+      const userSettingsQuery = `
+        SELECT meta_vendas_empresa, ticket_medio_vendas, quantidade_leads_vendas, 
+               quantos_disparos_por_lead, custo_icloud_total, quantas_mensagens_enviadas
+        FROM settings 
+        WHERE user_id = $1
+        LIMIT 1
+      `;
+      const userSettingsResult = await pool.query(userSettingsQuery, [userId]);
+      const userSettings = userSettingsResult.rows[0];
+
       // Buscar status das conexões Meta da tabela user_servers
       const userServerQuery = `
         SELECT meta_phone_number_id, meta_connected, meta_connected_at
@@ -5579,20 +5590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Executando consultas SQL...');
 
-      // Buscar configurações do usuário (metas)
-      const settingsQuery = `
-        SELECT 
-          meta_vendas_empresa, 
-          ticket_medio_vendas, 
-          quantidade_leads_vendas, 
-          quantos_disparos_por_lead, 
-          custo_icloud_total, 
-          quantas_mensagens_enviadas
-        FROM settings 
-        WHERE user_id = $1
-      `;
-      const settingsResult = await pool.query(settingsQuery, [userId]);
-      const userSettings = settingsResult.rows[0] || {};
+
       
       const params = startDate && endDate ? [userId, startDate, endDate] : [userId];
 
@@ -5625,7 +5623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalMessages = metaTotalMessages;
       const leadsWithResponse = metaReceivedMessages; // Mensagens recebidas = leads que responderam
       
-      // Buscar metas do usuário
+      // Buscar metas do usuário (usando dados das configurações carregadas)
       const metaVendasEmpresa = parseFloat(userSettings?.meta_vendas_empresa || '0');
       const ticketMedioVendas = parseFloat(userSettings?.ticket_medio_vendas || '0');
       const quantidadeLeadsVendas = parseInt(userSettings?.quantidade_leads_vendas || '0');
