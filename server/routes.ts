@@ -241,31 +241,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Retorna um agente mockado para demonstração
-      const mockAgent = {
-        id: 1,
-        userId: req.user.id,
-        enabled: true,
-        triggerText: "Olá! Sou o assistente virtual. Como posso ajudar?",
-        personality: "Amigável e profissional",
-        expertise: "Atendimento e suporte",
-        voiceTone: "Formal",
-        rules: "Ser sempre cordial e respeitoso",
-        followUpEnabled: true,
-        followUpCount: 2,
-        messageInterval: "30 minutos",
-        followUpPrompt: "Ainda precisa de ajuda com algo?",
-        schedulingEnabled: true,
-        agendaId: "agenda123",
-        schedulingPromptConsult: "Gostaria de agendar uma consulta?",
-        schedulingPromptTime: "Qual o melhor horário para você?",
-        schedulingDuration: "30 minutos",
-        autoMoveCrm: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      const agent = await storage.getAiAgent(req.user.id);
       
-      res.json(mockAgent);
+      if (!agent) {
+        // Criar um agente padrão se não existir
+        const newAgent = await storage.createAiAgent({
+          userId: req.user.id,
+          enabled: false,
+          triggerText: "",
+          personality: "",
+          expertise: "",
+          voiceTone: "",
+          rules: "",
+          followUpEnabled: false,
+          followUpCount: 0,
+          messageInterval: "30 minutos",
+          followUpPrompt: "",
+          schedulingEnabled: false,
+          agendaId: "",
+          schedulingPromptConsult: "",
+          schedulingPromptTime: "",
+          schedulingDuration: "30 minutos",
+          steps: "[]",
+          faqs: "[]"
+        });
+        return res.json(newAgent);
+      }
+      
+      res.json(agent);
     } catch (error) {
       console.error("Erro ao buscar agente de IA:", error);
       res.status(500).json({ message: "Erro ao buscar agente de IA" });
@@ -276,33 +279,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Simula sucesso na atualização e retorna dados combinados
       const agentData = req.body;
       
-      const updatedAgent = {
-        id: 1,
-        userId: req.user.id,
-        enabled: agentData.enabled !== undefined ? agentData.enabled : true,
-        triggerText: agentData.triggerText || "Olá! Sou o assistente virtual. Como posso ajudar?",
-        personality: agentData.personality || "Amigável e profissional",
-        expertise: agentData.expertise || "Atendimento e suporte",
-        voiceTone: agentData.voiceTone || "Formal",
-        rules: agentData.rules || "Ser sempre cordial e respeitoso",
-        followUpEnabled: agentData.followUpEnabled !== undefined ? agentData.followUpEnabled : true,
-        followUpCount: agentData.followUpCount || 2,
-        messageInterval: agentData.messageInterval || "30 minutos",
-        followUpPrompt: agentData.followUpPrompt || "Ainda precisa de ajuda com algo?",
-        schedulingEnabled: agentData.schedulingEnabled !== undefined ? agentData.schedulingEnabled : true,
-        agendaId: agentData.agendaId || "agenda123",
-        schedulingPromptConsult: agentData.schedulingPromptConsult || "Gostaria de agendar uma consulta?",
-        schedulingPromptTime: agentData.schedulingPromptTime || "Qual o melhor horário para você?",
-        schedulingDuration: agentData.schedulingDuration || "30 minutos",
-        autoMoveCrm: agentData.autoMoveCrm !== undefined ? agentData.autoMoveCrm : true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      // Buscar agente existente
+      let agent = await storage.getAiAgent(req.user.id);
       
-      res.json(updatedAgent);
+      if (!agent) {
+        // Criar um novo agente se não existir
+        agent = await storage.createAiAgent({
+          userId: req.user.id,
+          enabled: agentData.enabled || false,
+          triggerText: agentData.triggerText || "",
+          personality: agentData.personality || "",
+          expertise: agentData.expertise || "",
+          voiceTone: agentData.voiceTone || "",
+          rules: agentData.rules || "",
+          followUpEnabled: agentData.followUpEnabled || false,
+          followUpCount: agentData.followUpCount || 0,
+          messageInterval: agentData.messageInterval || "30 minutos",
+          followUpPrompt: agentData.followUpPrompt || "",
+          schedulingEnabled: agentData.schedulingEnabled || false,
+          agendaId: agentData.agendaId || "",
+          schedulingPromptConsult: agentData.schedulingPromptConsult || "",
+          schedulingPromptTime: agentData.schedulingPromptTime || "",
+          schedulingDuration: agentData.schedulingDuration || "30 minutos",
+          steps: agentData.steps ? JSON.stringify(agentData.steps) : "[]",
+          faqs: agentData.faqs ? JSON.stringify(agentData.faqs) : "[]"
+        });
+      } else {
+        // Atualizar agente existente
+        const updateData: any = { ...agentData };
+        
+        // Converter arrays para JSON strings se necessário
+        if (agentData.steps) {
+          updateData.steps = JSON.stringify(agentData.steps);
+        }
+        if (agentData.faqs) {
+          updateData.faqs = JSON.stringify(agentData.faqs);
+        }
+        
+        agent = await storage.updateAiAgent(agent.id, updateData);
+      }
+      
+      res.json(agent);
     } catch (error) {
       console.error("Erro ao atualizar agente de IA:", error);
       res.status(500).json({ message: "Erro ao atualizar agente de IA" });

@@ -120,7 +120,7 @@ export const metrics = pgTable("metrics", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Tabela para o Agente de IA
+// Tabela para o Agente de IA - Consolidada com Steps e FAQs
 export const aiAgent = pgTable("ai_agent", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
@@ -139,10 +139,14 @@ export const aiAgent = pgTable("ai_agent", {
   schedulingPromptConsult: text("scheduling_prompt_consult"),
   schedulingPromptTime: text("scheduling_prompt_time"),
   schedulingDuration: text("scheduling_duration"),
+  // Campos JSON para armazenar Steps e FAQs na mesma tabela
+  steps: text("steps").default("[]"), // JSON array de steps
+  faqs: text("faqs").default("[]"), // JSON array de FAQs
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Tabelas antigas mantidas para compatibilidade (serão removidas após migração)
 export const aiAgentSteps = pgTable("ai_agent_steps", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
