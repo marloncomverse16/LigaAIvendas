@@ -313,58 +313,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Retorna etapas mockadas para demonstração
-      const mockSteps = [
-        {
-          id: 1,
-          aiAgentId: 1,
-          order: 1,
-          question: "Qual sua necessidade principal?",
-          answerOptions: ["Suporte", "Orçamento", "Dúvidas"],
-          nextStepLogic: { Suporte: 2, Orçamento: 3, Dúvidas: 4 },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          aiAgentId: 1,
-          order: 2,
-          question: "Qual área você precisa de suporte?",
-          answerOptions: ["Técnico", "Financeiro", "Uso do produto"],
-          nextStepLogic: { Técnico: 5, Financeiro: 6, "Uso do produto": 7 },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 3,
-          aiAgentId: 1,
-          order: 3,
-          question: "Que tipo de orçamento você precisa?",
-          answerOptions: ["Produto completo", "Módulos específicos", "Serviços"],
-          nextStepLogic: { "Produto completo": 8, "Módulos específicos": 9, Serviços: 10 },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
-      
-      res.json(mockSteps);
+      const userId = (req.user as Express.User).id;
+      const steps = await storage.getAiAgentSteps(userId);
+      res.json(steps);
     } catch (error) {
       console.error("Erro ao buscar etapas do agente:", error);
       res.status(500).json({ message: "Erro ao buscar etapas do agente" });
     }
   });
   
-  app.put("/api/ai-agent/steps", async (req, res) => {
+  // Criar nova etapa
+  app.post("/api/ai-agent/steps", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const stepsData = req.body;
+      const userId = (req.user as Express.User).id;
+      const stepData = { ...req.body, userId };
       
-      // Simula atualização e retorna os dados enviados
-      res.json(stepsData);
+      const newStep = await storage.createAiAgentStep(stepData);
+      res.status(201).json(newStep);
     } catch (error) {
-      console.error("Erro ao atualizar etapas do agente:", error);
-      res.status(500).json({ message: "Erro ao atualizar etapas do agente" });
+      console.error("Erro ao criar etapa do agente:", error);
+      res.status(500).json({ message: "Erro ao criar etapa do agente" });
+    }
+  });
+
+  // Atualizar etapa específica
+  app.put("/api/ai-agent/steps/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const stepId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Verificar se a etapa pertence ao usuário
+      const existingStep = await storage.getAiAgentStep(stepId);
+      if (!existingStep || existingStep.userId !== userId) {
+        return res.status(404).json({ message: "Etapa não encontrada" });
+      }
+      
+      const updatedStep = await storage.updateAiAgentStep(stepId, req.body);
+      res.json(updatedStep);
+    } catch (error) {
+      console.error("Erro ao atualizar etapa do agente:", error);
+      res.status(500).json({ message: "Erro ao atualizar etapa do agente" });
+    }
+  });
+
+  // Deletar etapa
+  app.delete("/api/ai-agent/steps/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const stepId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Verificar se a etapa pertence ao usuário
+      const existingStep = await storage.getAiAgentStep(stepId);
+      if (!existingStep || existingStep.userId !== userId) {
+        return res.status(404).json({ message: "Etapa não encontrada" });
+      }
+      
+      const success = await storage.deleteAiAgentStep(stepId);
+      if (success) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: "Erro ao deletar etapa" });
+      }
+    } catch (error) {
+      console.error("Erro ao deletar etapa do agente:", error);
+      res.status(500).json({ message: "Erro ao deletar etapa do agente" });
     }
   });
   
@@ -372,52 +390,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Retorna FAQs mockadas para demonstração
-      const mockFaqs = [
-        {
-          id: 1,
-          aiAgentId: 1,
-          question: "Como faço para recuperar minha senha?",
-          answer: "Para recuperar sua senha, clique em 'Esqueci minha senha' na tela de login e siga as instruções enviadas ao seu e-mail.",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          aiAgentId: 1,
-          question: "Quais são os horários de atendimento?",
-          answer: "Nosso atendimento funciona de segunda a sexta, das 8h às 18h, exceto feriados nacionais.",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 3,
-          aiAgentId: 1,
-          question: "Como faço para cancelar minha assinatura?",
-          answer: "Para cancelar sua assinatura, acesse seu perfil, vá em 'Minha assinatura' e clique no botão 'Cancelar'. Lembre-se que você pode ter acesso ao serviço até o final do período já pago.",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
-      
-      res.json(mockFaqs);
+      const userId = (req.user as Express.User).id;
+      const faqs = await storage.getAiAgentFaqs(userId);
+      res.json(faqs);
     } catch (error) {
       console.error("Erro ao buscar FAQs do agente:", error);
       res.status(500).json({ message: "Erro ao buscar FAQs do agente" });
     }
   });
   
-  app.put("/api/ai-agent/faqs", async (req, res) => {
+  // Criar nova FAQ
+  app.post("/api/ai-agent/faqs", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const faqsData = req.body;
+      const userId = (req.user as Express.User).id;
+      const faqData = { ...req.body, userId };
       
-      // Simula atualização e retorna os dados enviados
-      res.json(faqsData);
+      const newFaq = await storage.createAiAgentFaq(faqData);
+      res.status(201).json(newFaq);
     } catch (error) {
-      console.error("Erro ao atualizar FAQs do agente:", error);
-      res.status(500).json({ message: "Erro ao atualizar FAQs do agente" });
+      console.error("Erro ao criar FAQ do agente:", error);
+      res.status(500).json({ message: "Erro ao criar FAQ do agente" });
+    }
+  });
+
+  // Atualizar FAQ específica
+  app.put("/api/ai-agent/faqs/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const faqId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Verificar se a FAQ pertence ao usuário
+      const existingFaq = await storage.getAiAgentFaq(faqId);
+      if (!existingFaq || existingFaq.userId !== userId) {
+        return res.status(404).json({ message: "FAQ não encontrada" });
+      }
+      
+      const updatedFaq = await storage.updateAiAgentFaq(faqId, req.body);
+      res.json(updatedFaq);
+    } catch (error) {
+      console.error("Erro ao atualizar FAQ do agente:", error);
+      res.status(500).json({ message: "Erro ao atualizar FAQ do agente" });
+    }
+  });
+
+  // Deletar FAQ
+  app.delete("/api/ai-agent/faqs/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const faqId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Verificar se a FAQ pertence ao usuário
+      const existingFaq = await storage.getAiAgentFaq(faqId);
+      if (!existingFaq || existingFaq.userId !== userId) {
+        return res.status(404).json({ message: "FAQ não encontrada" });
+      }
+      
+      const success = await storage.deleteAiAgentFaq(faqId);
+      if (success) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: "Erro ao deletar FAQ" });
+      }
+    } catch (error) {
+      console.error("Erro ao deletar FAQ do agente:", error);
+      res.status(500).json({ message: "Erro ao deletar FAQ do agente" });
     }
   });
   
