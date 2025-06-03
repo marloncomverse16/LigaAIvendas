@@ -5749,11 +5749,16 @@ async function getQrConversationsCount(userId: number, startDate?: string, endDa
     }
 
     const server = servers[0];
+    console.log('🔍 Estrutura completa do servidor encontrado:', JSON.stringify(server, null, 2));
+    
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
     
+    console.log('🔑 API URL:', apiUrl);
+    console.log('🔑 API Token:', apiToken ? `${apiToken.substring(0, 8)}...` : 'null/undefined');
+    
     if (!apiToken) {
-      console.log('Token da Evolution API não encontrado');
+      console.log('❌ Token da Evolution API não encontrado na estrutura do servidor');
       return 0;
     }
 
