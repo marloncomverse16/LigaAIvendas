@@ -5697,9 +5697,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           leadsWithResponse: leadsWithResponse
         },
         qrReports: {
-          totalConversations: 0, // QR Code não tem dados específicos de conversas
-          totalMessages: 0, // Será implementado quando necessário
-          totalContacts: 0 // Será implementado quando necessário
+          totalConversations: await getQrConversationsCount(userId, startDate, endDate),
+          totalMessages: await getQrMessagesCount(userId, startDate, endDate),
+          totalContacts: await getQrContactsCount(userId, startDate, endDate)
         },
         goals: {
           revenue: metaVendasEmpresa,
@@ -5736,4 +5736,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Esta função será chamada externamente após a criação do servidor HTTP
   
   return httpServer;
+}
+
+// Helper functions for QR Code data retrieval
+async function getQrConversationsCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
+  try {
+    const query = `
+      SELECT COUNT(DISTINCT remote_jid) as total_conversations
+      FROM whatsapp_messages 
+      WHERE user_id = $1 
+      ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
+    `;
+    const params = startDate && endDate ? [userId, startDate, endDate] : [userId];
+    const result = await pool.query(query, params);
+    return parseInt(result.rows[0]?.total_conversations || '0');
+  } catch (error) {
+    console.error('Erro ao buscar conversas QR:', error);
+    return 0;
+  }
+}
+
+async function getQrMessagesCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
+  try {
+    const query = `
+      SELECT COUNT(*) as total_messages
+      FROM whatsapp_messages 
+      WHERE user_id = $1 
+      ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
+    `;
+    const params = startDate && endDate ? [userId, startDate, endDate] : [userId];
+    const result = await pool.query(query, params);
+    return parseInt(result.rows[0]?.total_messages || '0');
+  } catch (error) {
+    console.error('Erro ao buscar mensagens QR:', error);
+    return 0;
+  }
+}
+
+async function getQrContactsCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
+  try {
+    const query = `
+      SELECT COUNT(DISTINCT remote_jid) as total_contacts
+      FROM whatsapp_messages 
+      WHERE user_id = $1 
+      ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
+    `;
+    const params = startDate && endDate ? [userId, startDate, endDate] : [userId];
+    const result = await pool.query(query, params);
+    return parseInt(result.rows[0]?.total_contacts || '0');
+  } catch (error) {
+    console.error('Erro ao buscar contatos QR:', error);
+    return 0;
+  }
 }
