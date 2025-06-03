@@ -8,7 +8,7 @@ import { processProspectingFile } from "./imports";
 import * as xlsx from "xlsx";
 import { 
   insertLeadSchema, insertProspectSchema, insertDispatchSchema, insertSettingsSchema, 
-  insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema,
+  insertAiAgentSchema,
   insertLeadInteractionSchema, insertLeadRecommendationSchema,
   insertProspectingSearchSchema, insertProspectingResultSchema,
   insertUserSchema, ConnectionStatus, insertServerSchema,

@@ -70,9 +70,9 @@ export interface IStorage {
   createOrUpdateMetrics(userId: number, month: string, year: number, data: { leadsCount?: number, prospectsCount?: number, dispatchesCount?: number }): Promise<Metric>;
   
   // AI Agent methods (consolidated)
-  getAiAgent(userId: number): Promise<AiAgent | undefined>;
+  getAiAgentByUserId(userId: number): Promise<AiAgent | undefined>;
   createAiAgent(agentData: InsertAiAgent & { userId: number }): Promise<AiAgent>;
-  updateAiAgent(id: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined>;
+  updateAiAgent(userId: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined>;
   
   // Lead Interactions methods
   getLeadInteractions(leadId: number): Promise<LeadInteraction[]>;
@@ -172,8 +172,6 @@ export class MemStorage implements IStorage {
   private settings: Map<number, Settings>;
   private metrics: Map<number, Metric>;
   private aiAgents: Map<number, AiAgent>;
-  private aiAgentSteps: Map<number, AiAgentSteps>;
-  private aiAgentFaqs: Map<number, AiAgentFaqs>;
   private leadInteractions: Map<number, LeadInteraction>;
   private leadRecommendations: Map<number, LeadRecommendation>;
   private prospectingSearches: Map<number, ProspectingSearch>;
@@ -199,8 +197,6 @@ export class MemStorage implements IStorage {
     this.settings = new Map();
     this.metrics = new Map();
     this.aiAgents = new Map();
-    this.aiAgentSteps = new Map();
-    this.aiAgentFaqs = new Map();
     this.leadInteractions = new Map();
     this.leadRecommendations = new Map();
     this.prospectingSearches = new Map();
@@ -223,8 +219,6 @@ export class MemStorage implements IStorage {
       settings: 1,
       metrics: 1,
       aiAgents: 1,
-      aiAgentSteps: 1,
-      aiAgentFaqs: 1,
       leadInteractions: 1,
       leadRecommendations: 1,
       prospectingSearches: 1,
@@ -609,82 +603,9 @@ export class MemStorage implements IStorage {
     return updatedAgent;
   }
   
-  // AI Agent Steps methods
-  async getAiAgentSteps(userId: number): Promise<AiAgentSteps[]> {
-    return Array.from(this.aiAgentSteps.values())
-      .filter(step => step.userId === userId)
-      .sort((a, b) => a.order - b.order);
-  }
+
   
-  async getAiAgentStep(id: number): Promise<AiAgentSteps | undefined> {
-    return this.aiAgentSteps.get(id);
-  }
-  
-  async createAiAgentStep(stepData: InsertAiAgentSteps & { userId: number }): Promise<AiAgentSteps> {
-    const id = this.currentId.aiAgentSteps++;
-    const now = new Date();
-    const step: AiAgentSteps = {
-      id,
-      userId: stepData.userId,
-      name: stepData.name,
-      description: stepData.description || null,
-      order: stepData.order,
-      createdAt: now
-    };
-    this.aiAgentSteps.set(id, step);
-    return step;
-  }
-  
-  async updateAiAgentStep(id: number, stepData: Partial<InsertAiAgentSteps>): Promise<AiAgentSteps | undefined> {
-    const step = await this.getAiAgentStep(id);
-    if (!step) return undefined;
-    
-    const updatedStep = { ...step, ...stepData };
-    this.aiAgentSteps.set(id, updatedStep);
-    return updatedStep;
-  }
-  
-  async deleteAiAgentStep(id: number): Promise<boolean> {
-    if (!this.aiAgentSteps.has(id)) return false;
-    return this.aiAgentSteps.delete(id);
-  }
-  
-  // AI Agent FAQs methods
-  async getAiAgentFaqs(userId: number): Promise<AiAgentFaqs[]> {
-    return Array.from(this.aiAgentFaqs.values()).filter(faq => faq.userId === userId);
-  }
-  
-  async getAiAgentFaq(id: number): Promise<AiAgentFaqs | undefined> {
-    return this.aiAgentFaqs.get(id);
-  }
-  
-  async createAiAgentFaq(faqData: InsertAiAgentFaqs & { userId: number }): Promise<AiAgentFaqs> {
-    const id = this.currentId.aiAgentFaqs++;
-    const now = new Date();
-    const faq: AiAgentFaqs = {
-      id,
-      userId: faqData.userId,
-      question: faqData.question,
-      answer: faqData.answer,
-      createdAt: now
-    };
-    this.aiAgentFaqs.set(id, faq);
-    return faq;
-  }
-  
-  async updateAiAgentFaq(id: number, faqData: Partial<InsertAiAgentFaqs>): Promise<AiAgentFaqs | undefined> {
-    const faq = await this.getAiAgentFaq(id);
-    if (!faq) return undefined;
-    
-    const updatedFaq = { ...faq, ...faqData };
-    this.aiAgentFaqs.set(id, updatedFaq);
-    return updatedFaq;
-  }
-  
-  async deleteAiAgentFaq(id: number): Promise<boolean> {
-    if (!this.aiAgentFaqs.has(id)) return false;
-    return this.aiAgentFaqs.delete(id);
-  }
+
 
   // Lead Interactions methods
   async getLeadInteractions(leadId: number): Promise<LeadInteraction[]> {
