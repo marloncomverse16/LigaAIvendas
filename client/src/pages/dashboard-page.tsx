@@ -254,7 +254,7 @@ export default function DashboardPage() {
                 <h3 className="font-medium">Disparos para atingir meta</h3>
               </div>
               <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.disparosNecessarios || 0).toLocaleString('pt-BR')}
+                {(dashboardData?.calculations.quantosDisparosParaAtingirMeta || 0).toLocaleString('pt-BR')}
               </p>
               <p className="text-sm text-muted-foreground">
                 Total de disparos necessários
