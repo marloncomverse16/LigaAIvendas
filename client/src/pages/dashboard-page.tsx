@@ -220,6 +220,92 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Análises e Projeções */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Análises e Projeções
+          </CardTitle>
+          <CardDescription>
+            Cálculos baseados nas configurações de metas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* 1. Quantidade de Vendas */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-green-500" />
+                <h3 className="font-medium">Quantidade de Vendas</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                {Math.round(dashboardData?.calculations.quantidadeVendas || 0)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Total de vendas esperado
+              </p>
+            </div>
+
+            {/* 3. Disparos para atingir meta */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-orange-500" />
+                <h3 className="font-medium">Disparos para atingir meta</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                {(dashboardData?.calculations.disparosNecessarios || 0).toLocaleString('pt-BR')}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Total de disparos necessários
+              </p>
+            </div>
+
+            {/* 4. Faturamento Estimado */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-orange-500" />
+                <h3 className="font-medium">Faturamento Estimado</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                R$ {(dashboardData?.calculations.faturamentoEstimado || 0).toLocaleString('pt-BR')}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Ticket médio × Qtd de vendas
+              </p>
+            </div>
+
+            {/* Média de Leads */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-cyan-500" />
+                <h3 className="font-medium">Média de Leads</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                {(dashboardData?.calculations.mediaLeadsGerados || 0).toFixed(0)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Mensagens enviadas ÷ Disparos por lead
+              </p>
+            </div>
+
+            {/* Valor a ser gasto com Whatsapp Cloud */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-yellow-500" />
+                <h3 className="font-medium">Valor a ser gasto com Whatsapp Cloud</h3>
+              </div>
+              <p className="text-2xl font-bold">
+                R$ {(dashboardData?.calculations.valorASerGastoIcloud || 0).toFixed(2)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Investimento estimado em mensagens
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Resumo dos Relatórios */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
@@ -285,157 +371,9 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Metas de Faturamento */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Metas de Faturamento
-          </CardTitle>
-          <CardDescription>
-            Configurações definidas em "Configurações - Metas"
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <h3 className="font-medium text-muted-foreground">Meta de Receita</h3>
-              <p className="text-3xl font-bold text-green-600">
-                R$ {(dashboardData?.goals.revenue || 0).toLocaleString('pt-BR')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Período: {dashboardData?.goals.period || 'Mensal'}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-medium text-muted-foreground">Ticket Médio</h3>
-              <p className="text-3xl font-bold text-blue-600">
-                R$ {(dashboardData?.goals.averageTicket || 0).toLocaleString('pt-BR')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Por venda realizada
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-medium text-muted-foreground">Meta de Leads</h3>
-              <p className="text-3xl font-bold text-purple-600">
-                {dashboardData?.goals.leadsGoal || 0}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Leads no período
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Cálculos e Projeções */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Análises e Projeções
-          </CardTitle>
-          <CardDescription>
-            Cálculos baseados no histórico do período selecionado
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* 1. Quantidade de Vendas */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4 text-green-500" />
-                <h3 className="font-medium">Quantidade de Vendas</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                {Math.round(dashboardData?.calculations.quantidadeVendas || 0)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Total de vendas esperado
-              </p>
-            </div>
-
-            {/* 3. Disparos para atingir meta */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-red-500" />
-                <h3 className="font-medium">Disparos para atingir meta</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.quantosDisparosParaAtingirMeta || 0).toLocaleString('pt-BR')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Vendas × Média compradores
-              </p>
-            </div>
-
-            {/* 4. Faturamento Estimado */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-orange-500" />
-                <h3 className="font-medium">Faturamento Estimado</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                R$ {(dashboardData?.calculations.faturamentoEstimado || 0).toLocaleString('pt-BR')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Ticket médio × Qtd de vendas
-              </p>
-            </div>
 
 
 
-            {/* Média de Leads */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-cyan-500" />
-                <h3 className="font-medium">Média de Leads</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                {(dashboardData?.calculations.mediaLeadsGerados || 0).toFixed(0)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Mensagens enviadas ÷ Disparos por lead
-              </p>
-            </div>
-
-            {/* Valor a ser gasto iCloud */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-yellow-500" />
-                <h3 className="font-medium">Valor a ser gasto iCloud</h3>
-              </div>
-              <p className="text-2xl font-bold">
-                R$ {(dashboardData?.calculations.valorASerGastoIcloud || 0).toFixed(2)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Investimento estimado em mensagens
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-yellow-500" />
-                <h3 className="font-medium">Status da Meta</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {(dashboardData?.calculations.faturamentoEstimado || 0) >= (dashboardData?.goals.revenue || 0) ? (
-                  <Badge variant="default">No Alvo</Badge>
-                ) : (
-                  <Badge variant="destructive">Abaixo da Meta</Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {(dashboardData?.calculations.faturamentoEstimado || 0) >= (dashboardData?.goals.revenue || 0) 
-                  ? 'Meta pode ser atingida' 
-                  : 'Ajustar configurações necessário'
-                }
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Loading State */}
       {isLoading && (
