@@ -5666,8 +5666,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const custoPorDisparo = quantasMensagensEnviadas > 0 ? custoIcloudTotal / quantasMensagensEnviadas : 0.027;
       const valorGastoIcloud = disparosNecessarios * custoPorDisparo;
       
-      // Média de Leads = (Quantas Mensagens enviadas / Quantos disparos para ter um Lead) - CORRIGIDO
-      const mediaLeadsGerados = quantosDisparosPorLead > 0 ? (quantasMensagensEnviadas / quantosDisparosPorLead) : 0;
+      // Média de Leads = Disparos para atingir meta ÷ Disparos para ter 1 lead
+      const mediaLeadsGerados = quantosDisparosPorLead > 0 ? (disparosNecessarios / quantosDisparosPorLead) : 0;
 
       console.log('Cálculos finalizados:', {
         quantidadeVendas,
