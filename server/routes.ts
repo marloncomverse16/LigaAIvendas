@@ -5748,22 +5748,24 @@ async function getQrConversationsCount(userId: number, startDate?: string, endDa
       return 0;
     }
 
-    const server = servers[0];
-    console.log('🔍 Estrutura completa do servidor encontrado:', JSON.stringify(server, null, 2));
+    const serverData = servers[0];
+    const server = serverData.server; // Acessar objeto server aninhado
     
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
+    const instanceId = server.instanceId;
     
     console.log('🔑 API URL:', apiUrl);
     console.log('🔑 API Token:', apiToken ? `${apiToken.substring(0, 8)}...` : 'null/undefined');
+    console.log('🔑 Instance ID:', instanceId);
     
     if (!apiToken) {
-      console.log('❌ Token da Evolution API não encontrado na estrutura do servidor');
+      console.log('❌ Token da Evolution API não encontrado');
       return 0;
     }
 
     // Buscar chats da Evolution API
-    const response = await fetch(`${apiUrl}/chat/findChats/${server.instanceId}`, {
+    const response = await fetch(`${apiUrl}/chat/findChats/${instanceId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -5795,14 +5797,16 @@ async function getQrMessagesCount(userId: number, startDate?: string, endDate?: 
     const servers = await storage.getUserServers(userId);
     if (!servers || servers.length === 0) return 0;
 
-    const server = servers[0];
+    const serverData = servers[0];
+    const server = serverData.server;
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
+    const instanceId = server.instanceId;
     
     if (!apiToken) return 0;
 
     // Buscar mensagens da Evolution API
-    const response = await fetch(`${apiUrl}/chat/findMessages/${server.instanceId}`, {
+    const response = await fetch(`${apiUrl}/chat/findMessages/${instanceId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -5835,14 +5839,16 @@ async function getQrContactsCount(userId: number, startDate?: string, endDate?: 
     const servers = await storage.getUserServers(userId);
     if (!servers || servers.length === 0) return 0;
 
-    const server = servers[0];
+    const serverData = servers[0];
+    const server = serverData.server;
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
+    const instanceId = server.instanceId;
     
     if (!apiToken) return 0;
 
     // Buscar contatos da Evolution API
-    const response = await fetch(`${apiUrl}/chat/findChats/${server.instanceId}`, {
+    const response = await fetch(`${apiUrl}/chat/findChats/${instanceId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
