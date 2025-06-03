@@ -108,7 +108,14 @@ export default function AiAgentPage() {
     isLoading: isLoadingFaqs 
   } = useQuery<AiAgentFaq[]>({ 
     queryKey: ["/api/ai-agent/faqs"],
-    retry: 1
+    retry: 1,
+    select: (data) => {
+      // Remove duplicatas baseadas no ID para garantir unicidade
+      const uniqueFaqs = data.filter((faq, index, self) => 
+        index === self.findIndex(f => f.id === faq.id)
+      );
+      return uniqueFaqs.sort((a, b) => a.id - b.id);
+    }
   });
   
   // State for the agent form
