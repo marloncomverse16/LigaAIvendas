@@ -5738,54 +5738,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-// Helper functions for QR Code data retrieval
+// Helper functions for QR Code data retrieval from Evolution API
 async function getQrConversationsCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
-    const query = `
-      SELECT COUNT(DISTINCT remote_jid) as total_conversations
-      FROM whatsapp_messages 
-      WHERE user_id = $1 
-      ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
-    `;
-    const params = startDate && endDate ? [userId, startDate, endDate] : [userId];
-    const result = await pool.query(query, params);
-    return parseInt(result.rows[0]?.total_conversations || '0');
+    // Buscar dados reais da Evolution API
+    const servers = await storage.getUserServers(userId);
+    if (!servers || servers.length === 0) {
+      console.log('Nenhum servidor Evolution encontrado para usuário:', userId);
+      return 0;
+    }
+
+    const server = servers[0];
+    const apiUrl = server.apiUrl;
+    const apiToken = server.apiToken;
+    
+    if (!apiToken) {
+      console.log('Token da Evolution API não encontrado');
+      return 0;
+    }
+
+    // Buscar chats da Evolution API
+    const response = await fetch(`${apiUrl}/chat/findChats/${server.instanceId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiToken
+      },
+      body: JSON.stringify({
+        where: {},
+        limit: 1000
+      })
+    });
+
+    if (!response.ok) {
+      console.log('Erro ao buscar chats da Evolution API:', response.status);
+      return 0;
+    }
+
+    const chats = await response.json();
+    console.log('QR Conversas encontradas:', chats.length);
+    return chats.length || 0;
   } catch (error) {
-    console.error('Erro ao buscar conversas QR:', error);
+    console.error('Erro ao buscar conversas QR da API:', error);
     return 0;
   }
 }
 
 async function getQrMessagesCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
-    const query = `
-      SELECT COUNT(*) as total_messages
-      FROM whatsapp_messages 
-      WHERE user_id = $1 
-      ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
-    `;
-    const params = startDate && endDate ? [userId, startDate, endDate] : [userId];
-    const result = await pool.query(query, params);
-    return parseInt(result.rows[0]?.total_messages || '0');
+    // Buscar dados reais da Evolution API
+    const servers = await storage.getUserServers(userId);
+    if (!servers || servers.length === 0) return 0;
+
+    const server = servers[0];
+    const apiUrl = server.apiUrl;
+    const apiToken = server.apiToken;
+    
+    if (!apiToken) return 0;
+
+    // Buscar mensagens da Evolution API
+    const response = await fetch(`${apiUrl}/chat/findMessages/${server.instanceId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiToken
+      },
+      body: JSON.stringify({
+        where: {},
+        limit: 1000
+      })
+    });
+
+    if (!response.ok) {
+      console.log('Erro ao buscar mensagens da Evolution API:', response.status);
+      return 0;
+    }
+
+    const messagesData = await response.json();
+    const totalMessages = messagesData.messages?.total || 0;
+    console.log('QR Mensagens encontradas:', totalMessages);
+    return totalMessages;
   } catch (error) {
-    console.error('Erro ao buscar mensagens QR:', error);
+    console.error('Erro ao buscar mensagens QR da API:', error);
     return 0;
   }
 }
 
 async function getQrContactsCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
-    const query = `
-      SELECT COUNT(DISTINCT remote_jid) as total_contacts
-      FROM whatsapp_messages 
-      WHERE user_id = $1 
-      ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
-    `;
-    const params = startDate && endDate ? [userId, startDate, endDate] : [userId];
-    const result = await pool.query(query, params);
-    return parseInt(result.rows[0]?.total_contacts || '0');
+    // Buscar dados reais da Evolution API
+    const servers = await storage.getUserServers(userId);
+    if (!servers || servers.length === 0) return 0;
+
+    const server = servers[0];
+    const apiUrl = server.apiUrl;
+    const apiToken = server.apiToken;
+    
+    if (!apiToken) return 0;
+
+    // Buscar contatos da Evolution API
+    const response = await fetch(`${apiUrl}/chat/findChats/${server.instanceId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiToken
+      },
+      body: JSON.stringify({
+        where: {},
+        limit: 1000
+      })
+    });
+
+    if (!response.ok) {
+      console.log('Erro ao buscar contatos da Evolution API:', response.status);
+      return 0;
+    }
+
+    const chats = await response.json();
+    const uniqueContacts = new Set();
+    
+    if (Array.isArray(chats)) {
+      chats.forEach(chat => {
+        if (chat.remoteJid) {
+          uniqueContacts.add(chat.remoteJid);
+        }
+      });
+    }
+
+    console.log('QR Contatos únicos encontrados:', uniqueContacts.size);
+    return uniqueContacts.size;
   } catch (error) {
-    console.error('Erro ao buscar contatos QR:', error);
+    console.error('Erro ao buscar contatos QR da API:', error);
     return 0;
   }
 }
