@@ -1,6 +1,6 @@
 import { 
   users, leads, prospects, dispatches, settings, metrics, 
-  aiAgent, aiAgentSteps, aiAgentFaqs, leadInteractions, leadRecommendations,
+  aiAgent, leadInteractions, leadRecommendations,
   prospectingSearches, prospectingResults, prospectingSchedules, prospectingDispatchHistory,
   messageTemplates, messageSendings, messageSendingHistory,
   whatsappContacts, whatsappMessages, servers, userServers
@@ -8,8 +8,7 @@ import {
 import type {
   User, InsertUser, Lead, InsertLead, Prospect, InsertProspect, 
   Dispatch, InsertDispatch, Settings, InsertSettings, Metric,
-  AiAgent, InsertAiAgent, AiAgentSteps, InsertAiAgentSteps,
-  AiAgentFaqs, InsertAiAgentFaqs, LeadInteraction, InsertLeadInteraction,
+  AiAgent, InsertAiAgent, LeadInteraction, InsertLeadInteraction,
   LeadRecommendation, InsertLeadRecommendation, ProspectingSearch, InsertProspectingSearch,
   ProspectingResult, InsertProspectingResult, MessageTemplate, InsertMessageTemplate,
   MessageSending, InsertMessageSending, MessageSendingHistory, InsertMessageSendingHistory,

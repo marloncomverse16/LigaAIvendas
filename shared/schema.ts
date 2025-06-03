@@ -147,22 +147,7 @@ export const aiAgent = pgTable("ai_agent", {
 });
 
 // Tabelas antigas mantidas para compatibilidade (serão removidas após migração)
-export const aiAgentSteps = pgTable("ai_agent_steps", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  name: text("name").notNull(),
-  description: text("description"),
-  order: integer("order").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
-export const aiAgentFaqs = pgTable("ai_agent_faqs", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  question: text("question").notNull(),
-  answer: text("answer").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
 // Enum para tipos de interações com leads
 export const interactionTypeEnum = pgEnum("interaction_type", [
@@ -281,16 +266,7 @@ export const insertAiAgentSchema = createInsertSchema(aiAgent).pick({
   faqs: true,
 });
 
-export const insertAiAgentStepsSchema = createInsertSchema(aiAgentSteps).pick({
-  name: true,
-  description: true,
-  order: true,
-});
 
-export const insertAiAgentFaqsSchema = createInsertSchema(aiAgentFaqs).pick({
-  question: true,
-  answer: true,
-});
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -312,12 +288,7 @@ export type Metric = typeof metrics.$inferSelect;
 
 // AI Agent Types
 export type AiAgent = typeof aiAgent.$inferSelect;
-export type AiAgentSteps = typeof aiAgentSteps.$inferSelect;
-export type AiAgentFaqs = typeof aiAgentFaqs.$inferSelect;
-
 export type InsertAiAgent = z.infer<typeof insertAiAgentSchema>;
-export type InsertAiAgentSteps = z.infer<typeof insertAiAgentStepsSchema>;
-export type InsertAiAgentFaqs = z.infer<typeof insertAiAgentFaqsSchema>;
 
 // Tabela para prospecções
 export const prospectingSearches = pgTable("prospecting_searches", {

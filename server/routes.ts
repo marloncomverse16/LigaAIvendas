@@ -353,7 +353,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const stepsData = req.body;
       
-      // Simula atualização e retorna os dados enviados
+      // Get existing agent or create one
+      let agent = await storage.getAiAgent(req.user.id);
+      
+      if (!agent) {
+        agent = await storage.createAiAgent({
+          userId: req.user.id,
+          enabled: false,
+          triggerText: "",
+          personality: "",
+          expertise: "",
+          voiceTone: "",
+          rules: "",
+          followUpEnabled: false,
+          followUpCount: 0,
+          messageInterval: "30 minutos",
+          followUpPrompt: "",
+          schedulingEnabled: false,
+          agendaId: "",
+          schedulingPromptConsult: "",
+          schedulingPromptTime: "",
+          schedulingDuration: "30 minutos",
+          steps: JSON.stringify(stepsData),
+          faqs: "[]"
+        });
+      } else {
+        // Update existing agent with new steps
+        agent = await storage.updateAiAgent(agent.id, {
+          steps: JSON.stringify(stepsData)
+        });
+      }
+      
       res.json(stepsData);
     } catch (error) {
       console.error("Erro ao atualizar etapas do agente:", error);
@@ -365,35 +395,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Retorna FAQs mockadas para demonstração
-      const mockFaqs = [
-        {
-          id: 1,
-          aiAgentId: 1,
-          question: "Como faço para recuperar minha senha?",
-          answer: "Para recuperar sua senha, clique em 'Esqueci minha senha' na tela de login e siga as instruções enviadas ao seu e-mail.",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          aiAgentId: 1,
-          question: "Quais são os horários de atendimento?",
-          answer: "Nosso atendimento funciona de segunda a sexta, das 8h às 18h, exceto feriados nacionais.",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 3,
-          aiAgentId: 1,
-          question: "Como faço para cancelar minha assinatura?",
-          answer: "Para cancelar sua assinatura, acesse seu perfil, vá em 'Minha assinatura' e clique no botão 'Cancelar'. Lembre-se que você pode ter acesso ao serviço até o final do período já pago.",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
+      const agent = await storage.getAiAgent(req.user.id);
       
-      res.json(mockFaqs);
+      if (!agent || !agent.faqs) {
+        return res.json([]);
+      }
+      
+      // Parse FAQs from JSON field
+      const faqs = JSON.parse(agent.faqs);
+      res.json(faqs);
     } catch (error) {
       console.error("Erro ao buscar FAQs do agente:", error);
       res.status(500).json({ message: "Erro ao buscar FAQs do agente" });
@@ -406,7 +416,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const faqsData = req.body;
       
-      // Simula atualização e retorna os dados enviados
+      // Get existing agent or create one
+      let agent = await storage.getAiAgent(req.user.id);
+      
+      if (!agent) {
+        agent = await storage.createAiAgent({
+          userId: req.user.id,
+          enabled: false,
+          triggerText: "",
+          personality: "",
+          expertise: "",
+          voiceTone: "",
+          rules: "",
+          followUpEnabled: false,
+          followUpCount: 0,
+          messageInterval: "30 minutos",
+          followUpPrompt: "",
+          schedulingEnabled: false,
+          agendaId: "",
+          schedulingPromptConsult: "",
+          schedulingPromptTime: "",
+          schedulingDuration: "30 minutos",
+          steps: "[]",
+          faqs: JSON.stringify(faqsData)
+        });
+      } else {
+        // Update existing agent with new FAQs
+        agent = await storage.updateAiAgent(agent.id, {
+          faqs: JSON.stringify(faqsData)
+        });
+      }
+      
       res.json(faqsData);
     } catch (error) {
       console.error("Erro ao atualizar FAQs do agente:", error);
