@@ -277,6 +277,8 @@ export const insertAiAgentSchema = createInsertSchema(aiAgent).pick({
   schedulingPromptConsult: true,
   schedulingPromptTime: true,
   schedulingDuration: true,
+  steps: true,
+  faqs: true,
 });
 
 export const insertAiAgentStepsSchema = createInsertSchema(aiAgentSteps).pick({

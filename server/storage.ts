@@ -70,24 +70,10 @@ export interface IStorage {
   getMetricsByUserId(userId: number): Promise<Metric[]>;
   createOrUpdateMetrics(userId: number, month: string, year: number, data: { leadsCount?: number, prospectsCount?: number, dispatchesCount?: number }): Promise<Metric>;
   
-  // AI Agent methods
-  getAiAgentByUserId(userId: number): Promise<AiAgent | undefined>;
+  // AI Agent methods (consolidated)
+  getAiAgent(userId: number): Promise<AiAgent | undefined>;
   createAiAgent(agentData: InsertAiAgent & { userId: number }): Promise<AiAgent>;
-  updateAiAgent(userId: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined>;
-  
-  // AI Agent Steps methods
-  getAiAgentSteps(userId: number): Promise<AiAgentSteps[]>;
-  getAiAgentStep(id: number): Promise<AiAgentSteps | undefined>;
-  createAiAgentStep(stepData: InsertAiAgentSteps & { userId: number }): Promise<AiAgentSteps>;
-  updateAiAgentStep(id: number, stepData: Partial<InsertAiAgentSteps>): Promise<AiAgentSteps | undefined>;
-  deleteAiAgentStep(id: number): Promise<boolean>;
-  
-  // AI Agent FAQs methods
-  getAiAgentFaqs(userId: number): Promise<AiAgentFaqs[]>;
-  getAiAgentFaq(id: number): Promise<AiAgentFaqs | undefined>;
-  createAiAgentFaq(faqData: InsertAiAgentFaqs & { userId: number }): Promise<AiAgentFaqs>;
-  updateAiAgentFaq(id: number, faqData: Partial<InsertAiAgentFaqs>): Promise<AiAgentFaqs | undefined>;
-  deleteAiAgentFaq(id: number): Promise<boolean>;
+  updateAiAgent(id: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined>;
   
   // Lead Interactions methods
   getLeadInteractions(leadId: number): Promise<LeadInteraction[]>;
@@ -1533,8 +1519,8 @@ export class DatabaseStorage implements IStorage {
     });
   }
   
-  // AI Agent methods
-  async getAiAgentByUserId(userId: number): Promise<AiAgent | undefined> {
+  // AI Agent methods (consolidated)
+  async getAiAgent(userId: number): Promise<AiAgent | undefined> {
     const [agentData] = await db
       .select()
       .from(aiAgent)
@@ -1550,11 +1536,11 @@ export class DatabaseStorage implements IStorage {
     return newAgent;
   }
   
-  async updateAiAgent(userId: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined> {
+  async updateAiAgent(id: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined> {
     const [updatedAgent] = await db
       .update(aiAgent)
       .set(agentData)
-      .where(eq(aiAgent.userId, userId))
+      .where(eq(aiAgent.id, id))
       .returning();
     return updatedAgent;
   }

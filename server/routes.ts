@@ -332,41 +332,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      // Retorna etapas mockadas para demonstração
-      const mockSteps = [
-        {
-          id: 1,
-          aiAgentId: 1,
-          order: 1,
-          question: "Qual sua necessidade principal?",
-          answerOptions: ["Suporte", "Orçamento", "Dúvidas"],
-          nextStepLogic: { Suporte: 2, Orçamento: 3, Dúvidas: 4 },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          aiAgentId: 1,
-          order: 2,
-          question: "Qual área você precisa de suporte?",
-          answerOptions: ["Técnico", "Financeiro", "Uso do produto"],
-          nextStepLogic: { Técnico: 5, Financeiro: 6, "Uso do produto": 7 },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 3,
-          aiAgentId: 1,
-          order: 3,
-          question: "Que tipo de orçamento você precisa?",
-          answerOptions: ["Produto completo", "Módulos específicos", "Serviços"],
-          nextStepLogic: { "Produto completo": 8, "Módulos específicos": 9, Serviços: 10 },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
+      const agent = await storage.getAiAgent(req.user.id);
       
-      res.json(mockSteps);
+      if (!agent || !agent.steps) {
+        return res.json([]);
+      }
+      
+      // Parse steps from JSON field
+      const steps = JSON.parse(agent.steps);
+      res.json(steps);
     } catch (error) {
       console.error("Erro ao buscar etapas do agente:", error);
       res.status(500).json({ message: "Erro ao buscar etapas do agente" });
