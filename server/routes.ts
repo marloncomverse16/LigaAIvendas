@@ -382,8 +382,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = (req.user as Express.User).id;
+      console.log(`🔍 Buscando FAQs para usuário ${userId}`);
+      
       const faqs = await storage.getAiAgentFaqs(userId);
-      res.json(faqs);
+      console.log(`📊 FAQs encontradas (${faqs.length}):`, faqs);
+      
+      // Remove duplicatas baseadas no ID como medida de segurança
+      const uniqueFaqs = faqs.filter((faq, index, self) => 
+        index === self.findIndex(f => f.id === faq.id)
+      );
+      
+      if (faqs.length !== uniqueFaqs.length) {
+        console.log(`⚠️ Duplicatas removidas: ${faqs.length} -> ${uniqueFaqs.length}`);
+      }
+      
+      res.json(uniqueFaqs);
     } catch (error) {
       console.error("Erro ao buscar FAQs do agente:", error);
       res.status(500).json({ message: "Erro ao buscar FAQs do agente" });
