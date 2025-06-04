@@ -113,14 +113,10 @@ export default function AiAgentPage() {
     cacheTime: 1000 * 60 * 10, // 10 minutos no cache
     refetchOnWindowFocus: false,
     select: (data) => {
-      console.log("Raw FAQs data from server:", data);
-      
       // Remove duplicatas baseadas no ID para garantir unicidade
       const uniqueFaqs = data.filter((faq, index, self) => 
         index === self.findIndex(f => f.id === faq.id)
       );
-      
-      console.log("Filtered unique FAQs:", uniqueFaqs);
       return uniqueFaqs.sort((a, b) => a.id - b.id);
     }
   });

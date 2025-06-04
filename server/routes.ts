@@ -398,7 +398,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as Express.User).id;
       const faqData = { ...req.body, userId };
       
+      console.log(`📝 Criando nova FAQ para usuário ${userId}:`, faqData);
+      
+      // Verificar se já existe uma FAQ idêntica
+      const existingFaqs = await storage.getAiAgentFaqs(userId);
+      const duplicateFaq = existingFaqs.find(faq => 
+        faq.question === faqData.question && faq.answer === faqData.answer
+      );
+      
+      if (duplicateFaq) {
+        console.log(`⚠️ FAQ duplicada detectada, retornando FAQ existente:`, duplicateFaq);
+        return res.status(200).json(duplicateFaq);
+      }
+      
       const newFaq = await storage.createAiAgentFaq(faqData);
+      console.log(`✅ Nova FAQ criada com sucesso:`, newFaq);
       res.status(201).json(newFaq);
     } catch (error) {
       console.error("Erro ao criar FAQ do agente:", error);
