@@ -909,7 +909,7 @@ export default function ProspectingPage() {
                                         <>
                                           <Upload className="w-10 h-10 mb-3 text-muted-foreground" />
                                           <p className="mb-2 text-sm text-muted-foreground">Clique para selecionar ou arraste o arquivo</p>
-                                          <p className="text-xs text-muted-foreground">CSV ou XLS/XLSX (máx. 10MB)</p>
+                                          <p className="text-xs text-muted-foreground">PDF ou CSV (máx. 10MB)</p>
                                           <p className="text-xs text-muted-foreground mt-1">
                                             Formato: colunas com nome, email, telefone ou qualquer dados de contato
                                           </p>
@@ -923,7 +923,7 @@ export default function ProspectingPage() {
                                       id="dropzone-file"
                                       type="file"
                                       className="hidden"
-                                      accept=".csv,.xls,.xlsx"
+                                      accept=".pdf,.csv"
                                       onChange={handleFileChange}
                                       ref={fileInputRef}
                                     />
@@ -953,7 +953,7 @@ export default function ProspectingPage() {
                                 <FileType className="h-4 w-4" />
                                 <AlertTitle>Formato do arquivo</AlertTitle>
                                 <AlertDescription>
-                                  <p className="mb-2">O arquivo deve estar no formato CSV ou Excel com as seguintes colunas:</p>
+                                  <p className="mb-2">O arquivo deve estar no formato PDF ou CSV com as seguintes colunas:</p>
                                   <ul className="list-disc list-inside space-y-1 text-xs">
                                     <li><strong>nome/name</strong>: Nome da empresa ou contato</li>
                                     <li><strong>email</strong>: Endereço de email</li>

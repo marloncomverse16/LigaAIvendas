@@ -121,7 +121,7 @@ app.post("/api/prospecting/import", upload.single('file'), async (req, res) => {
       fs.unlinkSync(file.path);
       await storage.updateProspectingSearch(search.id, { status: "erro" });
       return res.status(400).json({ 
-        message: "Formato de arquivo não suportado. Use CSV ou Excel (.xlsx/.xls)" 
+        message: "Formato de arquivo não suportado. Use apenas PDF ou CSV" 
       });
     }
   } catch (error) {
