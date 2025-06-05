@@ -317,55 +317,60 @@ export default function AiAgentPage() {
       setIsUploading(true);
       setUploadType("rules");
       
-      let processedFile = file;
+      // Validar tipo de arquivo
+      const allowedTypes = [
+        'application/pdf',
+        'text/csv',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ];
       
-      // Comprimir se for imagem e maior que 1MB
-      if (file.type.startsWith('image/') && file.size > 1024 * 1024) {
+      if (!allowedTypes.includes(file.type)) {
         toast({
-          title: "Comprimindo imagem",
-          description: "Arquivo grande detectado. Comprimindo para otimizar o upload...",
+          title: "Tipo de arquivo não suportado",
+          description: "Apenas arquivos PDF, CSV e Excel (.xlsx, .xls) são aceitos.",
+          variant: "destructive",
         });
-        processedFile = await compressImage(file);
+        return;
       }
       
-      // Convert file to N8N compatible format
-      const reader = new FileReader();
-      const mediaContent = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result); // Manter data URL completo para N8N
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(processedFile);
+      // Criar FormData para envio do arquivo
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Fazer upload do arquivo
+      const response = await fetch('/api/ai-agent/upload-file', {
+        method: 'POST',
+        body: formData,
       });
       
-      // Criar estrutura compatível com N8N
-      const n8nMediaFormat = JSON.stringify({
-        data: mediaContent,
-        mimeType: processedFile.type,
-        fileName: processedFile.name,
-        fileSize: processedFile.size,
-        encoding: 'dataurl'
-      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro no upload do arquivo');
+      }
+      
+      const result = await response.json();
       
       // Update media in agent behavior rules
       setAgentData(prev => ({
         ...prev,
-        mediaData: n8nMediaFormat,
-        mediaFilename: processedFile.name,
-        mediaType: processedFile.type
+        mediaData: result.filePath,
+        mediaFilename: result.fileName,
+        mediaType: result.mimeType,
+        fileFormat: result.fileFormat,
+        fileSize: result.fileSize
       }));
       
       toast({
-        title: "Mídia importada",
-        description: `Arquivo ${file.size > 1024 * 1024 ? 'comprimido e ' : ''}carregado com sucesso. Clique em 'Salvar Configurações' para salvar permanentemente.`,
+        title: "Arquivo carregado",
+        description: `${result.fileName} (${result.fileFormat.toUpperCase()}) carregado com sucesso. Clique em 'Salvar Configurações' para salvar permanentemente.`,
       });
       
     } catch (error) {
-      console.error("Erro no upload de mídia:", error);
+      console.error("Erro no upload de arquivo:", error);
       toast({
-        title: "Erro ao importar mídia",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao importar a mídia.",
+        title: "Erro ao carregar arquivo",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao carregar o arquivo.",
         variant: "destructive",
       });
     } finally {
@@ -637,7 +642,7 @@ export default function AiAgentPage() {
                             type="file"
                             id="rules-media"
                             className="hidden"
-                            accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+                            accept=".pdf,.csv,.xlsx,.xls"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
