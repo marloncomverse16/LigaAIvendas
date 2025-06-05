@@ -338,6 +338,12 @@ export default function AiAgentPage() {
       const formData = new FormData();
       formData.append('file', file);
       
+      console.log('Enviando arquivo:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      });
+      
       // Fazer upload do arquivo
       const response = await fetch('/api/ai-agent/upload-file', {
         method: 'POST',

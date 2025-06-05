@@ -98,6 +98,32 @@ const upload = multer({
     }
   }
 });
+
+// Configuração específica do multer para AI Agent (PDF, CSV, Excel)
+const uploadAgent = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedTypes = [
+      'application/pdf',
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+    
+    if (allowedTypes.includes(file.mimetype) ||
+        file.originalname.endsWith('.pdf') ||
+        file.originalname.endsWith('.csv') ||
+        file.originalname.endsWith('.xls') ||
+        file.originalname.endsWith('.xlsx')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo de arquivo não suportado. Apenas PDF, CSV e Excel são aceitos.'), false);
+    }
+  }
+});
 import {
   connectWhatsAppMeta as connectUserWhatsAppMeta,
   checkMetaConnectionStatus as checkUserMetaConnectionStatus,
@@ -347,11 +373,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload de arquivo para AI Agent
-  app.post("/api/ai-agent/upload-file", upload.single('file'), async (req, res) => {
+  app.post("/api/ai-agent/upload-file", uploadAgent.single('file'), async (req, res) => {
+    console.log('=== UPLOAD DEBUG ===');
+    console.log('req.file:', req.file);
+    console.log('req.body:', req.body);
+    console.log('Content-Type:', req.headers['content-type']);
+    
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       if (!req.file) {
+        console.log('Erro: Nenhum arquivo recebido no req.file');
         return res.status(400).json({ message: "Nenhum arquivo enviado" });
       }
 
