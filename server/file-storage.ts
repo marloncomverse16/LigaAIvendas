@@ -47,6 +47,9 @@ export async function saveFile(
 ): Promise<FileStorageResult> {
   await ensureUploadDir();
   
+  // Deletar arquivos antigos do usuário primeiro
+  await deleteUserFiles(userId);
+  
   // Determinar formato do arquivo
   const fileFormat = SUPPORTED_FILE_TYPES[mimeType as keyof typeof SUPPORTED_FILE_TYPES];
   if (!fileFormat) {
@@ -102,5 +105,28 @@ export function fileExists(fileName: string): boolean {
     return fs.existsSync(filePath);
   } catch {
     return false;
+  }
+}
+
+/**
+ * Remove todos os arquivos de um usuário específico
+ */
+export async function deleteUserFiles(userId: number): Promise<void> {
+  try {
+    await ensureUploadDir();
+    const files = fs.readdirSync(UPLOAD_DIR);
+    const userFiles = files.filter(file => file.startsWith(`${userId}_`));
+    
+    for (const file of userFiles) {
+      try {
+        const filePath = path.join(UPLOAD_DIR, file);
+        await unlink(filePath);
+        console.log(`Arquivo antigo deletado: ${file}`);
+      } catch (error) {
+        console.warn(`Erro ao deletar arquivo ${file}:`, error);
+      }
+    }
+  } catch (error) {
+    console.warn(`Erro ao listar arquivos para usuário ${userId}:`, error);
   }
 }

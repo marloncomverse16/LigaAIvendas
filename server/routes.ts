@@ -375,38 +375,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoint para download de arquivos do AI Agent
-  app.get("/api/ai-agent/download/:filename", async (req, res) => {
+  app.get("/api/ai-agent/download/:filename(*)", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const filename = decodeURIComponent(req.params.filename);
-      const uploadsDir = path.join(process.cwd(), 'uploads', 'ai-agent');
-      const filePath = path.join(uploadsDir, filename);
+      const { fileExists, readFileFromStorage } = await import('./file-storage');
+      
+      // Decodificar o nome do arquivo
+      let filename = req.params.filename;
+      if (filename.includes('%')) {
+        filename = decodeURIComponent(filename);
+      }
       
       console.log('Download request for:', filename);
-      console.log('Uploads directory:', uploadsDir);
-      console.log('Full path:', filePath);
+      console.log('User ID:', req.user?.id);
       
       // Verificar se o arquivo existe
-      if (!fs.existsSync(filePath)) {
-        console.log('File not found at:', filePath);
-        console.log('Directory contents:', fs.existsSync(uploadsDir) ? fs.readdirSync(uploadsDir) : 'Directory does not exist');
+      if (!fileExists(filename)) {
+        console.log('File not found:', filename);
         return res.status(404).json({ message: "Arquivo não encontrado" });
+      }
+      
+      // Verificar se o arquivo pertence ao usuário logado
+      const userId = req.user!.id;
+      if (!filename.startsWith(`${userId}_`)) {
+        console.log('Access denied - file does not belong to user');
+        return res.status(403).json({ message: "Acesso negado" });
       }
       
       // Obter o nome original do arquivo (sem o prefixo de usuário e timestamp)
       const originalName = filename.split('_').slice(2).join('_');
       console.log('Original filename:', originalName);
       
+      // Ler o arquivo do sistema de armazenamento
+      const fileBuffer = await readFileFromStorage(filename);
+      
       // Definir headers apropriados para download
-      const stat = fs.statSync(filePath);
       res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
-      res.setHeader('Content-Length', stat.size);
+      res.setHeader('Content-Length', fileBuffer.length);
       res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Cache-Control', 'no-cache');
       
       // Enviar o arquivo
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
+      res.send(fileBuffer);
       
     } catch (error) {
       console.error("Erro no download do arquivo:", error);
@@ -449,7 +460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Gerar link de download baseado no domínio
       const protocol = req.secure ? 'https' : 'http';
       const host = req.get('host');
-      const downloadUrl = `${protocol}://${host}/api/ai-agent/download/${fileResult.filePath}`;
+      const downloadUrl = `${protocol}://${host}/api/ai-agent/download/${encodeURIComponent(fileResult.filePath)}`;
 
       res.json({
         downloadUrl: downloadUrl, // Link de download
