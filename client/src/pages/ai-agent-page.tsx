@@ -43,7 +43,9 @@ interface AiAgent {
   expertise: string | null;
   voiceTone: string | null;
   rules: string | null;
-  mediaUrl: string | null;
+  mediaData: string | null;
+  mediaFilename: string | null;
+  mediaType: string | null;
   followUpEnabled: boolean;
   followUpCount: number | null;
   messageInterval: string | null;
@@ -64,7 +66,9 @@ interface AiAgentStep {
   name: string;
   description: string | null;
   order: number;
-  mediaUrl: string | null;
+  mediaData: string | null;
+  mediaFilename: string | null;
+  mediaType: string | null;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -74,7 +78,9 @@ interface AiAgentFaq {
   userId: number;
   question: string;
   answer: string;
-  mediaUrl: string | null;
+  mediaData: string | null;
+  mediaFilename: string | null;
+  mediaType: string | null;
   createdAt: string;
   updatedAt: string | null;
 }

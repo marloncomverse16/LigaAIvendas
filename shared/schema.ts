@@ -165,7 +165,9 @@ export const aiAgentFaqs = pgTable("ai_agent_faqs", {
   userId: integer("user_id").references(() => users.id),
   question: text("question").notNull(),
   answer: text("answer").notNull(),
-  mediaUrl: text("media_url"), // URL do arquivo de mídia da FAQ
+  mediaData: text("media_data"), // Dados binários do arquivo codificados em base64
+  mediaFilename: text("media_filename"), // Nome original do arquivo
+  mediaType: text("media_type"), // MIME type do arquivo
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
