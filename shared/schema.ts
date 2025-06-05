@@ -130,9 +130,9 @@ export const aiAgent = pgTable("ai_agent", {
   expertise: text("expertise"),
   voiceTone: text("voice_tone"),
   rules: text("rules"),
-  mediaData: text("media_data"), // Caminho do arquivo no sistema de arquivos
+  mediaDownloadUrl: text("media_download_url"), // Link de download do arquivo
   mediaFilename: text("media_filename"), // Nome original do arquivo
-  mediaType: text("media_type"), // MIME type do arquivo
+  mediaFormat: text("media_format"), // Formato do arquivo (pdf, csv, excel)
   autoMoveCrm: boolean("auto_move_crm").default(false),
   followUpEnabled: boolean("follow_up_enabled").default(false),
   followUpCount: integer("follow_up_count").default(0),

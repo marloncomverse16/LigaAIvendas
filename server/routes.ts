@@ -372,6 +372,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint para download de arquivos do AI Agent
+  app.get("/api/ai-agent/download/:filename", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const filename = req.params.filename;
+      const filePath = `uploads/${filename}`;
+      
+      // Verificar se o arquivo existe
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: "Arquivo não encontrado" });
+      }
+      
+      // Definir headers apropriados para download
+      const stat = fs.statSync(filePath);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', stat.size);
+      
+      // Enviar o arquivo
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+      
+    } catch (error) {
+      console.error("Erro no download do arquivo:", error);
+      res.status(500).json({ message: "Erro ao baixar arquivo" });
+    }
+  });
+
   // Upload de arquivo para AI Agent
   app.post("/api/ai-agent/upload-file", uploadAgent.single('file'), async (req, res) => {
     console.log('=== UPLOAD DEBUG ===');
@@ -404,10 +432,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.user.id
       );
 
+      // Gerar link de download baseado no domínio
+      const protocol = req.secure ? 'https' : 'http';
+      const host = req.get('host');
+      const downloadUrl = `${protocol}://${host}/api/ai-agent/download/${fileResult.filePath}`;
+
       res.json({
-        filePath: fileResult.filePath,
+        downloadUrl: downloadUrl, // Link de download
         fileName: fileResult.fileName,
-        mimeType: fileResult.mimeType
+        format: fileResult.fileFormat
       });
     } catch (error) {
       console.error("Erro no upload de arquivo:", error);
