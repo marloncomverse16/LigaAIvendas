@@ -44,9 +44,9 @@ interface AiAgent {
   expertise: string | null;
   voiceTone: string | null;
   rules: string | null;
-  mediaData: string | null;
+  mediaDownloadUrl: string | null;
   mediaFilename: string | null;
-  mediaType: string | null;
+  mediaFormat: string | null;
   followUpEnabled: boolean;
   followUpCount: number | null;
   messageInterval: string | null;
@@ -135,9 +135,9 @@ export default function AiAgentPage() {
     expertise: "",
     voiceTone: "",
     rules: "",
-    mediaData: null,
+    mediaDownloadUrl: null,
     mediaFilename: null,
-    mediaType: null,
+    mediaFormat: null,
     autoMoveCrm: false,
     followUpEnabled: false,
     followUpCount: 0,
@@ -199,9 +199,9 @@ export default function AiAgentPage() {
   const handleClearMedia = () => {
     setAgentData(prev => ({
       ...prev,
-      mediaData: null,
+      mediaDownloadUrl: null,
       mediaFilename: null,
-      mediaType: null
+      mediaFormat: null
     }));
     
     toast({
@@ -360,9 +360,9 @@ export default function AiAgentPage() {
       // Update media in agent behavior rules
       setAgentData(prev => ({
         ...prev,
-        mediaData: result.filePath,
+        mediaDownloadUrl: result.downloadUrl,
         mediaFilename: result.fileName,
-        mediaType: result.mimeType
+        mediaFormat: result.format
       }));
       
       const fileExtension = result.fileName.split('.').pop()?.toUpperCase() || 'ARQUIVO';
