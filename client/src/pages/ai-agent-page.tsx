@@ -552,7 +552,7 @@ export default function AiAgentPage() {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                handleUploadMedia(file, "rules");
+                                handleUploadMedia(file);
                               }
                             }}
                           />
