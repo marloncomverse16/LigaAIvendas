@@ -28,7 +28,15 @@ import { setupWebSocketServer, sendMessage } from "./websocket";
 import { checkMetaConnectionStatus, connectMetaWhatsApp, disconnectMetaWhatsApp } from "./api/whatsapp-meta-connection";
 import multer from "multer";
 import fs from "fs";
+import { v2 as cloudinary } from "cloudinary";
 import { runContactDiagnostics } from "./api/contact-diagnostics";
+
+// Configurar Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 import { getContactsV2 } from "./api/evolution-contacts-v2";
 
 // Novas importações para o menu Conexões
@@ -471,6 +479,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao deletar FAQ do agente:", error);
       res.status(500).json({ message: "Erro ao deletar FAQ do agente" });
+    }
+  });
+
+  // Upload de mídia para AI Agent
+  app.post("/api/ai-agent/upload-media", upload.single('media'), async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhum arquivo enviado" });
+      }
+
+      const { type } = req.body; // "rules", "step", "faq"
+      const userId = (req.user as Express.User).id;
+
+      console.log(`📤 Upload de mídia iniciado para usuário ${userId}, tipo: ${type}`);
+      console.log(`📁 Arquivo: ${req.file.originalname}, tamanho: ${req.file.size} bytes`);
+
+      // Upload para Cloudinary
+      const uploadResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: "auto",
+            folder: `ai-agent/${userId}/${type}`,
+            public_id: `${Date.now()}-${req.file!.originalname.split('.')[0]}`,
+            quality: "auto",
+            fetch_format: "auto",
+          },
+          (error, result) => {
+            if (error) {
+              console.error("Erro no upload para Cloudinary:", error);
+              reject(error);
+            } else {
+              console.log(`✅ Upload concluído: ${result?.secure_url}`);
+              resolve(result);
+            }
+          }
+        );
+        uploadStream.end(req.file!.buffer);
+      });
+
+      const cloudinaryResult = uploadResult as any;
+      
+      res.json({
+        success: true,
+        mediaUrl: cloudinaryResult.secure_url,
+        publicId: cloudinaryResult.public_id,
+        type: type,
+        message: "Mídia enviada com sucesso"
+      });
+
+    } catch (error) {
+      console.error("Erro no upload de mídia:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Erro interno do servidor ao fazer upload da mídia" 
+      });
     }
   });
   

@@ -228,48 +228,65 @@ export default function AiAgentPage() {
       setIsUploading(true);
       setUploadType(type);
       
-      // Aqui você implementaria o upload real para o servidor
-      // Este é um exemplo simulado de upload
-      setTimeout(() => {
-        const fakeUrl = URL.createObjectURL(file);
+      // Criar FormData para envio do arquivo
+      const formData = new FormData();
+      formData.append('media', file);
+      formData.append('type', type);
+      
+      // Upload real para o servidor
+      const response = await fetch('/api/ai-agent/upload-media', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro no upload: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        const mediaUrl = result.mediaUrl;
         
         if (type === "rules") {
           // Atualizar a mídia nas regras de comportamento
           setAgentData(prev => ({
             ...prev,
-            mediaUrl: fakeUrl
+            mediaUrl: mediaUrl
           }));
         } else if (type === "step") {
           // Atualizar a mídia na etapa atual
           setStepData(prev => ({
             ...prev,
-            mediaUrl: fakeUrl
+            mediaUrl: mediaUrl
           }));
         } else if (type === "faq") {
           // Atualizar a mídia na FAQ atual
           setFaqData(prev => ({
             ...prev,
-            mediaUrl: fakeUrl
+            mediaUrl: mediaUrl
           }));
         }
         
-        setIsUploading(false);
-        setUploadType(null);
-        
         toast({
           title: "Mídia importada",
-          description: "A mídia foi importada com sucesso.",
+          description: "A mídia foi enviada com sucesso para Cloudinary.",
         });
-      }, 1500);
+      } else {
+        throw new Error(result.message || "Erro no upload");
+      }
       
     } catch (error) {
-      setIsUploading(false);
-      setUploadType(null);
+      console.error("Erro no upload de mídia:", error);
       toast({
         title: "Erro ao importar mídia",
-        description: "Ocorreu um erro ao importar a mídia.",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao importar a mídia.",
         variant: "destructive",
       });
+    } finally {
+      setIsUploading(false);
+      setUploadType(null);
     }
   };
   
