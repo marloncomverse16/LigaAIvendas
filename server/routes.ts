@@ -345,6 +345,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar mídia do agente AI" });
     }
   });
+
+  // Upload de arquivo para AI Agent
+  app.post("/api/ai-agent/upload-file", upload.single('file'), async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhum arquivo enviado" });
+      }
+
+      const { saveFile, SUPPORTED_FILE_TYPES } = await import('./file-storage');
+      
+      // Verificar se o tipo de arquivo é suportado
+      if (!(req.file.mimetype in SUPPORTED_FILE_TYPES)) {
+        return res.status(400).json({ 
+          message: "Tipo de arquivo não suportado. Apenas PDF, CSV e Excel são aceitos." 
+        });
+      }
+
+      // Salvar arquivo no sistema de arquivos
+      const fileResult = await saveFile(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        req.user.id
+      );
+
+      res.json({
+        filePath: fileResult.filePath,
+        fileName: fileResult.fileName,
+        mimeType: fileResult.mimeType
+      });
+    } catch (error) {
+      console.error("Erro no upload de arquivo:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Erro no upload do arquivo" 
+      });
+    }
+  });
   
   app.get("/api/ai-agent/steps", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });

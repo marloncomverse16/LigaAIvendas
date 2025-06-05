@@ -356,14 +356,13 @@ export default function AiAgentPage() {
         ...prev,
         mediaData: result.filePath,
         mediaFilename: result.fileName,
-        mediaType: result.mimeType,
-        fileFormat: result.fileFormat,
-        fileSize: result.fileSize
+        mediaType: result.mimeType
       }));
       
+      const fileExtension = result.fileName.split('.').pop()?.toUpperCase() || 'ARQUIVO';
       toast({
         title: "Arquivo carregado",
-        description: `${result.fileName} (${result.fileFormat.toUpperCase()}) carregado com sucesso. Clique em 'Salvar Configurações' para salvar permanentemente.`,
+        description: `${result.fileName} (${fileExtension}) carregado com sucesso. Clique em 'Salvar Configurações' para salvar permanentemente.`,
       });
       
     } catch (error) {
