@@ -134,7 +134,9 @@ export default function AiAgentPage() {
     expertise: "",
     voiceTone: "",
     rules: "",
-    mediaUrl: null,
+    mediaData: null,
+    mediaFilename: null,
+    mediaType: null,
     autoMoveCrm: false,
     followUpEnabled: false,
     followUpCount: 0,
@@ -154,7 +156,9 @@ export default function AiAgentPage() {
     name: "",
     description: "",
     order: 1,
-    mediaUrl: ""
+    mediaData: null,
+    mediaFilename: null,
+    mediaType: null
   });
   
   // State for FAQ form
@@ -163,7 +167,9 @@ export default function AiAgentPage() {
   const [faqData, setFaqData] = useState<Partial<AiAgentFaq>>({
     question: "",
     answer: "",
-    mediaUrl: ""
+    mediaData: null,
+    mediaFilename: null,
+    mediaType: null
   });
   
   // State for media upload
@@ -214,7 +220,9 @@ export default function AiAgentPage() {
         name: step.name,
         description: step.description || "",
         order: step.order,
-        mediaUrl: step.mediaUrl || ""
+        mediaData: step.mediaData || null,
+        mediaFilename: step.mediaFilename || null,
+        mediaType: step.mediaType || null
       });
     } else {
       setCurrentStep(null);
@@ -222,7 +230,9 @@ export default function AiAgentPage() {
         name: "",
         description: "",
         order: steps.length + 1,
-        mediaUrl: ""
+        mediaData: null,
+        mediaFilename: null,
+        mediaType: null
       });
     }
     setStepFormOpen(true);
@@ -352,7 +362,9 @@ export default function AiAgentPage() {
       setFaqData({
         question: faq.question,
         answer: faq.answer,
-        mediaUrl: faq.mediaUrl || ""
+        mediaData: faq.mediaData || null,
+        mediaFilename: faq.mediaFilename || null,
+        mediaType: faq.mediaType || null
       });
     } else {
       setCurrentFaq(null);
