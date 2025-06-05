@@ -130,7 +130,9 @@ export const aiAgent = pgTable("ai_agent", {
   expertise: text("expertise"),
   voiceTone: text("voice_tone"),
   rules: text("rules"),
-  mediaUrl: text("media_url"), // URL do arquivo de mídia das regras
+  mediaData: text("media_data"), // Dados binários do arquivo codificados em base64
+  mediaFilename: text("media_filename"), // Nome original do arquivo
+  mediaType: text("media_type"), // MIME type do arquivo
   autoMoveCrm: boolean("auto_move_crm").default(false),
   followUpEnabled: boolean("follow_up_enabled").default(false),
   followUpCount: integer("follow_up_count").default(0),
@@ -151,7 +153,9 @@ export const aiAgentSteps = pgTable("ai_agent_steps", {
   name: text("name").notNull(),
   description: text("description"),
   order: integer("order").notNull(),
-  mediaUrl: text("media_url"), // URL do arquivo de mídia da etapa
+  mediaData: text("media_data"), // Dados binários do arquivo codificados em base64
+  mediaFilename: text("media_filename"), // Nome original do arquivo
+  mediaType: text("media_type"), // MIME type do arquivo
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
