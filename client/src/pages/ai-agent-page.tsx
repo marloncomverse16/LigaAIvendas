@@ -244,9 +244,19 @@ export default function AiAgentPage() {
       setIsUploading(true);
       setUploadType(type);
       
-      // Convert file to base64 for binary storage
-      const arrayBuffer = await file.arrayBuffer();
-      const mediaData = Buffer.from(arrayBuffer).toString('base64');
+      // Convert file to base64 using FileReader for browser compatibility
+      const reader = new FileReader();
+      const mediaData = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Remove the data URL prefix to get just the base64 data
+          const base64Data = result.split(',')[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      
       const mediaType = file.type;
       const mediaFilename = file.name;
       
