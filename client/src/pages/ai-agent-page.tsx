@@ -173,7 +173,7 @@ export default function AiAgentPage() {
   });
   
   // State for media upload
-  const [uploadType, setUploadType] = useState<"rules" | "step" | "faq" | null>(null);
+  const [uploadType, setUploadType] = useState<"rules" | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
   // Update local state when agent data is loaded
@@ -238,11 +238,11 @@ export default function AiAgentPage() {
     setStepFormOpen(true);
   };
   
-  // Handle media upload
-  const handleUploadMedia = async (file: File, type: "rules" | "step" | "faq") => {
+  // Handle media upload for agent configuration
+  const handleUploadMedia = async (file: File) => {
     try {
       setIsUploading(true);
-      setUploadType(type);
+      setUploadType("rules");
       
       // Convert file to base64 using FileReader for browser compatibility
       const reader = new FileReader();
@@ -260,35 +260,17 @@ export default function AiAgentPage() {
       const mediaType = file.type;
       const mediaFilename = file.name;
       
-      if (type === "rules") {
-        // Update media in agent behavior rules
-        setAgentData(prev => ({
-          ...prev,
-          mediaData: mediaData,
-          mediaFilename: mediaFilename,
-          mediaType: mediaType
-        }));
-      } else if (type === "step") {
-        // Update media in current step
-        setStepData(prev => ({
-          ...prev,
-          mediaData: mediaData,
-          mediaFilename: mediaFilename,
-          mediaType: mediaType
-        }));
-      } else if (type === "faq") {
-        // Update media in current FAQ
-        setFaqData(prev => ({
-          ...prev,
-          mediaData: mediaData,
-          mediaFilename: mediaFilename,
-          mediaType: mediaType
-        }));
-      }
+      // Update media in agent behavior rules
+      setAgentData(prev => ({
+        ...prev,
+        mediaData: mediaData,
+        mediaFilename: mediaFilename,
+        mediaType: mediaType
+      }));
       
       toast({
         title: "Mídia importada",
-        description: "A mídia foi carregada com sucesso.",
+        description: "A mídia foi carregada com sucesso. Clique em 'Salvar Configurações' para salvar permanentemente.",
       });
       
     } catch (error) {
@@ -887,50 +869,7 @@ export default function AiAgentPage() {
                         />
                       </div>
                       
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right">
-                          Mídia
-                        </Label>
-                        <div className="col-span-3">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="file"
-                              id="step-media"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  handleUploadMedia(file, "step");
-                                }
-                              }}
-                            />
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="gap-2"
-                              onClick={() => document.getElementById("step-media")?.click()}
-                              disabled={isUploading && uploadType === "step"}
-                            >
-                              {isUploading && uploadType === "step" ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  Importando...
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="h-4 w-4" />
-                                  Importar Mídia
-                                </>
-                              )}
-                            </Button>
-                            {stepData.mediaData && (
-                              <span className="text-sm text-muted-foreground">
-                                Mídia importada
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+
                     </div>
                     
                     <div className="flex justify-end gap-3">
@@ -1052,48 +991,7 @@ export default function AiAgentPage() {
                         />
                       </div>
                       
-                      <div className="grid gap-2">
-                        <Label>
-                          Mídia
-                        </Label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="file"
-                            id="faq-media"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                handleUploadMedia(file, "faq");
-                              }
-                            }}
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="gap-2"
-                            onClick={() => document.getElementById("faq-media")?.click()}
-                            disabled={isUploading && uploadType === "faq"}
-                          >
-                            {isUploading && uploadType === "faq" ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Importando...
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="h-4 w-4" />
-                                Importar Mídia
-                              </>
-                            )}
-                          </Button>
-                          {faqData.mediaData && (
-                            <span className="text-sm text-muted-foreground">
-                              Mídia importada
-                            </span>
-                          )}
-                        </div>
-                      </div>
+
                     </div>
                     
                     <div className="flex justify-end gap-3">
