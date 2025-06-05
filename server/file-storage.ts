@@ -22,10 +22,7 @@ async function ensureUploadDir() {
 // Tipos de arquivo suportados
 export const SUPPORTED_FILE_TYPES = {
   'application/pdf': 'pdf',
-  'text/csv': 'csv',
-  'application/vnd.ms-excel': 'excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'excel',
-  'application/vnd.odf.spreadsheet': 'excel'
+  'text/csv': 'csv'
 };
 
 export interface FileStorageResult {

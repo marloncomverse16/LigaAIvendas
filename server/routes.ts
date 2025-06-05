@@ -374,72 +374,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint de teste para debug
-  app.get("/api/test-download", (req: Request, res: Response) => {
-    console.log('=== TEST ENDPOINT HIT ===');
-    console.log('Query:', req.query);
-    console.log('Headers:', req.headers);
-    res.json({ 
-      message: "Test endpoint working", 
-      query: req.query,
-      isAuth: req.isAuthenticated ? req.isAuthenticated() : 'no auth method'
-    });
-  });
-
   // Endpoint para download de arquivos do AI Agent
   app.get("/api/ai-agent/download/:filename(*)", async (req: Request, res: Response) => {
-    console.log('=== DOWNLOAD ENDPOINT HIT ===');
     let userId: number | null = null;
     let authenticatedViaSession = false;
     let authenticatedViaToken = false;
-    
-    console.log('=== AUTH DEBUG ===');
-    console.log('Headers:', req.headers);
-    console.log('Query:', req.query);
-    console.log('Is authenticated:', req.isAuthenticated());
     
     // Verificar autenticação por sessão (navegador)
     if (req.isAuthenticated()) {
       userId = req.user!.id;
       authenticatedViaSession = true;
-      console.log('Authenticated via session, userId:', userId);
     } else {
       // Verificar autenticação por token de API (para integrações externas)
       const authHeader = req.headers.authorization;
       const apiToken = req.query.token as string;
       
-      console.log('Auth header:', authHeader);
-      console.log('API token:', apiToken);
-      
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        console.log('Bearer token:', token);
         // Para simplificar, vamos usar o próprio userId como token
         // Em produção, seria um JWT ou token hash
         const tokenUserId = parseInt(token);
         if (!isNaN(tokenUserId)) {
           userId = tokenUserId;
           authenticatedViaToken = true;
-          console.log('Authenticated via Bearer token, userId:', userId);
         }
       } else if (apiToken) {
         // Permitir autenticação via query parameter para n8n
-        console.log('Trying query token:', apiToken);
         const tokenUserId = parseInt(apiToken);
-        console.log('Parsed token userId:', tokenUserId);
         if (!isNaN(tokenUserId)) {
           userId = tokenUserId;
           authenticatedViaToken = true;
-          console.log('Authenticated via query token, userId:', userId);
         }
       }
     }
     
-    console.log('Final userId:', userId);
-    console.log('==================');
-    
     if (!userId) {
-      console.log('Authentication failed - returning 401');
       return res.status(401).json({ 
         message: "Não autenticado. Use autenticação de sessão ou forneça token via ?token=USER_ID ou Authorization: Bearer USER_ID" 
       });

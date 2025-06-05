@@ -647,7 +647,7 @@ export default function AiAgentPage() {
                             type="file"
                             id="rules-media"
                             className="hidden"
-                            accept=".pdf,.csv,.xlsx,.xls"
+                            accept=".pdf,.csv"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
