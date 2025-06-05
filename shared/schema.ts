@@ -130,6 +130,8 @@ export const aiAgent = pgTable("ai_agent", {
   expertise: text("expertise"),
   voiceTone: text("voice_tone"),
   rules: text("rules"),
+  mediaUrl: text("media_url"), // URL do arquivo de mídia das regras
+  autoMoveCrm: boolean("auto_move_crm").default(false),
   followUpEnabled: boolean("follow_up_enabled").default(false),
   followUpCount: integer("follow_up_count").default(0),
   messageInterval: text("message_interval").default("30 minutos"),
@@ -149,7 +151,9 @@ export const aiAgentSteps = pgTable("ai_agent_steps", {
   name: text("name").notNull(),
   description: text("description"),
   order: integer("order").notNull(),
+  mediaUrl: text("media_url"), // URL do arquivo de mídia da etapa
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const aiAgentFaqs = pgTable("ai_agent_faqs", {
@@ -157,7 +161,9 @@ export const aiAgentFaqs = pgTable("ai_agent_faqs", {
   userId: integer("user_id").references(() => users.id),
   question: text("question").notNull(),
   answer: text("answer").notNull(),
+  mediaUrl: text("media_url"), // URL do arquivo de mídia da FAQ
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Enum para tipos de interações com leads
