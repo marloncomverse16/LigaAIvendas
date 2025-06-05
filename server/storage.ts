@@ -1567,9 +1567,20 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateAiAgent(userId: number, agentData: Partial<InsertAiAgent>): Promise<AiAgent | undefined> {
+    // Filtrar apenas campos válidos do schema, excluindo campos que causam erro de timestamp
+    const validFields = {
+      ...agentData,
+      updatedAt: new Date()
+    };
+    
+    // Remover campos que não existem no schema ou que podem causar problemas
+    delete (validFields as any).id;
+    delete (validFields as any).userId;
+    delete (validFields as any).createdAt;
+    
     const [updatedAgent] = await db
       .update(aiAgent)
-      .set(agentData)
+      .set(validFields)
       .where(eq(aiAgent.userId, userId))
       .returning();
     return updatedAgent;
