@@ -244,54 +244,42 @@ export default function AiAgentPage() {
       setIsUploading(true);
       setUploadType(type);
       
-      // Criar FormData para envio do arquivo
-      const formData = new FormData();
-      formData.append('media', file);
-      formData.append('type', type);
+      // Convert file to base64 for binary storage
+      const arrayBuffer = await file.arrayBuffer();
+      const mediaData = Buffer.from(arrayBuffer).toString('base64');
+      const mediaType = file.type;
+      const mediaFilename = file.name;
       
-      // Upload real para o servidor
-      const response = await fetch('/api/ai-agent/upload-media', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
+      if (type === "rules") {
+        // Update media in agent behavior rules
+        setAgentData(prev => ({
+          ...prev,
+          mediaData: mediaData,
+          mediaFilename: mediaFilename,
+          mediaType: mediaType
+        }));
+      } else if (type === "step") {
+        // Update media in current step
+        setStepData(prev => ({
+          ...prev,
+          mediaData: mediaData,
+          mediaFilename: mediaFilename,
+          mediaType: mediaType
+        }));
+      } else if (type === "faq") {
+        // Update media in current FAQ
+        setFaqData(prev => ({
+          ...prev,
+          mediaData: mediaData,
+          mediaFilename: mediaFilename,
+          mediaType: mediaType
+        }));
+      }
+      
+      toast({
+        title: "Mídia importada",
+        description: "A mídia foi carregada com sucesso.",
       });
-      
-      if (!response.ok) {
-        throw new Error(`Erro no upload: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        const mediaUrl = result.mediaUrl;
-        
-        if (type === "rules") {
-          // Atualizar a mídia nas regras de comportamento
-          setAgentData(prev => ({
-            ...prev,
-            mediaUrl: mediaUrl
-          }));
-        } else if (type === "step") {
-          // Atualizar a mídia na etapa atual
-          setStepData(prev => ({
-            ...prev,
-            mediaUrl: mediaUrl
-          }));
-        } else if (type === "faq") {
-          // Atualizar a mídia na FAQ atual
-          setFaqData(prev => ({
-            ...prev,
-            mediaUrl: mediaUrl
-          }));
-        }
-        
-        toast({
-          title: "Mídia importada",
-          description: "A mídia foi enviada com sucesso para Cloudinary.",
-        });
-      } else {
-        throw new Error(result.message || "Erro no upload");
-      }
       
     } catch (error) {
       console.error("Erro no upload de mídia:", error);
@@ -371,7 +359,9 @@ export default function AiAgentPage() {
       setFaqData({
         question: "",
         answer: "",
-        mediaUrl: ""
+        mediaData: null,
+        mediaFilename: null,
+        mediaType: null
       });
     }
     setFaqFormOpen(true);
@@ -593,7 +583,7 @@ export default function AiAgentPage() {
                               </>
                             )}
                           </Button>
-                          {agentData.mediaUrl && (
+                          {agentData.mediaData && (
                             <span className="text-sm text-muted-foreground">
                               Mídia importada
                             </span>
@@ -798,7 +788,7 @@ export default function AiAgentPage() {
                               {step.description || "—"}
                             </TableCell>
                             <TableCell>
-                              {step.mediaUrl ? (
+                              {step.mediaData ? (
                                 <div className="h-6 w-6 rounded bg-primary/20 flex items-center justify-center">
                                   <MoveRight className="h-4 w-4 text-primary" />
                                 </div>
@@ -923,7 +913,7 @@ export default function AiAgentPage() {
                                 </>
                               )}
                             </Button>
-                            {stepData.mediaUrl && (
+                            {stepData.mediaData && (
                               <span className="text-sm text-muted-foreground">
                                 Mídia importada
                               </span>
@@ -998,7 +988,7 @@ export default function AiAgentPage() {
                         </CardHeader>
                         <CardContent className="p-4">
                           <p className="text-sm">{faq.answer}</p>
-                          {faq.mediaUrl && (
+                          {faq.mediaData && (
                             <div className="mt-2 p-2 bg-primary/10 rounded-sm inline-flex items-center gap-2">
                               <MoveRight className="h-4 w-4 text-primary" />
                               <span className="text-xs">Mídia anexada</span>
@@ -1087,7 +1077,7 @@ export default function AiAgentPage() {
                               </>
                             )}
                           </Button>
-                          {faqData.mediaUrl && (
+                          {faqData.mediaData && (
                             <span className="text-sm text-muted-foreground">
                               Mídia importada
                             </span>
