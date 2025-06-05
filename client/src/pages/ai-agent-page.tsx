@@ -197,7 +197,16 @@ export default function AiAgentPage() {
   // Save agent settings
   const handleSaveAgent = async () => {
     try {
-      await apiRequest("PUT", "/api/ai-agent", agentData);
+      // Preparar dados para envio, limpando campos de mídia se não houver arquivo
+      const dataToSave = {
+        ...agentData,
+        // Se não há dados de mídia, garantir que os campos sejam null
+        mediaData: agentData.mediaData || null,
+        mediaFilename: agentData.mediaFilename || null,
+        mediaType: agentData.mediaType || null,
+      };
+      
+      await apiRequest("PUT", "/api/ai-agent", dataToSave);
       queryClient.invalidateQueries({ queryKey: ["/api/ai-agent"] });
       toast({
         title: "Configurações salvas",
@@ -238,11 +247,70 @@ export default function AiAgentPage() {
     setStepFormOpen(true);
   };
   
+  // Função para comprimir imagem
+  const compressImage = async (file: File, maxSizeKB: number = 500): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calcular novo tamanho mantendo proporção
+        let { width, height } = img;
+        const maxDimension = 1200; // Máximo 1200px na maior dimensão
+        
+        if (width > height) {
+          if (width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Desenhar imagem redimensionada
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Converter para blob com qualidade reduzida
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          } else {
+            resolve(file);
+          }
+        }, 'image/jpeg', 0.7); // 70% de qualidade
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   // Handle media upload for agent configuration
   const handleUploadMedia = async (file: File) => {
     try {
       setIsUploading(true);
       setUploadType("rules");
+      
+      let processedFile = file;
+      
+      // Comprimir se for imagem e maior que 1MB
+      if (file.type.startsWith('image/') && file.size > 1024 * 1024) {
+        toast({
+          title: "Comprimindo imagem",
+          description: "Arquivo grande detectado. Comprimindo para otimizar o upload...",
+        });
+        processedFile = await compressImage(file);
+      }
       
       // Convert file to base64 using FileReader for browser compatibility
       const reader = new FileReader();
@@ -254,11 +322,11 @@ export default function AiAgentPage() {
           resolve(base64Data);
         };
         reader.onerror = reject;
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(processedFile);
       });
       
-      const mediaType = file.type;
-      const mediaFilename = file.name;
+      const mediaType = processedFile.type;
+      const mediaFilename = processedFile.name;
       
       // Update media in agent behavior rules
       setAgentData(prev => ({
@@ -270,7 +338,7 @@ export default function AiAgentPage() {
       
       toast({
         title: "Mídia importada",
-        description: "A mídia foi carregada com sucesso. Clique em 'Salvar Configurações' para salvar permanentemente.",
+        description: `Arquivo ${file.size > 1024 * 1024 ? 'comprimido e ' : ''}carregado com sucesso. Clique em 'Salvar Configurações' para salvar permanentemente.`,
       });
       
     } catch (error) {
