@@ -328,28 +328,32 @@ export default function AiAgentPage() {
         processedFile = await compressImage(file);
       }
       
-      // Convert file to base64 using FileReader for browser compatibility
+      // Convert file to N8N compatible format
       const reader = new FileReader();
-      const mediaData = await new Promise<string>((resolve, reject) => {
+      const mediaContent = await new Promise<string>((resolve, reject) => {
         reader.onload = () => {
           const result = reader.result as string;
-          // Remove the data URL prefix to get just the base64 data
-          const base64Data = result.split(',')[1];
-          resolve(base64Data);
+          resolve(result); // Manter data URL completo para N8N
         };
         reader.onerror = reject;
         reader.readAsDataURL(processedFile);
       });
       
-      const mediaType = processedFile.type;
-      const mediaFilename = processedFile.name;
+      // Criar estrutura compatível com N8N
+      const n8nMediaFormat = JSON.stringify({
+        data: mediaContent,
+        mimeType: processedFile.type,
+        fileName: processedFile.name,
+        fileSize: processedFile.size,
+        encoding: 'dataurl'
+      });
       
       // Update media in agent behavior rules
       setAgentData(prev => ({
         ...prev,
-        mediaData: mediaData,
-        mediaFilename: mediaFilename,
-        mediaType: mediaType
+        mediaData: n8nMediaFormat,
+        mediaFilename: processedFile.name,
+        mediaType: processedFile.type
       }));
       
       toast({

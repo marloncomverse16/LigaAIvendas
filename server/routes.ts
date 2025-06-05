@@ -307,6 +307,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar agente de IA" });
     }
   });
+
+  // Get AI Agent media in N8N compatible format
+  app.get("/api/ai-agent/media", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const agent = await storage.getAiAgentByUserId(req.user.id);
+      
+      if (!agent || !agent.mediaData) {
+        return res.status(404).json({ message: "Mídia não encontrada" });
+      }
+
+      // Parse the media data stored in our custom format
+      let mediaObject;
+      try {
+        mediaObject = JSON.parse(agent.mediaData);
+      } catch (parseError) {
+        // If it's not JSON, treat as legacy base64 format
+        mediaObject = {
+          data: `data:${agent.mediaType || 'application/octet-stream'};base64,${agent.mediaData}`,
+          mimeType: agent.mediaType || 'application/octet-stream',
+          fileName: agent.mediaFilename || 'file',
+          encoding: 'dataurl'
+        };
+      }
+
+      // Return in N8N compatible format
+      res.json({
+        mimeType: mediaObject.mimeType,
+        fileName: mediaObject.fileName,
+        fileSize: mediaObject.fileSize || 0,
+        data: mediaObject.data.split(',')[1] || mediaObject.data // Extract base64 part only
+      });
+    } catch (error) {
+      console.error("Erro ao buscar mídia do agente AI:", error);
+      res.status(500).json({ message: "Erro ao buscar mídia do agente AI" });
+    }
+  });
   
   app.get("/api/ai-agent/steps", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
