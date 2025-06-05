@@ -6,6 +6,8 @@ import { setupFileUpload } from "./uploads";
 import { importCSVContent } from "./csvImporter";
 import { processProspectingFile } from "./imports";
 import * as xlsx from "xlsx";
+import * as fs from "fs";
+import * as path from "path";
 import { 
   insertLeadSchema, insertProspectSchema, insertDispatchSchema, insertSettingsSchema, 
   insertAiAgentSchema, insertAiAgentStepsSchema, insertAiAgentFaqsSchema,
@@ -377,18 +379,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const filename = req.params.filename;
-      const filePath = `uploads/${filename}`;
+      const filename = decodeURIComponent(req.params.filename);
+      const uploadsDir = path.join(process.cwd(), 'uploads', 'ai-agent');
+      const filePath = path.join(uploadsDir, filename);
+      
+      console.log('Download request for:', filename);
+      console.log('Uploads directory:', uploadsDir);
+      console.log('Full path:', filePath);
       
       // Verificar se o arquivo existe
       if (!fs.existsSync(filePath)) {
+        console.log('File not found at:', filePath);
+        console.log('Directory contents:', fs.existsSync(uploadsDir) ? fs.readdirSync(uploadsDir) : 'Directory does not exist');
         return res.status(404).json({ message: "Arquivo não encontrado" });
       }
       
+      // Obter o nome original do arquivo (sem o prefixo de usuário e timestamp)
+      const originalName = filename.split('_').slice(2).join('_');
+      console.log('Original filename:', originalName);
+      
       // Definir headers apropriados para download
       const stat = fs.statSync(filePath);
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
       res.setHeader('Content-Length', stat.size);
+      res.setHeader('Content-Type', 'application/octet-stream');
       
       // Enviar o arquivo
       const fileStream = fs.createReadStream(filePath);
