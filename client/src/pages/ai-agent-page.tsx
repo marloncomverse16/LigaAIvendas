@@ -17,7 +17,8 @@ import {
   Trash, 
   Upload, 
   ArrowRightLeft, 
-  MoveRight
+  MoveRight,
+  X
 } from "lucide-react";
 import { 
   Table, TableHeader, TableRow, TableHead, 
@@ -194,16 +195,31 @@ export default function AiAgentPage() {
     setAgentData(prev => ({ ...prev, [name]: checked }));
   };
   
+  // Função para limpar mídia
+  const handleClearMedia = () => {
+    setAgentData(prev => ({
+      ...prev,
+      mediaData: null,
+      mediaFilename: null,
+      mediaType: null
+    }));
+    
+    toast({
+      title: "Mídia removida",
+      description: "A mídia foi removida da configuração.",
+    });
+  };
+
   // Save agent settings
   const handleSaveAgent = async () => {
     try {
-      // Preparar dados para envio, limpando campos de mídia se não houver arquivo
+      // Preparar dados para envio, garantindo que campos vazios sejam null
       const dataToSave = {
         ...agentData,
-        // Se não há dados de mídia, garantir que os campos sejam null
-        mediaData: agentData.mediaData || null,
-        mediaFilename: agentData.mediaFilename || null,
-        mediaType: agentData.mediaType || null,
+        // Limpar campos de mídia vazios
+        mediaData: agentData.mediaData && agentData.mediaData.trim() !== "" ? agentData.mediaData : null,
+        mediaFilename: agentData.mediaFilename && agentData.mediaFilename.trim() !== "" ? agentData.mediaFilename : null,
+        mediaType: agentData.mediaType && agentData.mediaType.trim() !== "" ? agentData.mediaType : null,
       };
       
       await apiRequest("PUT", "/api/ai-agent", dataToSave);
@@ -617,6 +633,7 @@ export default function AiAgentPage() {
                             type="file"
                             id="rules-media"
                             className="hidden"
+                            accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
@@ -643,10 +660,22 @@ export default function AiAgentPage() {
                               </>
                             )}
                           </Button>
+                          
                           {agentData.mediaData && (
-                            <span className="text-sm text-muted-foreground">
-                              Mídia importada
-                            </span>
+                            <>
+                              <span className="text-sm text-muted-foreground flex items-center gap-2">
+                                <span>Mídia importada: {agentData.mediaFilename}</span>
+                              </span>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="gap-2 text-red-600 hover:text-red-700"
+                                onClick={handleClearMedia}
+                              >
+                                <X className="h-4 w-4" />
+                                Remover
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
