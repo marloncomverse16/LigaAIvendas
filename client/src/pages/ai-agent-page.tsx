@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -110,7 +110,6 @@ export default function AiAgentPage() {
     queryKey: ["/api/ai-agent/faqs"],
     retry: 1,
     staleTime: 1000 * 60 * 5, // 5 minutos de cache
-    cacheTime: 1000 * 60 * 10, // 10 minutos no cache
     refetchOnWindowFocus: false,
     select: (data) => {
       // Remove duplicatas baseadas no ID para garantir unicidade
@@ -166,12 +165,11 @@ export default function AiAgentPage() {
   const [isUploading, setIsUploading] = useState(false);
   
   // Update local state when agent data is loaded
-  if (agent && !isLoading && Object.keys(agentData).every(key => {
-    const k = key as keyof typeof agentData;
-    return !agentData[k] && k !== 'enabled' && k !== 'followUpEnabled' && k !== 'schedulingEnabled' && k !== 'autoMoveCrm' && k !== 'mediaUrl';
-  })) {
-    setAgentData(agent);
-  }
+  useEffect(() => {
+    if (agent && !isLoading) {
+      setAgentData(agent);
+    }
+  }, [agent, isLoading]);
   
   // Handle input changes
   const handleAgentInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
