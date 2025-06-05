@@ -644,7 +644,11 @@ export class MemStorage implements IStorage {
       name: stepData.name,
       description: stepData.description || null,
       order: stepData.order,
-      createdAt: now
+      mediaData: stepData.mediaData || null,
+      mediaFilename: stepData.mediaFilename || null,
+      mediaType: stepData.mediaType || null,
+      createdAt: now,
+      updatedAt: null
     };
     this.aiAgentSteps.set(id, step);
     return step;
@@ -654,7 +658,11 @@ export class MemStorage implements IStorage {
     const step = await this.getAiAgentStep(id);
     if (!step) return undefined;
     
-    const updatedStep = { ...step, ...stepData };
+    const updatedStep = { 
+      ...step, 
+      ...stepData,
+      updatedAt: new Date()
+    };
     this.aiAgentSteps.set(id, updatedStep);
     return updatedStep;
   }
@@ -681,7 +689,11 @@ export class MemStorage implements IStorage {
       userId: faqData.userId,
       question: faqData.question,
       answer: faqData.answer,
-      createdAt: now
+      mediaData: faqData.mediaData || null,
+      mediaFilename: faqData.mediaFilename || null,
+      mediaType: faqData.mediaType || null,
+      createdAt: now,
+      updatedAt: null
     };
     this.aiAgentFaqs.set(id, faq);
     return faq;
@@ -691,7 +703,11 @@ export class MemStorage implements IStorage {
     const faq = await this.getAiAgentFaq(id);
     if (!faq) return undefined;
     
-    const updatedFaq = { ...faq, ...faqData };
+    const updatedFaq = { 
+      ...faq, 
+      ...faqData,
+      updatedAt: new Date()
+    };
     this.aiAgentFaqs.set(id, updatedFaq);
     return updatedFaq;
   }
