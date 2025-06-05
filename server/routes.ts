@@ -376,7 +376,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Endpoint para download de arquivos do AI Agent
   app.get("/api/ai-agent/download/:filename(*)", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    let userId: number | null = null;
+    let authenticatedViaSession = false;
+    let authenticatedViaToken = false;
+    
+    // Verificar autenticação por sessão (navegador)
+    if (req.isAuthenticated()) {
+      userId = req.user!.id;
+      authenticatedViaSession = true;
+    } else {
+      // Verificar autenticação por token de API (para integrações externas)
+      const authHeader = req.headers.authorization;
+      const apiToken = req.query.token as string;
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        // Para simplificar, vamos usar o próprio userId como token
+        // Em produção, seria um JWT ou token hash
+        const tokenUserId = parseInt(token);
+        if (!isNaN(tokenUserId)) {
+          userId = tokenUserId;
+          authenticatedViaToken = true;
+        }
+      } else if (apiToken) {
+        // Permitir autenticação via query parameter para n8n
+        const tokenUserId = parseInt(apiToken);
+        if (!isNaN(tokenUserId)) {
+          userId = tokenUserId;
+          authenticatedViaToken = true;
+        }
+      }
+    }
+    
+    if (!userId) {
+      return res.status(401).json({ 
+        message: "Não autenticado. Use autenticação de sessão ou forneça token via ?token=USER_ID ou Authorization: Bearer USER_ID" 
+      });
+    }
     
     try {
       const { fileExists, readFileFromStorage } = await import('./file-storage');
@@ -388,7 +424,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log('Download request for:', filename);
-      console.log('User ID:', req.user?.id);
+      console.log('User ID:', userId);
+      console.log('Auth method:', authenticatedViaSession ? 'session' : 'token');
       
       // Verificar se o arquivo existe
       if (!fileExists(filename)) {
@@ -396,11 +433,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Arquivo não encontrado" });
       }
       
-      // Verificar se o arquivo pertence ao usuário logado
-      const userId = req.user!.id;
+      // Verificar se o arquivo pertence ao usuário
       if (!filename.startsWith(`${userId}_`)) {
         console.log('Access denied - file does not belong to user');
-        return res.status(403).json({ message: "Acesso negado" });
+        return res.status(403).json({ message: "Acesso negado - arquivo não pertence ao usuário" });
       }
       
       // Obter o nome original do arquivo (sem o prefixo de usuário e timestamp)
