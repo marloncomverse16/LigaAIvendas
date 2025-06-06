@@ -753,11 +753,14 @@ export default function AiAgentPage() {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor="messageInterval">Intervalo entre Mensagens</Label>
+                            <Label htmlFor="messageInterval">Intervalo entre mensagens em minutos</Label>
                             <Input
                               id="messageInterval"
                               name="messageInterval"
-                              placeholder="30 minutos"
+                              type="number"
+                              min="1"
+                              max="1440"
+                              placeholder="30"
                               value={agentData.messageInterval || ""}
                               onChange={handleAgentInputChange}
                             />
