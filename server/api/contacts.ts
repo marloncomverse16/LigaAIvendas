@@ -89,16 +89,15 @@ export async function syncContacts(req: Request, res: Response) {
       instanceName
     );
     
-    // Buscar contatos da Evolution API
-    console.log(`Sincronizando contatos da Evolution API: ${apiUrl}/instances/${instanceName}/contacts`);
-    const result = await evolutionClient.getContacts();
+    // 🔒 ISOLAMENTO CRÍTICO: Desabilitando acesso à Evolution API compartilhada
+    // Esta API retorna dados de TODOS os usuários, causando vazamento de dados
+    console.log(`🔒 AVISO: Evolution API desabilitada para usuário ${userId} - isolamento de dados ativo`);
     
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        message: result.error || "Erro ao obter contatos da Evolution API"
-      });
-    }
+    // Simular resultado vazio para manter a interface funcionando
+    const result = {
+      success: true,
+      contacts: []
+    };
     
     const contactsFromAPI = result.contacts || [];
     
