@@ -280,7 +280,7 @@ export default function ContactsPageNew() {
               
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => { resetForm(); setEditingContact(null); }}>
+                  <Button onClick={() => { resetForm(); setEditingContact(null); }} className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
                     <Plus className="w-4 h-4 mr-2" />
                     Novo Contato
                   </Button>
@@ -368,7 +368,7 @@ export default function ContactsPageNew() {
                       <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                         Cancelar
                       </Button>
-                      <Button type="submit" disabled={saveContactMutation.isPending}>
+                      <Button type="submit" disabled={saveContactMutation.isPending} className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
                         {saveContactMutation.isPending ? 'Salvando...' : 'Salvar'}
                       </Button>
                     </div>
@@ -524,7 +524,7 @@ export default function ContactsPageNew() {
                             <div className="flex space-x-2">
                               <Button
                                 size="sm"
-                                variant="outline"
+                                className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                                 onClick={() => handleEdit(contact)}
                               >
                                 <Edit className="w-4 h-4" />
