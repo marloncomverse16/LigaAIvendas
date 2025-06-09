@@ -521,6 +521,7 @@ export default function AiAgentPage() {
         <p>Não foi possível carregar as informações do agente de IA.</p>
         <Button 
           onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/ai-agent"] })}
+          className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
         >
           Tentar novamente
         </Button>
@@ -656,9 +657,8 @@ export default function AiAgentPage() {
                             }}
                           />
                           <Button 
-                            variant="outline" 
                             size="sm"
-                            className="gap-2"
+                            className="gap-2 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                             onClick={() => document.getElementById("rules-media")?.click()}
                             disabled={isUploading && uploadType === "rules"}
                           >
@@ -846,7 +846,7 @@ export default function AiAgentPage() {
                   </div>
                   
                   <div className="flex justify-end mt-6">
-                    <Button onClick={handleSaveAgent} className="gap-2">
+                    <Button onClick={handleSaveAgent} className="gap-2 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
                       <Save className="h-4 w-4" />
                       Salvar Configurações
                     </Button>
@@ -858,7 +858,7 @@ export default function AiAgentPage() {
               <TabsContent value="steps" className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-medium">Etapas do Fluxo de Conversão</h3>
-                  <Button onClick={() => openStepForm()} className="gap-2">
+                  <Button onClick={() => openStepForm()} className="gap-2 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
                     <PlusCircle className="h-4 w-4" />
                     Nova Etapa
                   </Button>
@@ -903,8 +903,8 @@ export default function AiAgentPage() {
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <Button 
-                                  variant="ghost" 
                                   size="sm"
+                                  className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                                   onClick={() => openStepForm(step)}
                                 >
                                   Editar
@@ -993,7 +993,7 @@ export default function AiAgentPage() {
                       >
                         Cancelar
                       </Button>
-                      <Button onClick={handleSaveStep}>
+                      <Button onClick={handleSaveStep} className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
                         Salvar
                       </Button>
                     </div>
