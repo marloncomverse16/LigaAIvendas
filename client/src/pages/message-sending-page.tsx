@@ -1597,11 +1597,13 @@ const SendingList = () => {
                                           {history.resultId ? `ID: ${history.resultId}` : "N/A"}
                                         </TableCell>
                                         <TableCell>
-                                          <Badge
-                                            variant={history.status === "sucesso" ? "default" : "destructive"}
-                                          >
+                                          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                            history.status === "sucesso" 
+                                              ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold" 
+                                              : "bg-red-100 text-red-800 border-red-300"
+                                          }`}>
                                             {history.status === "sucesso" ? "Sucesso" : "Erro"}
-                                          </Badge>
+                                          </div>
                                           {history.errorMessage && (
                                             <div className="text-xs text-muted-foreground mt-1">
                                               {history.errorMessage}
