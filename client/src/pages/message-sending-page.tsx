@@ -1362,12 +1362,12 @@ const SendingList = () => {
   const { toast } = useToast();
   const [selectedSending, setSelectedSending] = useState(null);
   
-  // Buscar os envios de mensagens
+  // Buscar o histórico real de envios de mensagens
   const { data: sendings, isLoading } = useQuery({
-    queryKey: ["/api/message-sendings"],
+    queryKey: ["/api/message-sending-history"],
     queryFn: async () => {
-      const res = await fetch("/api/message-sendings");
-      if (!res.ok) throw new Error("Falha ao carregar envios");
+      const res = await fetch("/api/message-sending-history");
+      if (!res.ok) throw new Error("Falha ao carregar histórico de envios");
       return res.json();
     },
   });
@@ -1515,32 +1515,30 @@ const SendingList = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Data/Hora</TableHead>
                     <TableHead>Pesquisa</TableHead>
-                    <TableHead>Mensagem</TableHead>
-                    <TableHead>Quantidade</TableHead>
-                    <TableHead>Agendado para</TableHead>
+                    <TableHead>Template</TableHead>
+                    <TableHead>Tipo Conexão</TableHead>
+                    <TableHead>Destinatários</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sendings.map((sending) => (
                     <TableRow key={sending.id}>
+                      <TableCell>
+                        <FormattedDate date={sending.createdAt} showTime={true} />
+                      </TableCell>
                       <TableCell>{getSearchName(sending.searchId)}</TableCell>
                       <TableCell>
-                        {sending.templateId ? (
-                          <span className="flex items-center">
-                            <MessageSquare className="h-4 w-4 mr-1" />
-                            {getTemplateName(sending.templateId)}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Mensagem personalizada</span>
-                        )}
+                        {sending.templateName || (sending.templateId ? getTemplateName(sending.templateId) : "N/A")}
                       </TableCell>
-                      <TableCell>{sending.quantity}</TableCell>
                       <TableCell>
-                        <FormattedDate date={sending.scheduledAt} showTime={true} />
+                        <Badge variant="outline">
+                          {sending.connectionType === "whatsapp_qr" ? "QR Code" : "Meta API"}
+                        </Badge>
                       </TableCell>
+                      <TableCell>{sending.totalRecipients || 0}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(sending.status)}>
                           {getStatusText(sending.status)}
