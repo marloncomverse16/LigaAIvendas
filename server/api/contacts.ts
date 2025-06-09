@@ -89,15 +89,49 @@ export async function syncContacts(req: Request, res: Response) {
       instanceName
     );
     
-    // 🔒 ISOLAMENTO CRÍTICO: Desabilitando acesso à Evolution API compartilhada
-    // Esta API retorna dados de TODOS os usuários, causando vazamento de dados
-    console.log(`🔒 AVISO: Evolution API desabilitada para usuário ${userId} - isolamento de dados ativo`);
+    // Primeiro verificar se a instância existe, caso contrário criar
+    console.log(`Verificando e criando instância se necessário: ${instanceName}`);
     
-    // Simular resultado vazio para manter a interface funcionando
-    const result = {
-      success: true,
-      contacts: []
-    };
+    try {
+      // Tentar verificar status da instância primeiro
+      const connectionStatus = await evolutionClient.checkConnectionStatus();
+      
+      if (!connectionStatus.success && 
+          (connectionStatus.error?.includes("not found") || 
+           connectionStatus.error?.includes("404") ||
+           connectionStatus.error?.includes("não existe"))) {
+        
+        console.log(`Instância ${instanceName} não encontrada. Criando instância...`);
+        
+        // Criar a instância
+        const createResult = await evolutionClient.createInstance();
+        if (!createResult.success) {
+          console.error(`Erro ao criar instância: ${createResult.error}`);
+          return res.status(500).json({
+            success: false,
+            message: `Erro ao criar instância: ${createResult.error}`
+          });
+        }
+        
+        console.log(`Instância ${instanceName} criada com sucesso`);
+        
+        // Aguardar um momento para a instância ser processada
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } catch (instanceError) {
+      console.log(`Erro ao verificar/criar instância: ${instanceError.message}`);
+    }
+    
+    // Buscar contatos da Evolution API
+    console.log(`Sincronizando contatos da Evolution API: ${apiUrl}/instances/${instanceName}/contacts`);
+    const result = await evolutionClient.getContacts();
+    
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error || "Erro ao obter contatos da Evolution API"
+      });
+    }
     
     const contactsFromAPI = result.contacts || [];
     
