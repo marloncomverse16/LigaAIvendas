@@ -5767,8 +5767,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Buscar relatórios de cobrança
   app.get('/api/meta-reports/billing/:userId', async (req: Request, res: Response) => {
+    // Verificar autenticação PRIMEIRO
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const requestedUserId = parseInt(req.params.userId);
+      const authenticatedUserId = req.user.id;
+      
+      // SEGURANÇA: Verificar se o usuário pode acessar estes dados
+      if (requestedUserId !== authenticatedUserId) {
+        return res.status(403).json({ message: "Acesso negado - você só pode acessar seus próprios dados" });
+      }
+      
+      const userId = authenticatedUserId; // Usar sempre o usuário autenticado
       const { startDate, endDate, phoneNumberId } = req.query;
 
       let query = `
@@ -5800,8 +5813,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Buscar relatórios de leads respondidos
   app.get('/api/meta-reports/leads/:userId', async (req: Request, res: Response) => {
+    // Verificar autenticação PRIMEIRO
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const requestedUserId = parseInt(req.params.userId);
+      const authenticatedUserId = req.user.id;
+      
+      // SEGURANÇA: Verificar se o usuário pode acessar estes dados
+      if (requestedUserId !== authenticatedUserId) {
+        return res.status(403).json({ message: "Acesso negado - você só pode acessar seus próprios dados" });
+      }
+      
+      const userId = authenticatedUserId; // Usar sempre o usuário autenticado
       const { startDate, endDate, phoneNumberId, hasResponse } = req.query;
 
       let query = `
