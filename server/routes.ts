@@ -242,7 +242,6 @@ async function initializeUserData(userId: number) {
       triggerText: 'oi',
       personality: 'Assistente prestativo e profissional',
       rules: 'Sempre seja educado e responda de forma clara e objetiva',
-      responseDelay: 2,
       messageInterval: '30',
       maxDailyMessages: 100,
       businessHoursOnly: false,
