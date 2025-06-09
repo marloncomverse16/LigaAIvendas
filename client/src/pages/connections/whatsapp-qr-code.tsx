@@ -143,36 +143,23 @@ const WhatsAppQrCodePage = () => {
       setLoading(true);
       try {
         console.log("Solicitando desconexão do WhatsApp...");
-        const response = await apiRequest("POST", "/api/connections/disconnect", { mode: "disconnect" });
+        const response = await fetch("/api/connections/disconnect", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
         
         console.log("Status da resposta:", response.status);
-        console.log("Headers da resposta:", response.headers);
-        
-        // Tentar obter o texto da resposta primeiro
-        const responseText = await response.text();
-        console.log("Texto bruto da resposta:", responseText);
         
         if (!response.ok) {
-          let errorData;
-          try {
-            errorData = JSON.parse(responseText);
-          } catch (parseError) {
-            console.error("Erro ao fazer parse do JSON de erro:", parseError);
-            throw new Error(`Erro ${response.status}: ${responseText}`);
-          }
-          console.error("Erro do servidor na desconexão:", errorData);
-          throw new Error(errorData.error || errorData.message || "Falha ao desconectar WhatsApp");
+          const errorText = await response.text();
+          console.error("Erro do servidor na desconexão:", errorText);
+          throw new Error(`Erro ${response.status}: Falha ao desconectar`);
         }
         
-        // Tentar fazer parse do JSON de sucesso
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error("Erro ao fazer parse do JSON de sucesso:", parseError);
-          throw new Error("Resposta do servidor não é JSON válido");
-        }
-        
+        const data = await response.json();
         console.log("Resposta da desconexão:", data);
         return data;
       } catch (error) {
