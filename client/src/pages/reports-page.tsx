@@ -199,7 +199,7 @@ export default function ReportsPage() {
               <h2 className="text-xl font-semibold">WhatsApp Business Cloud API</h2>
               <p className="text-muted-foreground">Dados com custo por mensagem e conversa</p>
             </div>
-            <Button onClick={syncMetaData} disabled={syncing} className="flex items-center gap-2">
+            <Button onClick={syncMetaData} disabled={syncing} className="flex items-center gap-2 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
               <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Sincronizando...' : 'Sincronizar Meta API'}
             </Button>
@@ -492,7 +492,7 @@ export default function ReportsPage() {
               <h2 className="text-xl font-semibold">WhatsApp via QR Code</h2>
               <p className="text-muted-foreground">API gratuita - sem custos por mensagem</p>
             </div>
-            <Button onClick={fetchQRReports} disabled={qrLoading} className="flex items-center gap-2">
+            <Button onClick={fetchQRReports} disabled={qrLoading} className="flex items-center gap-2 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
               <RefreshCw className={`h-4 w-4 ${qrLoading ? 'animate-spin' : ''}`} />
               {qrLoading ? 'Carregando...' : 'Atualizar Relatórios'}
             </Button>
