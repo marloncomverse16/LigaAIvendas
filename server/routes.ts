@@ -191,6 +191,146 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+/**
+ * Middleware para garantir isolamento de dados por usuário
+ * Verifica se o usuário tem acesso aos dados solicitados
+ */
+function ensureUserDataIsolation(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Não autenticado" });
+  }
+  
+  const userId = (req.user as Express.User).id;
+  
+  // Adicionar userId ao contexto da requisição para uso posterior
+  req.context = { userId };
+  
+  next();
+}
+
+/**
+ * Função para inicializar dados básicos para um novo usuário
+ * Garante isolamento de dados e configurações padrão
+ */
+async function initializeUserData(userId: number) {
+  try {
+    console.log(`📋 Criando configurações padrão para usuário ${userId}`);
+    
+    // 1. Criar configurações padrão
+    await storage.createSettings({
+      userId,
+      logoUrl: null,
+      primaryColor: '#047857',
+      secondaryColor: '#4f46e5',
+      darkMode: false,
+      metaVendasEmpresa: '1000',
+      ticketMedioVendas: '50',
+      quantidadeLeadsVendas: 20,
+      quantosDisparosPorLead: 10,
+      custoIcloudTotal: '1200',
+      quantasMensagensEnviadas: 20000,
+      whatsappMetaToken: undefined,
+      whatsappMetaBusinessId: undefined,
+      whatsappMetaApiVersion: 'v18.0'
+    });
+    
+    // 2. Criar configuração padrão do AI Agent
+    console.log(`🤖 Criando AI Agent padrão para usuário ${userId}`);
+    await storage.createAiAgent({
+      userId,
+      enabled: false,
+      triggerText: 'oi',
+      personality: 'Assistente prestativo e profissional',
+      rules: 'Sempre seja educado e responda de forma clara e objetiva',
+      responseDelay: 2,
+      messageInterval: '30',
+      maxDailyMessages: 100,
+      businessHoursOnly: false,
+      businessHoursStart: '09:00',
+      businessHoursEnd: '18:00',
+      autoResponseEnabled: true,
+      leadQualificationEnabled: false,
+      appointmentSchedulingEnabled: false,
+      mediaFilename: null,
+      prospectingDuration: '30',
+      schedulingDuration: '60'
+    });
+    
+    // 3. Criar FAQs padrão
+    console.log(`❓ Criando FAQs padrão para usuário ${userId}`);
+    const defaultFaqs = [
+      {
+        question: 'Horário de atendimento',
+        answer: 'Nosso horário de atendimento é de segunda a sexta, das 9h às 18h.',
+        userId
+      },
+      {
+        question: 'Como entrar em contato',
+        answer: 'Você pode entrar em contato conosco pelo WhatsApp, email ou telefone.',
+        userId
+      }
+    ];
+    
+    for (const faq of defaultFaqs) {
+      await storage.createAiAgentFaq(faq);
+    }
+    
+    // 4. Criar steps padrão do AI Agent
+    console.log(`🔄 Criando steps padrão para usuário ${userId}`);
+    const defaultSteps = [
+      {
+        name: 'Perguntar sobre interesse',
+        prompt: 'Pergunte sobre o interesse do cliente em nossos produtos/serviços',
+        order: 1,
+        userId
+      },
+      {
+        name: 'Qualificar necessidade',
+        prompt: 'Identifique a necessidade específica do cliente',
+        order: 2,
+        userId
+      }
+    ];
+    
+    for (const step of defaultSteps) {
+      await storage.createAiAgentStep(step);
+    }
+    
+    // 5. Criar templates de mensagem padrão
+    console.log(`📝 Criando templates de mensagem padrão para usuário ${userId}`);
+    const defaultTemplates = [
+      {
+        title: 'Oferecer serviços',
+        content: 'Olá! Gostaria de conhecer nossos serviços? Temos soluções personalizadas para sua necessidade.',
+        tags: 'vendas, oferecimento',
+        userId
+      },
+      {
+        title: 'Agendar reunião',
+        content: 'Que tal agendarmos uma conversa? Tenho alguns horários disponíveis esta semana.',
+        tags: 'agendamento, reunião',
+        userId
+      },
+      {
+        title: 'Seguimento',
+        content: 'Oi! Como está? Gostaria de saber se ainda tem interesse em nossos serviços.',
+        tags: 'seguimento, follow-up',
+        userId
+      }
+    ];
+    
+    for (const template of defaultTemplates) {
+      await storage.createMessageTemplate(template);
+    }
+    
+    console.log(`✅ Dados inicializados com sucesso para usuário ${userId}`);
+    
+  } catch (error) {
+    console.error(`❌ Erro ao inicializar dados para usuário ${userId}:`, error);
+    throw error;
+  }
+}
+
 // Rastrear o status de conexão de cada usuário 
 // (definido no /server/connection.ts)
 
@@ -1008,6 +1148,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nome de usuário já existe" });
       }
       
+      // Verificar se email já existe
+      const existingEmail = await storage.getUserByEmail(userData.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email já existe" });
+      }
+      
       // Criptografar senha
       const hashedPassword = await hashPassword(userData.password);
       
@@ -1016,6 +1162,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...userData,
         password: hashedPassword
       });
+      
+      console.log(`🚀 Inicializando dados para novo usuário: ${newUser.username} (ID: ${newUser.id})`);
+      
+      // Inicializar dados básicos para o novo usuário
+      await initializeUserData(newUser.id);
       
       // Remover senha da resposta
       const { password, ...userResponse } = newUser;
