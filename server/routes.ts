@@ -2227,14 +2227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Criar registro de histórico para envio via Meta API
         await storage.createMessageSendingHistory({
           sendingId,
-          searchId: sending.searchId || 0,
-          templateId: sending.templateId || "",
-          templateName: template.title,
-          connectionType: "whatsapp_meta_api",
-          totalRecipients: resultsToSend.length,
-          status: "em_andamento",
-          userId,
-          startedAt: new Date()
+          status: "em_andamento"
         });
         
         // Chamar a função que envia mensagens pela Meta API
@@ -2311,19 +2304,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           phone: user.phone
         });
         
+        // Criar registro de histórico para envio via QR Code
+        await storage.createMessageSendingHistory({
+          sendingId,
+          status: "enviado"
+        });
+        
         // Atualizar status do envio
         await storage.updateMessageSending(sendingId, {
           status: "enviado"
         });
-        
-        // Registrar histórico de envio para cada resultado
-        for (const result of resultsToSend) {
-          await storage.createMessageSendingHistory({
-            sendingId,
-            resultId: result.id,
-            status: "sucesso"
-          });
-        }
         
         return { success: true, count: resultsToSend.length };
       }
