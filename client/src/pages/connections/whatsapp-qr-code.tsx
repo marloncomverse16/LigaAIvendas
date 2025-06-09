@@ -275,7 +275,7 @@ const WhatsAppQrCodePage = () => {
               <div className="flex flex-col items-center justify-center min-h-[300px]">
                 <div className="bg-white p-4 rounded-md mb-4 shadow-lg">
                   <img 
-                    src={`data:image/png;base64,${qrCode}`}
+                    src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
                     alt="WhatsApp QR Code" 
                     className="w-64 h-64 object-contain"
                     onLoad={() => {
