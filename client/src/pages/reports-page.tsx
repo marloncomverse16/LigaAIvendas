@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Download, RefreshCw, BarChart3, MessageSquare, DollarSign, Users, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -23,6 +24,7 @@ interface QRReportData {
 }
 
 export default function ReportsPage() {
+  const { user } = useAuth();
   const [startDate, setStartDate] = useState(format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [reportData, setReportData] = useState<ReportData>({
@@ -82,33 +84,33 @@ export default function ReportsPage() {
 
   // Buscar dados dos relatórios Meta
   const fetchReports = async () => {
+    if (!user?.id) return;
+    
     setLoading(true);
     try {
-      const userId = 2; // Implementar busca do usuário autenticado
       const params = new URLSearchParams({
         startDate,
         endDate
       });
 
       const [conversationsRes, messagesRes, billingRes, leadsRes] = await Promise.all([
-        fetch(`/api/meta-reports/conversations/${userId}?${params}`),
-        fetch(`/api/meta-reports/messages/${userId}?${params}`),
-        fetch(`/api/meta-reports/billing/${userId}?${params}`),
-        fetch(`/api/meta-reports/leads/${userId}?${params}`)
+        fetch(`/api/meta-reports/conversations/${user.id}?${params}`),
+        fetch(`/api/meta-reports/messages/${user.id}?${params}`),
+        fetch(`/api/meta-reports/billing/${user.id}?${params}`),
+        fetch(`/api/meta-reports/leads/${user.id}?${params}`)
       ]);
 
-      const [conversations, messages, billing, leads] = await Promise.all([
-        conversationsRes.json(),
-        messagesRes.json(),
-        billingRes.json(),
-        leadsRes.json()
-      ]);
+      // Verificar se as respostas são válidas
+      const conversations = conversationsRes.ok ? await conversationsRes.json() : [];
+      const messages = messagesRes.ok ? await messagesRes.json() : [];
+      const billing = billingRes.ok ? await billingRes.json() : [];
+      const leads = leadsRes.ok ? await leadsRes.json() : [];
 
       setReportData({
-        conversations: conversations || [],
-        messages: messages || [],
-        billing: billing || [],
-        leads: leads || []
+        conversations: Array.isArray(conversations) ? conversations : [],
+        messages: Array.isArray(messages) ? messages : [],
+        billing: Array.isArray(billing) ? billing : [],
+        leads: Array.isArray(leads) ? leads : []
       });
     } catch (error) {
       toast({
