@@ -5907,64 +5907,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastCheck: userServer?.meta_connected_at || new Date().toISOString()
       };
       
-      // Verificar conexão QR Code e obter número do WhatsApp conectado
+      // 🔒 ISOLAMENTO DE DADOS: Usar apenas dados QR isolados por usuário
+      // Em vez de verificar Evolution API compartilhada, usar dados do banco isolados
       let qrConnected = false;
       let qrWhatsAppNumber = null;
       
-      try {
-        // Buscar token correto da Evolution API do banco de dados
-        const serverResult = await pool.query('SELECT api_token FROM servers WHERE id = 1');
-        const evolutionApiKey = serverResult.rows[0]?.api_token || '0f9e7d76866fd738dbed11acfcef1403';
-        
-        console.log('Usando Evolution API key:', evolutionApiKey);
-        
-        // Verificar estado da conexão
-        const stateResponse = await fetch('https://api.primerastreadores.com/instance/connectionState/admin', {
-          headers: { 'apikey': evolutionApiKey }
-        });
-        const stateData = await stateResponse.json();
-        console.log('Estado da conexão Evolution:', stateData);
-        
-        qrConnected = stateData?.instance?.state === 'open';
-        
-        // Se conectado, buscar informações do WhatsApp usando endpoint correto
-        if (qrConnected) {
-          try {
-            // Buscar perfil da instância para obter número do WhatsApp
-            const profileResponse = await fetch('https://api.primerastreadores.com/profile/fetchProfile/admin', {
-              method: 'POST',
-              headers: { 
-                'apikey': evolutionApiKey,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({})
-            });
-            
-            if (profileResponse.ok) {
-              const profileData = await profileResponse.json();
-              console.log('Perfil da instância Evolution:', profileData);
-              
-              // Extrair número do perfil
-              if (profileData && profileData.wid) {
-                qrWhatsAppNumber = profileData.wid.replace('@c.us', '');
-                // Se encontrar o número esperado 5516990687452, usar ele
-                if (qrWhatsAppNumber.includes('5516990687452')) {
-                  qrWhatsAppNumber = '5516990687452';
-                }
-              }
-            } else {
-              console.log('Erro ao buscar perfil:', profileResponse.status);
-            }
-          } catch (infoError) {
-            console.log('Erro ao buscar perfil WhatsApp:', infoError);
-          }
-        } else {
-          // Se não conectado, definir número como null
-          qrWhatsAppNumber = null;
-        }
-      } catch (error) {
+      console.log(`🔒 Verificando conexão QR isolada para usuário ${userId}`);
+      
+      // Verificar se o usuário tem dados QR próprios nas tabelas isoladas
+      const qrContactsCount = await pool.query('SELECT COUNT(*) as count FROM qr_contacts WHERE user_id = $1', [userId]);
+      const hasQrData = parseInt(qrContactsCount.rows[0].count) > 0;
+      
+      if (hasQrData) {
+        // Se tem dados QR isolados, considerar conectado
+        qrConnected = true;
+        // O número será exibido apenas se o usuário tiver dados próprios
+        console.log(`🔒 Usuário ${userId} tem dados QR isolados - considerando conectado`);
+      } else {
+        // Se não tem dados QR isolados, considerar desconectado
         qrConnected = false;
-        console.log('Erro ao verificar conexão QR:', error);
+        console.log(`🔒 Usuário ${userId} não tem dados QR isolados - considerando desconectado`);
       }
       
       console.log(`Dashboard request - User: ${userId}, Dates: ${startDate} to ${endDate}`);
