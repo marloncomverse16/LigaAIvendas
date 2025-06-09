@@ -191,6 +191,7 @@ export default function UserPermissionsPage() {
           <Button 
             onClick={handleSave}
             disabled={updatePermissionsMutation.isPending}
+            className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
           >
             {updatePermissionsMutation.isPending ? (
               <>
@@ -243,6 +244,7 @@ export default function UserPermissionsPage() {
         <Button 
           onClick={handleSave}
           disabled={updatePermissionsMutation.isPending}
+          className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
         >
           {updatePermissionsMutation.isPending ? (
             <>

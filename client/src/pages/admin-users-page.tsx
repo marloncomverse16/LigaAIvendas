@@ -810,7 +810,10 @@ export default function AdminUsersPage() {
             Gerencie todos os usuários do sistema e suas configurações
           </p>
         </div>
-          <Button onClick={() => setIsCreateOpen(true)}>
+          <Button 
+            onClick={() => setIsCreateOpen(true)}
+            className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+          >
             <Plus className="mr-2 h-4 w-4" /> Novo Usuário
           </Button>
         </div>
@@ -1257,6 +1260,7 @@ export default function AdminUsersPage() {
               <Button 
                 onClick={handleCreateUser}
                 disabled={createUserMutation.isPending}
+                className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
               >
                 {createUserMutation.isPending ? (
                   <>
@@ -1602,6 +1606,7 @@ export default function AdminUsersPage() {
               <Button 
                 onClick={handleUpdateUser}
                 disabled={updateUserMutation.isPending}
+                className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
               >
                 {updateUserMutation.isPending ? (
                   <>
