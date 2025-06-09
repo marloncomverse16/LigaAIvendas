@@ -1005,7 +1005,7 @@ export default function AiAgentPage() {
               <TabsContent value="faqs" className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-medium">Perguntas Frequentes (FAQs)</h3>
-                  <Button onClick={() => openFaqForm()} className="gap-2">
+                  <Button onClick={() => openFaqForm()} className="gap-2 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
                     <PlusCircle className="h-4 w-4" />
                     Nova FAQ
                   </Button>
