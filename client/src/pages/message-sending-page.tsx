@@ -473,7 +473,7 @@ const CreateSendingForm = () => {
         errorMessage: null,
         // Campos adicionais
         templateId: data.templateId ? data.templateId.toString() : null,
-        templateName: data.templateId ? "Template selecionado" : null,
+        templateName: data.templateId ? (templates.find(t => t.id.toString() === data.templateId?.toString())?.title || "Template não encontrado") : null,
         messageText: data.customMessage || (data.templateId ? `Template ID: ${data.templateId}` : ""),
         connectionType: "whatsapp_qr",
         totalRecipients: parseInt(data.quantity?.toString() || "10"),
@@ -491,7 +491,7 @@ const CreateSendingForm = () => {
         userId: data.userId,
         searchId: parseInt(data.searchId.toString()),
         templateId: data.templateId ? data.templateId.toString() : null,
-        templateName: data.templateId ? "Template selecionado" : null,
+        templateName: data.templateId ? (templates.find(t => t.id.toString() === data.templateId?.toString())?.title || "Template não encontrado") : null,
         messageText: data.customMessage || (data.templateId ? `Template ID: ${data.templateId}` : ""),
         connectionType: "whatsapp_qr",
         totalRecipients: parseInt(data.quantity?.toString() || "10"),
@@ -1539,7 +1539,7 @@ const SendingList = () => {
                       </TableCell>
                       <TableCell>{getSearchName(sending.searchId)}</TableCell>
                       <TableCell>
-                        {sending.templateName || (sending.templateId ? getTemplateName(sending.templateId) : "N/A")}
+                        {sending.templateName || (sending.templateId ? getTemplateName(parseInt(sending.templateId)) : "N/A")}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
