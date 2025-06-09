@@ -463,6 +463,11 @@ const CreateSendingForm = () => {
       const userResponse = await apiRequest("GET", "/api/user");
       const userData = await userResponse.json();
       
+      // Buscar dados reais da pesquisa selecionada para obter número correto de leads
+      const searchResponse = await apiRequest("GET", `/api/prospecting/searches/${data.searchId}`);
+      const searchData = await searchResponse.json();
+      const realLeadsCount = searchData.leadsFound || parseInt(data.quantity?.toString() || "10");
+      
       console.log("Enviando dados para histórico:", {
         userId: data.userId,
         searchId: parseInt(data.searchId.toString()),
@@ -476,7 +481,7 @@ const CreateSendingForm = () => {
         templateName: data.templateId ? (templates.find(t => t.id.toString() === data.templateId?.toString())?.title || "Template não encontrado") : null,
         messageText: data.customMessage || (data.templateId ? `Template ID: ${data.templateId}` : ""),
         connectionType: "whatsapp_qr",
-        totalRecipients: parseInt(data.quantity?.toString() || "10"),
+        totalRecipients: realLeadsCount,
         webhookUrl: webhookUrl
       });
       
@@ -494,7 +499,7 @@ const CreateSendingForm = () => {
         templateName: data.templateId ? (templates.find(t => t.id.toString() === data.templateId?.toString())?.title || "Template não encontrado") : null,
         messageText: data.customMessage || (data.templateId ? `Template ID: ${data.templateId}` : ""),
         connectionType: "whatsapp_qr",
-        totalRecipients: parseInt(data.quantity?.toString() || "10"),
+        totalRecipients: realLeadsCount,
         webhookUrl: webhookUrl
       });
       
@@ -595,7 +600,7 @@ const CreateSendingForm = () => {
         templateName: selectedTemplate.name,
         messageText: null,
         connectionType: "whatsapp_meta_api",
-        totalRecipients: parseInt(data.quantity?.toString() || "10"),
+        totalRecipients: realLeadsCount,
         webhookUrl: null
       });
       
@@ -613,7 +618,7 @@ const CreateSendingForm = () => {
         templateName: selectedTemplate.name,
         messageText: null,
         connectionType: "whatsapp_meta_api",
-        totalRecipients: parseInt(data.quantity?.toString() || "10"),
+        totalRecipients: realLeadsCount,
         webhookUrl: null
       });
       
