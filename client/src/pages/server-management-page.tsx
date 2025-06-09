@@ -729,7 +729,10 @@ export default function ServerManagementPage() {
             Adicione, edite e gerencie servidores para a plataforma.
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button 
+          onClick={() => setIsCreateDialogOpen(true)}
+          className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+        >
           <PlusCircle className="mr-2 h-4 w-4" />
           Adicionar Servidor
         </Button>
@@ -741,6 +744,7 @@ export default function ServerManagementPage() {
             variant={filter === "all" ? "default" : "outline"} 
             size="sm"
             onClick={() => setFilter("all")}
+            className={filter === "all" ? "bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" : ""}
           >
             Todos
           </Button>
@@ -748,7 +752,7 @@ export default function ServerManagementPage() {
             variant={filter === "active" ? "default" : "outline"} 
             size="sm"
             onClick={() => setFilter("active")}
-            className={filter === "active" ? "bg-green-600 hover:bg-green-700" : ""}
+            className={filter === "active" ? "bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" : ""}
           >
             Ativos
           </Button>
@@ -756,7 +760,7 @@ export default function ServerManagementPage() {
             variant={filter === "inactive" ? "default" : "outline"} 
             size="sm"
             onClick={() => setFilter("inactive")}
-            className={filter === "inactive" ? "bg-gray-500 hover:bg-gray-600" : ""}
+            className={filter === "inactive" ? "bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" : ""}
           >
             Inativos
           </Button>
@@ -1207,7 +1211,11 @@ export default function ServerManagementPage() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={createServerMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  disabled={createServerMutation.isPending}
+                  className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+                >
                   {createServerMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
                   Criar Servidor
                 </Button>
@@ -1565,7 +1573,11 @@ export default function ServerManagementPage() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={updateServerMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  disabled={updateServerMutation.isPending}
+                  className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+                >
                   {updateServerMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
                   Salvar Alterações
                 </Button>
@@ -1679,7 +1691,11 @@ export default function ServerManagementPage() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={createAiAgentMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  disabled={createAiAgentMutation.isPending}
+                  className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+                >
                   {createAiAgentMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
                   Adicionar Agente
                 </Button>
