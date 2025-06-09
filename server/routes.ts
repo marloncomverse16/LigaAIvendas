@@ -436,21 +436,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Rota para verificar o status da conexão com WhatsApp
-  app.get("/api/connection/status", async (req, res) => {
+  app.get("/api/connections/status", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       const { id } = req.user as Express.User;
+      const user = await storage.getUser(id);
       
-      // Se não tiver status, retorna desconectado
-      if (!connectionStatus[id]) {
-        connectionStatus[id] = {
-          connected: false,
-          lastUpdated: new Date()
-        };
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
-      res.json(connectionStatus[id]);
+      // Obter servidor configurado
+      const userServers = await storage.getUserServers(id);
+      if (!userServers || userServers.length === 0) {
+        return res.status(200).json({ connected: false, lastUpdated: new Date() });
+      }
+      
+      const server = userServers[0].server;
+      if (!server || !server.apiUrl || !server.apiToken) {
+        return res.status(200).json({ connected: false, lastUpdated: new Date() });
+      }
+      
+      // Verificar status na Evolution API em tempo real
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+          'apikey': server.apiToken
+        };
+        
+        const instanceName = user.username;
+        const statusResponse = await axios.get(
+          `${server.apiUrl}/instance/connectionState/${instanceName}`,
+          { headers }
+        );
+        
+        console.log(`🔍 Verificação em tempo real - Resposta: ${JSON.stringify(statusResponse.data)}`);
+        
+        // Verificar se está conectado
+        const instanceState = statusResponse.data?.instance?.state || statusResponse.data?.state;
+        const isConnected = instanceState === 'open' || 
+                           instanceState === 'connected' || 
+                           statusResponse.data?.connected === true;
+        
+        console.log(`📊 Estado detectado: "${instanceState}" | Conectado: ${isConnected}`);
+        
+        // Atualizar status na memória
+        connectionStatus[id] = {
+          connected: isConnected,
+          lastUpdated: new Date(),
+          state: instanceState,
+          source: 'evolution_realtime'
+        };
+        
+        return res.status(200).json(connectionStatus[id]);
+        
+      } catch (evolutionError: any) {
+        console.error("Erro ao verificar Evolution API:", evolutionError.message);
+        
+        // Se não conseguir verificar, manter status anterior ou desconectado
+        if (!connectionStatus[id]) {
+          connectionStatus[id] = {
+            connected: false,
+            lastUpdated: new Date()
+          };
+        }
+        
+        return res.status(200).json(connectionStatus[id]);
+      }
+      
     } catch (error) {
       console.error("Erro ao verificar status:", error);
       res.status(500).json({ message: "Erro ao verificar status" });

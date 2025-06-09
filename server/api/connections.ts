@@ -51,7 +51,7 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         { headers }
       );
       
-      console.log(`Status obtido com sucesso: ${JSON.stringify(statusResponse.data).substring(0, 100)}...`);
+      console.log(`Status obtido com sucesso: ${JSON.stringify(statusResponse.data)}`);
       
       // Verificar se está conectado corretamente
       const instanceState = statusResponse.data?.instance?.state || statusResponse.data?.state;
@@ -59,6 +59,24 @@ export async function checkConnectionStatus(req: Request, res: Response) {
                          instanceState === 'connected' || 
                          statusResponse.data?.connected === true ||
                          statusResponse.data?.instance?.connected === true;
+      
+      console.log(`🔍 DETALHES DA VERIFICAÇÃO:`);
+      console.log(`   - statusResponse.data.instance?.state: "${statusResponse.data?.instance?.state}"`);
+      console.log(`   - statusResponse.data.state: "${statusResponse.data?.state}"`);
+      console.log(`   - instanceState final: "${instanceState}"`);
+      console.log(`   - isConnected resultado: ${isConnected}`);
+      
+      // Se detectamos conexão, retornar imediatamente
+      if (isConnected) {
+        console.log("🟢 CONEXÃO DETECTADA! Retornando status conectado");
+        return res.status(200).json({
+          connected: true,
+          qrCode: null,
+          lastUpdated: new Date(),
+          state: instanceState,
+          source: 'connectionState'
+        });
+      }
       
       const status = {
         success: true,
