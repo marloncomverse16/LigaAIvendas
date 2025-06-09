@@ -14,6 +14,7 @@ import { z } from "zod";
 import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { EvolutionApiClient } from "./evolution-api";
 
 const scryptAsync = promisify(scrypt);
 
@@ -33,7 +34,7 @@ async function comparePasswords(supplied: string, stored: string) {
 // Rastrear o status de conexão de cada usuário
 interface ConnectionData {
   connected: boolean;
-  qrCode?: string;
+  qrCode?: string | null;
   lastUpdated: Date;
 }
 
