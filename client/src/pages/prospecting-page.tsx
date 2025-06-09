@@ -584,7 +584,7 @@ export default function ProspectingPage() {
                           </div>
                           <div className="flex gap-2">
                             <Button 
-                              variant="outline" 
+                              className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                               size="sm"
                               onClick={() => handleDispatchLeads(activeSearch)}
                               disabled={!user?.dispatchesWebhookUrl || (searches.find(s => s.id === activeSearch)?.dispatchesPending || 0) === 0}
