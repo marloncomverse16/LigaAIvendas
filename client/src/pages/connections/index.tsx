@@ -124,7 +124,7 @@ const ConnectionsPage = () => {
             </div>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild className="w-full bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
               <Link to="/conexoes/whatsapp-qr-code">
                 {isConnected && !isCloudConnection && !isMetaConnected ? "Gerenciar Conexão" : "Conectar com QR Code"}
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -174,7 +174,7 @@ const ConnectionsPage = () => {
             </div>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full" variant="outline">
+            <Button asChild className="w-full bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
               <Link to="/conexoes/whatsapp-meta">
                 {isMetaConnected ? "Gerenciar Conexão" : "Conectar com Meta API"}
                 <ArrowRight className="ml-2 h-4 w-4" />

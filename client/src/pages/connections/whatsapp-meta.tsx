@@ -327,7 +327,7 @@ const WhatsAppMetaPage = () => {
           {!isConnected ? (
             <Button 
               onClick={form.handleSubmit(onSubmit)} 
-              className="w-full md:w-auto" 
+              className="w-full md:w-auto bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" 
               disabled={isConnecting}
             >
               {isConnecting ? (

@@ -306,7 +306,10 @@ const WhatsAppQrCodePage = () => {
                 <p className="mb-6 text-center text-muted-foreground">
                   Clique no botão abaixo para gerar um código QR e conectar seu WhatsApp
                 </p>
-                <Button onClick={handleGenerateQrCode}>
+                <Button 
+                  onClick={handleGenerateQrCode}
+                  className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+                >
                   <QrCode className="mr-2 h-4 w-4" />
                   Gerar QR Code
                 </Button>
