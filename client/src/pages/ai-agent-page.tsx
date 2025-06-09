@@ -1031,9 +1031,8 @@ export default function AiAgentPage() {
                             </CardTitle>
                             <div className="flex items-center gap-1">
                               <Button 
-                                variant="ghost" 
                                 size="sm" 
-                                className="h-8 px-2"
+                                className="h-8 px-2 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                                 onClick={() => openFaqForm(faq)}
                               >
                                 Editar
@@ -1115,7 +1114,7 @@ export default function AiAgentPage() {
                       >
                         Cancelar
                       </Button>
-                      <Button onClick={handleSaveFaq}>
+                      <Button onClick={handleSaveFaq} className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold">
                         Salvar
                       </Button>
                     </div>
