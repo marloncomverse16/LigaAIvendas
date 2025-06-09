@@ -163,68 +163,122 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando criar a instância...");
       
-      // Formatar o corpo da requisição conforme a documentação da Evolution API
-      const createInstanceBody = {
-        instanceName: this.instance,
-        qrcode: true,
-        integration: "WHATSAPP-BAILEYS",
-        webhook: {
-          url: "",
-          byEvents: false,
-          base64: true
+      // Array de diferentes formatos de payload para tentar
+      const payloadOptions = [
+        // Formato mínimo
+        {
+          instanceName: this.instance
+        },
+        // Formato básico com QR
+        {
+          instanceName: this.instance,
+          qrcode: true
+        },
+        // Formato com integração
+        {
+          instanceName: this.instance,
+          qrcode: true,
+          integration: "WHATSAPP-BAILEYS"
+        },
+        // Formato mais completo
+        {
+          instanceName: this.instance,
+          qrcode: true,
+          integration: "WHATSAPP-BAILEYS",
+          webhook: {
+            url: "",
+            byEvents: false,
+            base64: true
+          }
         }
-      };
+      ];
+
+      // Array de endpoints para tentar
+      const endpoints = [
+        `/instance/create`,
+        `/instances/create`,
+        `/instance/create/${this.instance}`,
+        `/instances/create/${this.instance}`,
+        `/api/instance/create`,
+        `/api/instances/create`
+      ];
       
-      // Na versão 2.x, o endpoint correto é /instance/create (testado e funcionando)
-      try {
-        console.log(`Tentando criar instância no endpoint: ${this.baseUrl}/instance/create`);
-        console.log(`Dados enviados:`, JSON.stringify(createInstanceBody));
-        
-        const response = await axios.post(
-          `${this.baseUrl}/instance/create`,
-          createInstanceBody,
-          { headers: this.getHeaders() }
-        );
-        
-        console.log(`Resposta da criação de instância:`, response.data);
-        
-        if (response.status === 201 || response.status === 200) {
-          return {
-            success: true,
-            data: response.data
-          };
+      // Tentar cada combinação de endpoint e payload
+      for (const endpoint of endpoints) {
+        for (const payload of payloadOptions) {
+          try {
+            console.log(`Tentando criar instância no endpoint: ${this.baseUrl}${endpoint}`);
+            console.log(`Dados enviados:`, JSON.stringify(payload));
+            
+            const response = await axios.post(
+              `${this.baseUrl}${endpoint}`,
+              payload,
+              { 
+                headers: this.getHeaders(),
+                timeout: 10000
+              }
+            );
+            
+            console.log(`Resposta da criação de instância:`, response.data);
+            
+            if (response.status === 201 || response.status === 200) {
+              console.log(`✅ Instância criada com sucesso usando endpoint: ${endpoint}`);
+              return {
+                success: true,
+                data: response.data,
+                endpoint: endpoint,
+                payload: payload
+              };
+            }
+          } catch (error: any) {
+            const statusCode = error.response?.status;
+            const errorMsg = error.response?.data?.message || error.message;
+            console.log(`❌ Endpoint ${endpoint} falhou (${statusCode}): ${errorMsg}`);
+            
+            // Se for erro 409, a instância já existe
+            if (statusCode === 409) {
+              console.log(`✅ Instância já existe (409), considerando sucesso`);
+              return {
+                success: true,
+                data: { message: "Instância já existe" },
+                endpoint: endpoint,
+                alreadyExists: true
+              };
+            }
+          }
         }
-      } catch (error) {
-        console.error(`Erro ao criar instância:`, error.message);
-        
-        // Tentar endpoint alternativo
+      }
+      
+      // Se nenhum método funcionou, tentar método PUT ou PATCH
+      console.log("Tentando métodos alternativos PUT/PATCH...");
+      
+      const alternativeMethods = ['put', 'patch'];
+      for (const method of alternativeMethods) {
         try {
-          console.log(`Tentando endpoint alternativo: ${this.baseUrl}/instance/create/${this.instance}`);
-          
-          const response = await axios.post(
-            `${this.baseUrl}/instance/create/${this.instance}`,
-            createInstanceBody,
+          const response = await axios[method](
+            `${this.baseUrl}/instance/${this.instance}`,
+            { qrcode: true },
             { headers: this.getHeaders() }
           );
           
-          console.log(`Resposta da criação de instância (alternativo):`, response.data);
-          
-          if (response.status === 201 || response.status === 200) {
+          if (response.status >= 200 && response.status < 300) {
+            console.log(`✅ Instância criada usando método ${method.toUpperCase()}`);
             return {
               success: true,
-              data: response.data
+              data: response.data,
+              method: method
             };
           }
-        } catch (altError) {
-          console.error(`Erro no endpoint alternativo:`, altError.message);
+        } catch (methodError) {
+          console.log(`❌ Método ${method.toUpperCase()} falhou: ${methodError.message}`);
         }
       }
       
       return {
         success: false,
-        error: "Não foi possível criar a instância após múltiplas tentativas"
+        error: "Não foi possível criar a instância após tentar todos os métodos disponíveis"
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Erro geral ao criar instância:`, error.message);
       return {
         success: false,
