@@ -125,10 +125,11 @@ export default function ReportsPage() {
 
   // Sincronizar dados da Meta API
   const syncMetaData = async () => {
+    if (!user?.id) return;
+    
     setSyncing(true);
     try {
-      const userId = 2; // Implementar busca do usuário autenticado
-      const response = await fetch(`/api/meta-reports/sync/${userId}`, {
+      const response = await fetch(`/api/meta-reports/sync/${user.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -167,12 +168,12 @@ export default function ReportsPage() {
 
   // Estatísticas resumidas Meta API
   const stats = {
-    totalConversations: reportData.conversations.length,
-    freeConversations: reportData.conversations.filter(c => c.conversation_type === 'free').length,
-    totalMessages: reportData.messages.length,
-    deliveredMessages: reportData.messages.filter(m => m.delivery_status === 'delivered').length,
-    leadsWithResponse: reportData.leads.filter(l => l.has_response).length,
-    totalCost: reportData.billing.reduce((sum, b) => sum + parseFloat(b.total_cost || '0'), 0)
+    totalConversations: Array.isArray(reportData.conversations) ? reportData.conversations.length : 0,
+    freeConversations: Array.isArray(reportData.conversations) ? reportData.conversations.filter(c => c.conversation_type === 'free').length : 0,
+    totalMessages: Array.isArray(reportData.messages) ? reportData.messages.length : 0,
+    deliveredMessages: Array.isArray(reportData.messages) ? reportData.messages.filter(m => m.delivery_status === 'delivered').length : 0,
+    leadsWithResponse: Array.isArray(reportData.leads) ? reportData.leads.filter(l => l.has_response).length : 0,
+    totalCost: Array.isArray(reportData.billing) ? reportData.billing.reduce((sum, b) => sum + parseFloat(b.total_cost || '0'), 0) : 0
   };
 
   return (
