@@ -273,19 +273,24 @@ const WhatsAppQrCodePage = () => {
               </div>
             ) : qrCode ? (
               <div className="flex flex-col items-center justify-center min-h-[300px]">
-                <div className="bg-white p-4 rounded-md mb-4">
+                <div className="bg-white p-4 rounded-md mb-4 shadow-lg">
                   <img 
-                    src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} 
+                    src={`data:image/png;base64,${qrCode}`}
                     alt="WhatsApp QR Code" 
-                    className="w-64 h-64"
+                    className="w-64 h-64 object-contain"
+                    onLoad={() => {
+                      console.log("QR Code carregado com sucesso");
+                    }}
                     onError={(e) => {
-                      console.error("Erro ao carregar QR code:", qrCode.substring(0, 100) + "...");
-                      e.currentTarget.style.display = 'none';
-                      toast({
-                        title: "Erro ao exibir QR Code",
-                        description: "Tente gerar novamente",
-                        variant: "destructive"
-                      });
+                      console.error("Erro ao carregar QR code - dados:", qrCode?.substring(0, 50) + "...");
+                      const target = e.currentTarget as HTMLImageElement;
+                      target.style.display = 'none';
+                      
+                      // Mostrar div de erro em caso de falha
+                      const errorDiv = document.createElement('div');
+                      errorDiv.className = 'w-64 h-64 flex items-center justify-center bg-gray-100 border-2 border-dashed border-gray-300 rounded';
+                      errorDiv.innerHTML = '<p class="text-gray-500 text-center">Erro ao exibir QR Code<br/>Tente gerar novamente</p>';
+                      target.parentNode?.insertBefore(errorDiv, target);
                     }}
                   />
                 </div>
