@@ -75,26 +75,22 @@ export async function sendMetaMessageDirectly(req: Request, res: Response) {
       });
     }
     
-    // Atualizar o registro de histórico para em andamento
-    const [historyRecord] = await db.select()
-      .from(messageSendingHistory)
-      .where(and(
-        eq(messageSendingHistory.searchId, searchId),
-        eq(messageSendingHistory.userId, req.user.id),
-        eq(messageSendingHistory.status, "pendente"),
-        eq(messageSendingHistory.connectionType, "whatsapp_meta_api")
-      ))
-      .orderBy(messageSendingHistory.createdAt)
-      .limit(1);
-    
-    if (historyRecord) {
-      await db.update(messageSendingHistory)
-        .set({
-          status: "em_andamento",
-          updatedAt: new Date()
-        })
-        .where(eq(messageSendingHistory.id, historyRecord.id));
-    }
+    // Criar registro de histórico para este envio
+    const [historyRecord] = await db.insert(messageSendingHistory)
+      .values({
+        userId: req.user.id,
+        searchId: searchId,
+        templateId: templateId,
+        templateName: templateName,
+        connectionType: "whatsapp_meta_api",
+        totalRecipients: results.length,
+        status: "em_andamento",
+        startedAt: new Date(),
+        createdAt: new Date()
+      })
+      .returning();
+
+    console.log("Registro de histórico criado:", historyRecord.id);
     
     // Iniciar o envio em segundo plano
     // Retornar resposta imediatamente e continuar processamento

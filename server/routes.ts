@@ -78,6 +78,13 @@ import evolutionWebhookReceiver from "./api/evolution-webhook-receiver";
 // Importação do testador de webhook de contatos
 import { testContactsWebhook } from "./api/test-webhook";
 
+// Importação das funções de histórico de envios de mensagens
+import { 
+  createMessageSendingHistory, 
+  updateMessageSendingHistory, 
+  listMessageSendingHistory 
+} from "./api/message-sending-history";
+
 // Novas importações para conexões Meta API específicas do usuário
 
 // Configuração do multer para upload de arquivos
@@ -2217,6 +2224,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error("Template não encontrado");
         }
         
+        // Criar registro de histórico para envio via Meta API
+        await storage.createMessageSendingHistory({
+          sendingId,
+          searchId: sending.searchId || 0,
+          templateId: sending.templateId || "",
+          templateName: template.title,
+          connectionType: "whatsapp_meta_api",
+          totalRecipients: resultsToSend.length,
+          status: "em_andamento",
+          userId,
+          startedAt: new Date()
+        });
+        
         // Chamar a função que envia mensagens pela Meta API
         // Esta chamada retorna imediatamente e o processamento continua em segundo plano
         await sendMetaMessageDirectly({ 
@@ -2388,6 +2408,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar histórico de envio" });
     }
   });
+  
+  // Rotas específicas para histórico de envios de mensagens
+  app.get("/api/message-sending-history", listMessageSendingHistory);
+  app.post("/api/message-sending-history", createMessageSendingHistory);
+  app.put("/api/message-sending-history/:id", updateMessageSendingHistory);
   
   // WhatsApp API Routes
   // Endpoint direto para obter contatos do WhatsApp (alternativa robusta)
