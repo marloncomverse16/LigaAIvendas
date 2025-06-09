@@ -1345,7 +1345,7 @@ const CreateSendingForm = () => {
             
             <Button 
               type="submit" 
-              className="w-full"
+              className="w-full bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
               disabled={sendViaWebhookMutation.isPending || sendViaMetaApiMutation.isPending}
             >
               {sendViaWebhookMutation.isPending || sendViaMetaApiMutation.isPending ? (
@@ -1467,17 +1467,17 @@ const SendingList = () => {
     return template ? template.title : "N/A";
   };
   
-  // Função para obter a classe de cor com base no status
+  // Função para obter a classe de cor com base no status usando cores laranja/amarelo
   const getStatusBadgeVariant = (status) => {
     switch (status) {
       case "pendente":
-        return "outline";
+        return "bg-yellow-100 text-yellow-800 border-yellow-300";
       case "em_andamento":
-        return "secondary";
+        return "bg-orange-100 text-orange-800 border-orange-300";
       case "enviado":
-        return "default";
+        return "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold";
       case "concluido":
-        return "default";
+        return "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold";
       case "erro":
         return "destructive";
       case "cancelado":
@@ -1547,15 +1547,15 @@ const SendingList = () => {
                         {sending.templateName || (sending.templateId ? getTemplateName(parseInt(sending.templateId)) : "N/A")}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
+                        <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-gradient-to-r from-orange-100 to-yellow-100 text-orange-800 border-orange-300">
                           {sending.connectionType === "whatsapp_qr" ? "QR Code" : "Meta API"}
-                        </Badge>
+                        </div>
                       </TableCell>
                       <TableCell>{sending.totalRecipients || 0}</TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(sending.status)}>
+                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeVariant(sending.status)}`}>
                           {getStatusText(sending.status)}
-                        </Badge>
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Dialog>
