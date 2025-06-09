@@ -147,7 +147,7 @@ export default function UserPermissionsPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold">Usuário não encontrado</h2>
           <p className="text-muted-foreground mt-2">O usuário solicitado não foi encontrado ou você não tem permissão para acessá-lo.</p>
-          <Button className="mt-4" asChild>
+          <Button className="mt-4 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" asChild>
             <Link href="/admin-users">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Voltar para lista de usuários
