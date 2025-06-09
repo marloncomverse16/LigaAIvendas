@@ -1790,7 +1790,11 @@ export default function ServerManagementPage() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={updateAiAgentMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  disabled={updateAiAgentMutation.isPending}
+                  className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+                >
                   {updateAiAgentMutation.isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
                   Salvar Alterações
                 </Button>
