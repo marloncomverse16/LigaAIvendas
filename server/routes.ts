@@ -691,13 +691,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const instanceName = user.username;
             
-            // Tentar desconectar via Evolution API
+            // Deletar completamente a instância da Evolution API
             await axios.delete(
-              `${server.apiUrl}/instance/logout/${instanceName}`,
+              `${server.apiUrl}/instance/delete/${instanceName}`,
               { headers }
             );
             
-            console.log("Desconexão via Evolution API bem-sucedida");
+            console.log("Instância deletada da Evolution API com sucesso");
           } catch (evolutionError: any) {
             console.error("Erro ao desconectar via Evolution API:", evolutionError.message);
           }
