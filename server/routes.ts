@@ -664,6 +664,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao iniciar conexão" });
     }
   });
+
+  // Rota para desconectar o WhatsApp
+  app.post("/api/connections/disconnect", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { id } = req.user as Express.User;
+      const user = await storage.getUser(id);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Obter servidor configurado
+      const userServers = await storage.getUserServers(id);
+      if (userServers && userServers.length > 0) {
+        const server = userServers[0].server;
+        
+        if (server && server.apiUrl && server.apiToken) {
+          try {
+            const headers = {
+              'Content-Type': 'application/json',
+              'apikey': server.apiToken
+            };
+            
+            const instanceName = user.username;
+            
+            // Tentar desconectar via Evolution API
+            await axios.delete(
+              `${server.apiUrl}/instance/logout/${instanceName}`,
+              { headers }
+            );
+            
+            console.log("Desconexão via Evolution API bem-sucedida");
+          } catch (evolutionError: any) {
+            console.error("Erro ao desconectar via Evolution API:", evolutionError.message);
+          }
+        }
+      }
+      
+      // Atualizar status local
+      connectionStatus[id] = {
+        connected: false,
+        lastUpdated: new Date(),
+        disconnectedAt: new Date()
+      };
+      
+      res.json({
+        success: true,
+        connected: false,
+        message: "Desconectado com sucesso",
+        lastUpdated: new Date()
+      });
+      
+    } catch (error) {
+      console.error("Erro ao desconectar:", error);
+      res.status(500).json({ message: "Erro ao desconectar" });
+    }
+  });
   
   // Rota de callback para o n8n informar sobre a conexão do dispositivo
   app.post("/api/connection/callback", async (req, res) => {
