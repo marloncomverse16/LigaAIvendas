@@ -163,122 +163,68 @@ export class EvolutionApiClient {
 
       console.log("API Evolution online. Tentando criar a instância...");
       
-      // Array de diferentes formatos de payload para tentar
-      const payloadOptions = [
-        // Formato mínimo
-        {
-          instanceName: this.instance
-        },
-        // Formato básico com QR
-        {
-          instanceName: this.instance,
-          qrcode: true
-        },
-        // Formato com integração
-        {
-          instanceName: this.instance,
-          qrcode: true,
-          integration: "WHATSAPP-BAILEYS"
-        },
-        // Formato mais completo
-        {
-          instanceName: this.instance,
-          qrcode: true,
-          integration: "WHATSAPP-BAILEYS",
-          webhook: {
-            url: "",
-            byEvents: false,
-            base64: true
-          }
+      // Formatar o corpo da requisição conforme a documentação da Evolution API
+      const createInstanceBody = {
+        instanceName: this.instance,
+        qrcode: true,
+        integration: "WHATSAPP-BAILEYS",
+        webhook: {
+          url: "",
+          byEvents: false,
+          base64: true
         }
-      ];
-
-      // Array de endpoints para tentar
-      const endpoints = [
-        `/instance/create`,
-        `/instances/create`,
-        `/instance/create/${this.instance}`,
-        `/instances/create/${this.instance}`,
-        `/api/instance/create`,
-        `/api/instances/create`
-      ];
+      };
       
-      // Tentar cada combinação de endpoint e payload
-      for (const endpoint of endpoints) {
-        for (const payload of payloadOptions) {
-          try {
-            console.log(`Tentando criar instância no endpoint: ${this.baseUrl}${endpoint}`);
-            console.log(`Dados enviados:`, JSON.stringify(payload));
-            
-            const response = await axios.post(
-              `${this.baseUrl}${endpoint}`,
-              payload,
-              { 
-                headers: this.getHeaders(),
-                timeout: 10000
-              }
-            );
-            
-            console.log(`Resposta da criação de instância:`, response.data);
-            
-            if (response.status === 201 || response.status === 200) {
-              console.log(`✅ Instância criada com sucesso usando endpoint: ${endpoint}`);
-              return {
-                success: true,
-                data: response.data,
-                endpoint: endpoint,
-                payload: payload
-              };
-            }
-          } catch (error: any) {
-            const statusCode = error.response?.status;
-            const errorMsg = error.response?.data?.message || error.message;
-            console.log(`❌ Endpoint ${endpoint} falhou (${statusCode}): ${errorMsg}`);
-            
-            // Se for erro 409, a instância já existe
-            if (statusCode === 409) {
-              console.log(`✅ Instância já existe (409), considerando sucesso`);
-              return {
-                success: true,
-                data: { message: "Instância já existe" },
-                endpoint: endpoint,
-                alreadyExists: true
-              };
-            }
-          }
+      // Na versão 2.x, o endpoint correto é /instance/create (testado e funcionando)
+      try {
+        console.log(`Tentando criar instância no endpoint: ${this.baseUrl}/instance/create`);
+        console.log(`Dados enviados:`, JSON.stringify(createInstanceBody));
+        
+        const response = await axios.post(
+          `${this.baseUrl}/instance/create`,
+          createInstanceBody,
+          { headers: this.getHeaders() }
+        );
+        
+        console.log(`Resposta da criação de instância:`, response.data);
+        
+        if (response.status === 201 || response.status === 200) {
+          return {
+            success: true,
+            data: response.data
+          };
         }
-      }
-      
-      // Se nenhum método funcionou, tentar método PUT ou PATCH
-      console.log("Tentando métodos alternativos PUT/PATCH...");
-      
-      const alternativeMethods = ['put', 'patch'];
-      for (const method of alternativeMethods) {
+      } catch (error) {
+        console.error(`Erro ao criar instância:`, error.message);
+        
+        // Tentar endpoint alternativo
         try {
-          const response = await axios[method](
-            `${this.baseUrl}/instance/${this.instance}`,
-            { qrcode: true },
+          console.log(`Tentando endpoint alternativo: ${this.baseUrl}/instance/create/${this.instance}`);
+          
+          const response = await axios.post(
+            `${this.baseUrl}/instance/create/${this.instance}`,
+            createInstanceBody,
             { headers: this.getHeaders() }
           );
           
-          if (response.status >= 200 && response.status < 300) {
-            console.log(`✅ Instância criada usando método ${method.toUpperCase()}`);
+          console.log(`Resposta da criação de instância (alternativo):`, response.data);
+          
+          if (response.status === 201 || response.status === 200) {
             return {
               success: true,
-              data: response.data,
-              method: method
+              data: response.data
             };
           }
-        } catch (methodError) {
-          console.log(`❌ Método ${method.toUpperCase()} falhou: ${methodError.message}`);
+        } catch (altError) {
+          console.error(`Erro no endpoint alternativo:`, altError.message);
         }
       }
       
       return {
         success: false,
-        error: "Não foi possível criar a instância após tentar todos os métodos disponíveis"
+        error: "Não foi possível criar a instância após múltiplas tentativas"
       };
-    } catch (error: any) {
+    } catch (error) {
       console.error(`Erro geral ao criar instância:`, error.message);
       return {
         success: false,
@@ -481,20 +427,15 @@ export class EvolutionApiClient {
       const managerUrl = apiStatus.data?.manager || null;
       const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
       
-      // Listar endpoints possíveis em ordem de prioridade baseados na Evolution API funcional
+      // Listar endpoints possíveis em ordem de prioridade
       const endpoints = [
-        // Endpoints da Evolution API v2.x testados
+        // Baseado no manager URL retornado pela API
+        `${secureManagerUrl}/instance/connectionState/${this.instance}`,
+        `${secureManagerUrl}/connection/status/${this.instance}`,
+        `${secureManagerUrl}/status/${this.instance}`,
+        // Endpoints alternativos
         `${this.baseUrl}/instance/connectionState/${this.instance}`,
-        `${this.baseUrl}/instance/connect/${this.instance}`,
-        `${this.baseUrl}/instance/${this.instance}/status`,
-        `${this.baseUrl}/instance/status/${this.instance}`,
-        `${this.baseUrl}/instances/${this.instance}/connectionState`,
-        `${this.baseUrl}/instances/${this.instance}/status`,
-        // Manager URL como fallback
-        ...(secureManagerUrl ? [
-          `${secureManagerUrl}/instance/connectionState/${this.instance}`,
-          `${secureManagerUrl}/connection/status/${this.instance}`
-        ] : [])
+        `${this.baseUrl}/instance/connectionState/${this.instance}`
       ];
       
       // Tentar cada endpoint
@@ -510,31 +451,14 @@ export class EvolutionApiClient {
             console.log(`Status obtido com sucesso: ${JSON.stringify(response.data)}`);
             
             // Determinar se está conectado com base nos campos retornados
-            // Baseado no teste real: {"instance":{"instanceName":"Guilherme Puerta","state":"open"}}
+            // Formato pode variar conforme a versão da API
             const isConnected = 
                                 response.data.state === 'open' || 
                                 response.data.state === 'CONNECTED' ||
                                 response.data.state === 'connected' ||
                                 response.data.state === 'CONNECTION' ||
-                                response.data.state === 'OPEN' ||
                                 response.data.connected === true ||
-                                response.data.status === 'connected' ||
-                                response.data.status === 'open' ||
-                                response.data.connectionState === 'open' ||
-                                response.data.connectionState === 'connected' ||
-                                // FORMATO REAL DA EVOLUTION API DETECTADO:
-                                response.data.instance?.state === 'open' ||
-                                response.data.instance?.state === 'connected' ||
-                                response.data.instance?.state === 'CONNECTED' ||
-                                response.data.instance?.connectionState === 'open' ||
-                                (response.data.status && response.data.status.includes('connect')) ||
-                                (response.data.message && response.data.message.includes('connected'));
-                                
-            console.log(`🔍 Verificação de conexão detalhada:`);
-            console.log(`   - response.data.instance?.state: ${response.data.instance?.state}`);
-            console.log(`   - response.data.state: ${response.data.state}`);
-            console.log(`   - response.data.connected: ${response.data.connected}`);
-            console.log(`   - Resultado final isConnected: ${isConnected}`);
+                                (response.data.status && response.data.status.includes('connect'));
             
             return {
               success: true,

@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Download, RefreshCw, BarChart3, MessageSquare, DollarSign, Users, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -24,7 +23,6 @@ interface QRReportData {
 }
 
 export default function ReportsPage() {
-  const { user } = useAuth();
   const [startDate, setStartDate] = useState(format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [reportData, setReportData] = useState<ReportData>({
@@ -84,33 +82,33 @@ export default function ReportsPage() {
 
   // Buscar dados dos relatórios Meta
   const fetchReports = async () => {
-    if (!user?.id) return;
-    
     setLoading(true);
     try {
+      const userId = 2; // Implementar busca do usuário autenticado
       const params = new URLSearchParams({
         startDate,
         endDate
       });
 
       const [conversationsRes, messagesRes, billingRes, leadsRes] = await Promise.all([
-        fetch(`/api/meta-reports/conversations/${user.id}?${params}`),
-        fetch(`/api/meta-reports/messages/${user.id}?${params}`),
-        fetch(`/api/meta-reports/billing/${user.id}?${params}`),
-        fetch(`/api/meta-reports/leads/${user.id}?${params}`)
+        fetch(`/api/meta-reports/conversations/${userId}?${params}`),
+        fetch(`/api/meta-reports/messages/${userId}?${params}`),
+        fetch(`/api/meta-reports/billing/${userId}?${params}`),
+        fetch(`/api/meta-reports/leads/${userId}?${params}`)
       ]);
 
-      // Verificar se as respostas são válidas
-      const conversations = conversationsRes.ok ? await conversationsRes.json() : [];
-      const messages = messagesRes.ok ? await messagesRes.json() : [];
-      const billing = billingRes.ok ? await billingRes.json() : [];
-      const leads = leadsRes.ok ? await leadsRes.json() : [];
+      const [conversations, messages, billing, leads] = await Promise.all([
+        conversationsRes.json(),
+        messagesRes.json(),
+        billingRes.json(),
+        leadsRes.json()
+      ]);
 
       setReportData({
-        conversations: Array.isArray(conversations) ? conversations : [],
-        messages: Array.isArray(messages) ? messages : [],
-        billing: Array.isArray(billing) ? billing : [],
-        leads: Array.isArray(leads) ? leads : []
+        conversations: conversations || [],
+        messages: messages || [],
+        billing: billing || [],
+        leads: leads || []
       });
     } catch (error) {
       toast({
@@ -125,11 +123,10 @@ export default function ReportsPage() {
 
   // Sincronizar dados da Meta API
   const syncMetaData = async () => {
-    if (!user?.id) return;
-    
     setSyncing(true);
     try {
-      const response = await fetch(`/api/meta-reports/sync/${user.id}`, {
+      const userId = 2; // Implementar busca do usuário autenticado
+      const response = await fetch(`/api/meta-reports/sync/${userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -168,12 +165,12 @@ export default function ReportsPage() {
 
   // Estatísticas resumidas Meta API
   const stats = {
-    totalConversations: Array.isArray(reportData.conversations) ? reportData.conversations.length : 0,
-    freeConversations: Array.isArray(reportData.conversations) ? reportData.conversations.filter(c => c.conversation_type === 'free').length : 0,
-    totalMessages: Array.isArray(reportData.messages) ? reportData.messages.length : 0,
-    deliveredMessages: Array.isArray(reportData.messages) ? reportData.messages.filter(m => m.delivery_status === 'delivered').length : 0,
-    leadsWithResponse: Array.isArray(reportData.leads) ? reportData.leads.filter(l => l.has_response).length : 0,
-    totalCost: Array.isArray(reportData.billing) ? reportData.billing.reduce((sum, b) => sum + parseFloat(b.total_cost || '0'), 0) : 0
+    totalConversations: reportData.conversations.length,
+    freeConversations: reportData.conversations.filter(c => c.conversation_type === 'free').length,
+    totalMessages: reportData.messages.length,
+    deliveredMessages: reportData.messages.filter(m => m.delivery_status === 'delivered').length,
+    leadsWithResponse: reportData.leads.filter(l => l.has_response).length,
+    totalCost: reportData.billing.reduce((sum, b) => sum + parseFloat(b.total_cost || '0'), 0)
   };
 
   return (
