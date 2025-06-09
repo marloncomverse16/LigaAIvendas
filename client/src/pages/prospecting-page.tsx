@@ -682,7 +682,7 @@ export default function ProspectingPage() {
                             Escolha uma busca na lista ao lado para visualizar seus resultados ou crie uma nova busca de prospecção.
                           </p>
                           <Button 
-                            className="mt-6" 
+                            className="mt-6 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" 
                             onClick={() => setActiveTab("new")}
                           >
                             <FilePlus2 className="h-4 w-4 mr-2" />
@@ -841,7 +841,7 @@ export default function ProspectingPage() {
                               <Button 
                                 type="submit" 
                                 disabled={createSearchMutation.isPending}
-                                className="w-full"
+                                className="w-full bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                                 size="lg"
                               >
                                 {createSearchMutation.isPending ? (
