@@ -5553,8 +5553,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Sincronizar relatórios Meta
   app.post('/api/meta-reports/sync/:userId', async (req: Request, res: Response) => {
+    // Verificar autenticação PRIMEIRO
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const requestedUserId = parseInt(req.params.userId);
+      const authenticatedUserId = req.user.id;
+      
+      // SEGURANÇA: Verificar se o usuário pode acessar estes dados
+      if (requestedUserId !== authenticatedUserId) {
+        return res.status(403).json({ message: "Acesso negado - você só pode acessar seus próprios dados" });
+      }
+      
+      const userId = authenticatedUserId; // Usar sempre o usuário autenticado
       const { startDate, endDate } = req.body;
 
       console.log('🔄 INICIANDO SINCRONIZAÇÃO META REPORTS');
@@ -5657,8 +5670,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Buscar relatórios de conversas
   app.get('/api/meta-reports/conversations/:userId', async (req: Request, res: Response) => {
+    // Verificar autenticação PRIMEIRO
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const requestedUserId = parseInt(req.params.userId);
+      const authenticatedUserId = req.user.id;
+      
+      // SEGURANÇA: Verificar se o usuário pode acessar estes dados
+      if (requestedUserId !== authenticatedUserId) {
+        return res.status(403).json({ message: "Acesso negado - você só pode acessar seus próprios dados" });
+      }
+      
+      const userId = authenticatedUserId; // Usar sempre o usuário autenticado
       const { startDate, endDate, phoneNumberId } = req.query;
 
       let query = `
@@ -5690,8 +5716,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Buscar relatórios de mensagens
   app.get('/api/meta-reports/messages/:userId', async (req: Request, res: Response) => {
+    // Verificar autenticação PRIMEIRO
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const requestedUserId = parseInt(req.params.userId);
+      const authenticatedUserId = req.user.id;
+      
+      // SEGURANÇA: Verificar se o usuário pode acessar estes dados
+      if (requestedUserId !== authenticatedUserId) {
+        return res.status(403).json({ message: "Acesso negado - você só pode acessar seus próprios dados" });
+      }
+      
+      const userId = authenticatedUserId; // Usar sempre o usuário autenticado
       const { startDate, endDate, phoneNumberId, deliveryStatus } = req.query;
 
       let query = `
@@ -5806,9 +5845,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Endpoint para dashboard completo
   app.get('/api/dashboard/complete', async (req: Request, res: Response) => {
+    // Verificar autenticação PRIMEIRO
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
       const { startDate, endDate } = req.query;
-      const userId = 2; // Implementar busca do usuário autenticado
+      const userId = req.user.id; // CORRIGIDO: usar usuário autenticado
 
       // Buscar configurações do usuário do banco de dados
       const userSettingsQuery = `
