@@ -171,6 +171,7 @@ function WhatsappMetaSettings({ settings, isLoadingSettings }: WhatsappMetaSetti
               <Button 
                 type="submit" 
                 disabled={updateMetaSettingsMutation.isPending}
+                className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
               >
                 {updateMetaSettingsMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -372,7 +373,7 @@ function GoalsSettings() {
               <Button 
                 type="submit" 
                 disabled={updateSettingsMutation.isPending}
-                className="bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-orange-600 hover:to-yellow-500 text-white"
+                className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
               >
                 {updateSettingsMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -462,7 +463,7 @@ export default function SettingsPage() {
                     <div className="space-y-1 p-2">
                       <Button 
                         variant={activeTab === "profile" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "profile" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
+                        className={`w-full justify-start ${activeTab === "profile" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("profile")}
                       >
                         Perfil e Conta
@@ -470,35 +471,35 @@ export default function SettingsPage() {
 
                       <Button 
                         variant={activeTab === "integrations" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "integrations" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
+                        className={`w-full justify-start ${activeTab === "integrations" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("integrations")}
                       >
                         Integrações
                       </Button>
                       <Button 
                         variant={activeTab === "notifications" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "notifications" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
+                        className={`w-full justify-start ${activeTab === "notifications" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("notifications")}
                       >
                         Notificações
                       </Button>
                       <Button 
                         variant={activeTab === "security" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "security" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
+                        className={`w-full justify-start ${activeTab === "security" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("security")}
                       >
                         Privacidade e Segurança
                       </Button>
                       <Button 
                         variant={activeTab === "billing" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "billing" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
+                        className={`w-full justify-start ${activeTab === "billing" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("billing")}
                       >
                         Faturamento
                       </Button>
                       <Button 
                         variant={activeTab === "goals" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "goals" ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500" : ""}`}
+                        className={`w-full justify-start ${activeTab === "goals" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
                         onClick={() => setActiveTab("goals")}
                       >
                         Metas
@@ -630,6 +631,7 @@ export default function SettingsPage() {
                             <Button 
                               type="submit" 
                               disabled={updateProfileMutation.isPending}
+                              className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                             >
                               {updateProfileMutation.isPending ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
