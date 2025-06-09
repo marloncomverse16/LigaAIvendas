@@ -290,7 +290,11 @@ const TemplateManager = () => {
                 />
                 
                 <div className="flex space-x-2">
-                  <Button type="submit" disabled={createTemplateMutation.isPending || updateTemplateMutation.isPending}>
+                  <Button 
+                    type="submit" 
+                    className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+                    disabled={createTemplateMutation.isPending || updateTemplateMutation.isPending}
+                  >
                     {createTemplateMutation.isPending || updateTemplateMutation.isPending ? (
                       <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
                     ) : isEditMode ? (
