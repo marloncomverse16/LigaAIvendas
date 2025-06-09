@@ -1465,12 +1465,16 @@ const SendingList = () => {
   // Função para obter a classe de cor com base no status
   const getStatusBadgeVariant = (status) => {
     switch (status) {
-      case "agendado":
+      case "pendente":
         return "outline";
       case "em_andamento":
         return "secondary";
+      case "enviado":
+        return "default";
       case "concluido":
         return "default";
+      case "erro":
+        return "destructive";
       case "cancelado":
         return "destructive";
       default:
@@ -1481,12 +1485,16 @@ const SendingList = () => {
   // Renderizar o texto do status em português
   const getStatusText = (status) => {
     switch (status) {
-      case "agendado":
-        return "Agendado";
+      case "pendente":
+        return "Pendente";
       case "em_andamento":
         return "Em andamento";
+      case "enviado":
+        return "Enviado";
       case "concluido":
         return "Concluído";
+      case "erro":
+        return "Erro";
       case "cancelado":
         return "Cancelado";
       default:
