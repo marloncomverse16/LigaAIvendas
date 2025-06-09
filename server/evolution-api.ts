@@ -481,15 +481,20 @@ export class EvolutionApiClient {
       const managerUrl = apiStatus.data?.manager || null;
       const secureManagerUrl = managerUrl ? managerUrl.replace(/^http:/, 'https:') : null;
       
-      // Listar endpoints possíveis em ordem de prioridade
+      // Listar endpoints possíveis em ordem de prioridade baseados na Evolution API funcional
       const endpoints = [
-        // Baseado no manager URL retornado pela API
-        `${secureManagerUrl}/instance/connectionState/${this.instance}`,
-        `${secureManagerUrl}/connection/status/${this.instance}`,
-        `${secureManagerUrl}/status/${this.instance}`,
-        // Endpoints alternativos
+        // Endpoints da Evolution API v2.x testados
         `${this.baseUrl}/instance/connectionState/${this.instance}`,
-        `${this.baseUrl}/instance/connectionState/${this.instance}`
+        `${this.baseUrl}/instance/connect/${this.instance}`,
+        `${this.baseUrl}/instance/${this.instance}/status`,
+        `${this.baseUrl}/instance/status/${this.instance}`,
+        `${this.baseUrl}/instances/${this.instance}/connectionState`,
+        `${this.baseUrl}/instances/${this.instance}/status`,
+        // Manager URL como fallback
+        ...(secureManagerUrl ? [
+          `${secureManagerUrl}/instance/connectionState/${this.instance}`,
+          `${secureManagerUrl}/connection/status/${this.instance}`
+        ] : [])
       ];
       
       // Tentar cada endpoint
@@ -505,14 +510,31 @@ export class EvolutionApiClient {
             console.log(`Status obtido com sucesso: ${JSON.stringify(response.data)}`);
             
             // Determinar se está conectado com base nos campos retornados
-            // Formato pode variar conforme a versão da API
+            // Baseado no teste real: {"instance":{"instanceName":"Guilherme Puerta","state":"open"}}
             const isConnected = 
                                 response.data.state === 'open' || 
                                 response.data.state === 'CONNECTED' ||
                                 response.data.state === 'connected' ||
                                 response.data.state === 'CONNECTION' ||
+                                response.data.state === 'OPEN' ||
                                 response.data.connected === true ||
-                                (response.data.status && response.data.status.includes('connect'));
+                                response.data.status === 'connected' ||
+                                response.data.status === 'open' ||
+                                response.data.connectionState === 'open' ||
+                                response.data.connectionState === 'connected' ||
+                                // FORMATO REAL DA EVOLUTION API DETECTADO:
+                                response.data.instance?.state === 'open' ||
+                                response.data.instance?.state === 'connected' ||
+                                response.data.instance?.state === 'CONNECTED' ||
+                                response.data.instance?.connectionState === 'open' ||
+                                (response.data.status && response.data.status.includes('connect')) ||
+                                (response.data.message && response.data.message.includes('connected'));
+                                
+            console.log(`🔍 Verificação de conexão detalhada:`);
+            console.log(`   - response.data.instance?.state: ${response.data.instance?.state}`);
+            console.log(`   - response.data.state: ${response.data.state}`);
+            console.log(`   - response.data.connected: ${response.data.connected}`);
+            console.log(`   - Resultado final isConnected: ${isConnected}`);
             
             return {
               success: true,

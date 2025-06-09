@@ -31,7 +31,7 @@ const WhatsAppQrCodePage = () => {
       console.log("Status recebido:", data);
       return data;
     },
-    refetchInterval: 5000, // Verificação a cada 5 segundos para atualização mais rápida
+    refetchInterval: 2000, // Verificação a cada 2 segundos para detecção rápida de conexão
   });
 
   // Quando o status é carregado, atualiza o estado de conexão
