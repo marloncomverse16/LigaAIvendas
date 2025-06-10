@@ -93,11 +93,11 @@ function WhatsappMetaSettings({ settings, isLoadingSettings }: WhatsappMetaSetti
       whatsappMetaBusinessId: "",
       whatsappMetaApiVersion: "v18.0",
     },
-    values: {
-      whatsappMetaToken: metaSettings?.whatsappMetaToken || "",
-      whatsappMetaBusinessId: metaSettings?.whatsappMetaBusinessId || "",
-      whatsappMetaApiVersion: metaSettings?.whatsappMetaApiVersion || "v18.0",
-    },
+    values: metaSettings && typeof metaSettings === 'object' ? {
+      whatsappMetaToken: metaSettings.whatsappMetaToken || "",
+      whatsappMetaBusinessId: metaSettings.whatsappMetaBusinessId || "",
+      whatsappMetaApiVersion: metaSettings.whatsappMetaApiVersion || "v18.0",
+    } : undefined,
   });
   
   const onMetaSubmit = (data: WhatsappMetaFormValues) => {
@@ -441,6 +441,13 @@ export default function SettingsPage() {
     return name.charAt(0).toUpperCase();
   };
   
+  const getProfileName = () => {
+    if (profile && typeof profile === 'object' && profile.name) {
+      return profile.name;
+    }
+    return "";
+  };
+  
   return (
     <div className="flex min-h-screen bg-background">
       <div className="hidden md:block">
@@ -532,7 +539,7 @@ export default function SettingsPage() {
                           <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                             <Avatar className="w-24 h-24 text-4xl">
                               <AvatarFallback className="bg-gradient-to-br from-orange-500 to-yellow-400 text-white">
-                                {getInitials(profile?.name)}
+                                {getInitials(getProfileName())}
                               </AvatarFallback>
                             </Avatar>
                             
