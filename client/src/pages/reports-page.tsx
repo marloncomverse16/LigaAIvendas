@@ -52,9 +52,9 @@ export default function ReportsPage() {
       });
 
       const [conversationsRes, messagesRes, contactsRes] = await Promise.all([
-        fetch(`/api/qr-reports/conversations/${userId}?${params}`),
-        fetch(`/api/qr-reports/messages/${userId}?${params}`),
-        fetch(`/api/qr-reports/contacts/${userId}?${params}`)
+        fetch(`/api/qr-reports/conversations?${params}`),
+        fetch(`/api/qr-reports/messages?${params}`),
+        fetch(`/api/qr-reports/contacts?${params}`)
       ]);
 
       const [conversations, messages, contacts] = await Promise.all([
@@ -79,21 +79,20 @@ export default function ReportsPage() {
     }
   };
 
-  // Buscar dados dos relatórios Meta
+  // Buscar dados dos relatórios Meta - ISOLAMENTO GARANTIDO
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const userId = 2; // Implementar busca do usuário autenticado
       const params = new URLSearchParams({
         startDate,
         endDate
       });
 
       const [conversationsRes, messagesRes, billingRes, leadsRes] = await Promise.all([
-        fetch(`/api/meta-reports/conversations/${userId}?${params}`),
-        fetch(`/api/meta-reports/messages/${userId}?${params}`),
-        fetch(`/api/meta-reports/billing/${userId}?${params}`),
-        fetch(`/api/meta-reports/leads/${userId}?${params}`)
+        fetch(`/api/meta-reports/conversations?${params}`),
+        fetch(`/api/meta-reports/messages?${params}`),
+        fetch(`/api/meta-reports/billing?${params}`),
+        fetch(`/api/meta-reports/leads?${params}`)
       ]);
 
       const [conversations, messages, billing, leads] = await Promise.all([
@@ -120,12 +119,11 @@ export default function ReportsPage() {
     }
   };
 
-  // Sincronizar dados da Meta API
+  // Sincronizar dados da Meta API - ISOLAMENTO GARANTIDO
   const syncMetaData = async () => {
     setSyncing(true);
     try {
-      const userId = 2; // Implementar busca do usuário autenticado
-      const response = await fetch(`/api/meta-reports/sync/${userId}`, {
+      const response = await fetch(`/api/meta-reports/sync`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
