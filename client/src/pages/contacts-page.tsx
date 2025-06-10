@@ -65,11 +65,11 @@ export default function ContactsPage() {
     console.log('Cache de contatos limpo. Forçando nova busca...');
   }, []);
 
-  // Mutação para sincronizar contatos usando o novo endpoint
+  // Mutação para sincronizar contatos - DESABILITADA TEMPORARIAMENTE
   const syncMutation = useMutation({
     mutationFn: async () => {
-      // Usar o endpoint correto para sincronização
-      return await apiRequest("POST", "/api/chat/sync-contacts");
+      // Endpoint temporariamente desabilitado por segurança
+      throw new Error("Sincronização temporariamente desabilitada");
     },
     onSuccess: (data) => {
       // Atualizar a consulta de contatos após sincronização
