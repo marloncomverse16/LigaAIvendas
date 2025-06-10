@@ -97,12 +97,44 @@ export async function syncWhatsAppContacts(req: Request, res: Response) {
       }
     }
     
-    console.log(`[SYNC] Sincronizados ${contacts.length} contatos`);
+    console.log(`[SYNC] Processando ${contacts.length} contatos para usuário ${userId}`);
+    
+    // CRÍTICO: Salvar contatos no banco com o user_id correto
+    let savedCount = 0;
+    
+    for (const contact of contacts) {
+      try {
+        // Verificar se o contato já existe para este usuário
+        const checkQuery = `
+          SELECT id FROM contacts 
+          WHERE user_id = $1 AND phone_number = $2 AND source = 'qr_code'
+        `;
+        const existing = await pool.query(checkQuery, [userId, contact.phoneNumber]);
+        
+        if (existing.rows.length === 0) {
+          // Inserir novo contato com user_id correto
+          const insertQuery = `
+            INSERT INTO contacts (user_id, phone_number, name, source, created_at, updated_at, is_active)
+            VALUES ($1, $2, $3, 'qr_code', NOW(), NOW(), true)
+            RETURNING id
+          `;
+          
+          await pool.query(insertQuery, [userId, contact.phoneNumber, contact.name]);
+          savedCount++;
+          console.log(`[SYNC] Contato salvo: ${contact.name} (${contact.phoneNumber}) para usuário ${userId}`);
+        }
+      } catch (error) {
+        console.error(`[SYNC] Erro ao salvar contato ${contact.phoneNumber}:`, error);
+      }
+    }
+    
+    console.log(`[SYNC] Salvos ${savedCount} novos contatos para usuário ${userId}`);
 
     return res.json({
       success: true,
-      message: `${contacts.length} contatos sincronizados com sucesso.`,
-      contacts: contacts
+      message: `${savedCount} novos contatos sincronizados com sucesso.`,
+      contacts: contacts,
+      saved: savedCount
     });
 
   } catch (error) {

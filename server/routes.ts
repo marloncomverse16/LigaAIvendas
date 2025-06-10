@@ -2808,7 +2808,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { pool } = await import('./db');
       
-      console.log(`📋 Buscando contatos para usuário ${userId}...`);
+      console.log(`📋 DEPURAÇÃO: Buscando contatos para usuário ${userId}...`);
+      console.log(`📋 DEPURAÇÃO: req.user =`, req.user);
+      console.log(`📋 DEPURAÇÃO: userId type =`, typeof userId, userId);
       
       // CRÍTICO: Verificar autenticação antes de qualquer consulta
       if (!userId || typeof userId !== 'number') {
@@ -2816,28 +2818,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não identificado" });
       }
       
-      // Verificar se a tabela contacts existe e tem dados
-      const checkTableQuery = `
-        SELECT COUNT(*) as total 
-        FROM contacts 
-        WHERE user_id = $1
-      `;
-      
-      const checkResult = await pool.query(checkTableQuery, [userId]);
-      console.log(`📊 Total de contatos na tabela para usuário ${userId}: ${checkResult.rows[0].total}`);
-      
-      // Buscar contatos do banco de dados usando SQL nativo
+      // CRÍTICO: Buscar contatos EXCLUSIVAMENTE do usuário autenticado
+      // Usar query mais restritiva com conversão explícita de tipos
       const contactsQuery = `
         SELECT id, user_id, phone_number, name, profile_picture, 
                last_message_time, last_message, source, server_id, 
                is_active, notes, tags, created_at, updated_at
         FROM contacts 
-        WHERE user_id = $1 
+        WHERE user_id = $1::integer
         ORDER BY last_message_time DESC NULLS LAST, created_at DESC
       `;
       
+      console.log(`📋 DEPURAÇÃO: Executando query com userId=${userId}`);
       const contactsResult = await pool.query(contactsQuery, [userId]);
-      console.log(`📋 Contatos encontrados: ${contactsResult.rows.length}`);
+      console.log(`📋 DEPURAÇÃO: Query retornou ${contactsResult.rows.length} contatos`);
+      
+      // Log dos primeiros resultados para depuração
+      if (contactsResult.rows.length > 0) {
+        console.log(`📋 DEPURAÇÃO: Primeiros 3 contatos:`, contactsResult.rows.slice(0, 3).map(c => ({ id: c.id, user_id: c.user_id, name: c.name })));
+      }
       
       // CRÍTICO: Verificar se algum contato não pertence ao usuário atual
       const invalidContacts = contactsResult.rows.filter(contact => contact.user_id !== userId);

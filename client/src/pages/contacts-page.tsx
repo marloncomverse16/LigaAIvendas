@@ -55,28 +55,15 @@ export default function ContactsPage() {
   } = useQuery({
     queryKey: ["/api/contacts"],
     refetchOnWindowFocus: false,
-    onSuccess: (data) => {
-      console.log("📋 Buscando contatos da API...");
-      console.log("📊 Resposta da API contatos:", data);
-      if (data?.contacts) {
-        console.log("📋 Contatos processados no frontend:", data.contacts);
-        // Verificar se há contatos de outros usuários
-        const invalidContacts = data.contacts.filter(contact => contact.user_id && contact.user_id !== 2);
-        if (invalidContacts.length > 0) {
-          console.error("❌ VAZAMENTO NO FRONTEND: Contatos de outros usuários detectados!", invalidContacts);
-        }
-      }
-    },
+
   });
   
-  // Sincronizar contatos automaticamente ao carregar a página
+  // Forçar limpeza de cache ao carregar a página
   useEffect(() => {
-    // Verificamos se não temos contatos já carregados, se não temos, sincronizamos
-    if (!isLoading && contactsData && (!contactsData.contacts || contactsData.contacts.length === 0)) {
-      console.log('Sem contatos encontrados. Iniciando sincronização automática...');
-      syncMutation.mutate();
-    }
-  }, [contactsData, isLoading]);
+    // Limpar cache de contatos para garantir dados frescos
+    queryClient.removeQueries({ queryKey: ["/api/contacts"] });
+    console.log('Cache de contatos limpo. Forçando nova busca...');
+  }, []);
 
   // Mutação para sincronizar contatos usando o novo endpoint
   const syncMutation = useMutation({
