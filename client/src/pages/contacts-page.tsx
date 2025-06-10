@@ -55,6 +55,18 @@ export default function ContactsPage() {
   } = useQuery({
     queryKey: ["/api/contacts"],
     refetchOnWindowFocus: false,
+    onSuccess: (data) => {
+      console.log("📋 Buscando contatos da API...");
+      console.log("📊 Resposta da API contatos:", data);
+      if (data?.contacts) {
+        console.log("📋 Contatos processados no frontend:", data.contacts);
+        // Verificar se há contatos de outros usuários
+        const invalidContacts = data.contacts.filter(contact => contact.user_id && contact.user_id !== 2);
+        if (invalidContacts.length > 0) {
+          console.error("❌ VAZAMENTO NO FRONTEND: Contatos de outros usuários detectados!", invalidContacts);
+        }
+      }
+    },
   });
   
   // Sincronizar contatos automaticamente ao carregar a página

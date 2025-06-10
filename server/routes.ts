@@ -2810,6 +2810,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📋 Buscando contatos para usuário ${userId}...`);
       
+      // CRÍTICO: Verificar autenticação antes de qualquer consulta
+      if (!userId || typeof userId !== 'number') {
+        console.error(`❌ ERRO CRÍTICO: userId inválido: ${userId}`);
+        return res.status(401).json({ message: "Usuário não identificado" });
+      }
+      
       // Verificar se a tabela contacts existe e tem dados
       const checkTableQuery = `
         SELECT COUNT(*) as total 
@@ -2832,6 +2838,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const contactsResult = await pool.query(contactsQuery, [userId]);
       console.log(`📋 Contatos encontrados: ${contactsResult.rows.length}`);
+      
+      // CRÍTICO: Verificar se algum contato não pertence ao usuário atual
+      const invalidContacts = contactsResult.rows.filter(contact => contact.user_id !== userId);
+      if (invalidContacts.length > 0) {
+        console.error(`❌ VAZAMENTO DETECTADO: ${invalidContacts.length} contatos de outros usuários encontrados!`);
+        console.error(`❌ Contatos inválidos:`, invalidContacts.map(c => ({ id: c.id, user_id: c.user_id, name: c.name })));
+        
+        // Filtrar apenas contatos do usuário atual como medida de segurança
+        const validContacts = contactsResult.rows.filter(contact => contact.user_id === userId);
+        console.log(`✅ Retornando apenas ${validContacts.length} contatos válidos do usuário ${userId}`);
+        
+        return res.json({
+          success: true,
+          contacts: validContacts
+        });
+      }
       
       if (contactsResult.rows.length > 0) {
         console.log('📋 Primeiros 3 contatos:', contactsResult.rows.slice(0, 3));
