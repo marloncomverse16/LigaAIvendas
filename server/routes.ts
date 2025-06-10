@@ -6062,8 +6062,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log('Usando Evolution API key:', evolutionApiKey);
         
-        // Usar instância específica do usuário
-        const userInstanceId = userServers[0].instanceId || 'admin';
+        // Usar instância específica do usuário baseada no username
+        const username = req.user!.username;
+        const userInstanceId = username || `user_${userId}`;
         console.log(`🔑 Instance ID: ${userInstanceId}`);
         
         // Verificar estado da conexão
@@ -6307,7 +6308,7 @@ async function getQrConversationsCount(userId: number, startDate?: string, endDa
     
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
-    const instanceId = serverData.instanceId || 'admin'; // Usar instanceId do usuário, não do servidor
+    const instanceId = `user_${userId}`; // Usar instanceId específico do usuário
     
     console.log('🔑 API URL:', apiUrl);
     console.log('🔑 API Token:', apiToken ? `${apiToken.substring(0, 8)}...` : 'null/undefined');
@@ -6355,7 +6356,7 @@ async function getQrMessagesCount(userId: number, startDate?: string, endDate?: 
     const server = serverData.server;
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
-    const instanceId = serverData.instanceId || 'admin'; // Usar instanceId do usuário
+    const instanceId = `user_${userId}`; // Usar instanceId específico do usuário
     
     if (!apiToken) return 0;
 
@@ -6397,7 +6398,7 @@ async function getQrContactsCount(userId: number, startDate?: string, endDate?: 
     const server = serverData.server;
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
-    const instanceId = serverData.instanceId || 'admin'; // Usar instanceId do usuário
+    const instanceId = `user_${userId}`; // Usar instanceId específico do usuário
     
     if (!apiToken) return 0;
 
