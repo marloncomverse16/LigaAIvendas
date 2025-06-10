@@ -2217,8 +2217,23 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async updateProspectingSchedule(id: number, data: any): Promise<any> {
+  async updateProspectingSchedule(id: number, data: any, userId?: number): Promise<any> {
     try {
+      // First verify the schedule belongs to a search owned by the user (if userId is provided)
+      if (userId) {
+        const scheduleWithSearch = await db
+          .select({ searchUserId: prospectingSearches.userId })
+          .from(prospectingSchedules)
+          .leftJoin(prospectingSearches, eq(prospectingSchedules.searchId, prospectingSearches.id))
+          .where(eq(prospectingSchedules.id, id))
+          .limit(1);
+        
+        if (!scheduleWithSearch.length || scheduleWithSearch[0].searchUserId !== userId) {
+          console.log(`⚠️ SECURITY: Usuário ${userId} tentou atualizar agendamento ${id} que não lhe pertence`);
+          return null;
+        }
+      }
+      
       const [updated] = await db
         .update(prospectingSchedules)
         .set(data)
@@ -2271,8 +2286,23 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async updateProspectingDispatchHistory(id: number, historyData: any): Promise<any> {
+  async updateProspectingDispatchHistory(id: number, historyData: any, userId?: number): Promise<any> {
     try {
+      // First verify the history record belongs to a search owned by the user (if userId is provided)
+      if (userId) {
+        const historyWithSearch = await db
+          .select({ searchUserId: prospectingSearches.userId })
+          .from(prospectingDispatchHistory)
+          .leftJoin(prospectingSearches, eq(prospectingDispatchHistory.searchId, prospectingSearches.id))
+          .where(eq(prospectingDispatchHistory.id, id))
+          .limit(1);
+        
+        if (!historyWithSearch.length || historyWithSearch[0].searchUserId !== userId) {
+          console.log(`⚠️ SECURITY: Usuário ${userId} tentou atualizar histórico de envio ${id} que não lhe pertence`);
+          return null;
+        }
+      }
+      
       const [updatedRecord] = await db
         .update(prospectingDispatchHistory)
         .set(historyData)

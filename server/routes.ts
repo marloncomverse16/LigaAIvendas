@@ -2110,8 +2110,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
       
-      // Buscar histórico
-      const history = await storage.getProspectingDispatchHistory(searchId);
+      // Buscar histórico com verificação de usuário
+      const history = await storage.getProspectingDispatchHistory(searchId, userId);
       
       res.json(history);
     } catch (error) {
