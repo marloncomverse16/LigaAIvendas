@@ -55,21 +55,22 @@ export default function ContactsPage() {
   } = useQuery({
     queryKey: ["/api/contacts"],
     refetchOnWindowFocus: false,
-
   });
   
-  // Forçar limpeza de cache ao carregar a página
+  // Sincronizar contatos automaticamente ao carregar a página
   useEffect(() => {
-    // Limpar cache de contatos para garantir dados frescos
-    queryClient.removeQueries({ queryKey: ["/api/contacts"] });
-    console.log('Cache de contatos limpo. Forçando nova busca...');
-  }, []);
+    // Verificamos se não temos contatos já carregados, se não temos, sincronizamos
+    if (!isLoading && contactsData && (!contactsData.contacts || contactsData.contacts.length === 0)) {
+      console.log('Sem contatos encontrados. Iniciando sincronização automática...');
+      syncMutation.mutate();
+    }
+  }, [contactsData, isLoading]);
 
-  // Mutação para sincronizar contatos - DESABILITADA TEMPORARIAMENTE
+  // Mutação para sincronizar contatos usando o novo endpoint
   const syncMutation = useMutation({
     mutationFn: async () => {
-      // Endpoint temporariamente desabilitado por segurança
-      throw new Error("Sincronização temporariamente desabilitada");
+      // Usar o endpoint correto para sincronização
+      return await apiRequest("POST", "/api/chat/sync-contacts");
     },
     onSuccess: (data) => {
       // Atualizar a consulta de contatos após sincronização
