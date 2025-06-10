@@ -3,7 +3,7 @@ import {
   aiAgent, aiAgentSteps, aiAgentFaqs, leadInteractions, leadRecommendations,
   prospectingSearches, prospectingResults, prospectingSchedules, prospectingDispatchHistory,
   messageTemplates, messageSendings, messageSendingHistory,
-  whatsappContacts, whatsappMessages, servers, userServers
+  whatsappContacts, whatsappMessages, contacts, servers, userServers
 } from "@shared/schema";
 import type {
   User, InsertUser, Lead, InsertLead, Prospect, InsertProspect, 
