@@ -127,7 +127,7 @@ export interface IStorage {
   getMessageTemplate(id: number): Promise<MessageTemplate | undefined>;
   createMessageTemplate(template: InsertMessageTemplate & { userId: number }): Promise<MessageTemplate>;
   updateMessageTemplate(id: number, templateData: Partial<InsertMessageTemplate>): Promise<MessageTemplate | undefined>;
-  deleteMessageTemplate(id: number): Promise<boolean>;
+  deleteMessageTemplate(id: number, userId: number): Promise<boolean>;
   
   // Message Sending methods
   getMessageSendings(userId: number): Promise<MessageSending[]>;
@@ -358,7 +358,7 @@ export class MemStorage implements IStorage {
     // Message Templates
     const messageTemplates = await this.getMessageTemplates(id);
     for (const template of messageTemplates) {
-      this.messageTemplates.delete(template.id);
+      await this.deleteMessageTemplate(template.id, id);
     }
     
     // Message Sendings e History
@@ -1086,8 +1086,9 @@ export class MemStorage implements IStorage {
     return updatedTemplate;
   }
   
-  async deleteMessageTemplate(id: number): Promise<boolean> {
-    if (!this.messageTemplates.has(id)) return false;
+  async deleteMessageTemplate(id: number, userId: number): Promise<boolean> {
+    const template = this.messageTemplates.get(id);
+    if (!template || template.userId !== userId) return false;
     this.messageTemplates.delete(id);
     return true;
   }
@@ -2375,11 +2376,14 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async deleteMessageTemplate(id: number): Promise<boolean> {
+  async deleteMessageTemplate(id: number, userId: number): Promise<boolean> {
     try {
       const result = await db
         .delete(messageTemplates)
-        .where(eq(messageTemplates.id, id));
+        .where(and(
+          eq(messageTemplates.id, id),
+          eq(messageTemplates.userId, userId)
+        ));
       return result.length > 0;
     } catch (error) {
       console.error("Erro ao deletar template de mensagem:", error);

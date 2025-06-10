@@ -2311,7 +2311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
       
-      await storage.deleteMessageTemplate(templateId);
+      await storage.deleteMessageTemplate(templateId, userId);
       res.status(204).send();
     } catch (error) {
       console.error("Erro ao excluir modelo de mensagem:", error);
