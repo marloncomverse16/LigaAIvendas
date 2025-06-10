@@ -87,7 +87,7 @@ export interface IStorage {
   getAiAgentFaq(id: number): Promise<AiAgentFaqs | undefined>;
   createAiAgentFaq(faqData: InsertAiAgentFaqs & { userId: number }): Promise<AiAgentFaqs>;
   updateAiAgentFaq(id: number, faqData: Partial<InsertAiAgentFaqs>): Promise<AiAgentFaqs | undefined>;
-  deleteAiAgentFaq(id: number): Promise<boolean>;
+  deleteAiAgentFaq(id: number, userId: number): Promise<boolean>;
   
   // Lead Interactions methods
   getLeadInteractions(leadId: number): Promise<LeadInteraction[]>;
@@ -104,14 +104,14 @@ export interface IStorage {
   getProspectingSearch(id: number): Promise<ProspectingSearch | undefined>;
   createProspectingSearch(search: InsertProspectingSearch & { userId: number }): Promise<ProspectingSearch>;
   updateProspectingSearch(id: number, searchData: Partial<InsertProspectingSearch>): Promise<ProspectingSearch | undefined>;
-  deleteProspectingSearch(id: number): Promise<boolean>;
+  deleteProspectingSearch(id: number, userId: number): Promise<boolean>;
   
   // Prospecting Results methods
   getProspectingResults(searchId: number): Promise<ProspectingResult[]>;
   getProspectingResult(id: number): Promise<ProspectingResult | undefined>;
   createProspectingResult(result: InsertProspectingResult & { searchId: number }): Promise<ProspectingResult>;
   updateProspectingResult(id: number, resultData: Partial<InsertProspectingResult>): Promise<ProspectingResult | undefined>;
-  deleteProspectingResult(id: number): Promise<boolean>;
+  deleteProspectingResult(id: number, userId: number): Promise<boolean>;
   
   // Prospecting Schedules methods
   getProspectingSchedules(searchId: number): Promise<any[]>;
@@ -1631,10 +1631,13 @@ export class DatabaseStorage implements IStorage {
     return updatedStep;
   }
   
-  async deleteAiAgentStep(id: number): Promise<boolean> {
+  async deleteAiAgentStep(id: number, userId: number): Promise<boolean> {
     const result = await db
       .delete(aiAgentSteps)
-      .where(eq(aiAgentSteps.id, id));
+      .where(and(
+        eq(aiAgentSteps.id, id),
+        eq(aiAgentSteps.userId, userId)
+      ));
     return !!result;
   }
   
@@ -1671,10 +1674,13 @@ export class DatabaseStorage implements IStorage {
     return updatedFaq;
   }
   
-  async deleteAiAgentFaq(id: number): Promise<boolean> {
+  async deleteAiAgentFaq(id: number, userId: number): Promise<boolean> {
     const result = await db
       .delete(aiAgentFaqs)
-      .where(eq(aiAgentFaqs.id, id));
+      .where(and(
+        eq(aiAgentFaqs.id, id),
+        eq(aiAgentFaqs.userId, userId)
+      ));
     return !!result;
   }
   
@@ -2063,16 +2069,19 @@ export class DatabaseStorage implements IStorage {
     return updatedSearch;
   }
   
-  async deleteProspectingSearch(id: number): Promise<boolean> {
+  async deleteProspectingSearch(id: number, userId: number): Promise<boolean> {
     // Delete associated results first
     await db
       .delete(prospectingResults)
       .where(eq(prospectingResults.searchId, id));
     
-    // Then delete the search
+    // Then delete the search with user verification
     const result = await db
       .delete(prospectingSearches)
-      .where(eq(prospectingSearches.id, id));
+      .where(and(
+        eq(prospectingSearches.id, id),
+        eq(prospectingSearches.userId, userId)
+      ));
     return !!result;
   }
   
