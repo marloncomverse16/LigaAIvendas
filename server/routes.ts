@@ -3228,8 +3228,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (userServer && userServer.api_url && userServer.api_token) {
               console.log(`📡 Conectando à Evolution API: ${userServer.api_url}`);
               
+              // Usar a instância específica do usuário
+              const userInstanceId = userServer.instance_id || 'admin';
+              console.log(`📡 Usando instância específica do usuário: ${userInstanceId}`);
+              
               // Primeiro, buscar contatos detalhados da Evolution API
-              const contactsResponse = await fetch(`${userServer.api_url}/chat/findContacts/admin`, {
+              const contactsResponse = await fetch(`${userServer.api_url}/chat/findContacts/${userInstanceId}`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -3241,11 +3245,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               let contactsData = [];
               if (contactsResponse.ok) {
                 contactsData = await contactsResponse.json();
-                console.log(`📋 Contatos detalhados obtidos: ${contactsData.length}`);
+                console.log(`📋 Contatos detalhados obtidos para instância ${userInstanceId}: ${contactsData.length}`);
               }
 
               // Depois, buscar chats para complementar
-              const response = await fetch(`${userServer.api_url}/chat/findChats/admin`, {
+              const response = await fetch(`${userServer.api_url}/chat/findChats/${userInstanceId}`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -6058,8 +6062,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log('Usando Evolution API key:', evolutionApiKey);
         
+        // Usar instância específica do usuário
+        const userInstanceId = userServers[0].instanceId || 'admin';
+        console.log(`🔑 Instance ID: ${userInstanceId}`);
+        
         // Verificar estado da conexão
-        const stateResponse = await fetch('https://api.primerastreadores.com/instance/connectionState/admin', {
+        const stateResponse = await fetch(`https://api.primerastreadores.com/instance/connectionState/${userInstanceId}`, {
           headers: { 'apikey': evolutionApiKey }
         });
         const stateData = await stateResponse.json();
@@ -6071,7 +6079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (qrConnected) {
           try {
             // Buscar perfil da instância para obter número do WhatsApp
-            const profileResponse = await fetch('https://api.primerastreadores.com/profile/fetchProfile/admin', {
+            const profileResponse = await fetch(`https://api.primerastreadores.com/profile/fetchProfile/${userInstanceId}`, {
               method: 'POST',
               headers: { 
                 'apikey': evolutionApiKey,
@@ -6299,7 +6307,7 @@ async function getQrConversationsCount(userId: number, startDate?: string, endDa
     
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
-    const instanceId = server.instanceId;
+    const instanceId = serverData.instanceId || 'admin'; // Usar instanceId do usuário, não do servidor
     
     console.log('🔑 API URL:', apiUrl);
     console.log('🔑 API Token:', apiToken ? `${apiToken.substring(0, 8)}...` : 'null/undefined');
@@ -6347,7 +6355,7 @@ async function getQrMessagesCount(userId: number, startDate?: string, endDate?: 
     const server = serverData.server;
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
-    const instanceId = server.instanceId;
+    const instanceId = serverData.instanceId || 'admin'; // Usar instanceId do usuário
     
     if (!apiToken) return 0;
 
