@@ -380,7 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         apiUrl: server.apiUrl,
         apiToken: server.apiToken,
-        instanceName: `user_${user.id}`
+        instanceName: user.username
       });
     } catch (error) {
       console.error("Erro ao buscar configurações da Evolution API:", error);
@@ -3228,8 +3228,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (userServer && userServer.api_url && userServer.api_token) {
               console.log(`📡 Conectando à Evolution API: ${userServer.api_url}`);
               
-              // Usar a instância específica do usuário
-              const userInstanceId = `user_${userId}`;
+              // Usar a instância específica do usuário baseada no username
+              const userInstanceId = await getUsernameById(userId);
               console.log(`📡 Usando instância específica do usuário: ${userInstanceId}`);
               
               // Primeiro, buscar contatos detalhados da Evolution API
