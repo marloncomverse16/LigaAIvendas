@@ -1746,8 +1746,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
       
-      // Buscar resultados
-      const results = await storage.getProspectingResults(searchId);
+      // Buscar resultados com verificação de usuário
+      const results = await storage.getProspectingResults(searchId, userId);
       
       res.json(results);
     } catch (error) {
@@ -1776,8 +1776,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
       
-      // Buscar resultados
-      const results = await storage.getProspectingResults(searchId);
+      // Buscar resultados com verificação de usuário
+      const results = await storage.getProspectingResults(searchId, userId);
       console.log(`Resultados encontrados para pesquisa ${searchId}:`, results);
       
       // Verificar se o webhook retornou dados
@@ -2029,8 +2029,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
       
-      // Buscar agendamentos
-      const schedules = await storage.getProspectingSchedules(searchId);
+      // Buscar agendamentos com verificação de usuário
+      const schedules = await storage.getProspectingSchedules(searchId, userId);
       
       res.json(schedules);
     } catch (error) {

@@ -2086,8 +2086,22 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Prospecting Results methods
-  async getProspectingResults(searchId: number): Promise<ProspectingResult[]> {
+  async getProspectingResults(searchId: number, userId?: number): Promise<ProspectingResult[]> {
     try {
+      // First verify that the search belongs to the user (if userId is provided)
+      if (userId) {
+        const search = await db
+          .select({ userId: prospectingSearches.userId })
+          .from(prospectingSearches)
+          .where(eq(prospectingSearches.id, searchId))
+          .limit(1);
+        
+        if (!search.length || search[0].userId !== userId) {
+          console.log(`⚠️ SECURITY: Usuário ${userId} tentou acessar resultados da busca ${searchId} que não lhe pertence`);
+          return [];
+        }
+      }
+      
       const results = await db
         .select({
           id: prospectingResults.id,
@@ -2107,7 +2121,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(prospectingResults.searchId, searchId))
         .orderBy(desc(prospectingResults.createdAt));
       
-      console.log(`Encontrados ${results.length} resultados no banco para a busca ${searchId}`);
+      console.log(`✅ Encontrados ${results.length} resultados no banco para a busca ${searchId} (usuário ${userId})`);
       return results;
     } catch (error) {
       console.error("Erro ao buscar resultados de prospecção:", error);
@@ -2163,8 +2177,22 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Prospecting Schedules methods
-  async getProspectingSchedules(searchId: number): Promise<any[]> {
+  async getProspectingSchedules(searchId: number, userId?: number): Promise<any[]> {
     try {
+      // First verify that the search belongs to the user (if userId is provided)
+      if (userId) {
+        const search = await db
+          .select({ userId: prospectingSearches.userId })
+          .from(prospectingSearches)
+          .where(eq(prospectingSearches.id, searchId))
+          .limit(1);
+        
+        if (!search.length || search[0].userId !== userId) {
+          console.log(`⚠️ SECURITY: Usuário ${userId} tentou acessar agendamentos da busca ${searchId} que não lhe pertence`);
+          return [];
+        }
+      }
+      
       return db
         .select()
         .from(prospectingSchedules)
@@ -2203,8 +2231,22 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getProspectingDispatchHistory(searchId: number): Promise<any[]> {
+  async getProspectingDispatchHistory(searchId: number, userId?: number): Promise<any[]> {
     try {
+      // First verify that the search belongs to the user (if userId is provided)
+      if (userId) {
+        const search = await db
+          .select({ userId: prospectingSearches.userId })
+          .from(prospectingSearches)
+          .where(eq(prospectingSearches.id, searchId))
+          .limit(1);
+        
+        if (!search.length || search[0].userId !== userId) {
+          console.log(`⚠️ SECURITY: Usuário ${userId} tentou acessar histórico de envios da busca ${searchId} que não lhe pertence`);
+          return [];
+        }
+      }
+      
       return db
         .select()
         .from(prospectingDispatchHistory)
