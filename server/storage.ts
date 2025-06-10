@@ -2469,8 +2469,22 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async updateMessageTemplate(id: number, templateData: Partial<InsertMessageTemplate>): Promise<MessageTemplate | undefined> {
+  async updateMessageTemplate(id: number, templateData: Partial<InsertMessageTemplate>, userId?: number): Promise<MessageTemplate | undefined> {
     try {
+      // First verify the template belongs to the user (if userId is provided)
+      if (userId) {
+        const existingTemplate = await db
+          .select({ userId: messageTemplates.userId })
+          .from(messageTemplates)
+          .where(eq(messageTemplates.id, id))
+          .limit(1);
+        
+        if (!existingTemplate.length || existingTemplate[0].userId !== userId) {
+          console.log(`⚠️ SECURITY: Usuário ${userId} tentou atualizar template ${id} que não lhe pertence`);
+          return undefined;
+        }
+      }
+      
       const [updatedTemplate] = await db
         .update(messageTemplates)
         .set({ ...templateData, updatedAt: new Date() })
@@ -2538,8 +2552,22 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async updateMessageSending(id: number, sendingData: Partial<InsertMessageSending>): Promise<MessageSending | undefined> {
+  async updateMessageSending(id: number, sendingData: Partial<InsertMessageSending>, userId?: number): Promise<MessageSending | undefined> {
     try {
+      // First verify the sending belongs to the user (if userId is provided)
+      if (userId) {
+        const existingSending = await db
+          .select({ userId: messageSendings.userId })
+          .from(messageSendings)
+          .where(eq(messageSendings.id, id))
+          .limit(1);
+        
+        if (!existingSending.length || existingSending[0].userId !== userId) {
+          console.log(`⚠️ SECURITY: Usuário ${userId} tentou atualizar envio de mensagem ${id} que não lhe pertence`);
+          return undefined;
+        }
+      }
+      
       const [updatedSending] = await db
         .update(messageSendings)
         .set({ ...sendingData, updatedAt: new Date() })
@@ -2565,8 +2593,22 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Message Sending History methods
-  async getMessageSendingHistory(sendingId: number): Promise<MessageSendingHistory[]> {
+  async getMessageSendingHistory(sendingId: number, userId?: number): Promise<MessageSendingHistory[]> {
     try {
+      // First verify that the sending belongs to the user (if userId is provided)
+      if (userId) {
+        const sending = await db
+          .select({ userId: messageSendings.userId })
+          .from(messageSendings)
+          .where(eq(messageSendings.id, sendingId))
+          .limit(1);
+        
+        if (!sending.length || sending[0].userId !== userId) {
+          console.log(`⚠️ SECURITY: Usuário ${userId} tentou acessar histórico de envio ${sendingId} que não lhe pertence`);
+          return [];
+        }
+      }
+      
       return db
         .select()
         .from(messageSendingHistory)

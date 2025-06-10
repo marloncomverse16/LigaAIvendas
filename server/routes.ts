@@ -2284,7 +2284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
       
-      const updatedTemplate = await storage.updateMessageTemplate(templateId, req.body);
+      const updatedTemplate = await storage.updateMessageTemplate(templateId, req.body, userId);
       res.json(updatedTemplate);
     } catch (error) {
       console.error("Erro ao atualizar modelo de mensagem:", error);

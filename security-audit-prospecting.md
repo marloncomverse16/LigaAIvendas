@@ -1,8 +1,8 @@
-# Auditoria de Segurança - Módulo de Prospecção
+# Auditoria de Segurança - Sistema Completo
 
 ## Vulnerabilidades Corrigidas
 
-### 1. Vazamento de Dados entre Usuários
+### 1. Vazamento de Dados entre Usuários - Módulo de Prospecção
 
 **Problema:** As funções do módulo de prospecção não verificavam se os dados solicitados pertenciam ao usuário autenticado, permitindo acesso a dados de outros usuários.
 
@@ -13,7 +13,16 @@
 - `updateProspectingSchedule()` - Adicionada verificação de propriedade via busca
 - `updateProspectingDispatchHistory()` - Adicionada verificação de propriedade via busca
 
-### 2. Implementação das Correções
+### 2. Vazamento de Dados entre Usuários - Módulo de Templates de Mensagens
+
+**Problema:** Funções de atualização de templates e histórico de envios não verificavam propriedade dos dados.
+
+**Funções Corrigidas:**
+- `updateMessageTemplate()` - Adicionada verificação de propriedade via userId
+- `updateMessageSending()` - Adicionada verificação de propriedade via userId
+- `getMessageSendingHistory()` - Adicionada verificação de propriedade via sendingId
+
+### 3. Implementação das Correções
 
 **Padrão de Segurança Implementado:**
 ```typescript
