@@ -6062,8 +6062,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log('Usando Evolution API key:', evolutionApiKey);
         
-        // Usar instância específica do usuário baseada no ID
-        const userInstanceId = `user_${userId}`;
+        // Usar instância específica do usuário baseada no username
+        const userInstanceId = req.user!.username;
         console.log(`🔑 Instance ID: ${userInstanceId}`);
         
         // Verificar estado da conexão
@@ -6293,6 +6293,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 }
 
 // Helper functions for QR Code data retrieval from Evolution API
+// Função auxiliar para buscar username pelo ID
+async function getUsernameById(userId: number): Promise<string> {
+  try {
+    const user = await storage.getUser(userId);
+    return user?.username || `user_${userId}`;
+  } catch (error) {
+    return `user_${userId}`;
+  }
+}
+
 async function getQrConversationsCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
     // Buscar dados reais da Evolution API
@@ -6307,7 +6317,7 @@ async function getQrConversationsCount(userId: number, startDate?: string, endDa
     
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
-    const instanceId = `user_${userId}`; // Usar instanceId específico do usuário
+    const instanceId = await getUsernameById(userId); // Usar username específico do usuário
     
     console.log('🔑 API URL:', apiUrl);
     console.log('🔑 API Token:', apiToken ? `${apiToken.substring(0, 8)}...` : 'null/undefined');
@@ -6355,7 +6365,7 @@ async function getQrMessagesCount(userId: number, startDate?: string, endDate?: 
     const server = serverData.server;
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
-    const instanceId = `user_${userId}`; // Usar instanceId específico do usuário
+    const instanceId = await getUsernameById(userId); // Usar username específico do usuário
     
     if (!apiToken) return 0;
 
@@ -6397,7 +6407,7 @@ async function getQrContactsCount(userId: number, startDate?: string, endDate?: 
     const server = serverData.server;
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
-    const instanceId = `user_${userId}`; // Usar instanceId específico do usuário
+    const instanceId = await getUsernameById(userId); // Usar username específico do usuário
     
     if (!apiToken) return 0;
 
