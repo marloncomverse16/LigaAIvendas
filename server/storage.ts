@@ -2303,10 +2303,11 @@ export class DatabaseStorage implements IStorage {
       await db.delete(messageTemplates).where(eq(messageTemplates.userId, id));
       console.log(`✅ Message sendings e templates deletados para usuário ${id}`);
       
-      // 8. WhatsApp data
+      // 8. WhatsApp data e Contacts
       await db.delete(whatsappMessages).where(eq(whatsappMessages.userId, id));
       await db.delete(whatsappContacts).where(eq(whatsappContacts.userId, id));
-      console.log(`✅ WhatsApp messages e contacts deletados para usuário ${id}`);
+      await db.delete(contacts).where(eq(contacts.userId, id));
+      console.log(`✅ WhatsApp messages, whatsapp contacts e contacts deletados para usuário ${id}`);
       
       // 9. User servers relation
       await db.delete(userServers).where(eq(userServers.userId, id));
