@@ -188,6 +188,47 @@ export async function checkConnectionStatus(req: Request, res: Response) {
 
 
 /**
+ * Verifica se uma instância existe na Evolution API
+ */
+async function checkInstanceExists(server: any, instanceName: string, headers: any): Promise<boolean> {
+  try {
+    const response = await axios.get(
+      `${server.apiUrl}/instance/fetchInstances`,
+      { headers }
+    );
+    
+    const instances = response.data || [];
+    const instanceExists = instances.some((instance: any) => instance.instance?.instanceName === instanceName);
+    
+    console.log(`🔍 Verificando instância '${instanceName}': ${instanceExists ? 'EXISTE' : 'NÃO EXISTE'}`);
+    return instanceExists;
+  } catch (error: any) {
+    console.log(`Erro ao verificar instância '${instanceName}': ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * Exclui uma instância na Evolution API
+ */
+async function deleteInstance(server: any, instanceName: string, headers: any): Promise<boolean> {
+  try {
+    console.log(`🗑️ Excluindo instância '${instanceName}' da Evolution API...`);
+    
+    const deleteResponse = await axios.delete(
+      `${server.apiUrl}/instance/delete/${instanceName}`,
+      { headers }
+    );
+    
+    console.log(`✅ Instância '${instanceName}' excluída com sucesso`);
+    return true;
+  } catch (deleteError: any) {
+    console.error(`❌ Erro ao excluir instância '${instanceName}': ${deleteError.message}`);
+    return false;
+  }
+}
+
+/**
  * Obtém o QR Code para uma instância específica
  */
 async function getQrCodeForInstance(server: any, instanceName: string, headers: any): Promise<string | null> {
@@ -254,11 +295,24 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
     console.log(`Usando token nos headers: ${server.apiToken.substring(0, 5)}...${server.apiToken.substring(server.apiToken.length - 4)} (origem: servidor)`);
     console.log(`Headers de autenticação configurados: ${Object.keys(headers).join(', ')}`);
     
-    // Primeiro precisamos criar a instância seguindo a documentação da Evolution API
-    console.log(`Criando instância '${instanceName}' na Evolution API...`);
+    console.log(`🔧 Iniciando processo de conexão para instância '${instanceName}'...`);
     
     try {
-      // 1. Criar a instância primeiro (POST /instance/create)
+      // 1. Verificar se a instância já existe
+      const instanceExists = await checkInstanceExists(server, instanceName, headers);
+      
+      if (instanceExists) {
+        // 2. Se existir, excluir a instância antiga
+        console.log(`🗑️ Instância '${instanceName}' já existe, excluindo...`);
+        await deleteInstance(server, instanceName, headers);
+        console.log(`✅ Instância '${instanceName}' excluída com sucesso`);
+        
+        // Aguardar um pouco para garantir que a exclusão foi processada
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      // 3. Criar uma nova instância (POST /instance/create)
+      console.log(`🆕 Criando nova instância '${instanceName}' na Evolution API...`);
       const createInstanceData = {
         instanceName: instanceName,
         token: server.apiToken,
