@@ -7,11 +7,24 @@ import { eq } from "drizzle-orm";
  * Retorna a lista de agentes IA para um determinado servidor
  */
 export async function getServerAiAgents(req: Request, res: Response) {
+  if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+  
   try {
     const serverId = parseInt(req.params.serverId);
+    const userId = req.user!.id;
     
     if (isNaN(serverId)) {
       return res.status(400).json({ message: "ID do servidor inválido" });
+    }
+
+    // Verificar se o usuário tem acesso a este servidor
+    const { storage } = await import('../storage');
+    const userServers = await storage.getUserServers(userId);
+    const hasAccess = userServers.some(us => us.server?.id === serverId);
+    
+    if (!hasAccess) {
+      console.log(`⚠️ SECURITY: Usuário ${userId} tentou acessar agentes IA do servidor ${serverId} sem permissão`);
+      return res.status(403).json({ message: "Acesso negado a este servidor" });
     }
 
     const agents = await db.select().from(serverAiAgents)
@@ -55,11 +68,32 @@ export async function createServerAiAgent(req: Request, res: Response) {
  * Atualiza um agente IA existente
  */
 export async function updateServerAiAgent(req: Request, res: Response) {
+  if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+  
   try {
     const agentId = parseInt(req.params.agentId);
+    const userId = req.user!.id;
     
     if (isNaN(agentId)) {
       return res.status(400).json({ message: "ID do agente inválido" });
+    }
+
+    // Buscar o agente para verificar o servidor e propriedade
+    const [existingAgent] = await db.select().from(serverAiAgents)
+      .where(eq(serverAiAgents.id, agentId));
+    
+    if (!existingAgent) {
+      return res.status(404).json({ message: "Agente IA não encontrado" });
+    }
+
+    // Verificar se o usuário tem acesso ao servidor deste agente
+    const { storage } = await import('../storage');
+    const userServers = await storage.getUserServers(userId);
+    const hasAccess = userServers.some(us => us.server?.id === existingAgent.serverId);
+    
+    if (!hasAccess) {
+      console.log(`⚠️ SECURITY: Usuário ${userId} tentou atualizar agente IA ${agentId} do servidor ${existingAgent.serverId} sem permissão`);
+      return res.status(403).json({ message: "Acesso negado a este agente IA" });
     }
 
     const [updated] = await db.update(serverAiAgents)
@@ -69,10 +103,6 @@ export async function updateServerAiAgent(req: Request, res: Response) {
       })
       .where(eq(serverAiAgents.id, agentId))
       .returning();
-    
-    if (!updated) {
-      return res.status(404).json({ message: "Agente IA não encontrado" });
-    }
     
     return res.status(200).json(updated);
   } catch (error) {
