@@ -5468,9 +5468,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Endpoints para gerenciamento de contatos
-  app.get("/api/contacts", listContacts);
   app.post("/api/contacts/sync", syncContacts);
-  app.get("/api/contacts/export", exportContacts);
+  // Endpoint /api/contacts já definido acima com isolamento correto de usuários
   
   // Rota para diagnóstico de problemas com API Evolution
   app.get("/api/diagnostics/contacts", runContactDiagnostics);
