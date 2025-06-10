@@ -2288,11 +2288,14 @@ export class DatabaseStorage implements IStorage {
       // 11. Finalmente, deletar o usuário
       const result = await db.delete(users).where(eq(users.id, id));
       
-      if (result.length > 0) {
+      // Verificar se o usuário foi deletado verificando se ainda existe
+      const userCheck = await db.select().from(users).where(eq(users.id, id));
+      
+      if (userCheck.length === 0) {
         console.log(`✅ Usuário ${id} excluído com sucesso!`);
         return true;
       } else {
-        console.log(`❌ Falha ao excluir usuário ${id}`);
+        console.log(`❌ Falha ao excluir usuário ${id} - ainda existe no banco`);
         return false;
       }
     } catch (error) {
