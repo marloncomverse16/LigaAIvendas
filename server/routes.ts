@@ -6002,12 +6002,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rotas para relatórios QR Code
-  const { getQRConversationReports, getQRMessageReports, getQRContactReports } = await import('./api/qr-reports');
-  
-  app.get('/api/qr-reports/conversations/:userId', getQRConversationReports);
-  app.get('/api/qr-reports/messages/:userId', getQRMessageReports);
-  app.get('/api/qr-reports/contacts/:userId', getQRContactReports);
+  // Rotas para relatórios QR Code - ISOLAMENTO GARANTIDO
+  app.get('/api/qr-reports/conversations', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const { startDate, endDate } = req.query;
+
+      console.log('📊 Buscando relatórios de conversas QR Code para usuário:', userId);
+
+      const query = `
+        SELECT 
+          c.phone_number,
+          c.name,
+          COUNT(DISTINCT DATE(c.last_message_time)) as conversation_days,
+          COUNT(*) as total_messages,
+          MIN(c.last_message_time) as first_contact,
+          MAX(c.last_message_time) as last_contact,
+          c.source
+        FROM contacts c
+        WHERE c.user_id = $1 
+          AND c.source = 'qr_code'
+          AND c.last_message_time BETWEEN $2 AND $3
+        GROUP BY c.phone_number, c.name, c.source
+        ORDER BY last_contact DESC
+      `;
+
+      const { rows } = await pool.query(query, [userId, startDate, endDate]);
+      
+      console.log('📊 Encontradas', rows.length, 'conversas QR Code no período');
+      res.json(rows);
+    } catch (error) {
+      console.error('❌ Erro ao buscar relatórios de conversas QR Code:', error);
+      res.status(500).json({ 
+        error: 'Erro interno do servidor',
+        message: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+
+  app.get('/api/qr-reports/messages', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const { startDate, endDate } = req.query;
+
+      console.log('📊 Buscando relatórios de mensagens QR Code para usuário:', userId);
+
+      const query = `
+        SELECT 
+          c.phone_number,
+          c.name,
+          'Mensagem via QR Code' as message_type,
+          'sent' as status,
+          c.last_message_time as sent_at,
+          c.source
+        FROM contacts c
+        WHERE c.user_id = $1 
+          AND c.source = 'qr_code'
+          AND c.last_message_time BETWEEN $2 AND $3
+        ORDER BY c.last_message_time DESC
+      `;
+
+      const { rows } = await pool.query(query, [userId, startDate, endDate]);
+      
+      console.log('📊 Encontradas', rows.length, 'mensagens QR Code no período');
+      res.json(rows);
+    } catch (error) {
+      console.error('❌ Erro ao buscar relatórios de mensagens QR Code:', error);
+      res.status(500).json({ 
+        error: 'Erro interno do servidor',
+        message: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+
+  app.get('/api/qr-reports/contacts', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const { startDate, endDate } = req.query;
+
+      console.log('📊 Buscando relatórios de contatos QR Code para usuário:', userId);
+
+      const query = `
+        SELECT 
+          c.phone_number,
+          c.name,
+          c.profile_picture,
+          c.last_message_time,
+          c.is_active,
+          c.created_at,
+          c.source,
+          CASE 
+            WHEN c.last_message_time >= NOW() - INTERVAL '24 hours' THEN 'Ativo'
+            WHEN c.last_message_time >= NOW() - INTERVAL '7 days' THEN 'Recente'
+            ELSE 'Inativo'
+          END as activity_status
+        FROM contacts c
+        WHERE c.user_id = $1 
+          AND c.source = 'qr_code'
+          AND c.created_at BETWEEN $2 AND $3
+        ORDER BY c.last_message_time DESC
+      `;
+
+      const { rows } = await pool.query(query, [userId, startDate, endDate]);
+      
+      console.log('📊 Encontrados', rows.length, 'contatos QR Code no período');
+      res.json(rows);
+    } catch (error) {
+      console.error('❌ Erro ao buscar relatórios de contatos QR Code:', error);
+      res.status(500).json({ 
+        error: 'Erro interno do servidor',
+        message: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
 
   // Endpoint para dashboard completo - ISOLAMENTO GARANTIDO
   app.get('/api/dashboard/complete', async (req: Request, res: Response) => {
