@@ -5600,10 +5600,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para marcar mensagens como lidas (resetar contador)
+  // Rota para marcar mensagens como lidas (resetar contador) - ISOLAMENTO GARANTIDO
   app.post('/api/whatsapp-cloud/mark-read/:contactPhone', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = req.user?.id || 2;
+      const userId = (req.user as Express.User).id;
       const { contactPhone } = req.params;
       
       console.log(`📖 Marcando mensagens como lidas para ${contactPhone} do usuário ${userId}`);
@@ -5978,11 +5982,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/qr-reports/messages/:userId', getQRMessageReports);
   app.get('/api/qr-reports/contacts/:userId', getQRContactReports);
 
-  // Endpoint para dashboard completo
+  // Endpoint para dashboard completo - ISOLAMENTO GARANTIDO
   app.get('/api/dashboard/complete', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
       const { startDate, endDate } = req.query;
-      const userId = 2; // Implementar busca do usuário autenticado
+      const userId = (req.user as Express.User).id; // CORRIGIDO: usar usuário autenticado
+      
+      console.log(`Dashboard request - User: ${userId}, Dates: ${startDate} to ${endDate}`);
 
       // Buscar configurações do usuário do banco de dados
       const userSettingsQuery = `
