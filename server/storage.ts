@@ -2223,58 +2223,81 @@ export class DatabaseStorage implements IStorage {
   
   async deleteUser(id: number): Promise<boolean> {
     try {
+      console.log(`🗑️ Iniciando exclusão do usuário ${id}...`);
+      
       // Deletar dados relacionados ao usuário em ordem apropriada devido às chaves estrangeiras
       
-      // AI Agent Steps e FAQs
+      // 1. AI Agent Steps e FAQs primeiro
       await db.delete(aiAgentSteps).where(eq(aiAgentSteps.userId, id));
       await db.delete(aiAgentFaqs).where(eq(aiAgentFaqs.userId, id));
+      console.log(`✅ AI Agent steps e FAQs deletados para usuário ${id}`);
       
-      // AI Agent
+      // 2. AI Agent
       await db.delete(aiAgent).where(eq(aiAgent.userId, id));
+      console.log(`✅ AI Agent deletado para usuário ${id}`);
       
-      // Lead Interactions e Recommendations
+      // 3. Lead Interactions e Recommendations (dependem de leads)
       const userLeads = await db.select().from(leads).where(eq(leads.userId, id));
       for (const lead of userLeads) {
         await db.delete(leadInteractions).where(eq(leadInteractions.leadId, lead.id));
         await db.delete(leadRecommendations).where(eq(leadRecommendations.leadId, lead.id));
       }
-      
       await db.delete(leadRecommendations).where(eq(leadRecommendations.userId, id));
+      console.log(`✅ Lead interactions e recommendations deletados para usuário ${id}`);
       
-      // Prospecting Results (precisamos pegar os IDs de busca primeiro)
+      // 4. Prospecting Results (dependem de searches) - CORRIGIDO
       const searches = await db.select().from(prospectingSearches).where(eq(prospectingSearches.userId, id));
       for (const search of searches) {
         await db.delete(prospectingResults).where(eq(prospectingResults.searchId, search.id));
       }
+      console.log(`✅ Prospecting results deletados para usuário ${id}`);
       
-      // Prospecting Searches
+      // 5. Prospecting Searches
       await db.delete(prospectingSearches).where(eq(prospectingSearches.userId, id));
+      console.log(`✅ Prospecting searches deletados para usuário ${id}`);
       
-      // Leads, Prospects e Dispatches
-      await db.delete(leads).where(eq(leads.userId, id));
-      await db.delete(prospects).where(eq(prospects.userId, id));
-      await db.delete(dispatches).where(eq(dispatches.userId, id));
-      
-      // Metrics
-      await db.delete(metrics).where(eq(metrics.userId, id));
-      
-      // Configurações
-      await db.delete(settings).where(eq(settings.userId, id));
-      
-      // Message Templates, Sendings e History
+      // 6. Message Sending History (depende de message sendings)
       const sendings = await db.select().from(messageSendings).where(eq(messageSendings.userId, id));
       for (const sending of sendings) {
         await db.delete(messageSendingHistory).where(eq(messageSendingHistory.sendingId, sending.id));
       }
+      console.log(`✅ Message sending history deletado para usuário ${id}`);
+      
+      // 7. Message Sendings e Templates
       await db.delete(messageSendings).where(eq(messageSendings.userId, id));
       await db.delete(messageTemplates).where(eq(messageTemplates.userId, id));
+      console.log(`✅ Message sendings e templates deletados para usuário ${id}`);
       
-      // Finalmente, deletar o usuário
+      // 8. WhatsApp data
+      await db.delete(whatsappMessages).where(eq(whatsappMessages.userId, id));
+      await db.delete(whatsappContacts).where(eq(whatsappContacts.userId, id));
+      console.log(`✅ WhatsApp messages e contacts deletados para usuário ${id}`);
+      
+      // 9. User servers relation
+      await db.delete(userServers).where(eq(userServers.userId, id));
+      console.log(`✅ User servers relation deletada para usuário ${id}`);
+      
+      // 10. Core user data
+      await db.delete(leads).where(eq(leads.userId, id));
+      await db.delete(prospects).where(eq(prospects.userId, id));
+      await db.delete(dispatches).where(eq(dispatches.userId, id));
+      await db.delete(metrics).where(eq(metrics.userId, id));
+      await db.delete(settings).where(eq(settings.userId, id));
+      console.log(`✅ Core user data deletado para usuário ${id}`);
+      
+      // 11. Finalmente, deletar o usuário
       const result = await db.delete(users).where(eq(users.id, id));
       
-      return result.length > 0;
+      if (result.length > 0) {
+        console.log(`✅ Usuário ${id} excluído com sucesso!`);
+        return true;
+      } else {
+        console.log(`❌ Falha ao excluir usuário ${id}`);
+        return false;
+      }
     } catch (error) {
       console.error("Erro ao deletar usuário:", error);
+      console.error("Detalhes:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
       return false;
     }
   }
