@@ -42,11 +42,10 @@ export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState('meta');
   const { toast } = useToast();
 
-  // Buscar dados dos relatórios QR Code
+  // Buscar dados dos relatórios QR Code - ISOLAMENTO GARANTIDO
   const fetchQRReports = async () => {
     setQrLoading(true);
     try {
-      const userId = 2; // Implementar busca do usuário autenticado
       const params = new URLSearchParams({
         startDate,
         endDate

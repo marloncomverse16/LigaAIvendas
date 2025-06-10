@@ -5729,10 +5729,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== ROTAS DOS RELATÓRIOS META =====
   
-  // Sincronizar relatórios Meta
-  app.post('/api/meta-reports/sync/:userId', async (req: Request, res: Response) => {
+  // Sincronizar relatórios Meta - ISOLAMENTO GARANTIDO
+  app.post('/api/meta-reports/sync', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = (req.user as Express.User).id;
       const { startDate, endDate } = req.body;
 
       console.log('🔄 INICIANDO SINCRONIZAÇÃO META REPORTS');
@@ -5833,10 +5837,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Buscar relatórios de conversas
-  app.get('/api/meta-reports/conversations/:userId', async (req: Request, res: Response) => {
+  // Buscar relatórios de conversas - ISOLAMENTO GARANTIDO
+  app.get('/api/meta-reports/conversations', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = (req.user as Express.User).id;
       const { startDate, endDate, phoneNumberId } = req.query;
 
       let query = `
@@ -5866,10 +5874,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Buscar relatórios de mensagens
-  app.get('/api/meta-reports/messages/:userId', async (req: Request, res: Response) => {
+  // Buscar relatórios de mensagens - ISOLAMENTO GARANTIDO
+  app.get('/api/meta-reports/messages', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = (req.user as Express.User).id;
       const { startDate, endDate, phoneNumberId, deliveryStatus } = req.query;
 
       let query = `
@@ -5904,10 +5916,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Buscar relatórios de cobrança
-  app.get('/api/meta-reports/billing/:userId', async (req: Request, res: Response) => {
+  // Buscar relatórios de cobrança - ISOLAMENTO GARANTIDO
+  app.get('/api/meta-reports/billing', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = (req.user as Express.User).id;
       const { startDate, endDate, phoneNumberId } = req.query;
 
       let query = `
@@ -5937,10 +5953,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Buscar relatórios de leads respondidos
-  app.get('/api/meta-reports/leads/:userId', async (req: Request, res: Response) => {
+  // Buscar relatórios de leads respondidos - ISOLAMENTO GARANTIDO
+  app.get('/api/meta-reports/leads', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = (req.user as Express.User).id;
       const { startDate, endDate, phoneNumberId, hasResponse } = req.query;
 
       let query = `
