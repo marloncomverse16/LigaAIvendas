@@ -118,12 +118,18 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       //   lastUpdated: new Date()
       // });
       
-      // Se chegou aqui, não está conectado
+      // Se chegou aqui, não está conectado - excluir instância automaticamente
       console.log("Estado final da conexão: ❌ DESCONECTADO");
+      console.log("🗑️ Iniciando exclusão automática da instância devido à desconexão...");
+      
+      // Excluir instância da Evolution API automaticamente
+      await deleteInstanceFromEvolution(server, instanceName, headers);
+      
       return res.status(200).json({
         connected: false,
         qrCode: req.query.includeQr === 'true' ? await getQrCodeForInstance(server, instanceName, headers) : null,
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
+        instanceDeleted: true
       });
       
     } catch (statusError: any) {
@@ -156,6 +162,10 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       
       // Se chegou aqui, não conseguimos determinar o status ou não está conectado
       console.log("❌ DESCONECTADO: Não foi possível determinar o status");
+      console.log("🗑️ Iniciando exclusão automática da instância devido à falha de status...");
+      
+      // Excluir instância da Evolution API automaticamente
+      await deleteInstanceFromEvolution(server, instanceName, headers);
       
       // Em desenvolvimento, forçar conexão para testes
       // return res.status(200).json({
@@ -165,7 +175,8 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       
       return res.status(200).json({
         connected: false,
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
+        instanceDeleted: true
       });
     }
   } catch (error: any) {
@@ -182,6 +193,26 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       message: "Erro ao verificar status de conexão",
       error: error.message
     });
+  }
+}
+
+/**
+ * Exclui uma instância na Evolution API
+ */
+async function deleteInstanceFromEvolution(server: any, instanceName: string, headers: any): Promise<boolean> {
+  try {
+    console.log(`🗑️ Excluindo instância '${instanceName}' da Evolution API...`);
+    
+    const deleteResponse = await axios.delete(
+      `${server.apiUrl}/instance/delete/${instanceName}`,
+      { headers }
+    );
+    
+    console.log(`✅ Instância '${instanceName}' excluída com sucesso:`, deleteResponse.data);
+    return true;
+  } catch (deleteError: any) {
+    console.error(`❌ Erro ao excluir instância '${instanceName}':`, deleteError.message);
+    return false;
   }
 }
 
