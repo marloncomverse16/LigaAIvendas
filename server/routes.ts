@@ -6397,7 +6397,7 @@ async function getQrContactsCount(userId: number, startDate?: string, endDate?: 
     const server = serverData.server;
     const apiUrl = server.apiUrl;
     const apiToken = server.apiToken;
-    const instanceId = server.instanceId;
+    const instanceId = serverData.instanceId || 'admin'; // Usar instanceId do usuário
     
     if (!apiToken) return 0;
 
