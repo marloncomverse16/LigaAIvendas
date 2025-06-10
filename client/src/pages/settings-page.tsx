@@ -229,9 +229,8 @@ function GoalsSettings() {
     console.log("📝 Dados do formulário de metas:", data);
     console.log("🔧 Configurações atuais:", settings);
     
-    // Mapear corretamente os campos para o formato do backend
-    const updatedSettings = {
-      ...(settings || {}),
+    // Enviar apenas os campos de metas, sem IDs ou tokens sensíveis
+    const goalsData = {
       metaVendasEmpresa: data.metaVendasEmpresa,
       ticketMedioVendas: data.ticketMedioVendas,
       quantidadeLeadsVendas: data.quantidadeLeadsVendas,
@@ -240,8 +239,8 @@ function GoalsSettings() {
       quantasMensagensEnviadas: data.quantasMensagensEnviadas,
     };
     
-    console.log("📤 Enviando para backend:", updatedSettings);
-    updateSettingsMutation.mutate(updatedSettings);
+    console.log("📤 Enviando apenas dados de metas para backend:", goalsData);
+    updateSettingsMutation.mutate(goalsData);
   };
   
   return (

@@ -1328,7 +1328,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.put("/api/settings", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    console.log(`🔥 REQUISIÇÃO PUT /api/settings recebida!`);
+    if (!req.isAuthenticated()) {
+      console.log(`❌ Usuário não autenticado na requisição PUT /api/settings`);
+      return res.status(401).json({ message: "Não autenticado" });
+    }
     
     try {
       const userId = (req.user as Express.User).id;
