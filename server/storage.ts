@@ -80,7 +80,7 @@ export interface IStorage {
   getAiAgentStep(id: number): Promise<AiAgentSteps | undefined>;
   createAiAgentStep(stepData: InsertAiAgentSteps & { userId: number }): Promise<AiAgentSteps>;
   updateAiAgentStep(id: number, stepData: Partial<InsertAiAgentSteps>): Promise<AiAgentSteps | undefined>;
-  deleteAiAgentStep(id: number): Promise<boolean>;
+  deleteAiAgentStep(id: number, userId: number): Promise<boolean>;
   
   // AI Agent FAQs methods
   getAiAgentFaqs(userId: number): Promise<AiAgentFaqs[]>;
@@ -667,8 +667,9 @@ export class MemStorage implements IStorage {
     return updatedStep;
   }
   
-  async deleteAiAgentStep(id: number): Promise<boolean> {
-    if (!this.aiAgentSteps.has(id)) return false;
+  async deleteAiAgentStep(id: number, userId: number): Promise<boolean> {
+    const step = this.aiAgentSteps.get(id);
+    if (!step || step.userId !== userId) return false;
     return this.aiAgentSteps.delete(id);
   }
   
@@ -712,8 +713,9 @@ export class MemStorage implements IStorage {
     return updatedFaq;
   }
   
-  async deleteAiAgentFaq(id: number): Promise<boolean> {
-    if (!this.aiAgentFaqs.has(id)) return false;
+  async deleteAiAgentFaq(id: number, userId: number): Promise<boolean> {
+    const faq = this.aiAgentFaqs.get(id);
+    if (!faq || faq.userId !== userId) return false;
     return this.aiAgentFaqs.delete(id);
   }
 
@@ -947,7 +949,10 @@ export class MemStorage implements IStorage {
     return updatedSearch;
   }
   
-  async deleteProspectingSearch(id: number): Promise<boolean> {
+  async deleteProspectingSearch(id: number, userId: number): Promise<boolean> {
+    const search = this.prospectingSearches.get(id);
+    if (!search || search.userId !== userId) return false;
+    
     // Delete all results associated with this search
     const resultsToDelete = Array.from(this.prospectingResults.values())
       .filter(result => result.searchId === id);
@@ -957,7 +962,6 @@ export class MemStorage implements IStorage {
     }
     
     // Delete the search
-    if (!this.prospectingSearches.has(id)) return false;
     return this.prospectingSearches.delete(id);
   }
   
@@ -1001,8 +1005,14 @@ export class MemStorage implements IStorage {
     return updatedResult;
   }
   
-  async deleteProspectingResult(id: number): Promise<boolean> {
-    if (!this.prospectingResults.has(id)) return false;
+  async deleteProspectingResult(id: number, userId: number): Promise<boolean> {
+    const result = this.prospectingResults.get(id);
+    if (!result) return false;
+    
+    // Verify ownership through the associated search
+    const search = this.prospectingSearches.get(result.searchId);
+    if (!search || search.userId !== userId) return false;
+    
     return this.prospectingResults.delete(id);
   }
   
