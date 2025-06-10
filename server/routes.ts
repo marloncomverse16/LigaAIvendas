@@ -1332,38 +1332,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = (req.user as Express.User).id;
-      console.log(`🔧 Atualizando configurações para usuário ${userId}:`, req.body);
+      console.log(`🔧 Atualizando configurações para usuário ${userId}:`, JSON.stringify(req.body, null, 2));
       
       // Validar os dados usando schema parcial
       const settingsData = insertSettingsSchema.partial().parse(req.body);
-      console.log("✅ Dados validados pelo schema:", settingsData);
-      
-      // Garantir que userId está sempre presente nos dados
-      const updatedData = {
-        ...settingsData,
-        userId
-      };
+      console.log("✅ Dados validados pelo schema:", JSON.stringify(settingsData, null, 2));
       
       // Verificar se já existe configurações para o usuário
       let settings = await storage.getSettingsByUserId(userId);
+      console.log(`📋 Configurações existentes:`, settings ? 'SIM' : 'NÃO');
       
       if (settings) {
         // Atualizar configurações existentes - garantir que só atualiza do próprio usuário
         console.log(`📝 Atualizando configurações existentes do usuário ${userId}`);
-        settings = await storage.updateSettings(settings.id, updatedData);
+        settings = await storage.updateSettings(userId, settingsData);
+        console.log(`✅ Configurações atualizadas:`, settings ? 'SUCESSO' : 'FALHA');
       } else {
         // Criar novas configurações - garantir isolamento
         console.log(`📋 Criando novas configurações para usuário ${userId}`);
-        settings = await storage.createSettings(updatedData);
+        const createData = { ...settingsData, userId };
+        settings = await storage.createSettings(createData);
+        console.log(`✅ Configurações criadas:`, settings ? 'SUCESSO' : 'FALHA');
       }
       
       if (!settings) {
+        console.error(`❌ Erro: configurações não foram salvas para usuário ${userId}`);
         return res.status(500).json({ message: "Erro ao salvar configurações" });
       }
       
+      console.log(`🎉 Retornando configurações salvas para usuário ${userId}:`, settings.id);
       res.json(settings);
     } catch (error) {
-      console.error("Erro ao atualizar configurações:", error);
+      console.error("❌ Erro ao atualizar configurações:", error);
       if (error instanceof Error) {
         res.status(500).json({ message: `Erro ao atualizar configurações: ${error.message}` });
       } else {
