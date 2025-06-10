@@ -1289,25 +1289,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Configurações de usuário
+  // Configurações de usuário - ISOLAMENTO GARANTIDO
   app.get("/api/settings", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
     try {
-      let settings;
+      const userId = (req.user as Express.User).id;
+      let settings = await storage.getSettingsByUserId(userId);
       
-      if (req.isAuthenticated()) {
-        settings = await storage.getSettingsByUserId((req.user as Express.User).id);
-      }
-      
-      // Se não encontrou ou não está autenticado, retorna configurações padrão
+      // Se não encontrou configurações, criar configurações padrão para o usuário
       if (!settings) {
-        settings = {
-          id: 0,
-          userId: 0,
+        console.log(`📋 Criando configurações padrão para usuário ${userId}`);
+        settings = await storage.createSettings({
+          userId,
           logoUrl: null,
-          primaryColor: "#047857",  // Padrão verde
-          secondaryColor: "#4f46e5", // Padrão indigo
-          darkMode: false
-        };
+          primaryColor: "#047857",
+          secondaryColor: "#4f46e5",
+          darkMode: false,
+          metaVendasEmpresa: '1000',
+          ticketMedioVendas: '50',
+          quantidadeLeadsVendas: 20,
+          quantosDisparosPorLead: 10,
+          custoIcloudTotal: '1200',
+          quantasMensagensEnviadas: 20000,
+          whatsappMetaToken: undefined,
+          whatsappMetaBusinessId: undefined,
+          whatsappMetaApiVersion: 'v18.0'
+        });
       }
       
       res.json(settings);
@@ -1322,29 +1332,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = (req.user as Express.User).id;
-      console.log("📥 Dados recebidos no backend:", req.body);
+      console.log(`🔧 Atualizando configurações para usuário ${userId}:`, req.body);
       
-      const settingsData = insertSettingsSchema.parse(req.body);
+      // Validar os dados usando schema parcial
+      const settingsData = insertSettingsSchema.partial().parse(req.body);
       console.log("✅ Dados validados pelo schema:", settingsData);
+      
+      // Garantir que userId está sempre presente nos dados
+      const updatedData = {
+        ...settingsData,
+        userId
+      };
       
       // Verificar se já existe configurações para o usuário
       let settings = await storage.getSettingsByUserId(userId);
       
       if (settings) {
-        // Atualizar configurações existentes
-        settings = await storage.updateSettings(settings.id, settingsData);
+        // Atualizar configurações existentes - garantir que só atualiza do próprio usuário
+        console.log(`📝 Atualizando configurações existentes do usuário ${userId}`);
+        settings = await storage.updateSettings(settings.id, updatedData);
       } else {
-        // Criar novas configurações
-        settings = await storage.createSettings({
-          ...settingsData,
-          userId
-        });
+        // Criar novas configurações - garantir isolamento
+        console.log(`📋 Criando novas configurações para usuário ${userId}`);
+        settings = await storage.createSettings(updatedData);
+      }
+      
+      if (!settings) {
+        return res.status(500).json({ message: "Erro ao salvar configurações" });
       }
       
       res.json(settings);
     } catch (error) {
       console.error("Erro ao atualizar configurações:", error);
-      res.status(500).json({ message: "Erro ao atualizar configurações" });
+      if (error instanceof Error) {
+        res.status(500).json({ message: `Erro ao atualizar configurações: ${error.message}` });
+      } else {
+        res.status(500).json({ message: "Erro interno do servidor" });
+      }
     }
   });
   

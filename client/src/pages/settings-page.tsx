@@ -215,7 +215,7 @@ function GoalsSettings() {
       custoIcloudTotal: "0",
       quantasMensagensEnviadas: 0,
     },
-    values: settings ? {
+    values: settings && typeof settings === 'object' ? {
       metaVendasEmpresa: settings.metaVendasEmpresa || "0",
       ticketMedioVendas: settings.ticketMedioVendas || "0",
       quantidadeLeadsVendas: settings.quantidadeLeadsVendas || 0,
@@ -231,7 +231,7 @@ function GoalsSettings() {
     
     // Mapear corretamente os campos para o formato do backend
     const updatedSettings = {
-      ...settings,
+      ...(settings || {}),
       metaVendasEmpresa: data.metaVendasEmpresa,
       ticketMedioVendas: data.ticketMedioVendas,
       quantidadeLeadsVendas: data.quantidadeLeadsVendas,
@@ -417,19 +417,19 @@ export default function SettingsPage() {
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: profile?.name || "",
-      email: profile?.email || "",
-      phone: profile?.phone || "",
-      company: profile?.company || "",
-      bio: profile?.bio || "",
+      name: "",
+      email: "",
+      phone: "",
+      company: "",
+      bio: "",
     },
-    values: {
-      name: profile?.name || "",
-      email: profile?.email || "",
-      phone: profile?.phone || "",
-      company: profile?.company || "",
-      bio: profile?.bio || "",
-    },
+    values: profile && typeof profile === 'object' ? {
+      name: profile.name || "",
+      email: profile.email || "",
+      phone: profile.phone || "",
+      company: profile.company || "",
+      bio: profile.bio || "",
+    } : undefined,
   });
   
   const onProfileSubmit = (data: ProfileFormValues) => {
