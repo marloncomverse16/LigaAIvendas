@@ -722,7 +722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Etapa não encontrada" });
       }
       
-      const success = await storage.deleteAiAgentStep(stepId);
+      const success = await storage.deleteAiAgentStep(stepId, userId);
       if (success) {
         res.status(204).end();
       } else {
@@ -819,7 +819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "FAQ não encontrada" });
       }
       
-      const success = await storage.deleteAiAgentFaq(faqId);
+      const success = await storage.deleteAiAgentFaq(faqId, userId);
       if (success) {
         res.status(204).end();
       } else {
@@ -2141,7 +2141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Excluir a pesquisa
-      const success = await storage.deleteProspectingSearch(searchId);
+      const success = await storage.deleteProspectingSearch(searchId, userId);
       
       if (success) {
         res.status(200).json({ message: "Pesquisa excluída com sucesso" });

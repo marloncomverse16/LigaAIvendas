@@ -2140,7 +2140,22 @@ export class DatabaseStorage implements IStorage {
     return updatedResult;
   }
   
-  async deleteProspectingResult(id: number): Promise<boolean> {
+  async deleteProspectingResult(id: number, userId: number): Promise<boolean> {
+    // First verify the result belongs to a search owned by the user
+    const search = await db
+      .select({ id: prospectingSearches.id })
+      .from(prospectingResults)
+      .leftJoin(prospectingSearches, eq(prospectingResults.searchId, prospectingSearches.id))
+      .where(and(
+        eq(prospectingResults.id, id),
+        eq(prospectingSearches.userId, userId)
+      ))
+      .limit(1);
+    
+    if (search.length === 0) {
+      return false; // Result doesn't belong to user
+    }
+    
     const result = await db
       .delete(prospectingResults)
       .where(eq(prospectingResults.id, id));
