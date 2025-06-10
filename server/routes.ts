@@ -6046,9 +6046,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let qrWhatsAppNumber = null;
       
       try {
-        // Buscar token correto da Evolution API do banco de dados
-        const serverResult = await pool.query('SELECT api_token FROM servers WHERE id = 1');
-        const evolutionApiKey = serverResult.rows[0]?.api_token || '0f9e7d76866fd738dbed11acfcef1403';
+        // Buscar token correto da Evolution API para o usuário autenticado
+        const userServers = await storage.getUserServers(userId);
+        if (!userServers || userServers.length === 0) {
+          throw new Error('Nenhum servidor configurado para este usuário');
+        }
+        const evolutionApiKey = userServers[0].server.apiToken;
         
         console.log('Usando Evolution API key:', evolutionApiKey);
         
