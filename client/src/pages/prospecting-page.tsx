@@ -96,9 +96,9 @@ export default function ProspectingPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Query para buscar dados de prospecção - VERSÃO SEGURA SEM CACHE
+  // Query para buscar dados de prospecção - VERSÃO SEGURA ESTÁVEL
   const { data: searches, isLoading: isLoadingSearches } = useQuery({
-    queryKey: ["/api/prospecting/searches", Date.now()], // Timestamp único para evitar cache
+    queryKey: ["/api/prospecting/searches", user?.id], // Usar ID do usuário como chave
     queryFn: async () => {
       console.log(`🔍 Frontend: Buscando pesquisas para usuário ${user?.id} (${user?.username})`);
       const res = await fetch("/api/prospecting/searches", {
@@ -126,10 +126,7 @@ export default function ProspectingPage() {
       console.log(`✅ Frontend: ${data.length} pesquisas válidas carregadas`);
       return data;
     },
-    staleTime: 0, // Sempre buscar dados frescos
-    gcTime: 0, // Não manter em cache (gcTime substituiu cacheTime na v5)
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always'
+    enabled: !!user?.id // Só executar quando o usuário estiver logado
   });
 
   // Query para buscar resultados de uma busca específica
