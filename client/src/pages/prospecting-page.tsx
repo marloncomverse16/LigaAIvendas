@@ -98,7 +98,7 @@ export default function ProspectingPage() {
 
   // Query para buscar dados de prospecção
   const { data: searches, isLoading: isLoadingSearches } = useQuery({
-    queryKey: ["/api/prospecting/searches"],
+    queryKey: ["/api/prospecting/searches", user?.id],
     queryFn: async () => {
       const res = await fetch("/api/prospecting/searches");
       if (!res.ok) throw new Error("Falha ao carregar buscas de prospecção");
@@ -122,7 +122,7 @@ export default function ProspectingPage() {
 
   // Query para buscar resultados de uma busca específica
   const { data: results, isLoading: isLoadingResults } = useQuery({
-    queryKey: ["/api/prospecting/results", activeSearch],
+    queryKey: ["/api/prospecting/results", activeSearch, user?.id],
     queryFn: async () => {
       if (!activeSearch) return [];
       const res = await fetch(`/api/prospecting/results/${activeSearch}`);
@@ -161,7 +161,7 @@ export default function ProspectingPage() {
       setImportFile(null);
       setPreviewData([]);
       setImportError(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches", user?.id] });
     },
     onError: (error) => {
       toast({
@@ -193,7 +193,7 @@ export default function ProspectingPage() {
       setImportFile(null);
       setImportError(null);
       setImportMethod("form");
-      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches", user?.id] });
       setActiveTab("searches");
     },
     onError: (error) => {
