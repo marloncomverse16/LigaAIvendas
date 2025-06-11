@@ -14,6 +14,7 @@ interface ReportData {
   messages: any[];
   billing: any[];
   leads: any[];
+  isEmpty?: boolean;
 }
 
 interface QRReportData {
@@ -29,7 +30,8 @@ export default function ReportsPage() {
     conversations: [],
     messages: [],
     billing: [],
-    leads: []
+    leads: [],
+    isEmpty: false
   });
   const [qrReportData, setQrReportData] = useState<QRReportData>({
     conversations: [],
@@ -331,9 +333,16 @@ export default function ReportsPage() {
                       </table>
                     </div>
                   ) : (
-                    <p className="text-center text-gray-500 py-8">
-                      Nenhuma conversa encontrada no período selecionado
-                    </p>
+                    <div className="text-center text-gray-500 py-8">
+                      {reportData.isEmpty ? (
+                        <div className="space-y-2">
+                          <p>Não há dados de conversas Meta disponíveis ainda.</p>
+                          <p className="text-sm">Para gerar relatórios, clique em "Sincronizar Meta API" acima.</p>
+                        </div>
+                      ) : (
+                        <p>Nenhuma conversa encontrada no período selecionado</p>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
