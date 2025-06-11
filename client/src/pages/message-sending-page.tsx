@@ -440,8 +440,8 @@ const CreateSendingForm = () => {
 
   // Obter webhook de envio de mensagens do servidor conectado
   const connectedServer = userServers?.find((server: any) => server.isDefault) || userServers?.[0];
-  const messageSendingWebhookUrl = connectedServer?.server?.whatsappWebhookUrl || 
-                                   "https://webhook.primerastreadores.com/webhook/e4da7e7b-c5c1-4fea-8ea4-c843f4443c47";
+  const messageSendingWebhookUrl = connectedServer?.server?.messageSendingWebhookUrl || 
+                                   "https://webhook.primerastreadores.com/webhook/4328aa17-8131-4c45-8f4c-9fd37a609142";
                                    
   console.log("Servidor conectado para envio:", connectedServer);
   console.log("Webhook de envio de mensagens:", messageSendingWebhookUrl);
