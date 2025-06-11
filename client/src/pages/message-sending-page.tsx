@@ -428,38 +428,29 @@ const CreateSendingForm = () => {
     },
   });
   
-  // Função para obter o webhook de envio de mensagens do servidor
-  const getMessageSendingWebhook = async (searchId: number) => {
-    try {
-      // Primeiro obtemos o servidor associado à pesquisa
-      const searchRes = await fetch(`/api/prospecting/searches/${searchId}`);
-      if (!searchRes.ok) throw new Error("Falha ao obter informações da pesquisa");
-      const searchData = await searchRes.json();
-      
-      // Obtemos o servidor associado ao usuário
-      const userServersRes = await fetch("/api/user-servers/default");
-      if (!userServersRes.ok) throw new Error("Falha ao obter servidor padrão");
-      const userServerData = await userServersRes.json();
-      
-      // Obtemos os detalhes do servidor
-      const serverRes = await fetch(`/api/servers/${userServerData.serverId}`);
-      if (!serverRes.ok) throw new Error("Falha ao obter detalhes do servidor");
-      const serverData = await serverRes.json();
-      
-      return serverData.messageSendingWebhookUrl;
-    } catch (error) {
-      console.error("Erro ao obter webhook:", error);
-      return null;
-    }
-  };
+  // Buscar servidores conectados do usuário
+  const { data: userServers } = useQuery({
+    queryKey: ["/api/user-servers"],
+    queryFn: async () => {
+      const res = await fetch("/api/user-servers");
+      if (!res.ok) throw new Error("Falha ao carregar servidores");
+      return res.json();
+    },
+  });
+
+  // Obter webhook de envio de mensagens do servidor conectado
+  const connectedServer = userServers?.find((server: any) => server.isDefault) || userServers?.[0];
+  const messageSendingWebhookUrl = connectedServer?.server?.whatsappWebhookUrl || 
+                                   "https://webhook.primerastreadores.com/webhook/e4da7e7b-c5c1-4fea-8ea4-c843f4443c47";
+                                   
+  console.log("Servidor conectado para envio:", connectedServer);
+  console.log("Webhook de envio de mensagens:", messageSendingWebhookUrl);
   
   // Mutação para envio via WhatsApp QR Code (webhook)
   const sendViaWebhookMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Obter o webhook do servidor
-      const webhookUrl = await getMessageSendingWebhook(data.searchId);
-      
-      if (!webhookUrl) {
+      // Usar o webhook do servidor conectado
+      if (!messageSendingWebhookUrl) {
         throw new Error("Webhook de envio de mensagens não configurado para este servidor. Verifique a configuração em Gerenciamento de Servidores.");
       }
       
@@ -486,7 +477,7 @@ const CreateSendingForm = () => {
         messageText: data.customMessage || (data.templateId ? `Template ID: ${data.templateId}` : ""),
         connectionType: "whatsapp_qr",
         totalRecipients: realLeadsCount,
-        webhookUrl: webhookUrl
+        webhookUrl: messageSendingWebhookUrl
       });
       
       // Criar o registro de histórico de envio
@@ -504,7 +495,7 @@ const CreateSendingForm = () => {
         messageText: data.customMessage || (data.templateId ? `Template ID: ${data.templateId}` : ""),
         connectionType: "whatsapp_qr",
         totalRecipients: realLeadsCount,
-        webhookUrl: webhookUrl
+        webhookUrl: messageSendingWebhookUrl
       });
       
       // Obtém o ID do registro de envio criado
@@ -527,7 +518,7 @@ const CreateSendingForm = () => {
         userCompany: userData.company || ""
       });
       
-      const webhookUrlWithParams = `${webhookUrl}?${params.toString()}`;
+      const webhookUrlWithParams = `${messageSendingWebhookUrl}?${params.toString()}`;
       console.log("Enviando webhook via GET:", webhookUrlWithParams);
       
       const webhookRes = await fetch(webhookUrlWithParams, {
