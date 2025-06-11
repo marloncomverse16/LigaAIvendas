@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -96,6 +96,17 @@ export default function ProspectingPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Query para buscar servidores do usuário
+  const { data: userServers } = useQuery({
+    queryKey: ["/api/user-servers", user?.id],
+    queryFn: async () => {
+      const res = await fetch("/api/user-servers");
+      if (!res.ok) throw new Error("Falha ao carregar servidores");
+      return await res.json();
+    },
+    enabled: !!user?.id
+  });
+
   // Query para buscar dados de prospecção
   const { data: searches, isLoading: isLoadingSearches } = useQuery({
     queryKey: ["/api/prospecting/searches", user?.id],
@@ -132,6 +143,10 @@ export default function ProspectingPage() {
     enabled: !!activeSearch
   });
 
+  // Obter o webhook de prospecção do servidor conectado
+  const connectedServer = userServers?.find((server: any) => server.isDefault) || userServers?.[0];
+  const prospectingWebhookUrl = connectedServer?.prospectingWebhookUrl || "";
+
   // Form para criar nova busca
   const form = useForm<z.infer<typeof prospectingSearchSchema>>({
     resolver: zodResolver(prospectingSearchSchema),
@@ -139,9 +154,16 @@ export default function ProspectingPage() {
       segment: "",
       city: "",
       filters: "",
-      webhookUrl: user?.prospectingWebhookUrl || ""
+      webhookUrl: prospectingWebhookUrl
     }
   });
+
+  // Atualizar o webhookUrl quando o servidor mudar
+  useEffect(() => {
+    if (prospectingWebhookUrl) {
+      form.setValue("webhookUrl", prospectingWebhookUrl);
+    }
+  }, [prospectingWebhookUrl, form]);
 
 
 
@@ -282,8 +304,9 @@ export default function ProspectingPage() {
   // Mutação para disparar leads
   const dispatchLeadsMutation = useMutation({
     mutationFn: async (searchId: number) => {
-      if (!user?.dispatchesWebhookUrl) {
-        throw new Error("URL de webhook de disparos não configurada");
+      // Usar o webhook de prospecção do servidor conectado
+      if (!prospectingWebhookUrl) {
+        throw new Error("Webhook de prospecção não configurado no servidor conectado");
       }
       
       // Buscar a pesquisa e os resultados
@@ -297,8 +320,8 @@ export default function ProspectingPage() {
         throw new Error("Não há resultados pendentes para disparar");
       }
       
-      // Enviar requisição para o webhook configurado
-      const res = await fetch(user.dispatchesWebhookUrl, {
+      // Enviar requisição para o webhook de prospecção do servidor
+      const res = await fetch(prospectingWebhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -307,9 +330,9 @@ export default function ProspectingPage() {
           searchId: searchId,
           segment: search.segment,
           city: search.city,
-          userId: user.id,
+          userId: user?.id,
           count: search.dispatchesPending,
-          callbackUrl: `${window.location.origin}/api/prospecting/webhook-callback/${user.id}`
+          callbackUrl: `${window.location.origin}/api/prospecting/webhook-callback/${user?.id}`
         }),
       });
       
