@@ -1024,7 +1024,7 @@ export default function ProspectingPage() {
                                 <Button 
                                   type="submit" 
                                   disabled={importListMutation.isPending || !importFile}
-                                  className="w-full"
+                                  className="w-full bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                                   size="lg"
                                 >
                                   {importListMutation.isPending ? (
