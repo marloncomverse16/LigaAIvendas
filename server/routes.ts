@@ -1,75 +1,20 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import passport from "passport";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
 import { storage } from "./storage";
-import { insertUserSchema, insertProspectingSearchSchema } from "@shared/schema";
-import type { User as SelectUser } from "@shared/schema";
+import { insertProspectingSearchSchema } from "@shared/schema";
 import axios from "axios";
-
-const scryptAsync = promisify(scrypt);
-
-async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
-}
-
-async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
-}
+import { setupAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth Routes
-  app.post("/api/register", async (req, res, next) => {
-    try {
-      const userData = insertUserSchema.parse(req.body);
-      const existingUser = await storage.getUserByUsername(userData.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-
-      const user = await storage.createUser({
-        ...userData,
-        password: await hashPassword(userData.password),
-      });
-
-      req.login(user, (err) => {
-        if (err) return next(err);
-        res.status(201).json(user);
-      });
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(400).json({ message: "Registration failed" });
-    }
-  });
-
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
-  });
-
-  app.post("/api/logout", (req, res, next) => {
-    req.logout((err) => {
-      if (err) return next(err);
-      res.sendStatus(200);
-    });
-  });
-
-  app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(req.user);
-  });
+  // Configurar autenticação primeiro
+  setupAuth(app);
 
   // Prospecting Routes com Webhook Automático
   app.get("/api/prospecting/searches", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const userId = (req.user as Express.User).id;
+      const userId = (req.user as any).id;
       const searches = await storage.getProspectingSearches(userId);
       res.json(searches);
     } catch (error) {
@@ -82,7 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const userId = (req.user as Express.User).id;
+      const userId = (req.user as any).id;
       const searchData = insertProspectingSearchSchema.parse(req.body);
       
       console.log(`🔍 Iniciando nova pesquisa de prospecção para usuário ${userId}`);
@@ -196,8 +141,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const searchId = parseInt(req.params.id);
-      const userId = (req.user as Express.User).id;
-      
       const results = await storage.getProspectingResults(searchId);
       res.json(results);
     } catch (error) {
@@ -223,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const userId = (req.user as Express.User).id;
+      const userId = (req.user as any).id;
       const userServers = await storage.getUserServers(userId);
       res.json(userServers);
     } catch (error) {
@@ -236,10 +179,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const userId = (req.user as Express.User).id;
+      const userId = (req.user as any).id;
       const { serverId } = req.body;
       
-      const userServer = await storage.connectUserToServer(userId, serverId);
+      const userServer = await storage.addUserServer(userId, serverId);
       res.status(201).json(userServer);
     } catch (error) {
       console.error("Erro ao conectar servidor:", error);
@@ -252,7 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const userId = (req.user as Express.User).id;
+      const userId = (req.user as any).id;
       const settings = await storage.getSettingsByUserId(userId);
       res.json(settings);
     } catch (error) {
@@ -266,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const userId = (req.user as Express.User).id;
+      const userId = (req.user as any).id;
       const agent = await storage.getAiAgentByUserId(userId);
       res.json(agent);
     } catch (error) {
