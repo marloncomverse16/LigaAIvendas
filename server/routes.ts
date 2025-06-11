@@ -30,6 +30,15 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+// Rastrear o status de conexão de cada usuário
+interface ConnectionData {
+  connected: boolean;
+  qrCode?: string;
+  lastUpdated: Date;
+}
+
+const connectionStatus: Record<number, ConnectionData> = {};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupAuth(app);
@@ -112,7 +121,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // AI Agent Steps - Versão temporária com dados mock
   app.get("/api/ai-agent/steps", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
@@ -121,33 +129,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mockSteps = [
         {
           id: 1,
-          userId: req.user.id,
-          name: "Apresentação",
-          description: "Introdução ao produto e serviços",
+          aiAgentId: 1,
           order: 1,
+          question: "Qual sua necessidade principal?",
+          answerOptions: ["Suporte", "Orçamento", "Dúvidas"],
+          nextStepLogic: { Suporte: 2, Orçamento: 3, Dúvidas: 4 },
           createdAt: new Date().toISOString(),
-          updatedAt: null,
-          mediaUrl: null
+          updatedAt: new Date().toISOString()
         },
         {
           id: 2,
-          userId: req.user.id,
-          name: "Identificação de Necessidades",
-          description: "Entender as necessidades do cliente",
+          aiAgentId: 1,
           order: 2,
+          question: "Qual área você precisa de suporte?",
+          answerOptions: ["Técnico", "Financeiro", "Uso do produto"],
+          nextStepLogic: { Técnico: 5, Financeiro: 6, "Uso do produto": 7 },
           createdAt: new Date().toISOString(),
-          updatedAt: null,
-          mediaUrl: null
+          updatedAt: new Date().toISOString()
         },
         {
           id: 3,
-          userId: req.user.id,
-          name: "Demonstração",
-          description: "Demonstrar como o produto resolve o problema",
+          aiAgentId: 1,
           order: 3,
+          question: "Que tipo de orçamento você precisa?",
+          answerOptions: ["Produto completo", "Módulos específicos", "Serviços"],
+          nextStepLogic: { "Produto completo": 8, "Módulos específicos": 9, Serviços: 10 },
           createdAt: new Date().toISOString(),
-          updatedAt: null,
-          mediaUrl: null
+          updatedAt: new Date().toISOString()
         }
       ];
       
@@ -158,65 +166,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/ai-agent/steps", async (req, res) => {
+  app.put("/api/ai-agent/steps", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const stepData = req.body;
+      const stepsData = req.body;
       
-      // Simula criação de uma nova etapa
-      const newStep = {
-        id: Math.floor(Math.random() * 1000) + 10,
-        userId: req.user.id,
-        name: stepData.name,
-        description: stepData.description || null,
-        order: stepData.order,
-        createdAt: new Date().toISOString(),
-        updatedAt: null,
-        mediaUrl: null
-      };
-      
-      res.status(201).json(newStep);
+      // Simula atualização e retorna os dados enviados
+      res.json(stepsData);
     } catch (error) {
-      console.error("Erro ao criar etapa:", error);
-      res.status(500).json({ message: "Erro ao criar etapa" });
+      console.error("Erro ao atualizar etapas do agente:", error);
+      res.status(500).json({ message: "Erro ao atualizar etapas do agente" });
     }
   });
   
-  app.put("/api/ai-agent/steps/:id", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const stepId = parseInt(req.params.id);
-      const stepData = req.body;
-      
-      // Simula atualização de uma etapa
-      const updatedStep = {
-        id: stepId,
-        userId: req.user.id,
-        name: stepData.name || "Etapa",
-        description: stepData.description || null,
-        order: stepData.order || 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        mediaUrl: null
-      };
-      
-      res.json(updatedStep);
-    } catch (error) {
-      console.error("Erro ao atualizar etapa:", error);
-      res.status(500).json({ message: "Erro ao atualizar etapa" });
-    }
-  });
-  
-  app.delete("/api/ai-agent/steps/:id", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    // Simplesmente retorna sucesso
-    res.status(204).send();
-  });
-  
-  // AI Agent FAQs - Versão temporária com dados mock
   app.get("/api/ai-agent/faqs", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
@@ -225,30 +188,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mockFaqs = [
         {
           id: 1,
-          userId: req.user.id,
-          question: "Quais são os horários de atendimento?",
-          answer: "Nosso atendimento funciona de segunda a sexta, das 8h às 18h.",
+          aiAgentId: 1,
+          question: "Como faço para recuperar minha senha?",
+          answer: "Para recuperar sua senha, clique em 'Esqueci minha senha' na tela de login e siga as instruções enviadas ao seu e-mail.",
           createdAt: new Date().toISOString(),
-          updatedAt: null,
-          mediaUrl: null
+          updatedAt: new Date().toISOString()
         },
         {
           id: 2,
-          userId: req.user.id,
-          question: "Como posso solicitar um orçamento?",
-          answer: "Você pode solicitar um orçamento diretamente pelo site ou entrando em contato pelo telefone.",
+          aiAgentId: 1,
+          question: "Quais são os horários de atendimento?",
+          answer: "Nosso atendimento funciona de segunda a sexta, das 8h às 18h, exceto feriados nacionais.",
           createdAt: new Date().toISOString(),
-          updatedAt: null,
-          mediaUrl: null
+          updatedAt: new Date().toISOString()
         },
         {
           id: 3,
-          userId: req.user.id,
-          question: "Qual é o prazo de entrega dos produtos?",
-          answer: "O prazo de entrega varia de acordo com a região, mas normalmente é de 3 a 5 dias úteis.",
+          aiAgentId: 1,
+          question: "Como faço para cancelar minha assinatura?",
+          answer: "Para cancelar sua assinatura, acesse seu perfil, vá em 'Minha assinatura' e clique no botão 'Cancelar'. Lembre-se que você pode ter acesso ao serviço até o final do período já pago.",
           createdAt: new Date().toISOString(),
-          updatedAt: null,
-          mediaUrl: null
+          updatedAt: new Date().toISOString()
         }
       ];
       
@@ -259,310 +219,419 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/ai-agent/faqs", async (req, res) => {
+  app.put("/api/ai-agent/faqs", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const faqData = req.body;
+      const faqsData = req.body;
       
-      // Simula criação de uma nova FAQ
-      const newFaq = {
-        id: Math.floor(Math.random() * 1000) + 10,
-        userId: req.user.id,
-        question: faqData.question,
-        answer: faqData.answer,
+      // Simula atualização e retorna os dados enviados
+      res.json(faqsData);
+    } catch (error) {
+      console.error("Erro ao atualizar FAQs do agente:", error);
+      res.status(500).json({ message: "Erro ao atualizar FAQs do agente" });
+    }
+  });
+  
+  app.post("/api/leads", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const leadData = insertLeadSchema.parse(req.body);
+      
+      // Simula criação de lead e retorna com ID
+      const newLead = {
+        ...leadData,
+        id: Math.floor(Math.random() * 1000) + 1,
         createdAt: new Date().toISOString(),
-        updatedAt: null,
-        mediaUrl: null
+        updatedAt: new Date().toISOString()
       };
       
-      res.status(201).json(newFaq);
+      res.status(201).json(newLead);
     } catch (error) {
-      console.error("Erro ao criar FAQ:", error);
-      res.status(500).json({ message: "Erro ao criar FAQ" });
+      console.error("Erro ao criar lead:", error);
+      res.status(500).json({ message: "Erro ao criar lead" });
     }
   });
   
-  app.put("/api/ai-agent/faqs/:id", async (req, res) => {
+  app.get("/api/leads", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const faqId = parseInt(req.params.id);
-      const faqData = req.body;
+      // Simula lista de leads
+      const mockLeads = [
+        {
+          id: 1,
+          name: "João Silva",
+          company: "Empresa A",
+          email: "joao@empresaa.com",
+          phone: "+5511999999999",
+          source: "Website",
+          status: "Novo",
+          assignedTo: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          name: "Maria Oliveira",
+          company: "Empresa B",
+          email: "maria@empresab.com",
+          phone: "+5511888888888",
+          source: "Indicação",
+          status: "Em contato",
+          assignedTo: 2,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
       
-      // Simula atualização de uma FAQ
-      const updatedFaq = {
-        id: faqId,
-        userId: req.user.id,
-        question: faqData.question || "Pergunta",
-        answer: faqData.answer || "Resposta",
+      res.json(mockLeads);
+    } catch (error) {
+      console.error("Erro ao buscar leads:", error);
+      res.status(500).json({ message: "Erro ao buscar leads" });
+    }
+  });
+  
+  app.get("/api/leads/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const leadId = parseInt(req.params.id);
+      
+      // Simula um único lead
+      const mockLead = {
+        id: leadId,
+        name: "João Silva",
+        company: "Empresa A",
+        email: "joao@empresaa.com",
+        phone: "+5511999999999",
+        source: "Website",
+        status: "Novo",
+        assignedTo: 1,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        mediaUrl: null
+        updatedAt: new Date().toISOString()
       };
       
-      res.json(updatedFaq);
+      res.json(mockLead);
     } catch (error) {
-      console.error("Erro ao atualizar FAQ:", error);
-      res.status(500).json({ message: "Erro ao atualizar FAQ" });
+      console.error("Erro ao buscar lead:", error);
+      res.status(500).json({ message: "Erro ao buscar lead" });
     }
   });
   
-  app.delete("/api/ai-agent/faqs/:id", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    // Simplesmente retorna sucesso
-    res.status(204).send();
-  });
-  
-  // User profile
-  app.get("/api/profile", async (req, res) => {
+  app.put("/api/leads/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const { id } = req.user as Express.User;
-      const user = await storage.getUser(id);
-      if (!user) return res.status(404).json({ message: "Usuário não encontrado" });
+      const leadId = parseInt(req.params.id);
+      const leadData = req.body;
       
-      // Remove password from response
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar perfil" });
-    }
-  });
-  
-  app.put("/api/profile", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const { name, company, phone, bio } = req.body;
-      
-      const updatedUser = await storage.updateUser(id, {
-        name,
-        company,
-        phone,
-        bio
-      });
-      
-      if (!updatedUser) return res.status(404).json({ message: "Usuário não encontrado" });
-      
-      // Remove password from response
-      const { password, ...userWithoutPassword } = updatedUser;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao atualizar perfil" });
-    }
-  });
-  
-  // Dashboard stats
-  app.get("/api/dashboard/stats", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      
-      const leadsCount = await storage.countLeadsByUserId(id);
-      const prospectsCount = await storage.countProspectsByUserId(id);
-      const dispatchesCount = await storage.countDispatchesByUserId(id);
-      
-      // Get settings for theme
-      const settings = await storage.getSettingsByUserId(id) || {
-        darkMode: false,
-        primaryColor: "#047857",
-        secondaryColor: "#4f46e5",
-        logoUrl: null
+      // Simula atualização de lead
+      const updatedLead = {
+        ...leadData,
+        id: leadId,
+        updatedAt: new Date().toISOString()
       };
       
-      // Get user for token info
-      const user = await storage.getUser(id);
-      
-      // Check whatsapp connection status (mocked)
-      const whatsappStatus = "desconectado";
-      
-      // Get available tokens
-      const availableTokens = user?.availableTokens || 0;
-      
-      // Get dispatch status (mocked)
-      const dispatchStatus = "inativo";
-      
-      res.json({
-        leadsCount,
-        prospectsCount,
-        dispatchesCount,
-        whatsappStatus,
-        availableTokens,
-        dispatchStatus,
-        settings
-      });
+      res.json(updatedLead);
     } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar estatísticas" });
+      console.error("Erro ao atualizar lead:", error);
+      res.status(500).json({ message: "Erro ao atualizar lead" });
     }
   });
   
-  // Admin Routes
-  // Middleware para checar se o usuário é admin
-  const isAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/leads/:id/interactions", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const { id } = req.user as Express.User;
-      const user = await storage.getUser(id);
+      const leadId = parseInt(req.params.id);
+      const interactionData = insertLeadInteractionSchema.parse(req.body);
       
-      if (!user?.isAdmin) {
-        return res.status(403).json({ message: "Acesso negado. Permissão de administrador necessária." });
-      }
+      // Simula criação de interação
+      const newInteraction = {
+        ...interactionData,
+        id: Math.floor(Math.random() * 1000) + 1,
+        leadId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
       
-      next();
+      res.status(201).json(newInteraction);
     } catch (error) {
-      res.status(500).json({ message: "Erro ao verificar permissões" });
-    }
-  };
-  
-  // Listar todos os usuários (admin)
-  app.get("/api/admin/users", isAdmin, async (req, res) => {
-    try {
-      const users = await storage.getAllUsers();
-      
-      // Remove passwords from response
-      const usersWithoutPasswords = users.map(user => {
-        const { password, ...userWithoutPassword } = user;
-        return userWithoutPassword;
-      });
-      
-      res.json(usersWithoutPasswords);
-    } catch (error) {
-      console.error("Erro ao buscar usuários:", error);
-      res.status(500).json({ message: "Erro ao buscar usuários" });
+      console.error("Erro ao criar interação:", error);
+      res.status(500).json({ message: "Erro ao criar interação" });
     }
   });
   
-  // Criar usuário (admin)
-  app.post("/api/admin/users", isAdmin, async (req, res) => {
+  app.get("/api/leads/:id/interactions", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
     try {
-      const userData = insertUserSchema.parse(req.body);
+      const leadId = parseInt(req.params.id);
       
-      const existingUserByUsername = await storage.getUserByUsername(userData.username);
-      if (existingUserByUsername) {
-        return res.status(400).json({ message: "Nome de usuário já existe" });
-      }
+      // Simula lista de interações
+      const mockInteractions = [
+        {
+          id: 1,
+          leadId,
+          type: "Email",
+          content: "Primeiro contato enviado",
+          outcome: "Aguardando resposta",
+          createdBy: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          leadId,
+          type: "Ligação",
+          content: "Cliente interessado no produto X",
+          outcome: "Agendar demonstração",
+          createdBy: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
       
-      const existingUserByEmail = await storage.getUserByEmail(userData.email);
-      if (existingUserByEmail) {
-        return res.status(400).json({ message: "Email já está em uso" });
-      }
-      
-      // Hash da senha
-      const hashedPassword = await hashPassword(userData.password);
-      
-      const newUser = await storage.createUser({
-        ...userData,
-        password: hashedPassword
-      });
-      
-      // Remove password from response
-      const { password, ...userWithoutPassword } = newUser;
-      
-      res.status(201).json(userWithoutPassword);
+      res.json(mockInteractions);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
-      console.error("Erro ao criar usuário:", error);
-      res.status(500).json({ message: "Erro ao criar usuário" });
+      console.error("Erro ao buscar interações:", error);
+      res.status(500).json({ message: "Erro ao buscar interações" });
     }
   });
   
-  // Obter usuário por ID (admin)
-  app.get("/api/admin/users/:id", isAdmin, async (req, res) => {
+  app.get("/api/leads/recommendations", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
     try {
-      const userId = parseInt(req.params.id);
+      // Simula recomendações de leads
+      const mockRecommendations = [
+        {
+          id: 1,
+          leadId: 3,
+          reason: "Perfil similar a clientes convertidos",
+          score: 0.85,
+          actions: ["Ligar", "Enviar material sobre produto X"],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          leadId: 7,
+          reason: "Visitou site várias vezes na última semana",
+          score: 0.78,
+          actions: ["Oferecer demonstração", "Enviar proposta"],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
+      
+      res.json(mockRecommendations);
+    } catch (error) {
+      console.error("Erro ao buscar recomendações:", error);
+      res.status(500).json({ message: "Erro ao buscar recomendações" });
+    }
+  });
+  
+  // Rota para verificar o status da conexão com WhatsApp
+  app.get("/api/connection/status", async (req, res) => {
+    // Removendo a verificação de autenticação temporariamente para fins de depuração
+    // if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Usar um ID fixo para testes se não estiver autenticado
+      const id = req.isAuthenticated() ? (req.user as Express.User).id : 1;
+      
+      // Se não tiver status, retorna desconectado
+      if (!connectionStatus[id]) {
+        connectionStatus[id] = {
+          connected: false,
+          lastUpdated: new Date()
+        };
+      }
+      
+      res.json(connectionStatus[id]);
+    } catch (error) {
+      console.error("Erro ao verificar status:", error);
+      res.status(500).json({ message: "Erro ao verificar status" });
+    }
+  });
+  
+  // Rota para conectar o WhatsApp
+  app.post("/api/connection/connect", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
       const user = await storage.getUser(userId);
       
       if (!user) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
-      // Remove password from response
-      const { password, ...userWithoutPassword } = user;
+      // Preparar o QR Code ou status de conexão
+      connectionStatus[userId] = {
+        connected: false,
+        qrCode: "data:image/png;base64,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",
+        lastUpdated: new Date()
+      };
       
-      res.json(userWithoutPassword);
+      // Simular que após 8 segundos a conexão foi estabelecida
+      setTimeout(() => {
+        if (connectionStatus[userId]) {
+          connectionStatus[userId] = {
+            connected: true,
+            name: "Meu WhatsApp",
+            phone: "+5511999999999",
+            lastUpdated: new Date()
+          };
+        }
+      }, 8000);
+      
+      res.json(connectionStatus[userId]);
     } catch (error) {
-      console.error("Erro ao buscar usuário:", error);
-      res.status(500).json({ message: "Erro ao buscar usuário" });
+      console.error("Erro ao conectar:", error);
+      res.status(500).json({ message: "Erro ao conectar" });
     }
   });
   
-  // Atualizar usuário (admin)
+  // Rota para desconectar o WhatsApp
+  app.post("/api/connection/disconnect", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      
+      // Simular desconexão
+      connectionStatus[userId] = {
+        connected: false,
+        lastUpdated: new Date()
+      };
+      
+      res.json(connectionStatus[userId]);
+    } catch (error) {
+      console.error("Erro ao desconectar:", error);
+      res.status(500).json({ message: "Erro ao desconectar" });
+    }
+  });
+  
+  // Admin - Usuários
+  app.get("/api/admin/users", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Verificar se o usuário é admin
+      const user = await storage.getUser((req.user as Express.User).id);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+  
+  // Verificação de permissão de admin
+  const isAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    
+    try {
+      const user = await storage.getUser((req.user as Express.User).id);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado - requer permissão de administrador" });
+      }
+      next();
+    } catch (error) {
+      console.error("Erro ao verificar permissão de admin:", error);
+      res.status(500).json({ message: "Erro ao verificar permissão" });
+    }
+  };
+  
+  // Admin - Criar usuário
+  app.post("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      // Validar dados do novo usuário
+      const userData = insertUserSchema.parse(req.body);
+      
+      // Verificar se username já existe
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Nome de usuário já existe" });
+      }
+      
+      // Criptografar senha
+      const hashedPassword = await hashPassword(userData.password);
+      
+      // Criar novo usuário
+      const newUser = await storage.createUser({
+        ...userData,
+        password: hashedPassword
+      });
+      
+      // Remover senha da resposta
+      const { password, ...userResponse } = newUser;
+      
+      res.status(201).json(userResponse);
+    } catch (error) {
+      console.error("Erro ao criar usuário:", error);
+      res.status(500).json({ message: "Erro ao criar usuário" });
+    }
+  });
+  
+  // Admin - Atualizar usuário
   app.put("/api/admin/users/:id", isAdmin, async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
+      const userData = req.body;
       
-      // Validate update data
-      const updateData = insertUserSchema.partial().parse(req.body);
-      
-      // Check if user exists
+      // Verificar se usuário existe
       const existingUser = await storage.getUser(userId);
       if (!existingUser) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
-      // If updating username, check if it's already taken
-      if (updateData.username && updateData.username !== existingUser.username) {
-        const userWithUsername = await storage.getUserByUsername(updateData.username);
-        if (userWithUsername && userWithUsername.id !== userId) {
-          return res.status(400).json({ message: "Nome de usuário já existe" });
-        }
+      // Se a senha for fornecida, criptografá-la
+      if (userData.password) {
+        userData.password = await hashPassword(userData.password);
       }
       
-      // If updating email, check if it's already taken
-      if (updateData.email && updateData.email !== existingUser.email) {
-        const userWithEmail = await storage.getUserByEmail(updateData.email);
-        if (userWithEmail && userWithEmail.id !== userId) {
-          return res.status(400).json({ message: "Email já está em uso" });
-        }
-      }
+      // Atualizar usuário
+      const updatedUser = await storage.updateUser(userId, userData);
       
-      // If updating password, hash it
-      if (updateData.password) {
-        updateData.password = await hashPassword(updateData.password);
-      }
+      // Remover senha da resposta
+      const { password, ...userResponse } = updatedUser;
       
-      const updatedUser = await storage.updateUser(userId, updateData);
-      
-      if (!updatedUser) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
-      
-      // Remove password from response
-      const { password, ...userWithoutPassword } = updatedUser;
-      
-      res.json(userWithoutPassword);
+      res.json(userResponse);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
       console.error("Erro ao atualizar usuário:", error);
       res.status(500).json({ message: "Erro ao atualizar usuário" });
     }
   });
   
-  // Excluir usuário (admin)
+  // Admin - Excluir usuário
   app.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
       
-      // Não permitir que um admin exclua a si mesmo
+      // Verificar se usuário existe
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Impedir exclusão do próprio usuário admin
       if (userId === (req.user as Express.User).id) {
         return res.status(400).json({ message: "Não é possível excluir seu próprio usuário" });
       }
       
-      const success = await storage.deleteUser(userId);
-      
-      if (!success) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
+      // Excluir usuário
+      await storage.deleteUser(userId);
       
       res.status(204).send();
     } catch (error) {
@@ -571,54 +640,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Metrics/Charts
-  app.get("/api/metrics", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const metrics = await storage.getMetricsByUserId(id);
-      
-      // Sort metrics by year and month order
-      const monthOrder = [
-        "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-        "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
-      ];
-      
-      metrics.sort((a, b) => {
-        if (a.year !== b.year) return a.year - b.year;
-        return monthOrder.indexOf(a.month.toLowerCase()) - monthOrder.indexOf(b.month.toLowerCase());
-      });
-      
-      res.json(metrics);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar métricas" });
-    }
-  });
-  
-  // Settings
+  // Configurações de usuário
   app.get("/api/settings", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
     try {
-      const { id } = req.user as Express.User;
-      const settings = await storage.getSettingsByUserId(id);
+      let settings;
       
+      if (req.isAuthenticated()) {
+        settings = await storage.getSettingsForUser((req.user as Express.User).id);
+      }
+      
+      // Se não encontrou ou não está autenticado, retorna configurações padrão
       if (!settings) {
-        // Create default settings if they don't exist
-        const defaultSettings = await storage.createSettings({
-          userId: id,
+        settings = {
+          id: 0,
+          userId: 0,
           logoUrl: null,
-          primaryColor: "#047857",
-          secondaryColor: "#4f46e5",
+          primaryColor: "#047857",  // Padrão verde
+          secondaryColor: "#4f46e5", // Padrão indigo
           darkMode: false
-        });
-        
-        return res.json(defaultSettings);
+        };
       }
       
       res.json(settings);
     } catch (error) {
+      console.error("Erro ao buscar configurações:", error);
       res.status(500).json({ message: "Erro ao buscar configurações" });
     }
   });
@@ -627,126 +672,197 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const { id } = req.user as Express.User;
-      const settingsData = insertSettingsSchema.partial().parse(req.body);
+      const userId = (req.user as Express.User).id;
+      const settingsData = insertSettingsSchema.parse(req.body);
       
-      const updatedSettings = await storage.updateSettings(id, settingsData);
+      // Verificar se já existe configurações para o usuário
+      let settings = await storage.getSettingsForUser(userId);
       
-      if (!updatedSettings) {
-        return res.status(404).json({ message: "Configurações não encontradas" });
+      if (settings) {
+        // Atualizar configurações existentes
+        settings = await storage.updateSettings(settings.id, settingsData);
+      } else {
+        // Criar novas configurações
+        settings = await storage.createSettings({
+          ...settingsData,
+          userId
+        });
       }
       
-      res.json(updatedSettings);
+      res.json(settings);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Dados inválidos", errors: error.format() });
-      }
+      console.error("Erro ao atualizar configurações:", error);
       res.status(500).json({ message: "Erro ao atualizar configurações" });
     }
   });
   
-  // Connection API Endpoints - WhatsApp Connect via Webhook
-  // Status de conexão armazenado em memória
-  const connectionStatus: Record<number, ConnectionStatus> = {};
-  
-  app.get("/api/connection/status", async (req, res) => {
+  // Carregar informações do usuário atual
+  app.get("/api/user", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
-      const { id } = req.user as Express.User;
-      
-      // Se não tiver um status ainda, retorna desconectado
-      if (!connectionStatus[id]) {
-        connectionStatus[id] = { 
-          connected: false,
-          lastUpdated: new Date()
-        };
-      }
-      
-      res.json(connectionStatus[id]);
-    } catch (error) {
-      console.error("Erro ao verificar status da conexão:", error);
-      res.status(500).json({ message: "Erro ao verificar status da conexão" });
-    }
-  });
-  
-  app.post("/api/connection/connect", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const { id } = req.user as Express.User;
-      const user = await storage.getUser(id);
-
+      const user = await storage.getUser((req.user as Express.User).id);
       if (!user) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
-      // Usar a URL configurada pelo usuário
-      const webhookUrl = user.whatsappWebhookUrl;
+      // Remover senha da resposta
+      const { password, ...userResponse } = user;
       
-      if (!webhookUrl) {
-        return res.status(400).json({ message: "URL de webhook do WhatsApp não configurada para este usuário" });
-      }
-      
-      console.log(`Tentando conectar usando webhook: ${webhookUrl}`);
-      
-      try {
-        // Tenta fazer a chamada para o webhook para obter o QR code
-        const response = await axios.post(webhookUrl, {
-          action: "requestQrCode",
-          userId: id,
-          username: user.username,
-          callbackUrl: `${req.protocol}://${req.get('host')}/api/connection/callback`
-        });
-        
-        if (response.data && response.data.qrCode) {
-          // Se o webhook retornou um QR code, usamos ele
-          connectionStatus[id] = {
-            connected: false,
-            qrCode: response.data.qrCode,
-            lastUpdated: new Date()
-          };
-        } else {
-          // Se não tem QR code na resposta, usamos um código temporário para teste
-          connectionStatus[id] = {
-            connected: false,
-            qrCode: "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",
-            lastUpdated: new Date()
-          };
-        }
-      } catch (error) {
-        console.error("Erro ao conectar via webhook:", error);
-        
-        // Em caso de erro na chamada do webhook, usamos QR code de teste
-        connectionStatus[id] = {
-          connected: false,
-          qrCode: "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",
-          lastUpdated: new Date()
-        };
-      }
-        
-      return res.json(connectionStatus[id]);
+      res.json(userResponse);
     } catch (error) {
-      console.error("Erro ao iniciar conexão:", error);
-      res.status(500).json({ message: "Erro ao iniciar conexão" });
+      console.error("Erro ao buscar usuário:", error);
+      res.status(500).json({ message: "Erro ao buscar usuário" });
     }
   });
-
-  // Prospecção routes - corrigido para usar webhook automático
+  
+  // Atualizar perfil do usuário atual
+  app.put("/api/user", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const userData = req.body;
+      
+      // Se a senha for fornecida, criptografá-la
+      if (userData.password) {
+        userData.password = await hashPassword(userData.password);
+      }
+      
+      // Atualizar usuário
+      const updatedUser = await storage.updateUser(userId, userData);
+      
+      // Remover senha da resposta
+      const { password, ...userResponse } = updatedUser;
+      
+      res.json(userResponse);
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
+      res.status(500).json({ message: "Erro ao atualizar perfil" });
+    }
+  });
+  
+  // Atualizar senha do usuário atual
+  app.put("/api/user/password", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Senha atual e nova senha são obrigatórias" });
+      }
+      
+      // Verificar se a senha atual está correta
+      const user = await storage.getUser(userId);
+      if (!user || !(await comparePasswords(currentPassword, user.password))) {
+        return res.status(400).json({ message: "Senha atual incorreta" });
+      }
+      
+      // Atualizar senha
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(userId, { password: hashedPassword });
+      
+      res.status(200).json({ message: "Senha atualizada com sucesso" });
+    } catch (error) {
+      console.error("Erro ao atualizar senha:", error);
+      res.status(500).json({ message: "Erro ao atualizar senha" });
+    }
+  });
+  
+  // Estatísticas do dashboard
+  app.get("/api/dashboard/stats", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Dados mockados para o dashboard
+      const stats = {
+        leads: {
+          total: 156,
+          novosMes: 32,
+          emNegociacao: 48,
+          convertidos: 15
+        },
+        prospecções: {
+          realizadas: 24,
+          resultados: 347,
+          pendentes: 2
+        },
+        atendimentos: {
+          total: 189,
+          concluidos: 175,
+          emAndamento: 14
+        },
+        dashboardData: {
+          conversoes: [12, 19, 15, 32, 22, 14, 15, 21, 33, 28, 19, 12],
+          interacoes: [45, 56, 62, 51, 49, 63, 72, 68, 55, 49, 72, 50]
+        }
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas:", error);
+      res.status(500).json({ message: "Erro ao buscar estatísticas" });
+    }
+  });
+  
+  // Dados de métricas
+  app.get("/api/metrics", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      // Dados mockados para métricas
+      const currentYear = new Date().getFullYear();
+      const metrics = [
+        {
+          month: "Janeiro",
+          year: currentYear,
+          leadsCount: 24,
+          prospectsCount: 45,
+          dispatchesCount: 120
+        },
+        {
+          month: "Fevereiro",
+          year: currentYear,
+          leadsCount: 32,
+          prospectsCount: 52,
+          dispatchesCount: 140
+        },
+        {
+          month: "Março",
+          year: currentYear,
+          leadsCount: 45,
+          prospectsCount: 68,
+          dispatchesCount: 155
+        },
+        {
+          month: "Abril",
+          year: currentYear,
+          leadsCount: 52,
+          prospectsCount: 72,
+          dispatchesCount: 180
+        }
+      ];
+      
+      res.json(metrics);
+    } catch (error) {
+      console.error("Erro ao buscar métricas:", error);
+      res.status(500).json({ message: "Erro ao buscar métricas" });
+    }
+  });
+  
+  // Prospecção
   app.get("/api/prospecting/searches", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       const userId = (req.user as Express.User).id;
-      console.log(`🔍 PROSPECTING: Usuário ${userId} (${req.user.username}) solicitou lista de pesquisas`);
+      console.log(`Buscando pesquisas para o usuário ${userId}`);
       
+      // Buscar pesquisas do usuário
       const searches = await storage.getProspectingSearches(userId);
-      console.log(`📊 PROSPECTING: Query retornou ${searches.length} pesquisas`);
-      
-      // Log de segurança detalhado
-      searches.forEach((search, index) => {
-        console.log(`✅ PROSPECTING: ${index + 1}. ID: ${search.id}, Segmento: ${search.segment}, Status: ${search.status}`);
-      });
+      console.log(`Encontradas ${searches.length} pesquisas para o usuário ${userId}:`, searches);
       
       res.json(searches);
     } catch (error) {
@@ -790,121 +906,443 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fazer a chamada para o webhook
       console.log("Chamando webhook de prospecção:", prospectingWebhookUrl);
         
-      try {
-        // Modificado para usar GET em vez de POST, conforme exigido pelo webhook configurado no n8n
-        const webhookResponse = await axios.get(prospectingWebhookUrl, {
-          params: {
-            segment: searchData.segment,
-            city: searchData.city,
-            filters: searchData.filters
+        try {
+          const webhookResponse = await axios.get(prospectingWebhookUrl, {
+            params: {
+              segment: searchData.segment,
+              city: searchData.city,
+              filters: searchData.filters
+            }
+          });
+          
+          // Marcar pesquisa como concluída
+          const newSearch = await storage.updateProspectingSearch(search.id, {
+            status: "concluido",
+            completedAt: new Date(),
+            leadsFound: Array.isArray(webhookResponse.data) ? webhookResponse.data.length : 
+              (webhookResponse.data && Array.isArray(webhookResponse.data.data)) ? webhookResponse.data.data.length : 0
+          });
+          
+          // Processar dados retornados
+          if (Array.isArray(webhookResponse.data)) {
+            // Se for um array de resultados
+            // Para cada item no array, criar um resultado
+            await Promise.all(webhookResponse.data.map(async (item) => {
+              try {
+                // Adaptar campos com base no formato dos dados
+                const nome = item.nome || item.name || item.razaoSocial || null;
+                const telefone = item.telefone || item.phone || item.celular || null;
+                const email = item.email || null;
+                const endereco = item.endereco || item.address || null;
+                const tipo = item.tipo || item.type || null;
+                const cidade = item.cidade || item.city || searchData.city || null;
+                const estado = item.estado || item.state || item.uf || null;
+                const site = item.site || item.website || null;
+                
+                // Criar resultado no banco
+                await storage.createProspectingResult({
+                  searchId: newSearch.id,
+                  name: nome,
+                  phone: telefone,
+                  email: email,
+                  address: endereco,
+                  type: tipo,
+                  site: site,
+                  cidade: cidade,
+                  estado: estado
+                });
+              } catch (itemError) {
+                console.error("Erro ao processar item de resultado:", itemError);
+              }
+            }));
+          } else if (webhookResponse.data && Array.isArray(webhookResponse.data.data)) {
+            // Se for um objeto com array de dados
+            await Promise.all(webhookResponse.data.data.map(async (item) => {
+              try {
+                const nome = item.nome || item.name || item.razaoSocial || null;
+                const telefone = item.telefone || item.phone || item.celular || null;
+                const email = item.email || null;
+                const endereco = item.endereco || item.address || null;
+                const tipo = item.tipo || item.type || null;
+                const cidade = item.cidade || item.city || searchData.city || null;
+                const estado = item.estado || item.state || item.uf || null;
+                const site = item.site || item.website || null;
+                
+                await storage.createProspectingResult({
+                  searchId: newSearch.id,
+                  name: nome,
+                  phone: telefone,
+                  email: email,
+                  address: endereco,
+                  type: tipo,
+                  site: site,
+                  cidade: cidade,
+                  estado: estado
+                });
+              } catch (itemError) {
+                console.error("Erro ao processar item de resultado:", itemError);
+              }
+            }));
           }
-        });
-        
-        console.log("Resposta do webhook:", JSON.stringify(webhookResponse.data));
-        
-        // Verificar formato dos dados e calcular o número de leads encontrados
-        let leadsCount = 0;
-        if (Array.isArray(webhookResponse.data)) {
-          leadsCount = webhookResponse.data.length;
-        } else if (webhookResponse.data && Array.isArray(webhookResponse.data.data)) {
-          leadsCount = webhookResponse.data.data.length;
+          
+          console.log("Busca criada com dados do webhook:", newSearch);
+          return res.status(201).json(newSearch);
+        } catch (webhookError) {
+          console.error("Erro ao chamar webhook:", webhookError);
+          
+          // Marcar pesquisa como erro
+          const errorSearch = await storage.updateProspectingSearch(search.id, {
+            status: "erro",
+            completedAt: new Date()
+          });
+          
+          return res.status(400).json({
+            message: "Erro ao processar busca via webhook",
+            error: webhookError.message,
+            search: errorSearch
+          });
         }
-        
-        // Marcar pesquisa como concluída
-        const newSearch = await storage.updateProspectingSearch(search.id, {
-          status: "concluido",
-          leadsFound: leadsCount,
-          dispatchesPending: leadsCount
-        });
-        
-        // Processar dados retornados
-        if (Array.isArray(webhookResponse.data)) {
-          // Se for um array de resultados
-          await Promise.all(webhookResponse.data.map(async (item: any) => {
-            try {
-              // Adaptar campos com base no formato dos dados
-              const nome = item.nome || item.name || item.title || item.razaoSocial || null;
-              const telefone = item.telefone || item.phone || item.celular || null;
-              const email = item.email || null;
-              const endereco = item.endereco || item.address || null;
-              const tipo = item.tipo || item.type || item.categoryName || null;
-              const cidade = item.cidade || item.city || searchData.city || null;
-              const estado = item.estado || item.state || item.uf || null;
-              const site = item.site || item.website || item.url || null;
-              
-              console.log("Processando item:", {
-                nome, telefone, email, endereco, tipo, site, cidade, estado
-              });
-              
-              // Criar resultado no banco - importante usar os nomes corretos das colunas
-              await storage.createProspectingResult({
-                searchId: newSearch!.id,
-                name: nome,
-                phone: telefone,
-                email: email,
-                address: endereco,
-                type: tipo,
-                site: site,
-                cidade: cidade,
-                estado: estado
-              });
-            } catch (itemError) {
-              console.error("Erro ao processar item de resultado:", itemError);
-            }
-          }));
-        } else if (webhookResponse.data && Array.isArray(webhookResponse.data.data)) {
-          // Se for um objeto com array de dados
-          await Promise.all(webhookResponse.data.data.map(async (item: any) => {
-            try {
-              const nome = item.nome || item.name || item.razaoSocial || null;
-              const telefone = item.telefone || item.phone || item.celular || null;
-              const email = item.email || null;
-              const endereco = item.endereco || item.address || null;
-              const tipo = item.tipo || item.type || null;
-              const cidade = item.cidade || item.city || searchData.city || null;
-              const estado = item.estado || item.state || item.uf || null;
-              const site = item.site || item.website || null;
-              
-              // Criar resultado no banco - importante usar os nomes corretos das colunas
-              await storage.createProspectingResult({
-                searchId: newSearch!.id,
-                name: nome,
-                phone: telefone,
-                email: email,
-                address: endereco,
-                type: tipo,
-                site: site,
-                cidade: cidade,
-                estado: estado
-              });
-            } catch (itemError) {
-              console.error("Erro ao processar item de resultado:", itemError);
-            }
-          }));
-        }
-        
-        console.log("Busca criada com dados do webhook:", newSearch);
-        return res.status(201).json(newSearch);
-      } catch (webhookError: any) {
-        console.error("Erro ao chamar webhook:", webhookError);
-        
-        // Marcar pesquisa como erro
-        const errorSearch = await storage.updateProspectingSearch(search.id, {
-          status: "erro"
-        });
-        
-        return res.status(400).json({
-          message: "Erro ao processar busca via webhook",
-          error: webhookError.message,
-          search: errorSearch
-        });
-      }
     } catch (error) {
       console.error("Erro ao criar pesquisa:", error);
       res.status(500).json({ message: "Erro ao criar pesquisa" });
     }
   });
-
+  
+  app.get("/api/prospecting/searches/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar pesquisa
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      // Verificar se a pesquisa pertence ao usuário
+      if (search.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      res.json(search);
+    } catch (error) {
+      console.error("Erro ao buscar pesquisa:", error);
+      res.status(500).json({ message: "Erro ao buscar pesquisa" });
+    }
+  });
+  
+  app.get("/api/prospecting/searches/:id/results", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar pesquisa para verificar propriedade
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      // Verificar se a pesquisa pertence ao usuário
+      if (search.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Buscar resultados
+      const results = await storage.getProspectingResults(searchId);
+      
+      res.json(results);
+    } catch (error) {
+      console.error("Erro ao buscar resultados:", error);
+      res.status(500).json({ message: "Erro ao buscar resultados" });
+    }
+  });
+  
+  app.post("/api/prospecting/searches/:id/dispatch", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar pesquisa
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      // Verificar se a pesquisa pertence ao usuário
+      if (search.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Buscar usuário para obter webhook de integração
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      if (!user.dispatchesWebhookUrl) {
+        return res.status(400).json({ message: "Webhook de envios não configurado" });
+      }
+      
+      // Buscar resultados
+      const results = await storage.getProspectingResults(searchId);
+      
+      if (results.length === 0) {
+        return res.status(400).json({ message: "Não há resultados para enviar" });
+      }
+      
+      // Preparar histórico de envio
+      const historyEntry = await storage.createProspectingDispatchHistory({
+        searchId,
+        executedBy: userId,
+        resultsCount: results.length,
+        success: true
+      });
+      
+      try {
+        // Chamar webhook com os resultados
+        await axios.post(user.dispatchesWebhookUrl, {
+          searchId,
+          searchInfo: {
+            segment: search.segment,
+            city: search.city,
+            filters: search.filters
+          },
+          results: results
+        });
+        
+        // Marcar resultados como enviados
+        const now = new Date();
+        await Promise.all(results.map(async (result) => {
+          await storage.updateProspectingResult(result.id, {
+            dispatchedAt: now
+          });
+        }));
+        
+        // Atualizar contadores na pesquisa
+        await storage.updateProspectingSearch(searchId, {
+          dispatchesDone: (search.dispatchesDone || 0) + 1,
+          dispatchesPending: 0
+        });
+        
+        res.json({
+          message: "Resultados enviados com sucesso",
+          dispatchCount: results.length,
+          historyId: historyEntry.id
+        });
+      } catch (webhookError) {
+        console.error("Erro ao chamar webhook de envios:", webhookError);
+        
+        // Atualizar histórico com erro
+        await storage.updateProspectingDispatchHistory(historyEntry.id, {
+          success: false,
+          errorMessage: webhookError.message || "Erro desconhecido"
+        });
+        
+        res.status(500).json({
+          message: "Erro ao enviar resultados",
+          error: webhookError.message
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao processar envio:", error);
+      res.status(500).json({ message: "Erro ao processar envio" });
+    }
+  });
+  
+  // Agendamento de envios
+  app.get("/api/prospecting/searches/:id/schedules", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar pesquisa para verificar propriedade
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      // Verificar se a pesquisa pertence ao usuário
+      if (search.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Buscar agendamentos
+      const schedules = await storage.getProspectingSchedules(searchId);
+      
+      res.json(schedules);
+    } catch (error) {
+      console.error("Erro ao buscar agendamentos:", error);
+      res.status(500).json({ message: "Erro ao buscar agendamentos" });
+    }
+  });
+  
+  app.post("/api/prospecting/searches/:id/schedules", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar pesquisa
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      // Verificar se a pesquisa pertence ao usuário
+      if (search.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Validar data do agendamento
+      const { scheduledAt } = req.body;
+      
+      if (!scheduledAt) {
+        return res.status(400).json({ message: "Data de agendamento é obrigatória" });
+      }
+      
+      const scheduledDate = new Date(scheduledAt);
+      
+      if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+        return res.status(400).json({ message: "Data de agendamento inválida ou no passado" });
+      }
+      
+      // Criar agendamento
+      const schedule = await storage.createProspectingSchedule({
+        searchId,
+        scheduledAt: scheduledDate,
+        createdBy: userId,
+        status: "pendente"
+      });
+      
+      // Atualizar contador na pesquisa
+      await storage.updateProspectingSearch(searchId, {
+        dispatchesPending: (search.dispatchesPending || 0) + 1
+      });
+      
+      res.status(201).json(schedule);
+    } catch (error) {
+      console.error("Erro ao criar agendamento:", error);
+      res.status(500).json({ message: "Erro ao criar agendamento" });
+    }
+  });
+  
+  app.get("/api/prospecting/searches/:id/history", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar pesquisa para verificar propriedade
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      // Verificar se a pesquisa pertence ao usuário
+      if (search.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Buscar histórico
+      const history = await storage.getProspectingDispatchHistory(searchId);
+      
+      res.json(history);
+    } catch (error) {
+      console.error("Erro ao buscar histórico:", error);
+      res.status(500).json({ message: "Erro ao buscar histórico" });
+    }
+  });
+  
+  // Recomendações de leads
+  app.get("/api/lead-recommendations", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      
+      // Dados mockados para recomendações
+      const mockRecommendations = [
+        {
+          id: 1,
+          leadId: 102,
+          leadName: "João da Silva",
+          company: "Farmácia Saúde Total",
+          score: 87,
+          reason: "Alto engajamento nas últimas comunicações",
+          lastActivity: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          status: "pendente"
+        },
+        {
+          id: 2,
+          leadId: 145,
+          leadName: "Maria Oliveira",
+          company: "Supermercado Bom Preço",
+          score: 92,
+          reason: "Visitou páginas de produtos premium",
+          lastActivity: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          status: "pendente"
+        },
+        {
+          id: 3,
+          leadId: 78,
+          leadName: "Carlos Santos",
+          company: "Auto Peças Velozes",
+          score: 75,
+          reason: "Perfil similar a clientes convertidos recentemente",
+          lastActivity: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+          status: "vista"
+        }
+      ];
+      
+      res.json(mockRecommendations);
+    } catch (error) {
+      console.error("Erro ao buscar recomendações:", error);
+      res.status(500).json({ message: "Erro ao buscar recomendações" });
+    }
+  });
+  
+  app.put("/api/lead-recommendations/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const recommendationId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!status || !["pendente", "vista", "ignorada", "convertida"].includes(status)) {
+        return res.status(400).json({ message: "Status inválido" });
+      }
+      
+      // Simulação de atualização bem-sucedida
+      res.json({
+        id: recommendationId,
+        status,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar status da recomendação:", error);
+      res.status(500).json({ message: "Erro ao atualizar status da recomendação" });
+    }
+  });
+  
+  // Configure HTTP server
   const httpServer = createServer(app);
+  
   return httpServer;
 }
