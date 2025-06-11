@@ -96,14 +96,40 @@ export default function ProspectingPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Query para buscar dados de prospecção
+  // Query para buscar dados de prospecção - VERSÃO SEGURA SEM CACHE
   const { data: searches, isLoading: isLoadingSearches } = useQuery({
-    queryKey: ["/api/prospecting/searches"],
+    queryKey: ["/api/prospecting/searches", Date.now()], // Timestamp único para evitar cache
     queryFn: async () => {
-      const res = await fetch("/api/prospecting/searches");
+      console.log(`🔍 Frontend: Buscando pesquisas para usuário ${user?.id} (${user?.username})`);
+      const res = await fetch("/api/prospecting/searches", {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!res.ok) throw new Error("Falha ao carregar buscas de prospecção");
-      return await res.json() as ProspectingSearch[];
-    }
+      const data = await res.json() as ProspectingSearch[];
+      
+      // Verificação de segurança no frontend
+      const invalidSearches = data.filter(search => search.userId !== user?.id);
+      if (invalidSearches.length > 0) {
+        console.error(`🚨 Frontend: ${invalidSearches.length} pesquisas de outros usuários detectadas:`, invalidSearches);
+        toast({
+          title: "Erro de segurança detectado",
+          description: "Dados de outros usuários foram bloqueados",
+          variant: "destructive"
+        });
+        return data.filter(search => search.userId === user?.id);
+      }
+      
+      console.log(`✅ Frontend: ${data.length} pesquisas válidas carregadas`);
+      return data;
+    },
+    staleTime: 0, // Sempre buscar dados frescos
+    gcTime: 0, // Não manter em cache (gcTime substituiu cacheTime na v5)
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always'
   });
 
   // Query para buscar resultados de uma busca específica

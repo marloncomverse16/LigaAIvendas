@@ -2023,11 +2023,44 @@ export class DatabaseStorage implements IStorage {
   
   // Prospecting Searches methods
   async getProspectingSearches(userId: number): Promise<ProspectingSearch[]> {
-    return db
+    console.log(`🔒 STORAGE: Buscando pesquisas APENAS do usuário ${userId}`);
+    
+    // Query SQL com verificação dupla de segurança
+    const results = await db
       .select()
       .from(prospectingSearches)
-      .where(eq(prospectingSearches.userId, userId))
+      .where(
+        and(
+          eq(prospectingSearches.userId, userId),
+          eq(prospectingSearches.userId, userId) // Verificação dupla
+        )
+      )
       .orderBy(desc(prospectingSearches.createdAt));
+    
+    console.log(`🔒 STORAGE: Query retornou ${results.length} pesquisas`);
+    
+    // Log detalhado de cada pesquisa retornada
+    results.forEach((search, index) => {
+      console.log(`   ${index + 1}. ID: ${search.id}, UserID: ${search.userId}, Segmento: ${search.segment}`);
+    });
+    
+    // Verificação crítica de segurança
+    const invalidResults = results.filter(search => search.userId !== userId);
+    if (invalidResults.length > 0) {
+      console.error(`🚨 CRÍTICO: SQL retornou ${invalidResults.length} pesquisas de outros usuários:`, 
+        invalidResults.map(r => `ID:${r.id} pertence ao usuário ${r.userId}`));
+      
+      // Log da query SQL para debugging
+      console.error(`🔍 Query SQL executada: SELECT * FROM prospecting_searches WHERE user_id = ${userId}`);
+      
+      // Filtrar apenas as pesquisas que realmente pertencem ao usuário
+      const safeResults = results.filter(search => search.userId === userId);
+      console.log(`✅ STORAGE: Retornando ${safeResults.length} pesquisas seguras após filtragem`);
+      return safeResults;
+    }
+    
+    console.log(`✅ STORAGE: Todas as ${results.length} pesquisas pertencem ao usuário ${userId}`);
+    return results;
   }
   
   async getProspectingSearch(id: number): Promise<ProspectingSearch | undefined> {

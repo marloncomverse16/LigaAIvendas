@@ -1542,28 +1542,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Prospecção
+  // Prospecção - VERSÃO SEGURA COM VERIFICAÇÃO DUPLA
   app.get("/api/prospecting/searches", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
     try {
       const userId = (req.user as Express.User).id;
-      console.log(`🔍 PROSPECTING: Usuário ${userId} (${(req.user as Express.User).username}) solicitou lista de pesquisas`);
+      const username = (req.user as Express.User).username;
+      console.log(`🔍 PROSPECTING: Usuário ${userId} (${username}) solicitou lista de pesquisas`);
       
       // Buscar pesquisas do usuário com verificação de segurança
-      const searches = await storage.getProspectingSearches(userId);
-      console.log(`✅ PROSPECTING: Encontradas ${searches.length} pesquisas para o usuário ${userId}`);
+      const allSearches = await storage.getProspectingSearches(userId);
+      console.log(`📊 PROSPECTING: Query retornou ${allSearches.length} pesquisas`);
       
-      // Log de segurança - verificar se há vazamento
-      searches.forEach((search, index) => {
+      // VERIFICAÇÃO DUPLA DE SEGURANÇA - Filtrar qualquer dado que não pertença ao usuário
+      const safeSearches = allSearches.filter(search => {
         if (search.userId !== userId) {
-          console.error(`🚨 VAZAMENTO DE DADOS: Busca ${search.id} pertence ao usuário ${search.userId}, mas foi retornada para usuário ${userId}`);
-        } else {
-          console.log(`✅ Busca ${index + 1}: ID ${search.id}, Segmento: ${search.segment}, Status: ${search.status}`);
+          console.error(`🚨 VAZAMENTO BLOQUEADO: Busca ${search.id} (usuário ${search.userId}) foi filtrada para proteger usuário ${userId}`);
+          return false;
         }
+        return true;
       });
       
-      res.json(searches);
+      console.log(`✅ PROSPECTING: ${safeSearches.length} pesquisas seguras retornadas para usuário ${userId}`);
+      
+      // Log detalhado das pesquisas válidas
+      safeSearches.forEach((search, index) => {
+        console.log(`   ${index + 1}. ID: ${search.id}, Segmento: ${search.segment}, Status: ${search.status}`);
+      });
+      
+      // Adicionar headers para evitar cache
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      
+      res.json(safeSearches);
     } catch (error) {
       console.error("Erro ao buscar pesquisas:", error);
       res.status(500).json({ message: "Erro ao buscar pesquisas" });
