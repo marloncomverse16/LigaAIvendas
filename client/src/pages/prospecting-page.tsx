@@ -145,7 +145,14 @@ export default function ProspectingPage() {
 
   // Obter o webhook de prospecção do servidor conectado
   const connectedServer = userServers?.find((server: any) => server.isDefault) || userServers?.[0];
-  const prospectingWebhookUrl = connectedServer?.prospectingWebhookUrl || "";
+  
+  // Debug do servidor conectado
+  console.log("Servidor conectado:", connectedServer);
+  
+  // Tentar diferentes campos para o webhook de prospecção
+  const prospectingWebhookUrl = connectedServer?.prospectingWebhookUrl || 
+                                connectedServer?.contactsWebhookUrl || 
+                                "https://webhook.primerastreadores.com/webhook/97837937-9ef7-4a00-947f-25208531e8d0";
 
   // Form para criar nova busca
   const form = useForm<z.infer<typeof prospectingSearchSchema>>({
