@@ -102,11 +102,18 @@ export default function ReportsPage() {
         leadsRes.json()
       ]);
 
+      // Verificar se são dados vazios de um novo usuário
+      const totalData = (conversations?.length || 0) + (messages?.length || 0) + 
+                       (billing?.length || 0) + (leads?.length || 0);
+      
+      console.log('📊 Total de dados Meta carregados:', totalData);
+
       setReportData({
         conversations: conversations || [],
         messages: messages || [],
         billing: billing || [],
-        leads: leads || []
+        leads: leads || [],
+        isEmpty: totalData === 0
       });
     } catch (error) {
       toast({
