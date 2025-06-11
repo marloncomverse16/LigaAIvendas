@@ -2833,9 +2833,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = req.user!.id;
+      const user = req.user!;
       const { pool } = await import('./db');
       
-      console.log(`📋 Buscando contatos para usuário ${userId}...`);
+      console.log(`📋 Buscando contatos para usuário ${userId} (${user.username})...`);
       
       // Verificar se a tabela contacts existe e tem dados
       const checkTableQuery = `
@@ -2845,7 +2846,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
       
       const checkResult = await pool.query(checkTableQuery, [userId]);
-      console.log(`📊 Total de contatos na tabela para usuário ${userId}: ${checkResult.rows[0].total}`);
+      const totalContacts = parseInt(checkResult.rows[0].total);
+      console.log(`📊 Total de contatos na tabela para usuário ${userId}: ${totalContacts}`);
       
       // Buscar contatos do banco de dados usando SQL nativo
       const contactsQuery = `
@@ -2863,10 +2865,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (contactsResult.rows.length > 0) {
         console.log('📋 Primeiros 3 contatos:', contactsResult.rows.slice(0, 3));
       }
+
+      // Se o usuário não tem contatos, verificar se é um usuário novo
+      if (totalContacts === 0) {
+        console.log(`⚠️ Usuário ${userId} não possui contatos. Verificando se é um usuário novo...`);
+        
+        // Verificar quando o usuário foi criado
+        const userCreatedQuery = `
+          SELECT created_at, username 
+          FROM users 
+          WHERE id = $1
+        `;
+        
+        const userResult = await pool.query(userCreatedQuery, [userId]);
+        
+        if (userResult.rows.length > 0) {
+          const userCreatedAt = new Date(userResult.rows[0].created_at);
+          const now = new Date();
+          const daysDiff = Math.floor((now.getTime() - userCreatedAt.getTime()) / (1000 * 60 * 60 * 24));
+          
+          console.log(`📅 Usuário criado há ${daysDiff} dias`);
+          
+          if (daysDiff <= 1) { // Usuário criado há menos de 1 dia
+            console.log(`🔧 Usuário novo detectado. Iniciando configuração inicial...`);
+            
+            // Verificar se há conexão com servidor configurada
+            const serverCheckQuery = `
+              SELECT us.id, s.name, s.api_url
+              FROM user_servers us
+              JOIN servers s ON us.server_id = s.id
+              WHERE us.user_id = $1
+              LIMIT 1
+            `;
+            
+            const serverResult = await pool.query(serverCheckQuery, [userId]);
+            
+            if (serverResult.rows.length === 0) {
+              console.log(`⚠️ Usuário ${userId} não possui servidor configurado`);
+              return res.json({
+                success: true,
+                contacts: [],
+                isNewUser: true,
+                needsServerSetup: true,
+                message: "Usuário novo sem servidor configurado"
+              });
+            } else {
+              console.log(`✅ Servidor configurado: ${serverResult.rows[0].name}`);
+              return res.json({
+                success: true,
+                contacts: [],
+                isNewUser: true,
+                needsServerSetup: false,
+                needsSync: true,
+                message: "Usuário novo com servidor configurado - precisa sincronizar contatos"
+              });
+            }
+          }
+        }
+      }
       
       res.json({
         success: true,
-        contacts: contactsResult.rows
+        contacts: contactsResult.rows,
+        isNewUser: false
       });
     } catch (error) {
       console.error('❌ Erro ao buscar contatos:', error);

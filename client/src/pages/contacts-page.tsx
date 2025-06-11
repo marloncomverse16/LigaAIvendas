@@ -57,12 +57,15 @@ export default function ContactsPage() {
     refetchOnWindowFocus: false,
   });
   
-  // Sincronizar contatos automaticamente ao carregar a página
+  // Sincronizar contatos automaticamente para novos usuários
   useEffect(() => {
-    // Verificamos se não temos contatos já carregados, se não temos, sincronizamos
-    if (!isLoading && contactsData && (!contactsData.contacts || contactsData.contacts.length === 0)) {
-      console.log('Sem contatos encontrados. Iniciando sincronização automática...');
-      syncMutation.mutate();
+    if (!isLoading && contactsData) {
+      // Para usuários novos que precisam sincronizar
+      if (contactsData.isNewUser && contactsData.needsSync && 
+          (!contactsData.contacts || contactsData.contacts.length === 0)) {
+        console.log('Novo usuário detectado. Iniciando sincronização automática...');
+        syncMutation.mutate();
+      }
     }
   }, [contactsData, isLoading]);
 
@@ -180,9 +183,25 @@ export default function ContactsPage() {
             </div>
           ) : filteredContacts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {searchTerm
-                ? "Nenhum contato encontrado para esta busca."
-                : "Nenhum contato disponível. Clique em Sincronizar para importar seus contatos."}
+              {searchTerm ? (
+                "Nenhum contato encontrado para esta busca."
+              ) : contactsData?.isNewUser ? (
+                contactsData?.needsServerSetup ? (
+                  <div className="space-y-2">
+                    <p>Bem-vindo! Para começar, você precisa configurar um servidor.</p>
+                    <p className="text-sm">Acesse o painel administrativo para configurar sua conexão.</p>
+                  </div>
+                ) : contactsData?.needsSync ? (
+                  <div className="space-y-2">
+                    <p>Conta configurada! Sincronizando seus contatos automaticamente...</p>
+                    <p className="text-sm">Este processo pode levar alguns segundos.</p>
+                  </div>
+                ) : (
+                  "Nenhum contato disponível. Clique em Sincronizar para importar seus contatos."
+                )
+              ) : (
+                "Nenhum contato disponível. Clique em Sincronizar para importar seus contatos."
+              )}
             </div>
           ) : (
             <Table>
