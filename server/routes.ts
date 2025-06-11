@@ -1548,11 +1548,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = (req.user as Express.User).id;
-      console.log(`Buscando pesquisas para o usuário ${userId}`);
+      console.log(`🔍 PROSPECTING: Usuário ${userId} (${(req.user as Express.User).username}) solicitou lista de pesquisas`);
       
-      // Buscar pesquisas do usuário (corrigido o nome da função)
+      // Buscar pesquisas do usuário com verificação de segurança
       const searches = await storage.getProspectingSearches(userId);
-      console.log(`Encontradas ${searches.length} pesquisas para o usuário ${userId}:`, searches);
+      console.log(`✅ PROSPECTING: Encontradas ${searches.length} pesquisas para o usuário ${userId}`);
+      
+      // Log de segurança - verificar se há vazamento
+      searches.forEach((search, index) => {
+        if (search.userId !== userId) {
+          console.error(`🚨 VAZAMENTO DE DADOS: Busca ${search.id} pertence ao usuário ${search.userId}, mas foi retornada para usuário ${userId}`);
+        } else {
+          console.log(`✅ Busca ${index + 1}: ID ${search.id}, Segmento: ${search.segment}, Status: ${search.status}`);
+        }
+      });
       
       res.json(searches);
     } catch (error) {
