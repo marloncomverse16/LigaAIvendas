@@ -1932,19 +1932,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
       
-      // Buscar usuário para obter webhook de integração
+      // Buscar usuário para obter webhook de integração (temporário até migração completa)
       const user = await storage.getUser(userId);
       
       if (!user) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
-      if (!user.dispatchesWebhookUrl) {
-        return res.status(400).json({ message: "Webhook de envios não configurado" });
+      // Por enquanto usar o webhook do usuário até a migração para servidores estar completa
+      const webhookUrl = user.dispatchesWebhookUrl || user.prospectingWebhookUrl;
+      
+      if (!webhookUrl) {
+        return res.status(400).json({ message: "Webhook de prospecção não configurado" });
       }
       
-      // Buscar resultados
-      const results = await storage.getProspectingResults(searchId);
+      // Buscar resultados com verificação de usuário
+      const results = await storage.getProspectingResults(searchId, userId);
       
       if (results.length === 0) {
         return res.status(400).json({ message: "Não há resultados para enviar" });
@@ -1959,8 +1962,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       try {
-        // Chamar webhook com os resultados - modificado para usar GET em vez de POST
-        await axios.get(user.dispatchesWebhookUrl, {
+        // Chamar webhook de prospecção do usuário
+        await axios.get(webhookUrl, {
           params: {
             searchId,
             segment: search.segment,
