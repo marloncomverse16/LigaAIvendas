@@ -4,7 +4,7 @@ import passport from "passport";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { insertUserSchema, insertProspectingSearchSchema } from "@shared/schema";
+import { insertUserSchema, insertProspectingSearchSchema, insertProspectingResultSchema } from "@shared/schema";
 import type { User as SelectUser } from "@shared/schema";
 import axios from "axios";
 
@@ -22,6 +22,14 @@ async function comparePasswords(supplied: string, stored: string) {
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
+
+interface ConnectionData {
+  connected: boolean;
+  qrCode?: string;
+  lastUpdated: Date;
+}
+
+const connectionCache = new Map<number, ConnectionData>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth Routes
@@ -64,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(req.user);
   });
 
-  // Prospecting Routes com Webhook Automático
+  // Prospecting Routes
   app.get("/api/prospecting/searches", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     
@@ -85,12 +93,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as Express.User).id;
       const searchData = insertProspectingSearchSchema.parse(req.body);
       
-      console.log(`🔍 Iniciando nova pesquisa de prospecção para usuário ${userId}`);
-      
       // Buscar o servidor conectado do usuário para obter o webhook de prospecção
       const userServers = await storage.getUserServers(userId);
       if (userServers.length === 0) {
-        console.log(`❌ Nenhum servidor configurado para usuário ${userId}`);
         return res.status(400).json({ message: "Nenhum servidor configurado para este usuário" });
       }
       
@@ -98,13 +103,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prospectingWebhookUrl = serverConfig.server?.prospectingWebhookUrl;
       
       if (!prospectingWebhookUrl) {
-        console.log(`❌ Webhook de prospecção não configurado no servidor ${serverConfig.serverId}`);
         return res.status(400).json({ 
           message: "Webhook de prospecção não configurado no servidor conectado" 
         });
       }
       
-      console.log(`🔗 Usando webhook automático de prospecção: ${prospectingWebhookUrl}`);
+      console.log(`🔗 Usando webhook de prospecção do servidor: ${prospectingWebhookUrl}`);
       
       // Criar nova pesquisa com o webhook do servidor
       const search = await storage.createProspectingSearch({
@@ -114,32 +118,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         webhookUrl: prospectingWebhookUrl
       });
       
-      console.log(`✅ Pesquisa ${search.id} criada, iniciando chamada para webhook...`);
-      
-      // Fazer a chamada para o webhook automaticamente
+      // Fazer a chamada para o webhook
+      console.log("Chamando webhook de prospecção:", prospectingWebhookUrl);
+        
       try {
         const webhookResponse = await axios.get(prospectingWebhookUrl, {
           params: {
             segment: searchData.segment,
             city: searchData.city,
             filters: searchData.filters
-          },
-          timeout: 30000 // 30 segundos de timeout
+          }
         });
         
-        console.log(`📊 Webhook respondeu com ${webhookResponse.data?.length || 0} resultados`);
-        
         // Marcar pesquisa como concluída
-        const updatedSearch = await storage.updateProspectingSearch(search.id, {
+        const newSearch = await storage.updateProspectingSearch(search.id, {
           status: "concluido",
-          leadsFound: Array.isArray(webhookResponse.data) ? webhookResponse.data.length : 0
+          leadsFound: Array.isArray(webhookResponse.data) ? webhookResponse.data.length : 
+            (webhookResponse.data && Array.isArray(webhookResponse.data.data)) ? webhookResponse.data.data.length : 0
         });
         
         // Processar dados retornados
-        if (Array.isArray(webhookResponse.data) && webhookResponse.data.length > 0) {
-          console.log(`📝 Processando ${webhookResponse.data.length} resultados...`);
-          
-          for (const item of webhookResponse.data) {
+        if (Array.isArray(webhookResponse.data)) {
+          await Promise.all(webhookResponse.data.map(async (item: any) => {
             try {
               const nome = item.nome || item.name || item.razaoSocial || null;
               const telefone = item.telefone || item.phone || item.celular || null;
@@ -164,16 +164,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } catch (itemError) {
               console.error("Erro ao processar item:", itemError);
             }
-          }
+          }));
         }
         
-        res.status(201).json(updatedSearch);
-        console.log(`✅ Pesquisa ${search.id} processada com sucesso via webhook automático`);
-        
+        res.status(201).json(newSearch);
+        console.log(`✅ Pesquisa ${search.id} processada com sucesso via webhook`);
       } catch (webhookError: any) {
-        console.error("❌ Erro ao chamar webhook:", webhookError.message);
+        console.error("Erro ao chamar webhook:", webhookError);
         
-        // Marcar pesquisa como erro
         const errorSearch = await storage.updateProspectingSearch(search.id, {
           status: "erro"
         });
@@ -190,22 +188,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Prospecting Results Routes
-  app.get("/api/prospecting/searches/:id/results", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const searchId = parseInt(req.params.id);
-      const userId = (req.user as Express.User).id;
-      
-      const results = await storage.getProspectingResults(searchId);
-      res.json(results);
-    } catch (error) {
-      console.error("Erro ao buscar resultados:", error);
-      res.status(500).json({ message: "Erro ao buscar resultados" });
-    }
-  });
-
   // Server Routes
   app.get("/api/servers", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
@@ -216,6 +198,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar servidores:", error);
       res.status(500).json({ message: "Erro ao buscar servidores" });
+    }
+  });
+
+  app.post("/api/servers", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const server = await storage.createServer(req.body);
+      res.status(201).json(server);
+    } catch (error) {
+      console.error("Erro ao criar servidor:", error);
+      res.status(500).json({ message: "Erro ao criar servidor" });
     }
   });
 
@@ -247,6 +241,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Prospecting Results Routes
+  app.get("/api/prospecting/searches/:id/results", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Verificar se a pesquisa pertence ao usuário
+      const search = await storage.getProspectingSearchById(searchId);
+      if (!search || search.userId !== userId) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      const results = await storage.getProspectingResults(searchId);
+      res.json(results);
+    } catch (error) {
+      console.error("Erro ao buscar resultados:", error);
+      res.status(500).json({ message: "Erro ao buscar resultados" });
+    }
+  });
+
+  app.get("/api/prospecting/searches/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      const search = await storage.getProspectingSearchById(searchId);
+      
+      if (!search || search.userId !== userId) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      res.json(search);
+    } catch (error) {
+      console.error("Erro ao buscar pesquisa:", error);
+      res.status(500).json({ message: "Erro ao buscar pesquisa" });
+    }
+  });
+
   // Settings Routes
   app.get("/api/settings", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
@@ -261,6 +297,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/settings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const settings = await storage.createOrUpdateSettings({ ...req.body, userId });
+      res.json(settings);
+    } catch (error) {
+      console.error("Erro ao salvar configurações:", error);
+      res.status(500).json({ message: "Erro ao salvar configurações" });
+    }
+  });
+
   // AI Agent Routes
   app.get("/api/ai-agent", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
@@ -272,6 +321,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar agente AI:", error);
       res.status(500).json({ message: "Erro ao buscar agente AI" });
+    }
+  });
+
+  app.post("/api/ai-agent", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const agent = await storage.createOrUpdateAiAgent({ ...req.body, userId });
+      res.json(agent);
+    } catch (error) {
+      console.error("Erro ao salvar agente AI:", error);
+      res.status(500).json({ message: "Erro ao salvar agente AI" });
     }
   });
 
