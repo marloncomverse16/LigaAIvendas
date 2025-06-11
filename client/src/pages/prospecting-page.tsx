@@ -268,7 +268,7 @@ export default function ProspectingPage() {
       if (activeSearch === id) {
         setActiveSearch(null);
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches", user?.id] });
     },
     onError: (error) => {
       toast({
@@ -326,8 +326,8 @@ export default function ProspectingPage() {
       });
       
       // Atualizar o status da busca
-      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/results", searchId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/results", searchId, user?.id] });
     },
     onError: (error) => {
       toast({
