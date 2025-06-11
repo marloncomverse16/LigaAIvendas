@@ -96,40 +96,28 @@ export default function ProspectingPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Query para buscar dados de prospecção - VERSÃO SEGURA SEM CACHE
+  // Query para buscar dados de prospecção
   const { data: searches, isLoading: isLoadingSearches } = useQuery({
-    queryKey: ["/api/prospecting/searches", Date.now()], // Timestamp único para evitar cache
+    queryKey: ["/api/prospecting/searches"],
     queryFn: async () => {
-      console.log(`🔍 Frontend: Buscando pesquisas para usuário ${user?.id} (${user?.username})`);
-      const res = await fetch("/api/prospecting/searches", {
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
+      const res = await fetch("/api/prospecting/searches");
       if (!res.ok) throw new Error("Falha ao carregar buscas de prospecção");
       const data = await res.json() as ProspectingSearch[];
       
-      // Verificação de segurança no frontend
-      const invalidSearches = data.filter(search => search.userId !== user?.id);
-      if (invalidSearches.length > 0) {
-        console.error(`🚨 Frontend: ${invalidSearches.length} pesquisas de outros usuários detectadas:`, invalidSearches);
+      // Verificação de segurança silenciosa
+      const validData = data.filter(search => search.userId === user?.id);
+      if (validData.length !== data.length) {
         toast({
-          title: "Erro de segurança detectado",
-          description: "Dados de outros usuários foram bloqueados",
+          title: "Dados filtrados por segurança",
+          description: "Apenas seus dados foram carregados",
           variant: "destructive"
         });
-        return data.filter(search => search.userId === user?.id);
       }
       
-      console.log(`✅ Frontend: ${data.length} pesquisas válidas carregadas`);
-      return data;
+      return validData;
     },
-    staleTime: 0, // Sempre buscar dados frescos
-    gcTime: 0, // Não manter em cache (gcTime substituiu cacheTime na v5)
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always'
+    enabled: !!user?.id,
+    refetchOnWindowFocus: false
   });
 
   // Query para buscar resultados de uma busca específica
