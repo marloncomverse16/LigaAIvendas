@@ -7,9 +7,10 @@
 **Impacto:** As correções garantem isolamento completo de dados entre usuários em todos os módulos críticos do sistema.
 
 **Módulos Auditados e Corrigidos:**
-- ✅ Módulo de Prospecção
+- ✅ Módulo de Prospecção (incluindo correção crítica de dispatch)
 - ✅ Módulo de Templates de Mensagens 
 - ✅ Módulo de Agentes IA de Servidor
+- ✅ Configuração de Webhooks para Servidores Corretos
 
 ## Vulnerabilidades Corrigidas
 
@@ -41,7 +42,24 @@
 - `getServerAiAgents()` - Adicionada verificação de acesso ao servidor via getUserServers()
 - `updateServerAiAgent()` - Adicionada verificação de acesso ao servidor antes da atualização
 
-### 4. Implementação das Correções
+### 4. CRÍTICO: Vazamento de Dados no Envio de Prospecções
+
+**Problema:** A função de envio de resultados de prospecção estava chamando `getProspectingResults(searchId)` sem o parâmetro `userId`, permitindo vazamento de dados entre usuários.
+
+**Localização:** `server/routes.ts` linha 1947
+
+**Correção Implementada:**
+```typescript
+// ANTES (VULNERÁVEL):
+const results = await storage.getProspectingResults(searchId);
+
+// DEPOIS (SEGURO):
+const results = await storage.getProspectingResults(searchId, userId);
+```
+
+**Impacto:** Esta correção evita que usuários vejam ou enviem dados de prospecção de outros usuários durante operações de dispatch.
+
+### 5. Implementação das Correções
 
 **Padrão de Segurança Implementado:**
 ```typescript
