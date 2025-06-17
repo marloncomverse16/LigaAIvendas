@@ -1,0 +1,127 @@
+# LigAI Dashboard - Projeto de Gestão de Leads WhatsApp
+
+## Visão Geral
+
+Dashboard português interativo para gestão de leads e negócios via WhatsApp, com sistema completo de autenticação, multi-tenant, e integração com APIs WhatsApp Business Cloud e Evolution API.
+
+### Funcionalidades Principais
+- Sistema de autenticação completo (login/registro)
+- Dashboard principal com métricas de negócio
+- Gestão de leads e recomendações inteligentes  
+- Módulo de prospecção com upload de arquivos CSV/Excel
+- Sistema de envio de mensagens WhatsApp
+- Conectividade dupla: QR Code (Evolution API) e Meta Cloud API
+- Gestão de agentes de IA com comportamentos personalizados
+- Relatórios Meta API com custos em BRL
+- Sistema de metas e acompanhamento de performance
+- Upload de mídia (PDF/CSV) com armazenamento no servidor
+- Isolamento completo de dados multi-tenant
+- **NOVO**: Sistema automático de encaminhamento de webhook WhatsApp Cloud para agentes IA
+
+## Arquitetura do Projeto
+
+### Estruturas de Dados Principais
+- **Usuários**: Sistema de autenticação com roles (admin/user)
+- **Servidores**: Configuração de APIs WhatsApp (Evolution/Meta)
+- **Leads**: Gestão de contatos e prospecção
+- **Agentes IA**: Configuração de comportamentos e webhooks
+- **Relatórios**: Métricas Meta API e Evolution API
+- **Mensagens**: Histórico de comunicações WhatsApp
+
+### Tecnologias
+- **Frontend**: React + TypeScript + TailwindCSS + shadcn/ui
+- **Backend**: Express.js + TypeScript + Drizzle ORM
+- **Banco**: PostgreSQL com isolamento multi-tenant
+- **Autenticação**: Passport.js com sessões
+- **APIs**: WhatsApp Business Cloud API + Evolution API
+- **Upload**: Multer com armazenamento local
+- **WebSocket**: Comunicação tempo real
+
+## Mudanças Arquiteturais Recentes
+
+### 2025-06-17 - Sistema de Webhook Automático WhatsApp Cloud
+- **Implementado sistema de encaminhamento automático** de mensagens WhatsApp Cloud para agentes IA
+- **Arquivo criado**: `server/api/meta-webhook.ts` com funções:
+  - `saveIncomingMessage()`: Salva mensagem e encaminha para IA
+  - `findUserByPhoneNumberId()`: Identifica usuário pelo phone_number_id
+  - `forwardMessageToAI()`: Envia payload padronizado para webhook do agente
+- **Rotas adicionadas** em `server/routes.ts`:
+  - `GET /api/meta-webhook`: Verificação do webhook Meta
+  - `POST /api/meta-webhook`: Recepção de mensagens WhatsApp Cloud
+- **Fluxo automático**: WhatsApp Cloud → Meta Webhook → Identificação Usuário → Encaminhamento para Agente IA
+- **Payload padronizado** enviado aos agentes com dados completos da mensagem
+- **Isolamento por usuário** baseado no phone_number_id configurado
+
+### 2025-06-17 - Correção Isolamento de Dados
+- **Problema resolvido**: Isolamento de dados nas páginas de contatos e relatórios
+- **Implementação**: Filtros WHERE user_id = $1 em todas as rotas de relatórios
+- **Páginas corrigidas**: Contatos e Relatórios com mensagens adequadas para novos usuários
+- **Detecção automática** de usuários novos sem configuração
+- **Rotas verificadas**: Meta e QR reports com isolamento adequado
+
+### 2025-06-11 - Configuração Multi-tenant Completa
+- **Sistema multi-tenant** funcionando completamente
+- **Isolamento de dados** por usuário em todas as tabelas
+- **Gestão de servidores** com relações usuário-servidor
+- **Conexões Meta API** específicas por usuário
+- **Configuração de webhooks** individualizados
+
+## Preferências do Usuário
+
+### Comunicação
+- **Idioma**: Português brasileiro em todas as respostas
+- **Estilo**: Direto, técnico quando necessário, sem emojis excessivos
+- **Feedback**: Sempre confirmar quando tarefas importantes são concluídas
+
+### Desenvolvimento
+- **Padrão**: TypeScript strict, Drizzle ORM, isolamento multi-tenant
+- **Segurança**: Validação rigorosa de dados, sanitização de inputs
+- **Performance**: Queries otimizadas, cache quando apropriado
+- **Logs**: Detalhados para debugging, especialmente webhooks e APIs
+
+## Estado Atual do Sistema
+
+### Funcionalidades Operacionais
+✅ Autenticação e gestão de usuários  
+✅ Dashboard com métricas calculadas  
+✅ Prospecção com upload CSV/Excel  
+✅ Envio de mensagens WhatsApp (ambos métodos)  
+✅ Relatórios Meta API com custos BRL  
+✅ Gestão de agentes IA  
+✅ Isolamento completo multi-tenant  
+✅ **Sistema automático de webhook WhatsApp Cloud → Agente IA**
+
+### Integrações Ativas
+- WhatsApp Business Cloud API (Meta)
+- Evolution API para QR Code
+- Cloudinary para upload de mídia
+- PostgreSQL para persistência
+- **Webhook automático** para agentes IA
+
+### Próximas Melhorias Sugeridas
+- Expandir webhook automático para outros tipos de mídia
+- Implementar retry automático em webhooks
+- Métricas de performance dos encaminhamentos
+- Interface de monitoramento de webhooks
+
+## Configuração de Ambiente
+
+### Variáveis Necessárias
+```
+DATABASE_URL=postgresql://...
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+EVOLUTION_API_TOKEN=...
+META_WEBHOOK_VERIFY_TOKEN=...
+```
+
+### Webhooks Configurados
+- **Meta Webhook**: `/api/meta-webhook` (GET/POST)
+- **Evolution Webhook**: `/webhook/find/:instance` (GET)
+- **Agentes IA**: Configurados individualmente por servidor
+
+---
+
+*Última atualização: 17 de junho de 2025*
+*Sistema de webhook automático WhatsApp Cloud → Agente IA implementado e operacional*
