@@ -6490,6 +6490,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ Rotas de Webhook Meta para WhatsApp Cloud API ============
+  
+  // Webhook para verificação da Meta (GET)
+  app.get("/api/meta-webhook", async (req, res) => {
+    try {
+      const { verifyWebhook } = await import('./api/meta-webhook');
+      await verifyWebhook(req, res);
+    } catch (error) {
+      console.error('Erro no webhook Meta (verificação):', error);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+  
+  // Webhook para receber mensagens da Meta (POST)
+  app.post("/api/meta-webhook", async (req, res) => {
+    try {
+      const { receiveWebhook } = await import('./api/meta-webhook');
+      await receiveWebhook(req, res);
+    } catch (error) {
+      console.error('Erro no webhook Meta (mensagens):', error);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+
   // Configure HTTP server
   const httpServer = createServer(app);
   

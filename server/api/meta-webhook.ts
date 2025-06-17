@@ -4,6 +4,10 @@
  */
 import { Request, Response } from 'express';
 import { pool } from '../db';
+import axios from 'axios';
+import { db } from '../db';
+import { userServers, servers, userAiAgents } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
 
 // Token de verificação do webhook (deve ser configurado no Meta Developer Console)
 const WEBHOOK_VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'meu_token_webhook_123';
@@ -102,13 +106,14 @@ async function processMessageChange(value: any) {
 }
 
 /**
- * Salva uma mensagem recebida no banco de dados
+ * Salva uma mensagem recebida no banco de dados e encaminha para o agente de IA
  */
 async function saveIncomingMessage(message: any, metadata: any) {
   try {
     const contactPhone = message.from;
     const messageId = message.id;
     const timestamp = new Date(parseInt(message.timestamp) * 1000);
+    const phoneNumberId = metadata?.phone_number_id;
 
     console.log(`✅ Salvando mensagem recebida de ${contactPhone}`);
 
@@ -136,8 +141,14 @@ async function saveIncomingMessage(message: any, metadata: any) {
       messageType = 'unknown';
     }
 
-    // Usuário admin (ID: 2) - pode ser configurado posteriormente
-    const userId = 2;
+    // Encontrar o usuário baseado no phone_number_id
+    const userInfo = await findUserByPhoneNumberId(phoneNumberId);
+    if (!userInfo) {
+      console.log(`⚠️ Usuário não encontrado para phone_number_id: ${phoneNumberId}`);
+      return;
+    }
+
+    const { userId, aiAgentWebhookUrl, aiAgentName } = userInfo;
 
     // Salvar mensagem usando SQL nativo para evitar problemas do ORM
     const query = `
@@ -158,8 +169,126 @@ async function saveIncomingMessage(message: any, metadata: any) {
 
     console.log(`🎉 Mensagem salva com sucesso: "${content.substring(0, 50)}..."`);
 
+    // Encaminhar mensagem para o agente de IA se configurado
+    if (aiAgentWebhookUrl && messageType === 'text') {
+      await forwardMessageToAI(contactPhone, content, aiAgentWebhookUrl, aiAgentName, message, metadata);
+    }
+
   } catch (error) {
     console.error('❌ Erro ao salvar mensagem recebida:', error);
+  }
+}
+
+/**
+ * Encontra o usuário baseado no phone_number_id do Meta
+ */
+async function findUserByPhoneNumberId(phoneNumberId: string) {
+  try {
+    if (!phoneNumberId) {
+      console.log('⚠️ phone_number_id não fornecido');
+      return null;
+    }
+
+    console.log(`🔍 Buscando usuário para phone_number_id: ${phoneNumberId}`);
+
+    // Buscar usuário que possui este phone_number_id
+    const userServerQuery = `
+      SELECT 
+        us.user_id,
+        s.ai_agent_webhook_url,
+        s.ai_agent_name
+      FROM user_servers us
+      JOIN servers s ON us.server_id = s.id
+      WHERE us.meta_phone_number_id = $1
+        AND us.meta_connected = true
+      LIMIT 1
+    `;
+
+    const result = await pool.query(userServerQuery, [phoneNumberId]);
+
+    if (result.rows.length === 0) {
+      console.log(`⚠️ Nenhum usuário encontrado para phone_number_id: ${phoneNumberId}`);
+      return null;
+    }
+
+    const row = result.rows[0];
+    console.log(`✅ Usuário encontrado: ${row.user_id}, AI Agent: ${row.ai_agent_name || 'Não configurado'}`);
+
+    return {
+      userId: row.user_id,
+      aiAgentWebhookUrl: row.ai_agent_webhook_url,
+      aiAgentName: row.ai_agent_name
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar usuário por phone_number_id:', error);
+    return null;
+  }
+}
+
+/**
+ * Encaminha mensagem para o webhook do agente de IA
+ */
+async function forwardMessageToAI(
+  contactPhone: string, 
+  content: string, 
+  webhookUrl: string, 
+  agentName: string,
+  originalMessage: any,
+  metadata: any
+) {
+  try {
+    if (!webhookUrl) {
+      console.log('⚠️ Webhook do agente de IA não configurado');
+      return;
+    }
+
+    console.log(`🤖 Encaminhando mensagem para agente de IA: ${agentName || 'Sem nome'}`);
+    console.log(`📍 Webhook URL: ${webhookUrl}`);
+
+    // Payload padronizado para o agente de IA
+    const payload = {
+      source: 'whatsapp_cloud',
+      from: contactPhone,
+      message: content,
+      messageType: 'text',
+      timestamp: new Date().toISOString(),
+      metadata: {
+        messageId: originalMessage.id,
+        phoneNumberId: metadata?.phone_number_id,
+        agentName: agentName,
+        platform: 'whatsapp_business_cloud'
+      },
+      originalPayload: {
+        message: originalMessage,
+        metadata: metadata
+      }
+    };
+
+    // Fazer requisição para o webhook do agente de IA
+    const response = await axios.post(webhookUrl, payload, {
+      timeout: 10000, // 10 segundos
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'LigAI-WhatsApp-Cloud/1.0'
+      }
+    });
+
+    console.log(`✅ Mensagem encaminhada com sucesso para agente de IA`);
+    console.log(`📊 Status de resposta: ${response.status}`);
+
+    // Log da resposta do agente de IA (se houver)
+    if (response.data) {
+      console.log(`🤖 Resposta do agente: ${JSON.stringify(response.data)}`);
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao encaminhar mensagem para agente de IA:', error);
+    
+    if (axios.isAxiosError(error)) {
+      console.error(`📡 Status: ${error.response?.status}`);
+      console.error(`📡 Dados: ${JSON.stringify(error.response?.data)}`);
+    }
   }
 }
 
