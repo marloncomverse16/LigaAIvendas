@@ -39,18 +39,21 @@ Dashboard português interativo para gestão de leads e negócios via WhatsApp, 
 
 ## Mudanças Arquiteturais Recentes
 
-### 2025-06-17 - Sistema de Webhook Automático WhatsApp Cloud
+### 2025-06-17 - Sistema de Webhook Automático WhatsApp Cloud CORRIGIDO
 - **Implementado sistema de encaminhamento automático** de mensagens WhatsApp Cloud para agentes IA
 - **Arquivo criado**: `server/api/meta-webhook.ts` com funções:
   - `saveIncomingMessage()`: Salva mensagem e encaminha para IA
-  - `findUserByPhoneNumberId()`: Identifica usuário pelo phone_number_id
+  - `findUserByPhoneNumberId()`: Identifica usuário pelo phone_number_id e busca agente específico
   - `forwardMessageToAI()`: Envia payload padronizado para webhook do agente
 - **Rotas adicionadas** em `server/routes.ts`:
   - `GET /api/meta-webhook`: Verificação do webhook Meta
   - `POST /api/meta-webhook`: Recepção de mensagens WhatsApp Cloud
-- **Fluxo automático**: WhatsApp Cloud → Meta Webhook → Identificação Usuário → Encaminhamento para Agente IA
-- **Payload padronizado** enviado aos agentes com dados completos da mensagem
-- **Isolamento por usuário** baseado no phone_number_id configurado
+- **Fluxo automático CORRIGIDO**: WhatsApp Cloud → Meta Webhook → Identificação Usuário → Busca Agente Específico → Encaminhamento para Agente IA
+- **Correção crítica**: Sistema agora busca o agente específico associado ao usuário via `user_ai_agents` + `server_ai_agents`
+- **Associação usuário-agente**: Criada entrada na tabela `user_ai_agents` para conectar usuário admin ao "Agente 02"
+- **Query SQL corrigida**: JOIN entre `user_servers`, `user_ai_agents` e `server_ai_agents` para isolamento correto
+- **Teste confirmado**: Webhook encaminha corretamente para URL do "Agente 02" específico do usuário
+- **Isolamento por usuário** baseado no phone_number_id configurado + agente específico
 
 ### 2025-06-17 - Correção Isolamento de Dados
 - **Problema resolvido**: Isolamento de dados nas páginas de contatos e relatórios
