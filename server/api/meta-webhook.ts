@@ -195,9 +195,12 @@ async function findUserByPhoneNumberId(phoneNumberId: string) {
     const userAgentQuery = `
       SELECT 
         us.user_id,
+        u.name as user_name,
+        u.username as user_username,
         sa.webhook_url as ai_agent_webhook_url,
         sa.name as ai_agent_name
       FROM user_servers us
+      JOIN users u ON us.user_id = u.id
       JOIN user_ai_agents ua ON us.user_id = ua.user_id
       JOIN server_ai_agents sa ON ua.agent_id = sa.id
       WHERE us.meta_phone_number_id = $1
@@ -215,9 +218,12 @@ async function findUserByPhoneNumberId(phoneNumberId: string) {
       const userOnlyQuery = `
         SELECT 
           us.user_id,
+          u.name as user_name,
+          u.username as user_username,
           null as ai_agent_webhook_url,
           null as ai_agent_name
         FROM user_servers us
+        JOIN users u ON us.user_id = u.id
         WHERE us.meta_phone_number_id = $1
           AND us.meta_connected = true
         LIMIT 1
@@ -235,6 +241,8 @@ async function findUserByPhoneNumberId(phoneNumberId: string) {
       
       return {
         userId: fallbackRow.user_id,
+        userName: fallbackRow.user_name,
+        userUsername: fallbackRow.user_username,
         aiAgentWebhookUrl: null,
         aiAgentName: null
       };
@@ -246,6 +254,8 @@ async function findUserByPhoneNumberId(phoneNumberId: string) {
 
     return {
       userId: row.user_id,
+      userName: row.user_name,
+      userUsername: row.user_username,
       aiAgentWebhookUrl: row.ai_agent_webhook_url,
       aiAgentName: row.ai_agent_name
     };
@@ -266,7 +276,9 @@ async function forwardMessageToAI(
   agentName: string,
   originalMessage: any,
   metadata: any,
-  userId: number
+  userId: number,
+  userName: string,
+  userUsername: string
 ) {
   try {
     if (!webhookUrl) {
@@ -276,11 +288,13 @@ async function forwardMessageToAI(
 
     console.log(`🤖 Encaminhando mensagem para agente de IA: ${agentName || 'Sem nome'}`);
     console.log(`📍 Webhook URL: ${webhookUrl}`);
-    console.log(`👤 ID do usuário: ${userId}`);
+    console.log(`👤 Usuário: ${userName || userUsername || 'Sem nome'} (ID: ${userId})`);
 
-    // Payload padronizado para o agente de IA com ID do usuário
+    // Payload padronizado para o agente de IA com informações completas do usuário
     const payload = {
       user_id: userId, // ID do usuário conectado
+      user_name: userName, // Nome do usuário
+      user_username: userUsername, // Username do usuário
       source: 'whatsapp_cloud',
       from: contactPhone,
       message: content,
@@ -291,7 +305,9 @@ async function forwardMessageToAI(
         phoneNumberId: metadata?.phone_number_id,
         agentName: agentName,
         platform: 'whatsapp_business_cloud',
-        userId: userId // ID do usuário também nos metadados
+        userId: userId, // ID do usuário também nos metadados
+        userName: userName, // Nome do usuário nos metadados
+        userUsername: userUsername // Username nos metadados
       },
       originalPayload: {
         message: originalMessage,
