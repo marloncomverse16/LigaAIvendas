@@ -191,28 +191,58 @@ async function findUserByPhoneNumberId(phoneNumberId: string) {
 
     console.log(`🔍 Buscando usuário para phone_number_id: ${phoneNumberId}`);
 
-    // Buscar usuário que possui este phone_number_id
-    const userServerQuery = `
+    // Buscar usuário que possui este phone_number_id e o agente específico associado
+    const userAgentQuery = `
       SELECT 
         us.user_id,
-        s.ai_agent_webhook_url,
-        s.ai_agent_name
+        sa.webhook_url as ai_agent_webhook_url,
+        sa.name as ai_agent_name
       FROM user_servers us
-      JOIN servers s ON us.server_id = s.id
+      JOIN user_ai_agents ua ON us.user_id = ua.user_id
+      JOIN server_ai_agents sa ON ua.agent_id = sa.id
       WHERE us.meta_phone_number_id = $1
         AND us.meta_connected = true
+        AND sa.active = true
       LIMIT 1
     `;
 
-    const result = await pool.query(userServerQuery, [phoneNumberId]);
+    const result = await pool.query(userAgentQuery, [phoneNumberId]);
 
     if (result.rows.length === 0) {
-      console.log(`⚠️ Nenhum usuário encontrado para phone_number_id: ${phoneNumberId}`);
-      return null;
+      console.log(`⚠️ Nenhum usuário ou agente encontrado para phone_number_id: ${phoneNumberId}`);
+      
+      // Fallback: buscar apenas o usuário sem agente específico
+      const userOnlyQuery = `
+        SELECT 
+          us.user_id,
+          null as ai_agent_webhook_url,
+          null as ai_agent_name
+        FROM user_servers us
+        WHERE us.meta_phone_number_id = $1
+          AND us.meta_connected = true
+        LIMIT 1
+      `;
+      
+      const fallbackResult = await pool.query(userOnlyQuery, [phoneNumberId]);
+      
+      if (fallbackResult.rows.length === 0) {
+        console.log(`⚠️ Nenhum usuário encontrado para phone_number_id: ${phoneNumberId}`);
+        return null;
+      }
+      
+      const fallbackRow = fallbackResult.rows[0];
+      console.log(`⚠️ Usuário encontrado mas sem agente configurado: ${fallbackRow.user_id}`);
+      
+      return {
+        userId: fallbackRow.user_id,
+        aiAgentWebhookUrl: null,
+        aiAgentName: null
+      };
     }
 
     const row = result.rows[0];
     console.log(`✅ Usuário encontrado: ${row.user_id}, AI Agent: ${row.ai_agent_name || 'Não configurado'}`);
+    console.log(`📍 Webhook URL do agente: ${row.ai_agent_webhook_url || 'Não configurado'}`);
 
     return {
       userId: row.user_id,
