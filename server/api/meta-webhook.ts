@@ -171,7 +171,7 @@ async function saveIncomingMessage(message: any, metadata: any) {
 
     // Encaminhar mensagem para o agente de IA se configurado
     if (aiAgentWebhookUrl && messageType === 'text') {
-      await forwardMessageToAI(contactPhone, content, aiAgentWebhookUrl, aiAgentName, message, metadata);
+      await forwardMessageToAI(contactPhone, content, aiAgentWebhookUrl, aiAgentName, message, metadata, userId);
     }
 
   } catch (error) {
@@ -265,7 +265,8 @@ async function forwardMessageToAI(
   webhookUrl: string, 
   agentName: string,
   originalMessage: any,
-  metadata: any
+  metadata: any,
+  userId: number
 ) {
   try {
     if (!webhookUrl) {
@@ -275,9 +276,11 @@ async function forwardMessageToAI(
 
     console.log(`🤖 Encaminhando mensagem para agente de IA: ${agentName || 'Sem nome'}`);
     console.log(`📍 Webhook URL: ${webhookUrl}`);
+    console.log(`👤 ID do usuário: ${userId}`);
 
-    // Payload padronizado para o agente de IA
+    // Payload padronizado para o agente de IA com ID do usuário
     const payload = {
+      user_id: userId, // ID do usuário conectado
       source: 'whatsapp_cloud',
       from: contactPhone,
       message: content,
@@ -287,7 +290,8 @@ async function forwardMessageToAI(
         messageId: originalMessage.id,
         phoneNumberId: metadata?.phone_number_id,
         agentName: agentName,
-        platform: 'whatsapp_business_cloud'
+        platform: 'whatsapp_business_cloud',
+        userId: userId // ID do usuário também nos metadados
       },
       originalPayload: {
         message: originalMessage,

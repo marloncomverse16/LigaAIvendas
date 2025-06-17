@@ -54,6 +54,9 @@ Dashboard português interativo para gestão de leads e negócios via WhatsApp, 
 - **Query SQL corrigida**: JOIN entre `user_servers`, `user_ai_agents` e `server_ai_agents` para isolamento correto
 - **Teste confirmado**: Webhook encaminha corretamente para URL do "Agente 02" específico do usuário
 - **Isolamento por usuário** baseado no phone_number_id configurado + agente específico
+- **Payload enriquecido**: Inclui `user_id` no payload principal e metadados para identificação do usuário
+- **Headers adicionais**: Header `X-User-ID` enviado junto com o payload para o agente
+- **Teste com user_id**: Confirmado que payload inclui `user_id: 2` corretamente
 
 ### 2025-06-17 - Correção Isolamento de Dados
 - **Problema resolvido**: Isolamento de dados nas páginas de contatos e relatórios

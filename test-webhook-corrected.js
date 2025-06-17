@@ -17,10 +17,10 @@ async function testCorrectedWebhook() {
             },
             messages: [{
               from: "554391142751",
-              id: "wamid.test123456789_corrected",
+              id: "wamid.test123456789_with_user_id",
               timestamp: Math.floor(Date.now() / 1000).toString(),
               text: {
-                body: "Teste corrigido - deve usar o Agente 02 específico do usuário"
+                body: "Teste com ID do usuário - deve incluir user_id: 2 no payload"
               },
               type: "text"
             }]
