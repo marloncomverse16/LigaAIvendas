@@ -39,7 +39,7 @@ Dashboard português interativo para gestão de leads e negócios via WhatsApp, 
 
 ## Mudanças Arquiteturais Recentes
 
-### 2025-06-17 - Sistema de Webhook Automático WhatsApp Cloud CORRIGIDO
+### 2025-06-17 - Sistema de Webhook Automático WhatsApp Cloud COM IDENTIFICAÇÃO COMPLETA DO USUÁRIO
 - **Implementado sistema de encaminhamento automático** de mensagens WhatsApp Cloud para agentes IA
 - **Arquivo criado**: `server/api/meta-webhook.ts` com funções:
   - `saveIncomingMessage()`: Salva mensagem e encaminha para IA
@@ -48,15 +48,21 @@ Dashboard português interativo para gestão de leads e negócios via WhatsApp, 
 - **Rotas adicionadas** em `server/routes.ts`:
   - `GET /api/meta-webhook`: Verificação do webhook Meta
   - `POST /api/meta-webhook`: Recepção de mensagens WhatsApp Cloud
-- **Fluxo automático CORRIGIDO**: WhatsApp Cloud → Meta Webhook → Identificação Usuário → Busca Agente Específico → Encaminhamento para Agente IA
+- **Fluxo automático COMPLETO**: WhatsApp Cloud → Meta Webhook → Identificação Usuário → Busca Agente Específico → Encaminhamento para Agente IA
 - **Correção crítica**: Sistema agora busca o agente específico associado ao usuário via `user_ai_agents` + `server_ai_agents`
 - **Associação usuário-agente**: Criada entrada na tabela `user_ai_agents` para conectar usuário admin ao "Agente 02"
 - **Query SQL corrigida**: JOIN entre `user_servers`, `user_ai_agents` e `server_ai_agents` para isolamento correto
 - **Teste confirmado**: Webhook encaminha corretamente para URL do "Agente 02" específico do usuário
 - **Isolamento por usuário** baseado no phone_number_id configurado + agente específico
-- **Payload enriquecido**: Inclui `user_id` no payload principal e metadados para identificação do usuário
-- **Headers adicionais**: Header `X-User-ID` enviado junto com o payload para o agente
-- **Teste com user_id**: Confirmado que payload inclui `user_id: 2` corretamente
+- **NOVO: Identificação completa do usuário no payload**:
+  - `user_id`: ID numérico do usuário
+  - `user_name`: Nome completo do usuário (campo name da tabela users)
+  - `user_username`: Username do usuário
+  - Headers HTTP: `X-User-ID` e `X-User-Name` enviados para o agente
+  - Metadados: `userId`, `userName`, `userUsername` incluídos na seção metadata
+- **Função aprimorada**: `findUserByPhoneNumberId()` agora retorna informações completas do usuário
+- **Payload estruturado**: Agentes IA recebem identificação completa do usuário para contexto personalizado
+- **Teste validado**: Webhook processando mensagens com informações completas do usuário incluindo nome
 
 ### 2025-06-17 - Correção Isolamento de Dados
 - **Problema resolvido**: Isolamento de dados nas páginas de contatos e relatórios
