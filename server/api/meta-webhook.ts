@@ -148,7 +148,7 @@ async function saveIncomingMessage(message: any, metadata: any) {
       return;
     }
 
-    const { userId, aiAgentWebhookUrl, aiAgentName } = userInfo;
+    const { userId, userName, userUsername, aiAgentWebhookUrl, aiAgentName } = userInfo;
 
     // Salvar mensagem usando SQL nativo para evitar problemas do ORM
     const query = `
@@ -171,7 +171,7 @@ async function saveIncomingMessage(message: any, metadata: any) {
 
     // Encaminhar mensagem para o agente de IA se configurado
     if (aiAgentWebhookUrl && messageType === 'text') {
-      await forwardMessageToAI(contactPhone, content, aiAgentWebhookUrl, aiAgentName, message, metadata, userId);
+      await forwardMessageToAI(contactPhone, content, aiAgentWebhookUrl, aiAgentName, message, metadata, userId, userName || null, userUsername || null);
     }
 
   } catch (error) {
@@ -320,7 +320,9 @@ async function forwardMessageToAI(
       timeout: 10000, // 10 segundos
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'LigAI-WhatsApp-Cloud/1.0'
+        'User-Agent': 'LigAI-WhatsApp-Cloud/1.0',
+        'X-User-ID': userId.toString(),
+        'X-User-Name': userName || userUsername || 'Sem nome'
       }
     });
 
