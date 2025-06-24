@@ -1337,8 +1337,8 @@ const CreateSendingForm = () => {
               )}
             />
             
-            {/* Mostrar campo de aprendizado de IA apenas para conexão QR Code */}
-            {form.watch("whatsappConnectionType") === "qrcode" && (
+            {/* Mostrar campo de aprendizado de IA apenas para conexão Meta API */}
+            {form.watch("whatsappConnectionType") === "meta" && (
               <>
                 <FormField
                   control={form.control}
@@ -1724,7 +1724,7 @@ export default function MessageSendingPage() {
                   <li>Utilize templates predefinidos ou crie mensagens personalizadas</li>
                   <li>Defina a quantidade de mensagens para controlar o volume de envios</li>
                   <li>Agende envios para horários comerciais para melhores resultados</li>
-                  <li>Ative o aprendizado de IA para aprimorar campanhas futuras</li>
+                  <li>Use a Meta API para recursos avançados de aprendizado de IA</li>
                   <li>Monitore os resultados no histórico de envios</li>
                 </ul>
               </CardContent>
