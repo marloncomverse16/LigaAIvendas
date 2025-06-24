@@ -169,13 +169,13 @@ export default function ReportsPage() {
     }
   }, [startDate, endDate, activeTab]);
 
-  // Estatísticas resumidas Meta API
+  // Estatísticas resumidas Meta API - corrigindo nomes dos campos
   const stats = {
     totalConversations: reportData.conversations.length,
-    freeConversations: reportData.conversations.filter(c => c.conversation_type === 'free').length,
+    freeConversations: reportData.conversations.filter(c => c.is_free_window === true || c.is_free_window === 't').length,
     totalMessages: reportData.messages.length,
     deliveredMessages: reportData.messages.filter(m => m.delivery_status === 'delivered').length,
-    leadsWithResponse: reportData.leads.filter(l => l.has_response).length,
+    leadsWithResponse: reportData.leads.filter(l => l.has_response === true || l.has_response === 't').length,
     totalCost: reportData.billing.reduce((sum, b) => sum + parseFloat(b.total_cost || '0'), 0)
   };
 
@@ -315,18 +315,18 @@ export default function ReportsPage() {
                         <tbody>
                           {reportData.conversations.map((conv, index) => (
                             <tr key={index} className="hover:bg-gray-50">
-                              <td className="border border-gray-200 px-4 py-2">{conv.phone_number}</td>
+                              <td className="border border-gray-200 px-4 py-2">{conv.contact_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  conv.conversation_type === 'free' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                                  conv.is_free_window === true || conv.is_free_window === 't' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
                                 }`}>
-                                  {conv.conversation_type === 'free' ? 'Gratuita' : 'Comercial'}
+                                  {conv.is_free_window === true || conv.is_free_window === 't' ? 'Gratuita' : 'Comercial'}
                                 </span>
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
-                                {conv.conversation_start ? format(new Date(conv.conversation_start), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
+                                {conv.started_at ? format(new Date(conv.started_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
-                              <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(conv.cost_brl || '0').toFixed(2)}</td>
+                              <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(conv.cost_brl || conv.total_cost || '0').toFixed(4)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -371,7 +371,7 @@ export default function ReportsPage() {
                         <tbody>
                           {reportData.messages.map((msg, index) => (
                             <tr key={index} className="hover:bg-gray-50">
-                              <td className="border border-gray-200 px-4 py-2">{msg.phone_number}</td>
+                              <td className="border border-gray-200 px-4 py-2">{msg.contact_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                   msg.delivery_status === 'delivered' ? 'bg-green-100 text-green-800' :
@@ -385,7 +385,7 @@ export default function ReportsPage() {
                               <td className="border border-gray-200 px-4 py-2">
                                 {msg.sent_at ? format(new Date(msg.sent_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
-                              <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(msg.cost_brl || '0').toFixed(2)}</td>
+                              <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(msg.cost_brl || msg.cost || '0').toFixed(4)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -424,13 +424,13 @@ export default function ReportsPage() {
                         <tbody>
                           {reportData.billing.map((bill, index) => (
                             <tr key={index} className="hover:bg-gray-50">
-                              <td className="border border-gray-200 px-4 py-2">{bill.phone_number}</td>
+                              <td className="border border-gray-200 px-4 py-2">{bill.phone_number_id}</td>
                               <td className="border border-gray-200 px-4 py-2">
                                 {bill.report_date ? format(new Date(bill.report_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
                               </td>
-                              <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(bill.conversation_cost || '0').toFixed(2)}</td>
-                              <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(bill.message_cost || '0').toFixed(2)}</td>
-                              <td className="border border-gray-200 px-4 py-2 font-semibold">R$ {parseFloat(bill.total_cost || '0').toFixed(2)}</td>
+                              <td className="border border-gray-200 px-4 py-2">{bill.conversation_count || 0} conversas</td>
+                              <td className="border border-gray-200 px-4 py-2">{bill.message_count || 0} mensagens</td>
+                              <td className="border border-gray-200 px-4 py-2 font-semibold">R$ {parseFloat(bill.total_cost || '0').toFixed(4)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -468,7 +468,7 @@ export default function ReportsPage() {
                         <tbody>
                           {reportData.leads.map((lead, index) => (
                             <tr key={index} className="hover:bg-gray-50">
-                              <td className="border border-gray-200 px-4 py-2">{lead.phone_number}</td>
+                              <td className="border border-gray-200 px-4 py-2">{lead.contact_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
                                 {lead.first_message_at ? format(new Date(lead.first_message_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
@@ -477,9 +477,9 @@ export default function ReportsPage() {
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  lead.has_response ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                  lead.has_response === true || lead.has_response === 't' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {lead.has_response ? 'Respondeu' : 'Não respondeu'}
+                                  {lead.has_response === true || lead.has_response === 't' ? 'Respondeu' : 'Não respondeu'}
                                 </span>
                               </td>
                             </tr>

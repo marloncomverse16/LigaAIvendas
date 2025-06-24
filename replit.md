@@ -210,5 +210,16 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Validações de segurança**: Verificação de propriedade antes de exclusões
 - **Performance otimizada**: Queries SQL diretas para melhor desempenho
 
+### 2025-06-24 - Correção Relatórios Meta API
+- **Histórico de envios**: Corrigido erro "pagination is not defined" com implementação completa de paginação
+- **Mapeamento de campos**: Corrigida consulta SQL para mapear snake_case → camelCase corretamente
+- **Relatórios Meta API**: Corrigidos campos de exibição nas 4 seções principais:
+  - **Conversas**: contact_number, is_free_window, started_at, cost_brl
+  - **Mensagens**: contact_number, delivery_status, sent_at, cost_brl
+  - **Faturamento**: phone_number_id, conversation_count, message_count, total_cost
+  - **Leads**: contact_number, has_response (boolean tratado corretamente)
+- **Dados autênticos**: Todos os dados vêm das tabelas reais do banco sem fallbacks
+- **Isolamento garantido**: Todos os relatórios respeitam isolamento por usuário
+
 *Última atualização: 24 de junho de 2025*
-*Sistema de envios com paginação, limpeza automática e exclusão corrigida*
+*Relatórios Meta API exibindo dados corretos com mapeamento adequado*
