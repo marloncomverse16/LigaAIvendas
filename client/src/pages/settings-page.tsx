@@ -537,14 +537,7 @@ export default function SettingsPage() {
                             </div>
                           </div>
                           
-                          <div className="text-center py-8">
-                            <p className="text-muted-foreground text-lg">
-                              Seção de perfil simplificada
-                            </p>
-                            <p className="text-sm text-muted-foreground mt-2">
-                              Os campos de perfil pessoal foram removidos conforme solicitado.
-                            </p>
-                          </div>
+
                         </form>
                       </Form>
                     )}
