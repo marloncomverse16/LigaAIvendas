@@ -6698,27 +6698,28 @@ async function getQrConversationsCount(userId: number, startDate?: string, endDa
 
 async function getQrMessagesCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
-    // Buscar da mesma forma que a página de relatórios QR Code - usando chat_messages_sent
+    // Usar exatamente a mesma query da página de relatórios QR Code
     let query = `
       SELECT COUNT(*) as qr_messages
-      FROM chat_messages_sent cms
-      WHERE cms.user_id = $1
+      FROM contacts c
+      WHERE c.user_id = $1 
+        AND c.source = 'qr_code'
     `;
     
     const params = [userId];
     
     if (startDate && endDate) {
-      query += ` AND cms.created_at::date BETWEEN $2 AND $3`;
+      query += ` AND c.last_message_time::date BETWEEN $2 AND $3`;
       params.push(startDate, endDate);
     }
     
     const result = await pool.query(query, params);
     const count = parseInt(result.rows[0]?.qr_messages || '0');
     
-    console.log(`QR Mensagens (chat_messages_sent) para período ${startDate} - ${endDate}:`, count);
+    console.log(`QR Mensagens (contacts QR) para período ${startDate} - ${endDate}:`, count);
     return count;
   } catch (error) {
-    console.error('Erro ao buscar mensagens QR da tabela chat_messages_sent:', error);
+    console.error('Erro ao buscar mensagens QR da tabela contacts:', error);
     return 0;
   }
 }
