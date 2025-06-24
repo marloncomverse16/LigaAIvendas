@@ -6274,17 +6274,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           c.phone_number,
           c.name,
-          COUNT(DISTINCT DATE(c.last_message_time)) as conversation_days,
+          COUNT(DISTINCT DATE(COALESCE(c.last_message_time, c.created_at))) as conversation_days,
           COUNT(*) as total_messages,
-          MIN(c.last_message_time) as first_contact,
-          MAX(c.last_message_time) as last_contact,
+          MIN(COALESCE(c.last_message_time, c.created_at)) as first_contact,
+          MAX(COALESCE(c.last_message_time, c.created_at)) as last_contact,
           c.source
         FROM contacts c
         WHERE c.user_id = $1 
           AND c.source = 'qr_code'
-          AND c.last_message_time BETWEEN $2 AND $3
+          AND (
+            c.created_at::date BETWEEN $2 AND $3 OR
+            c.last_message_time::date BETWEEN $2 AND $3
+          )
         GROUP BY c.phone_number, c.name, c.source
-        ORDER BY last_contact DESC
+        ORDER BY MAX(COALESCE(c.last_message_time, c.created_at)) DESC
       `;
 
       const { rows } = await pool.query(query, [userId, startDate, endDate]);
