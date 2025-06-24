@@ -2408,16 +2408,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const newSending = await storage.createMessageSending(sendingData);
-      
-      // Se não tiver agendamento, executar imediatamente
-      if (!sendingData.scheduledAt) {
-        await processMessageSending(newSending.id, userId);
-      }
-      
       res.status(201).json(newSending);
     } catch (error) {
-      console.error("Erro ao criar envio de mensagens:", error);
-      res.status(500).json({ message: "Erro ao criar envio de mensagens" });
+      console.error("Erro ao criar envio de mensagem:", error);
+      res.status(500).json({ message: "Erro ao criar envio de mensagem" });
+    }
+  });
+
+  // Nova rota para excluir agendamentos
+  app.delete("/api/message-sendings/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const sendingId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Verificar se o agendamento pertence ao usuário
+      const checkQuery = await pool.query(`
+        SELECT id, status FROM message_sending_history 
+        WHERE id = $1 AND user_id = $2
+      `, [sendingId, userId]);
+      
+      if (checkQuery.rows.length === 0) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
+      
+      const sending = checkQuery.rows[0];
+      
+      // Só permitir exclusão de agendamentos pendentes
+      if (sending.status !== "agendado") {
+        return res.status(400).json({ message: "Só é possível excluir agendamentos pendentes" });
+      }
+      
+      // Excluir o agendamento
+      await pool.query(`
+        DELETE FROM message_sending_history 
+        WHERE id = $1 AND user_id = $2
+      `, [sendingId, userId]);
+      
+      res.json({ message: "Agendamento excluído com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir agendamento:", error);
+      res.status(500).json({ message: "Erro ao excluir agendamento" });
     }
   });
   

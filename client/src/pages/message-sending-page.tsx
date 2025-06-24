@@ -64,7 +64,7 @@ import * as z from "zod";
 import { Switch } from "@/components/ui/switch";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
+
 
 // Definição do esquema de validação para criação de templates
 const createTemplateSchema = z.object({
@@ -396,6 +396,7 @@ const CreateSendingForm = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [useTemplate, setUseTemplate] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Buscando as pesquisas de prospecção existentes
   const { data: searches, isLoading: isLoadingSearches } = useQuery({
