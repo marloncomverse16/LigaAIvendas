@@ -1360,16 +1360,20 @@ const CreateSendingForm = () => {
 const SendingList = () => {
   const { toast } = useToast();
   const [selectedSending, setSelectedSending] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   
-  // Buscar o histórico real de envios de mensagens
-  const { data: sendings, isLoading } = useQuery({
-    queryKey: ["/api/message-sending-history"],
+  // Buscar o histórico real de envios de mensagens com paginação
+  const { data: sendingsResponse, isLoading } = useQuery({
+    queryKey: ["/api/message-sendings", currentPage],
     queryFn: async () => {
-      const res = await fetch("/api/message-sending-history");
+      const res = await fetch(`/api/message-sendings?page=${currentPage}`);
       if (!res.ok) throw new Error("Falha ao carregar histórico de envios");
       return res.json();
     },
   });
+
+  const sendings = sendingsResponse?.data || [];
+  const pagination = sendingsResponse?.pagination;
   
   // Buscar as pesquisas para exibir os nomes
   const { data: searches } = useQuery({
