@@ -79,7 +79,11 @@ const createSendingSchema = z.object({
   templateId: z.number().optional().nullable(),
   customMessage: z.string().optional(),
   quantity: z.number().min(1, "A quantidade mínima é 1").max(1000, "A quantidade máxima é 1000"),
-  scheduledAt: z.date().optional().nullable(),
+  scheduledAt: z.date().optional().nullable().refine((date) => {
+    if (!date) return true; // Agendamento é opcional
+    // Permitir agendamento a partir da data/hora atual
+    return date >= new Date();
+  }, "Data de agendamento deve ser no futuro"),
   aiLearningEnabled: z.boolean().default(false),
   aiNotes: z.string().optional(),
 });
@@ -1262,13 +1266,29 @@ const CreateSendingForm = () => {
                         selected={field.value || undefined}
                         onSelect={(date) => {
                           if (date) {
+                            // Se for hoje, usar horário atual + 1 minuto
+                            // Se for outra data, usar 00:00
                             const now = new Date();
-                            date.setHours(now.getHours(), now.getMinutes());
+                            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            const selectedDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                            
+                            if (selectedDay.getTime() === today.getTime()) {
+                              // Hoje: usar horário atual + 1 minuto
+                              date.setHours(now.getHours(), now.getMinutes() + 1);
+                            } else {
+                              // Outras datas: usar 00:00
+                              date.setHours(0, 0);
+                            }
                           }
                           field.onChange(date);
                         }}
                         locale={ptBR}
-                        disabled={(date) => date < new Date()}
+                        disabled={(date) => {
+                          // Permitir a partir de hoje
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today;
+                        }}
                       />
                       {field.value && (
                         <div className="flex items-center justify-center p-2 border-t">
@@ -1279,7 +1299,27 @@ const CreateSendingForm = () => {
                             onChange={(e) => {
                               const [hours, minutes] = e.target.value.split(":");
                               const newDate = new Date(field.value);
-                              newDate.setHours(parseInt(hours), parseInt(minutes));
+                              const selectedTime = parseInt(hours) * 60 + parseInt(minutes);
+                              
+                              // Verificar se é hoje e se o horário é válido
+                              const now = new Date();
+                              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                              const selectedDay = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate());
+                              
+                              if (selectedDay.getTime() === today.getTime()) {
+                                // Se for hoje, verificar se horário é no futuro
+                                const currentTime = now.getHours() * 60 + now.getMinutes();
+                                if (selectedTime <= currentTime) {
+                                  // Se horário for no passado, ajustar para próximo minuto
+                                  newDate.setHours(now.getHours(), now.getMinutes() + 1);
+                                } else {
+                                  newDate.setHours(parseInt(hours), parseInt(minutes));
+                                }
+                              } else {
+                                // Para datas futuras, permitir qualquer horário
+                                newDate.setHours(parseInt(hours), parseInt(minutes));
+                              }
+                              
                               field.onChange(newDate);
                             }}
                           />

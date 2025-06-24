@@ -2094,8 +2094,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const scheduledDate = new Date(scheduledAt);
       
-      if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
-        return res.status(400).json({ message: "Data de agendamento inválida ou no passado" });
+      // Permitir agendamento a partir do momento atual (com margem de 1 minuto)
+      const now = new Date();
+      const minimumScheduleTime = new Date(now.getTime() - 60000); // 1 minuto de tolerância
+      
+      if (isNaN(scheduledDate.getTime()) || scheduledDate < minimumScheduleTime) {
+        return res.status(400).json({ message: "Data de agendamento inválida ou muito no passado" });
       }
       
       // Criar agendamento

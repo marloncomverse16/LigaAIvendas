@@ -146,5 +146,13 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Configurações por usuário**: Sistema agora garante que cada usuário use suas próprias configurações da tabela settings
 - **Autenticação obrigatória**: Todas as rotas de templates agora exigem autenticação e usam credenciais específicas do usuário
 
+### 2025-06-24 - Correção Sistema de Agendamento de Mensagens
+- **Problema**: Limitação de agendamento para 1 dia a partir da data atual
+- **Solução frontend**: Correção do componente Calendar para permitir agendamento a partir da data/hora atual
+- **Solução backend**: Atualização da validação para permitir agendamento com margem de 1 minuto de tolerância
+- **Validação inteligente**: Se agendamento for para hoje, verifica se horário é futuro; se for outra data, permite qualquer horário
+- **Schema corrigido**: Validação Zod atualizada para aceitar datas futuras a partir do momento atual
+- **Resultado**: Usuários podem agendar mensagens a partir do momento atual sem limitação de 1 dia
+
 *Última atualização: 24 de junho de 2025*
 *Token WhatsApp Cloud API sincronizado e sistema operacional*
