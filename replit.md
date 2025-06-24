@@ -143,6 +143,8 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Tabelas corrigidas**: `users.whatsapp_api_token`, `settings.whatsapp_meta_token`, `servers.whatsapp_meta_token`
 - **Resultado**: Sistema agora usa consistentemente o token válido em todos os módulos
 - **Templates Meta API**: Busca de templates corrigida e funcionando com 3 templates aprovados carregados
+- **Configurações por usuário**: Sistema agora garante que cada usuário use suas próprias configurações da tabela settings
+- **Autenticação obrigatória**: Todas as rotas de templates agora exigem autenticação e usam credenciais específicas do usuário
 
 *Última atualização: 24 de junho de 2025*
 *Token WhatsApp Cloud API sincronizado e sistema operacional*

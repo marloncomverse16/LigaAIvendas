@@ -5156,8 +5156,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota de diagnóstico da Meta API (sem autenticação para facilitar testes)
   app.get("/api/meta-debug", checkMetaApiConnection);
   
-  // Rota robusta direta para obter templates da Meta API
-  app.get("/api/meta-templates", getMetaTemplatesDirectly);
+  // Rota principal para obter templates da Meta API (sempre com autenticação por usuário)
+  app.get("/api/meta-templates", async (req, res) => {
+    console.log("Rota /api/meta-templates chamada - AUTENTICADA POR USUÁRIO");
+    
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({
+        error: "Usuário não autenticado",
+        success: false
+      });
+    }
+    
+    try {
+      console.log(`GET /api/meta-templates: Buscando templates para usuário ${req.user.id}`);
+      await getMetaTemplatesDirectly(req, res);
+    } catch (error) {
+      console.error("Erro ao processar requisição meta-templates:", error);
+      res.status(500).json({
+        error: "Erro interno ao obter templates",
+        success: false
+      });
+    }
+  });
   
   // Endpoint de diagnóstico para verificar se as configurações da Meta API estão sendo carregadas corretamente
   app.get("/api/diagnose/meta-settings", async (req, res) => {
@@ -5251,17 +5271,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Rota direta para obter templates da Meta API sem autenticação
-  // Útil para diagnóstico e testes
+  // Rota alternativa para obter templates da Meta API (também autenticada)
   app.get("/api/meta-direct-templates", async (req, res) => {
-    console.log("Rota /api/meta-direct-templates chamada - ACESSO DIRETO");
+    console.log("Rota /api/meta-direct-templates chamada - AUTENTICADA POR USUÁRIO");
+    
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({
+        error: "Usuário não autenticado",
+        success: false
+      });
+    }
+    
     try {
+      console.log(`GET /api/meta-direct-templates: Buscando templates para usuário ${req.user.id}`);
       await getMetaTemplatesDirectly(req, res);
     } catch (error) {
       console.error("Erro ao processar requisição getMetaTemplatesDirectly:", error);
       res.status(500).json({
-        message: "Erro interno ao obter templates diretamente",
-        error: error instanceof Error ? error.message : String(error)
+        error: "Erro interno ao obter templates",
+        success: false
       });
     }
   });
