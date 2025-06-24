@@ -41,11 +41,13 @@ export async function createMessageSendingHistory(req: Request, res: Response) {
       })
       .returning();
 
-    // Se for envio QR Code, rastrear contatos para os relatórios
+    // Se for envio QR Code, rastrear contatos para os relatórios SEMPRE
     if (historyData.connectionType === 'whatsapp_qr' && historyData.searchId) {
       try {
         const { trackBulkQrMessages } = await import('./qr-message-tracker');
         const { pool } = await import('../db');
+        
+        console.log(`🔍 Iniciando rastreamento QR Code para searchId: ${historyData.searchId}`);
         
         // Buscar telefones da pesquisa
         const phonesQuery = `SELECT phone FROM prospecting_results WHERE search_id = $1`;
@@ -54,13 +56,20 @@ export async function createMessageSendingHistory(req: Request, res: Response) {
         const phoneNumbers = phonesResult.rows.map(row => row.phone);
         const message = historyData.messageText || historyData.templateName || 'Mensagem enviada via QR Code';
         
-        console.log(`📤 Rastreando ${phoneNumbers.length} mensagens QR para relatórios`);
+        console.log(`📤 EXECUTANDO rastreamento de ${phoneNumbers.length} mensagens QR para relatórios`);
+        console.log(`📱 Telefones: ${phoneNumbers.join(', ')}`);
+        console.log(`💬 Mensagem: ${message}`);
+        
         await trackBulkQrMessages(req.user.id, phoneNumbers, message);
+        console.log(`✅ Rastreamento QR Code concluído com sucesso!`);
         
       } catch (trackError) {
-        console.error('❌ Erro ao rastrear mensagens QR:', trackError);
+        console.error('❌ ERRO CRÍTICO ao rastrear mensagens QR:', trackError);
+        console.error('Stack trace:', trackError.stack);
         // Não falhar o envio por causa do rastreamento
       }
+    } else {
+      console.log(`ℹ️ Rastreamento não executado - connectionType: ${historyData.connectionType}, searchId: ${historyData.searchId}`);
     }
     
     return res.status(201).json(created);
