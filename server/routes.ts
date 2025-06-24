@@ -6668,36 +6668,29 @@ async function getUsernameById(userId: number): Promise<string> {
 
 async function getQrConversationsCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
-    // Buscar dados das tabelas whatsapp_contacts primeiro
+    // Usar a mesma query da página de relatórios QR Code
     let query = `
-      SELECT COUNT(DISTINCT id) as qr_conversations 
-      FROM whatsapp_contacts 
-      WHERE user_id = $1
+      SELECT COUNT(DISTINCT c.phone_number) as qr_conversations
+      FROM contacts c
+      WHERE c.user_id = $1 
+        AND c.source = 'qr_code'
     `;
     
     const params = [userId];
     
     if (startDate && endDate) {
-      query += ` AND created_at::date BETWEEN $2 AND $3`;
+      query += ` AND c.last_message_time::date BETWEEN $2 AND $3`;
       params.push(startDate, endDate);
     }
     
     const result = await pool.query(query, params);
     const count = parseInt(result.rows[0]?.qr_conversations || '0');
     
-    console.log(`QR Conversas (whatsapp_contacts) para período ${startDate} - ${endDate}:`, count);
-    
-    // Se não encontrar dados locais, usar Evolution API
-    if (count === 0) {
-      console.log('Nenhum dado local encontrado, usando Evolution API...');
-      return await getQrConversationsFromAPI(userId);
-    }
-    
+    console.log(`QR Conversas (contacts QR) para período ${startDate} - ${endDate}:`, count);
     return count;
   } catch (error) {
-    console.error('Erro ao buscar conversas QR do banco local:', error);
-    
-    return await getQrConversationsFromAPI(userId);
+    console.error('Erro ao buscar conversas QR da tabela contacts:', error);
+    return 0;
   }
 }
 
@@ -6740,36 +6733,28 @@ async function getQrConversationsFromAPI(userId: number): Promise<number> {
 
 async function getQrMessagesCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
-    // Buscar dados da tabela whatsapp_messages primeiro
+    // Buscar da mesma forma que a página de relatórios QR Code - usando chat_messages_sent
     let query = `
-      SELECT COUNT(*) as qr_messages 
-      FROM whatsapp_messages 
-      WHERE user_id = $1
+      SELECT COUNT(*) as qr_messages
+      FROM chat_messages_sent cms
+      WHERE cms.user_id = $1
     `;
     
     const params = [userId];
     
     if (startDate && endDate) {
-      query += ` AND created_at::date BETWEEN $2 AND $3`;
+      query += ` AND cms.created_at::date BETWEEN $2 AND $3`;
       params.push(startDate, endDate);
     }
     
     const result = await pool.query(query, params);
     const count = parseInt(result.rows[0]?.qr_messages || '0');
     
-    console.log(`QR Mensagens (whatsapp_messages) para período ${startDate} - ${endDate}:`, count);
-    
-    // Se não encontrar dados locais, usar Evolution API
-    if (count === 0) {
-      console.log('Nenhum dado local encontrado, usando Evolution API...');
-      return await getQrMessagesFromAPI(userId);
-    }
-    
+    console.log(`QR Mensagens (chat_messages_sent) para período ${startDate} - ${endDate}:`, count);
     return count;
   } catch (error) {
-    console.error('Erro ao buscar mensagens QR do banco local:', error);
-    
-    return await getQrMessagesFromAPI(userId);
+    console.error('Erro ao buscar mensagens QR da tabela chat_messages_sent:', error);
+    return 0;
   }
 }
 
@@ -6813,71 +6798,28 @@ async function getQrMessagesFromAPI(userId: number): Promise<number> {
 
 async function getQrContactsCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
-    // Buscar dados do banco local aplicando filtros de data
+    // Usar a mesma query da página de relatórios QR Code
     let query = `
-      SELECT COUNT(DISTINCT phone_number) as qr_contacts 
-      FROM contacts 
-      WHERE user_id = $1 AND source = 'qr_code'
+      SELECT COUNT(DISTINCT c.phone_number) as qr_contacts 
+      FROM contacts c 
+      WHERE c.user_id = $1 AND c.source = 'qr_code'
     `;
     
     const params = [userId];
     
     if (startDate && endDate) {
-      query += ` AND created_at::date BETWEEN $2 AND $3`;
+      query += ` AND c.created_at::date BETWEEN $2 AND $3`;
       params.push(startDate, endDate);
     }
     
     const result = await pool.query(query, params);
     const count = parseInt(result.rows[0]?.qr_contacts || '0');
     
-    console.log(`QR Contatos (DB local) para período ${startDate} - ${endDate}:`, count);
+    console.log(`QR Contatos (contacts QR) para período ${startDate} - ${endDate}:`, count);
     return count;
   } catch (error) {
-    console.error('Erro ao buscar contatos QR do banco local:', error);
+    console.error('Erro ao buscar contatos QR da tabela contacts:', error);
     
-    // Fallback para Evolution API (sem filtro de data)
-    try {
-      const servers = await storage.getUserServers(userId);
-      if (!servers || servers.length === 0) return 0;
-
-      const serverData = servers[0];
-      const server = serverData.server;
-      const apiUrl = server.apiUrl;
-      const apiToken = server.apiToken;
-      const instanceId = await getUsernameById(userId);
-      
-      if (!apiToken) return 0;
-
-      const response = await fetch(`${apiUrl}/chat/findChats/${instanceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': apiToken
-        },
-        body: JSON.stringify({
-          where: {},
-          limit: 1000
-        })
-      });
-
-      if (!response.ok) return 0;
-
-      const chats = await response.json();
-      const uniqueContacts = new Set();
-      
-      if (Array.isArray(chats)) {
-        chats.forEach(chat => {
-          if (chat.remoteJid) {
-            uniqueContacts.add(chat.remoteJid);
-          }
-        });
-      }
-
-      console.log('QR Contatos (Evolution API fallback):', uniqueContacts.size);
-      return uniqueContacts.size;
-    } catch (fallbackError) {
-      console.error('Erro no fallback Evolution API:', fallbackError);
-      return 0;
-    }
+    return 0;
   }
 }
