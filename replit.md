@@ -196,6 +196,15 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Confiabilidade**: Sistema funciona mesmo com reinicializações do servidor
 - **Resultado**: Agendamentos executam corretamente na data/hora especificada
 
+### 2025-06-24 - Correção Relatórios QR Code com Filtros Temporais
+- **Problema resolvido**: Relatórios QR Code não consideravam período de análise selecionado
+- **Implementação**: Sistema híbrido banco local + Evolution API com filtros temporais
+- **QR Conversas**: Busca whatsapp_contacts com filtro de data, fallback para Evolution API
+- **QR Mensagens**: Consulta whatsapp_messages respeitando período, fallback para Evolution API
+- **QR Contatos**: Filtro por data na tabela contacts, source = 'qr_code'
+- **Logs detalhados**: Sistema indica qual fonte de dados está sendo utilizada
+- **Resultado**: Relatórios QR Code agora respondem às mudanças no período selecionado
+
 ### 2025-06-24 - Correção Duplicação e Erros SQL
 - **Problema**: Registros duplicados no histórico e erro SQL no scheduler
 - **Causa**: Frontend criava registro duplo + problemas com operadores Drizzle
