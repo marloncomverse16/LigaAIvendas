@@ -1542,7 +1542,14 @@ const SendingList = () => {
                   {sendings.map((sending) => (
                     <TableRow key={sending.id}>
                       <TableCell>
-                        <FormattedDate date={sending.createdAt} showTime={true} />
+                        {sending.scheduledAt ? (
+                          <div>
+                            <FormattedDate date={sending.scheduledAt} showTime={true} />
+                            <div className="text-xs text-muted-foreground">Agendado</div>
+                          </div>
+                        ) : (
+                          <FormattedDate date={sending.createdAt} showTime={true} />
+                        )}
                       </TableCell>
                       <TableCell>{getSearchName(sending.searchId)}</TableCell>
                       <TableCell>

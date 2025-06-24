@@ -2372,9 +2372,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `, [userId]);
       const total = parseInt(totalQuery.rows[0].total);
       
-      // Buscar registros com paginação
+      // Buscar registros com paginação - corrigindo nomes dos campos
       const sendingsQuery = await pool.query(`
-        SELECT * FROM message_sending_history 
+        SELECT 
+          id,
+          sending_id as "sendingId",
+          result_id as "resultId", 
+          status,
+          error_message as "errorMessage",
+          sent_at as "sentAt",
+          user_id as "userId",
+          search_id as "searchId",
+          template_id as "templateId",
+          template_name as "templateName", 
+          message_text as "messageText",
+          connection_type as "connectionType",
+          total_recipients as "totalRecipients",
+          success_count as "successCount",
+          error_count as "errorCount",
+          webhook_url as "webhookUrl",
+          started_at as "startedAt",
+          completed_at as "completedAt",
+          created_at as "createdAt",
+          updated_at as "updatedAt",
+          scheduled_at as "scheduledAt"
+        FROM message_sending_history 
         WHERE user_id = $1 
         ORDER BY created_at DESC 
         LIMIT $2 OFFSET $3
