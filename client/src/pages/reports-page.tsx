@@ -584,6 +584,9 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
+                      <div className="mt-4 text-sm text-muted-foreground text-center">
+                        Mostrando os primeiros 10 resultados de {qrReportData.conversations.length} conversas
+                      </div>
                     </div>
                   ) : (
                     <p className="text-center text-gray-500 py-8">
@@ -615,7 +618,7 @@ export default function ReportsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {qrReportData.messages.map((msg, index) => (
+                          {qrReportData.messages.slice(0, 10).map((msg, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{msg.phone_number}</td>
                               <td className="border border-gray-200 px-4 py-2">{msg.message_type}</td>
@@ -663,7 +666,7 @@ export default function ReportsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {qrReportData.contacts.map((contact, index) => (
+                          {qrReportData.contacts.slice(0, 10).map((contact, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{contact.phone_number}</td>
                               <td className="border border-gray-200 px-4 py-2">{contact.name || 'N/A'}</td>
@@ -686,6 +689,9 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
+                      <div className="mt-4 text-sm text-muted-foreground text-center">
+                        Mostrando os primeiros 10 resultados de {qrReportData.contacts.length} contatos
+                      </div>
                     </div>
                   ) : (
                     <p className="text-center text-gray-500 py-8">
