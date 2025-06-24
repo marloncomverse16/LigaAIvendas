@@ -2706,7 +2706,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Rotas específicas para histórico de envios de mensagens
   app.get("/api/message-sending-history", listMessageSendingHistory);
-  app.post("/api/message-sending-history", createMessageSendingHistory);
+  app.post("/api/message-sending-history", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = (req.user as Express.User).id;
+      const historyData = { ...req.body, userId };
+      
+      console.log('Dados recebidos para histórico:', historyData);
+      
+      // Se for envio QR Code, rastrear contatos para os relatórios ANTES de criar o registro
+      if (historyData.connectionType === 'whatsapp_qr' && historyData.searchId) {
+        try {
+          const { trackBulkQrMessages } = await import('./api/qr-message-tracker');
+          
+          // Buscar telefones da pesquisa
+          const phonesQuery = `SELECT phone FROM prospecting_results WHERE search_id = $1`;
+          const phonesResult = await pool.query(phonesQuery, [historyData.searchId]);
+          
+          const phoneNumbers = phonesResult.rows.map(row => row.phone);
+          const message = historyData.messageText || historyData.templateName || 'Mensagem enviada via QR Code';
+          
+          console.log(`📤 Rastreando ${phoneNumbers.length} mensagens QR para relatórios`);
+          await trackBulkQrMessages(userId, phoneNumbers, message);
+          
+        } catch (trackError) {
+          console.error('❌ Erro ao rastrear mensagens QR:', trackError);
+          // Não falhar o envio por causa do rastreamento
+        }
+      }
+      
+      // Chamar a função original
+      await createMessageSendingHistory(req, res);
+    } catch (error) {
+      console.error("Erro ao processar histórico de envios:", error);
+      res.status(500).json({ 
+        message: "Erro ao processar histórico de envios",
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
   app.put("/api/message-sending-history/:id", updateMessageSendingHistory);
   
   // WhatsApp API Routes
