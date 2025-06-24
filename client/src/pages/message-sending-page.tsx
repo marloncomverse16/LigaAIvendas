@@ -84,8 +84,6 @@ const createSendingSchema = z.object({
     // Permitir agendamento a partir da data/hora atual
     return date >= new Date();
   }, "Data de agendamento deve ser no futuro"),
-  aiLearningEnabled: z.boolean().default(false),
-  aiNotes: z.string().optional(),
 });
 
 // Componente auxiliar para formatar data
@@ -427,8 +425,6 @@ const CreateSendingForm = () => {
       customMessage: "",
       quantity: 10,
       scheduledAt: null,
-      aiLearningEnabled: false,
-      aiNotes: "",
     },
   });
   
@@ -1337,51 +1333,7 @@ const CreateSendingForm = () => {
               )}
             />
             
-            {/* Mostrar campo de aprendizado de IA apenas para conexão Meta API */}
-            {form.watch("whatsappConnectionType") === "meta" && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="aiLearningEnabled"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Aprendizado de IA</FormLabel>
-                        <FormDescription>
-                          Permite que a IA aprenda com o feedback dos envios para melhorar futuras mensagens
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                
-                {form.watch("aiLearningEnabled") && (
-                  <FormField
-                    control={form.control}
-                    name="aiNotes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notas para IA</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Instrua a IA sobre como melhorar as mensagens..."
-                            className="min-h-[80px]"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-              </>
-            )}
+
             
             <Button 
               type="submit" 
@@ -1724,7 +1676,7 @@ export default function MessageSendingPage() {
                   <li>Utilize templates predefinidos ou crie mensagens personalizadas</li>
                   <li>Defina a quantidade de mensagens para controlar o volume de envios</li>
                   <li>Agende envios para horários comerciais para melhores resultados</li>
-                  <li>Use a Meta API para recursos avançados de aprendizado de IA</li>
+                  <li>Use a Meta API para templates aprovados e melhor entregabilidade</li>
                   <li>Monitore os resultados no histórico de envios</li>
                 </ul>
               </CardContent>
