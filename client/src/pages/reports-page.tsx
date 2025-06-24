@@ -285,10 +285,9 @@ export default function ReportsPage() {
 
           {/* Relatórios detalhados Meta */}
           <Tabs defaultValue="conversations" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="conversations">Conversas Iniciadas</TabsTrigger>
               <TabsTrigger value="messages">Mensagens</TabsTrigger>
-              <TabsTrigger value="billing">Faturamento</TabsTrigger>
               <TabsTrigger value="leads">Leads</TabsTrigger>
             </TabsList>
 
@@ -313,7 +312,7 @@ export default function ReportsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {reportData.conversations.map((conv, index) => (
+                          {reportData.conversations.slice(0, 10).map((conv, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{conv.contact_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
@@ -331,6 +330,9 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
+                      <div className="mt-4 text-sm text-muted-foreground text-center">
+                        Mostrando os primeiros 10 resultados de {reportData.conversations.length} conversas
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center text-gray-500 py-8">
@@ -365,11 +367,10 @@ export default function ReportsPage() {
                             <th className="border border-gray-200 px-4 py-2 text-left">Telefone</th>
                             <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
                             <th className="border border-gray-200 px-4 py-2 text-left">Enviado em</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Custo</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {reportData.messages.map((msg, index) => (
+                          {reportData.messages.slice(0, 10).map((msg, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{msg.contact_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
@@ -385,7 +386,6 @@ export default function ReportsPage() {
                               <td className="border border-gray-200 px-4 py-2">
                                 {msg.sent_at ? format(new Date(msg.sent_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
-                              <td className="border border-gray-200 px-4 py-2">R$ {parseFloat(msg.cost_brl || msg.cost || '0').toFixed(4)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -400,50 +400,7 @@ export default function ReportsPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="billing">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Custos Aproximados</CardTitle>
-                  <CardDescription>
-                    Breakdown dos custos por período
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {reportData.billing.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse border border-gray-200">
-                        <thead>
-                          <tr className="bg-gray-50">
-                            <th className="border border-gray-200 px-4 py-2 text-left">Telefone</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Período</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Conversas</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Mensagens</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportData.billing.map((bill, index) => (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="border border-gray-200 px-4 py-2">{bill.phone_number_id}</td>
-                              <td className="border border-gray-200 px-4 py-2">
-                                {bill.report_date ? format(new Date(bill.report_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
-                              </td>
-                              <td className="border border-gray-200 px-4 py-2">{bill.conversation_count || 0} conversas</td>
-                              <td className="border border-gray-200 px-4 py-2">{bill.message_count || 0} mensagens</td>
-                              <td className="border border-gray-200 px-4 py-2 font-semibold">R$ {parseFloat(bill.total_cost || '0').toFixed(4)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="text-center text-gray-500 py-8">
-                      Nenhum dado de faturamento encontrado no período selecionado
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+
 
             <TabsContent value="leads">
               <Card>
@@ -461,19 +418,15 @@ export default function ReportsPage() {
                           <tr className="bg-gray-50">
                             <th className="border border-gray-200 px-4 py-2 text-left">Telefone</th>
                             <th className="border border-gray-200 px-4 py-2 text-left">Primeira Mensagem</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Primeira Resposta</th>
                             <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {reportData.leads.map((lead, index) => (
+                          {reportData.leads.slice(0, 10).map((lead, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{lead.contact_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
                                 {lead.first_message_at ? format(new Date(lead.first_message_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
-                              </td>
-                              <td className="border border-gray-200 px-4 py-2">
-                                {lead.first_response_at ? format(new Date(lead.first_response_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -486,6 +439,9 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
+                      <div className="mt-4 text-sm text-muted-foreground text-center">
+                        Mostrando os primeiros 10 resultados de {reportData.leads.length} leads
+                      </div>
                     </div>
                   ) : (
                     <p className="text-center text-gray-500 py-8">
