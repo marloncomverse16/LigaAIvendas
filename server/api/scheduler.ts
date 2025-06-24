@@ -92,7 +92,7 @@ export class MessageScheduler {
 
   private async executeScheduledSend(schedule: any) {
     try {
-      console.log(`📅 Executando envio agendado ${schedule.id} para ${schedule.totalRecipients} destinatários`);
+      console.log(`📅 Executando envio agendado ${schedule.id} para ${schedule.total_recipients} destinatários`);
       
       // Atualizar status para "em_andamento" usando SQL direto
       const { pool } = await import("../db");
@@ -102,10 +102,13 @@ export class MessageScheduler {
         WHERE id = $2
       `, [new Date(), schedule.id]);
 
-      // Buscar os resultados da pesquisa
-      const results = await db.select()
-        .from(prospectingResults)
-        .where(eq(prospectingResults.searchId, schedule.searchId));
+      // Buscar os resultados da pesquisa usando SQL direto
+      const searchResults = await pool.query(`
+        SELECT * FROM prospecting_results 
+        WHERE search_id = $1
+      `, [schedule.search_id]);
+      
+      const results = searchResults.rows;
 
       if (!results.length) {
         throw new Error("Nenhum resultado encontrado para esta pesquisa");
@@ -139,8 +142,8 @@ export class MessageScheduler {
           // Enviar mensagem usando o template
           const messageRequest = {
             to: phoneNumber,
-            templateId: schedule.templateId,
-            templateName: schedule.templateName,
+            templateId: schedule.template_id,
+            templateName: schedule.template_name,
             language: "pt_BR",
             components: []
           };
@@ -185,7 +188,6 @@ export class MessageScheduler {
       console.error(`📅 Erro no envio agendado ${schedule.id}:`, error);
       
       // Atualizar status para "erro" usando SQL direto
-      const { pool } = await import("../db");
       await pool.query(`
         UPDATE message_sending_history 
         SET status = 'erro', error_message = $1 
