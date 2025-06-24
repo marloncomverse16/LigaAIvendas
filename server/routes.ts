@@ -6694,42 +6694,7 @@ async function getQrConversationsCount(userId: number, startDate?: string, endDa
   }
 }
 
-// Função auxiliar para buscar conversas da Evolution API
-async function getQrConversationsFromAPI(userId: number): Promise<number> {
-  try {
-    const servers = await storage.getUserServers(userId);
-    if (!servers || servers.length === 0) return 0;
 
-    const serverData = servers[0];
-    const server = serverData.server;
-    const apiUrl = server.apiUrl;
-    const apiToken = server.apiToken;
-    const instanceId = await getUsernameById(userId);
-    
-    if (!apiToken) return 0;
-
-    const response = await fetch(`${apiUrl}/chat/findChats/${instanceId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': apiToken
-      },
-      body: JSON.stringify({
-        where: {},
-        limit: 1000
-      })
-    });
-
-    if (!response.ok) return 0;
-
-    const chats = await response.json();
-    console.log('QR Conversas (Evolution API):', chats.length);
-    return chats.length || 0;
-  } catch (error) {
-    console.error('Erro na Evolution API para conversas:', error);
-    return 0;
-  }
-}
 
 async function getQrMessagesCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
@@ -6758,43 +6723,7 @@ async function getQrMessagesCount(userId: number, startDate?: string, endDate?: 
   }
 }
 
-// Função auxiliar para buscar mensagens da Evolution API
-async function getQrMessagesFromAPI(userId: number): Promise<number> {
-  try {
-    const servers = await storage.getUserServers(userId);
-    if (!servers || servers.length === 0) return 0;
 
-    const serverData = servers[0];
-    const server = serverData.server;
-    const apiUrl = server.apiUrl;
-    const apiToken = server.apiToken;
-    const instanceId = await getUsernameById(userId);
-    
-    if (!apiToken) return 0;
-
-    const response = await fetch(`${apiUrl}/chat/findMessages/${instanceId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': apiToken
-      },
-      body: JSON.stringify({
-        where: {},
-        limit: 1000
-      })
-    });
-
-    if (!response.ok) return 0;
-
-    const messagesData = await response.json();
-    const totalMessages = messagesData.messages?.total || 0;
-    console.log('QR Mensagens (Evolution API):', totalMessages);
-    return totalMessages;
-  } catch (error) {
-    console.error('Erro na Evolution API para mensagens:', error);
-    return 0;
-  }
-}
 
 async function getQrContactsCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
