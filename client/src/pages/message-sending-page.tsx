@@ -585,6 +585,9 @@ const CreateSendingForm = () => {
         throw new Error("Template selecionado não encontrado");
       }
       
+      // Determinar o número de leads baseado na quantidade solicitada
+      const totalRecipients = data.quantity || 10;
+      
       // Criar o registro de histórico de envio
       console.log("Enviando dados para histórico Meta API:", {
         userId: data.userId,
@@ -599,7 +602,7 @@ const CreateSendingForm = () => {
         templateName: selectedTemplate.name,
         messageText: null,
         connectionType: "whatsapp_meta_api",
-        totalRecipients: realLeadsCount,
+        totalRecipients: totalRecipients,
         webhookUrl: null
       });
       
@@ -617,7 +620,7 @@ const CreateSendingForm = () => {
         templateName: selectedTemplate.name,
         messageText: null,
         connectionType: "whatsapp_meta_api",
-        totalRecipients: realLeadsCount,
+        totalRecipients: totalRecipients,
         webhookUrl: null
       });
       

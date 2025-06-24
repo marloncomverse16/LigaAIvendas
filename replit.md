@@ -162,5 +162,12 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Lógica corrigida**: Meta API usa IDs como string, templates locais como number
 - **Resultado**: Todos os templates Meta API agora selecionam corretamente
 
+### 2025-06-24 - Correção Erro "realLeadsCount is not defined"
+- **Problema**: Variável `realLeadsCount` não definida ao agendar envio Meta API
+- **Causa**: Variável usada mas não declarada no código de envio
+- **Solução**: Substituída por `totalRecipients` baseado na quantidade solicitada
+- **Código corrigido**: Definição de `totalRecipients = data.quantity || 10`
+- **Resultado**: Agendamento de envios Meta API funciona sem erro
+
 *Última atualização: 24 de junho de 2025*
 *Token WhatsApp Cloud API sincronizado e sistema operacional*
