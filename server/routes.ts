@@ -6315,14 +6315,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           c.phone_number,
           c.name,
-          'Mensagem via QR Code' as message_type,
+          'text' as message_type,
           'sent' as status,
           c.last_message_time as sent_at,
+          c.last_message,
           c.source
         FROM contacts c
         WHERE c.user_id = $1 
           AND c.source = 'qr_code'
-          AND c.last_message_time BETWEEN $2 AND $3
+          AND c.last_message_time IS NOT NULL
+          AND c.last_message_time::date BETWEEN $2 AND $3
         ORDER BY c.last_message_time DESC
       `;
 
@@ -6367,8 +6369,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM contacts c
         WHERE c.user_id = $1 
           AND c.source = 'qr_code'
-          AND c.created_at BETWEEN $2 AND $3
-        ORDER BY c.last_message_time DESC
+          AND (
+            c.created_at::date BETWEEN $2 AND $3 OR
+            c.last_message_time::date BETWEEN $2 AND $3
+          )
+        ORDER BY COALESCE(c.last_message_time, c.created_at) DESC
       `;
 
       const { rows } = await pool.query(query, [userId, startDate, endDate]);
