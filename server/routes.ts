@@ -341,6 +341,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupAuth(app);
   
+  // Iniciar serviço de sincronização QR Code automática
+  try {
+    const { qrSyncService } = await import('./api/qr-sync');
+    qrSyncService.start();
+    console.log('✅ Serviço de sincronização QR Code iniciado');
+  } catch (error) {
+    console.error('❌ Erro ao iniciar serviço de sincronização QR Code:', error);
+  }
+  
   // Setup file upload middleware
   setupFileUpload(app);
   
@@ -4562,6 +4571,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Forçar sincronização imediata QR Code
+  app.post("/api/contacts/sync-qr-now", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const { qrSyncService } = await import('./api/qr-sync');
+      console.log('🔄 Sincronização QR Code forçada pelo usuário');
+      
+      // Forçar sincronização imediata
+      await qrSyncService.syncAllUsers();
+      
+      res.json({
+        success: true,
+        message: 'Sincronização QR Code executada com sucesso'
+      });
+    } catch (error) {
+      console.error('❌ Erro na sincronização forçada:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao executar sincronização',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+
   app.post("/api/whatsapp/send", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
     

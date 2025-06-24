@@ -196,15 +196,17 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Confiabilidade**: Sistema funciona mesmo com reinicializações do servidor
 - **Resultado**: Agendamentos executam corretamente na data/hora especificada
 
-### 2025-06-24 - Correção Final Relatórios QR Code Dashboard
-- **Problema identificado**: Dashboard QR Code mostrava 0 mensagens enquanto página relatórios mostrava 3
-- **Causa**: Dashboard usava tabela `chat_messages_sent`, relatórios usavam tabela `contacts`
-- **Solução**: Unificação das queries para usar tabela `contacts` com `source = 'qr_code'`
-- **QR Conversas**: COUNT(DISTINCT phone_number) da tabela contacts QR
-- **QR Mensagens**: COUNT(*) da tabela contacts QR com filtro last_message_time
-- **QR Contatos**: COUNT(DISTINCT phone_number) da tabela contacts QR
-- **Resultado**: Dashboard agora mostra 3 mensagens QR Code conforme página relatórios
-- **Dados sincronizados**: Ambas as páginas usam exatamente as mesmas tabelas e filtros
+### 2025-06-24 - Sistema Automático de Sincronização QR Code
+- **Problema**: Novas mensagens QR Code não atualizavam automaticamente nos relatórios
+- **Causa**: Sistema dependia de sincronização manual, não capturava mensagens em tempo real
+- **Solução**: Criado serviço automático de sincronização QR Code (`server/api/qr-sync.ts`)
+- **Funcionalidades**:
+  - Monitora Evolution API a cada 30 segundos
+  - Busca mensagens das últimas 24 horas automaticamente
+  - Atualiza tabela `contacts` com novos contatos e timestamps
+  - Funciona para todos os usuários com servidores Evolution configurados
+- **Rota adicional**: `/api/contacts/sync-qr-now` para sincronização manual forçada
+- **Resultado**: Relatórios QR Code agora mostram dados sempre atualizados automaticamente
 
 ### 2025-06-24 - Correção Duplicação e Erros SQL
 - **Problema**: Registros duplicados no histórico e erro SQL no scheduler
