@@ -624,7 +624,11 @@ export default function ReportsPage() {
                               <td className="border border-gray-200 px-4 py-2">{msg.message_type}</td>
                               <td className="border border-gray-200 px-4 py-2">
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  {msg.status}
+                                  {msg.status === 'sent' ? 'Enviado' : 
+                                   msg.status === 'delivered' ? 'Entregue' : 
+                                   msg.status === 'read' ? 'Lido' : 
+                                   msg.status === 'failed' ? 'Falhou' : 
+                                   msg.status || 'Enviado'}
                                 </span>
                               </td>
                               <td className="border border-gray-200 px-4 py-2">
