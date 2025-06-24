@@ -178,6 +178,15 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Status tracking**: "agendado" → "em_andamento" → "concluido"
 - **Resultado**: Envios executam na data/hora correta quando agendados
 
+### 2025-06-24 - Remoção Completa de Campos de Perfil
+- **Solicitação do usuário**: Remover campos Nome, Email, Telefone, Empresa e Sobre da seção "Configurações - Perfil e Conta"
+- **Frontend atualizado**: Campos removidos do formulário em `client/src/pages/settings-page.tsx`
+- **Schema simplificado**: `profileSchema` agora vazio, sem validações de campos pessoais
+- **Interface limpa**: Seção mostra mensagem explicativa sobre simplificação
+- **Backend atualizado**: Rota `/api/profile` retorna apenas dados básicos (id, username, isAdmin)
+- **Aplicado globalmente**: Alteração afeta todos os usuários do sistema
+- **Compatibilidade mantida**: Funções antigas mantidas para evitar quebras
+
 ### 2025-06-24 - Correção Sistema de Agendamento Robusto
 - **Problema**: setTimeout não funcionava em ambiente servidor que pode reiniciar
 - **Solução**: Sistema de scheduler robusto com verificação periódica

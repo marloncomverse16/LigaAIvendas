@@ -22,11 +22,7 @@ import { Loader2, Target, DollarSign, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const profileSchema = z.object({
-  name: z.string().optional(),
-  email: z.string().email("Email inválido"),
-  phone: z.string().optional(),
-  company: z.string().optional(),
-  bio: z.string().optional(),
+  // Campos de perfil removidos conforme solicitado
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -415,24 +411,12 @@ export default function SettingsPage() {
   
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      company: "",
-      bio: "",
-    },
-    values: profile && typeof profile === 'object' ? {
-      name: profile.name || "",
-      email: profile.email || "",
-      phone: profile.phone || "",
-      company: profile.company || "",
-      bio: profile.bio || "",
-    } : undefined,
+    defaultValues: {},
+    values: profile && typeof profile === 'object' ? {} : undefined,
   });
   
   const onProfileSubmit = (data: ProfileFormValues) => {
-    updateProfileMutation.mutate(data);
+    // Campos de perfil removidos - função mantida para compatibilidade
   };
   
   const getInitials = (name?: string) => {
@@ -441,10 +425,8 @@ export default function SettingsPage() {
   };
   
   const getProfileName = () => {
-    if (profile && typeof profile === 'object' && profile.name) {
-      return profile.name;
-    }
-    return "";
+    // Campos de perfil removidos - retorna username do usuário autenticado
+    return user?.username || "U";
   };
   
   return (
@@ -556,94 +538,13 @@ export default function SettingsPage() {
                             </div>
                           </div>
                           
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormField
-                              control={profileForm.control}
-                              name="name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Nome</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} value={field.value || ""} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={profileForm.control}
-                              name="email"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Email</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} type="email" value={field.value || ""} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={profileForm.control}
-                              name="phone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Telefone</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} value={field.value || ""} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={profileForm.control}
-                              name="company"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Empresa</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} value={field.value || ""} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          
-                          <FormField
-                            control={profileForm.control}
-                            name="bio"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Sobre</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    rows={3} 
-                                    placeholder="Conte um pouco sobre você ou sua empresa..." 
-                                    {...field}
-                                    value={field.value || ""}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <div className="flex justify-end">
-                            <Button 
-                              type="submit" 
-                              disabled={updateProfileMutation.isPending}
-                              className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
-                            >
-                              {updateProfileMutation.isPending ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              ) : null}
-                              Salvar alterações
-                            </Button>
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground text-lg">
+                              Seção de perfil simplificada
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-2">
+                              Os campos de perfil pessoal foram removidos conforme solicitado.
+                            </p>
                           </div>
                         </form>
                       </Form>
