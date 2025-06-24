@@ -154,5 +154,13 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Schema corrigido**: Validação Zod atualizada para aceitar datas futuras a partir do momento atual
 - **Resultado**: Usuários podem agendar mensagens a partir do momento atual sem limitação de 1 dia
 
+### 2025-06-24 - Correção Seleção de Templates Meta API
+- **Problema**: Template "Modelo_de_teste_ligai" não selecionava quando clicado
+- **Causa**: Conflito de tipos entre IDs de templates Meta API (string) e templates locais (number)
+- **Solução**: Atualização do Select para tratar tipos diferentes conforme o tipo de conexão
+- **Schema atualizado**: templateId agora aceita string ou number usando z.union()
+- **Lógica corrigida**: Meta API usa IDs como string, templates locais como number
+- **Resultado**: Todos os templates Meta API agora selecionam corretamente
+
 *Última atualização: 24 de junho de 2025*
 *Token WhatsApp Cloud API sincronizado e sistema operacional*

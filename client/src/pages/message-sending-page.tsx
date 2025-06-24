@@ -76,7 +76,7 @@ const createTemplateSchema = z.object({
 const createSendingSchema = z.object({
   whatsappConnectionType: z.enum(["qrcode", "meta"]).default("qrcode"),
   searchId: z.number().optional().nullable(),
-  templateId: z.number().optional().nullable(),
+  templateId: z.union([z.string(), z.number()]).optional().nullable(), // Aceitar string (Meta API) ou número (local)
   customMessage: z.string().optional(),
   quantity: z.number().min(1, "A quantidade mínima é 1").max(1000, "A quantidade máxima é 1000"),
   scheduledAt: z.date().optional().nullable().refine((date) => {
@@ -1048,7 +1048,15 @@ const CreateSendingForm = () => {
                   <FormItem>
                     <FormLabel>Template de Mensagem</FormLabel>
                     <Select
-                      onValueChange={(value) => field.onChange(Number(value))}
+                      onValueChange={(value) => {
+                        // Para templates Meta API, usar o ID como string
+                        if (form.watch("whatsappConnectionType") === "meta") {
+                          field.onChange(value);
+                        } else {
+                          // Para templates locais, converter para número
+                          field.onChange(Number(value));
+                        }
+                      }}
                       value={field.value?.toString() || ""}
                     >
                       <FormControl>
@@ -1066,7 +1074,7 @@ const CreateSendingForm = () => {
                           ) : metaTemplates && metaTemplates.length > 0 ? (
                             <>
                               {metaTemplates.map((template) => (
-                                <SelectItem key={template.id} value={template.id.toString()}>
+                                <SelectItem key={template.id} value={template.id}>
                                   {template.name} {template.status ? `(${template.status})` : ''}
                                 </SelectItem>
                               ))}
