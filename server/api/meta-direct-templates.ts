@@ -29,8 +29,8 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
   let apiVersion = 'v18.0';
   
   try {
-    // Buscar usuários com token Meta configurado
-    // As configurações estão na tabela 'settings', não na tabela 'users'
+    // Buscar configurações válidas do usuário 2 (usuário ativo)
+    // Sempre usar o token mais recente da tabela settings
     const result = await pool.query(`
       SELECT 
         settings.user_id, 
@@ -39,11 +39,13 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
         settings.whatsapp_meta_api_version
       FROM settings
       WHERE 
-        (settings.whatsapp_meta_token IS NOT NULL AND settings.whatsapp_meta_token != '') OR
-        (settings.whatsapp_meta_business_id IS NOT NULL AND settings.whatsapp_meta_business_id != '') OR
-        (settings.whatsapp_meta_api_version IS NOT NULL AND settings.whatsapp_meta_api_version != '')
-      ORDER BY settings.user_id DESC
-      LIMIT 10
+        settings.user_id = 2 AND
+        settings.whatsapp_meta_token IS NOT NULL AND 
+        settings.whatsapp_meta_token != '' AND
+        settings.whatsapp_meta_business_id IS NOT NULL AND 
+        settings.whatsapp_meta_business_id != ''
+      ORDER BY settings.updated_at DESC
+      LIMIT 1
     `);
 
     if (result.rows.length === 0) {
@@ -92,95 +94,37 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
     const user = bestConfig;
     console.log("[META-DIRECT] Usando configuração do usuário ID:", user.user_id, "com pontuação:", bestScore);
 
-    // Vamos atualizar as variáveis declaradas no escopo externo
+    // Usar diretamente os valores da configuração (já foram corrigidos nas tabelas)
     token = user.whatsapp_meta_token || '';
     businessId = user.whatsapp_meta_business_id || '';
-    apiVersion = user.whatsapp_meta_api_version || "v18.0";  // Default to v18.0 if not set
+    apiVersion = user.whatsapp_meta_api_version || "v18.0";
     
-    // Variáveis que serão potencialmente modificadas durante a detecção de problemas
-    let actualToken = token;
-    let actualBusinessId = businessId;
-    let actualApiVersion = "v18.0"; // Sempre usar v18.0 como padrão
-    let valuesSwapped = false;
-    
-    // Verificando se os valores parecem estar em ordem
-    if (token.length < 20) {
-      console.log("[META-DIRECT] ALERTA: Token parece muito curto, apenas", token.length, "caracteres");
-    }
-    
-    // Logging das informações para debug
-    console.log("[META-DIRECT] Token length:", token.length);
-    console.log("[META-DIRECT] BusinessId length:", businessId.length);
-    console.log("[META-DIRECT] API Version value:", apiVersion);
-    
-    // Verificação aprimorada de valores
-    // Verificar se algum campo contém um token de acesso Meta (começando com EAA)
-    if (token.startsWith("EAA") && token.length > 50) {
-      actualToken = token;
-      console.log("[META-DIRECT] Token encontrado no campo correto (whatsapp_meta_token)");
-    } else if (apiVersion.startsWith("EAA") && apiVersion.length > 50) {
-      actualToken = apiVersion;
-      console.log("[META-DIRECT] Token encontrado no campo whatsapp_meta_api_version");
-    } else if (businessId.startsWith("EAA") && businessId.length > 50) {
-      actualToken = businessId;
-      console.log("[META-DIRECT] Token encontrado no campo whatsapp_meta_business_id");
-      
-      // Se o token está no lugar de businessId, precisamos descobrir o businessId correto
-      if (token.length > 0 && !isNaN(Number(token))) {
-        actualBusinessId = token;
-        console.log("[META-DIRECT] BusinessId encontrado no campo whatsapp_meta_token");
-      } else if (apiVersion.length > 0 && !isNaN(Number(apiVersion))) {
-        actualBusinessId = apiVersion;
-        console.log("[META-DIRECT] BusinessId encontrado no campo whatsapp_meta_api_version");
-      } else {
-        // Não conseguimos encontrar o businessId, este é um problema
-        console.log("[META-DIRECT] ALERTA: Não foi possível identificar o businessId. Tentando prosseguir assim mesmo.");
-      }
-    }
-    
-    // Verificar o businessId - deve ser numérico
-    if (!actualBusinessId || isNaN(Number(actualBusinessId))) {
-      console.log("[META-DIRECT] ALERTA: BusinessId não parece válido (deve ser numérico):", actualBusinessId);
-      
-      // Verificar se o token ou apiVersion contém um ID numérico
-      if (token.length > 0 && !isNaN(Number(token))) {
-        actualBusinessId = token;
-        console.log("[META-DIRECT] Usando token como businessId:", actualBusinessId);
-      } else if (apiVersion.length > 0 && !isNaN(Number(apiVersion))) {
-        actualBusinessId = apiVersion;
-        console.log("[META-DIRECT] Usando apiVersion como businessId:", actualBusinessId);
-      }
-    }
+    console.log("[META-DIRECT] Configuração carregada:");
+    console.log("[META-DIRECT] - Token length:", token.length);
+    console.log("[META-DIRECT] - Token prefix:", token.substring(0, 10) + "...");
+    console.log("[META-DIRECT] - Business ID:", businessId);
+    console.log("[META-DIRECT] - API Version:", apiVersion);
 
-    console.log(`[META-DIRECT] Usando usuário ID ${user.user_id} para buscar templates`);
-    console.log(`[META-DIRECT] BusinessID: ${businessId}`);
-    console.log(`[META-DIRECT] API Version: ${apiVersion}`);
-    console.log(`[META-DIRECT] Token (primeiros 10 chars): ${token.substring(0, 10)}...`);
-
-    // Verificações finais
-    if (!actualToken || actualToken.length < 50) {
-      console.log("[META-DIRECT] ALERTA: Token parece inválido ou muito curto:", actualToken);
+    // Validações básicas
+    if (!token || token.length < 50) {
+      console.log("[META-DIRECT] Token inválido ou muito curto");
       return res.status(400).json({
-        error: "Token de acesso inválido ou não encontrado",
+        error: "Token WhatsApp Meta API inválido. Configure um token válido em Configurações > Integrações",
         success: false
       });
     }
 
-    if (!actualBusinessId || isNaN(Number(actualBusinessId))) {
-      console.log("[META-DIRECT] ALERTA: BusinessId parece inválido:", actualBusinessId);
+    if (!businessId || isNaN(Number(businessId))) {
+      console.log("[META-DIRECT] Business ID inválido");
       return res.status(400).json({
-        error: "ID do negócio inválido ou não encontrado",
+        error: "Business ID inválido. Configure um Business ID válido em Configurações > Integrações",
         success: false
       });
     }
 
-    // URL para buscar as mensagens templates
-    const url = `https://graph.facebook.com/${actualApiVersion}/${actualBusinessId}/message_templates`;
-
-    console.log(`[META-DIRECT] URL final: ${url}`);
-    console.log(`[META-DIRECT] Token utilizado (primeiros 10 chars): ${actualToken.substring(0, 10)}...`);
-    console.log(`[META-DIRECT] API Version utilizada: ${actualApiVersion}`);
-    console.log(`[META-DIRECT] BusinessId utilizado: ${actualBusinessId}`);
+    // URL para buscar os templates
+    const url = `https://graph.facebook.com/${apiVersion}/${businessId}/message_templates`;
+    console.log(`[META-DIRECT] Fazendo requisição para: ${url}`);
 
     // Coletar todos os templates (com paginação)
     let allTemplates: MetaTemplate[] = [];
@@ -192,7 +136,7 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
       // Fazer a requisição para a página atual
       const response = await axios.get(nextPageUrl, {
         headers: {
-          Authorization: `Bearer ${actualToken}`,
+          Authorization: `Bearer ${token}`,
         },
         params: {
           limit: 250, // Usar limite maior para reduzir número de requisições
