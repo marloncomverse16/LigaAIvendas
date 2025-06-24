@@ -695,13 +695,14 @@ export default function ReportsPage() {
                         </tbody>
                       </table>
                       <div className="mt-4 text-sm text-muted-foreground text-center">
-                        Mostrando os primeiros 10 resultados de {qrReportData.contacts.length} contatos
+                        Mostrando {Math.min(10, qrReportData.contacts.length)} de {qrReportData.contacts.length} contatos
                       </div>
                     </div>
                   ) : (
-                    <p className="text-center text-gray-500 py-8">
-                      Nenhum contato encontrado no período selecionado
-                    </p>
+                    <div className="text-center text-gray-500 py-8">
+                      <p>Nenhum contato QR Code encontrado no período selecionado</p>
+                      <p className="text-sm mt-2">Envie mensagens via QR Code para gerar dados aqui automaticamente</p>
+                    </div>
                   )}
                 </CardContent>
               </Card>
