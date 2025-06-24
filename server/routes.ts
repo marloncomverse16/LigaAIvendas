@@ -6668,10 +6668,10 @@ async function getUsernameById(userId: number): Promise<string> {
 
 async function getQrConversationsCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
-    // Buscar dados do banco local aplicando filtros de data
+    // Buscar dados das tabelas whatsapp_contacts primeiro
     let query = `
-      SELECT COUNT(DISTINCT contact_id) as qr_conversations 
-      FROM whatsapp_messages 
+      SELECT COUNT(DISTINCT id) as qr_conversations 
+      FROM whatsapp_contacts 
       WHERE user_id = $1
     `;
     
@@ -6685,51 +6685,62 @@ async function getQrConversationsCount(userId: number, startDate?: string, endDa
     const result = await pool.query(query, params);
     const count = parseInt(result.rows[0]?.qr_conversations || '0');
     
-    console.log(`QR Conversas (DB local) para período ${startDate} - ${endDate}:`, count);
+    console.log(`QR Conversas (whatsapp_contacts) para período ${startDate} - ${endDate}:`, count);
+    
+    // Se não encontrar dados locais, usar Evolution API
+    if (count === 0) {
+      console.log('Nenhum dado local encontrado, usando Evolution API...');
+      return await getQrConversationsFromAPI(userId);
+    }
+    
     return count;
   } catch (error) {
     console.error('Erro ao buscar conversas QR do banco local:', error);
     
-    // Fallback para Evolution API (sem filtro de data)
-    try {
-      const servers = await storage.getUserServers(userId);
-      if (!servers || servers.length === 0) return 0;
+    return await getQrConversationsFromAPI(userId);
+  }
+}
 
-      const serverData = servers[0];
-      const server = serverData.server;
-      const apiUrl = server.apiUrl;
-      const apiToken = server.apiToken;
-      const instanceId = await getUsernameById(userId);
-      
-      if (!apiToken) return 0;
+// Função auxiliar para buscar conversas da Evolution API
+async function getQrConversationsFromAPI(userId: number): Promise<number> {
+  try {
+    const servers = await storage.getUserServers(userId);
+    if (!servers || servers.length === 0) return 0;
 
-      const response = await fetch(`${apiUrl}/chat/findChats/${instanceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': apiToken
-        },
-        body: JSON.stringify({
-          where: {},
-          limit: 1000
-        })
-      });
+    const serverData = servers[0];
+    const server = serverData.server;
+    const apiUrl = server.apiUrl;
+    const apiToken = server.apiToken;
+    const instanceId = await getUsernameById(userId);
+    
+    if (!apiToken) return 0;
 
-      if (!response.ok) return 0;
+    const response = await fetch(`${apiUrl}/chat/findChats/${instanceId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiToken
+      },
+      body: JSON.stringify({
+        where: {},
+        limit: 1000
+      })
+    });
 
-      const chats = await response.json();
-      console.log('QR Conversas (Evolution API fallback):', chats.length);
-      return chats.length || 0;
-    } catch (fallbackError) {
-      console.error('Erro no fallback Evolution API:', fallbackError);
-      return 0;
-    }
+    if (!response.ok) return 0;
+
+    const chats = await response.json();
+    console.log('QR Conversas (Evolution API):', chats.length);
+    return chats.length || 0;
+  } catch (error) {
+    console.error('Erro na Evolution API para conversas:', error);
+    return 0;
   }
 }
 
 async function getQrMessagesCount(userId: number, startDate?: string, endDate?: string): Promise<number> {
   try {
-    // Buscar dados do banco local aplicando filtros de data
+    // Buscar dados da tabela whatsapp_messages primeiro
     let query = `
       SELECT COUNT(*) as qr_messages 
       FROM whatsapp_messages 
@@ -6746,46 +6757,57 @@ async function getQrMessagesCount(userId: number, startDate?: string, endDate?: 
     const result = await pool.query(query, params);
     const count = parseInt(result.rows[0]?.qr_messages || '0');
     
-    console.log(`QR Mensagens (DB local) para período ${startDate} - ${endDate}:`, count);
+    console.log(`QR Mensagens (whatsapp_messages) para período ${startDate} - ${endDate}:`, count);
+    
+    // Se não encontrar dados locais, usar Evolution API
+    if (count === 0) {
+      console.log('Nenhum dado local encontrado, usando Evolution API...');
+      return await getQrMessagesFromAPI(userId);
+    }
+    
     return count;
   } catch (error) {
     console.error('Erro ao buscar mensagens QR do banco local:', error);
     
-    // Fallback para Evolution API (sem filtro de data)
-    try {
-      const servers = await storage.getUserServers(userId);
-      if (!servers || servers.length === 0) return 0;
+    return await getQrMessagesFromAPI(userId);
+  }
+}
 
-      const serverData = servers[0];
-      const server = serverData.server;
-      const apiUrl = server.apiUrl;
-      const apiToken = server.apiToken;
-      const instanceId = await getUsernameById(userId);
-      
-      if (!apiToken) return 0;
+// Função auxiliar para buscar mensagens da Evolution API
+async function getQrMessagesFromAPI(userId: number): Promise<number> {
+  try {
+    const servers = await storage.getUserServers(userId);
+    if (!servers || servers.length === 0) return 0;
 
-      const response = await fetch(`${apiUrl}/chat/findMessages/${instanceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': apiToken
-        },
-        body: JSON.stringify({
-          where: {},
-          limit: 1000
-        })
-      });
+    const serverData = servers[0];
+    const server = serverData.server;
+    const apiUrl = server.apiUrl;
+    const apiToken = server.apiToken;
+    const instanceId = await getUsernameById(userId);
+    
+    if (!apiToken) return 0;
 
-      if (!response.ok) return 0;
+    const response = await fetch(`${apiUrl}/chat/findMessages/${instanceId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiToken
+      },
+      body: JSON.stringify({
+        where: {},
+        limit: 1000
+      })
+    });
 
-      const messagesData = await response.json();
-      const totalMessages = messagesData.messages?.total || 0;
-      console.log('QR Mensagens (Evolution API fallback):', totalMessages);
-      return totalMessages;
-    } catch (fallbackError) {
-      console.error('Erro no fallback Evolution API:', fallbackError);
-      return 0;
-    }
+    if (!response.ok) return 0;
+
+    const messagesData = await response.json();
+    const totalMessages = messagesData.messages?.total || 0;
+    console.log('QR Mensagens (Evolution API):', totalMessages);
+    return totalMessages;
+  } catch (error) {
+    console.error('Erro na Evolution API para mensagens:', error);
+    return 0;
   }
 }
 
