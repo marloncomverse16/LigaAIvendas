@@ -48,6 +48,9 @@ import {
 } from "./api/connections";
 
 // Importação das rotas para a nova interface WhatsApp
+
+// Importar e inicializar o sistema de agendamento
+import "./api/scheduler";
 import evolutionRoutes from "./api/evolution-routes";
 
 // Importação do controlador para envio direto via Meta API

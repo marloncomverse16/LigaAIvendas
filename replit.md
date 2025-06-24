@@ -178,5 +178,14 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Status tracking**: "agendado" → "em_andamento" → "concluido"
 - **Resultado**: Envios executam na data/hora correta quando agendados
 
+### 2025-06-24 - Correção Sistema de Agendamento Robusto
+- **Problema**: setTimeout não funcionava em ambiente servidor que pode reiniciar
+- **Solução**: Sistema de scheduler robusto com verificação periódica
+- **Implementação**: Classe MessageScheduler com singleton pattern
+- **Verificação**: A cada 30 segundos verifica envios pendentes para executar
+- **Execução real**: Envios agendados agora executam disparos reais via Meta API
+- **Confiabilidade**: Sistema funciona mesmo com reinicializações do servidor
+- **Resultado**: Agendamentos executam corretamente na data/hora especificada
+
 *Última atualização: 24 de junho de 2025*
 *Token WhatsApp Cloud API sincronizado e sistema operacional*

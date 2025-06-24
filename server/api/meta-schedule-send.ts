@@ -105,51 +105,8 @@ export async function scheduleMetaMessageSend(req: Request, res: Response) {
       totalRecipients: results.length
     });
 
-    // Calcular delay em milissegundos
-    const delay = scheduledDate.getTime() - now.getTime();
-    
-    // Agendar o envio usando setTimeout
-    setTimeout(async () => {
-      try {
-        console.log(`Executando envio agendado ${historyRecord.id} para ${results.length} destinatários`);
-        
-        // Atualizar status para "em_andamento"
-        await db.update(messageSendingHistory)
-          .set({ 
-            status: "em_andamento",
-            startedAt: new Date()
-          })
-          .where(eq(messageSendingHistory.id, historyRecord.id));
-
-        // Aqui você pode chamar a função de envio direto
-        // Por simplicidade, vou apenas simular o processamento
-        console.log(`Processando envio agendado ${historyRecord.id}...`);
-        
-        // Simular processamento (substitua pela lógica real de envio)
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Atualizar status para "concluido"
-        await db.update(messageSendingHistory)
-          .set({ 
-            status: "concluido",
-            completedAt: new Date()
-          })
-          .where(eq(messageSendingHistory.id, historyRecord.id));
-
-        console.log(`Envio agendado ${historyRecord.id} concluído com sucesso`);
-        
-      } catch (error) {
-        console.error(`Erro no envio agendado ${historyRecord.id}:`, error);
-        
-        // Atualizar status para "erro"
-        await db.update(messageSendingHistory)
-          .set({ 
-            status: "erro",
-            errorMessage: error instanceof Error ? error.message : "Erro desconhecido"
-          })
-          .where(eq(messageSendingHistory.id, historyRecord.id));
-      }
-    }, delay);
+    // O agendamento será executado pelo sistema de scheduler automático
+    console.log(`Envio agendado para ${scheduledDate.toISOString()} - será executado automaticamente pelo scheduler`);
     
     res.status(200).json({ 
       message: "Envio agendado com sucesso", 
