@@ -624,23 +624,30 @@ const CreateSendingForm = () => {
         webhookUrl: null
       });
       
-      // Agora enviar diretamente via API
-      const sendRes = await fetch(`/api/meta-direct-send`, {
+      // Preparar dados do envio
+      const sendData = {
+        searchId: data.searchId,
+        templateId: selectedTemplate.id,
+        templateName: selectedTemplate.name,
+        quantity: data.quantity,
+        scheduledAt: data.scheduledAt ? data.scheduledAt.toISOString() : null,
+        // Informações do usuário
+        userId: userData.id,
+        userName: userData.name || userData.username,
+        userEmail: userData.email,
+        userCompany: userData.company || ""
+      };
+
+      // Determinar endpoint baseado no agendamento
+      const endpoint = data.scheduledAt ? "/api/meta-schedule-send" : "/api/meta-direct-send";
+      
+      // Enviar via API
+      const sendRes = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          searchId: data.searchId,
-          templateId: selectedTemplate.id,
-          templateName: selectedTemplate.name,
-          quantity: data.quantity,
-          // Informações do usuário
-          userId: userData.id,
-          userName: userData.name || userData.username,
-          userEmail: userData.email,
-          userCompany: userData.company || ""
-        })
+        body: JSON.stringify(sendData)
       });
       
       if (!sendRes.ok) {
@@ -650,10 +657,13 @@ const CreateSendingForm = () => {
       
       return await historyRes.json();
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
+      const isScheduled = variables.scheduledAt;
       toast({
-        title: "Envio via WhatsApp Meta API iniciado",
-        description: "O envio direto via Meta API foi iniciado e será processado em segundo plano",
+        title: isScheduled ? "Envio agendado com sucesso" : "Envio via WhatsApp Meta API iniciado",
+        description: isScheduled 
+          ? `Envio agendado para ${new Date(variables.scheduledAt).toLocaleString('pt-BR')}`
+          : "O envio direto via Meta API foi iniciado e será processado em segundo plano",
         variant: "default",
       });
       form.reset({

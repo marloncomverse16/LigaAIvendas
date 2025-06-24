@@ -5311,6 +5311,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Rota para agendamento de envio via Meta API
+  app.post("/api/meta-schedule-send", async (req, res) => {
+    console.log("Rota /api/meta-schedule-send chamada - AGENDAMENTO");
+    try {
+      const { scheduleMetaMessageSend } = await import("./api/meta-schedule-send");
+      await scheduleMetaMessageSend(req, res);
+    } catch (error) {
+      console.error("Erro ao agendar envio de mensagens:", error);
+      res.status(500).json({ 
+        message: "Erro ao agendar envio de mensagens",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
   
   // Rotas para histórico de envio de mensagens
   app.post("/api/message-sending-history", createMessageSendingHistory);

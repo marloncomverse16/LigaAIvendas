@@ -169,5 +169,14 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Código corrigido**: Definição de `totalRecipients = data.quantity || 10`
 - **Resultado**: Agendamento de envios Meta API funciona sem erro
 
+### 2025-06-24 - Sistema de Agendamento Meta API Implementado
+- **Problema**: Sistema enviava mensagens imediatamente ao invés de agendar
+- **Solução**: Criação de sistema duplo de envio (imediato vs agendado)
+- **Rota nova**: `/api/meta-schedule-send` para agendamentos
+- **Lógica frontend**: Detecta se há data/hora e escolhe endpoint adequado
+- **Agendamento**: Usa setTimeout para executar na data/hora especificada
+- **Status tracking**: "agendado" → "em_andamento" → "concluido"
+- **Resultado**: Envios executam na data/hora correta quando agendados
+
 *Última atualização: 24 de junho de 2025*
 *Token WhatsApp Cloud API sincronizado e sistema operacional*
