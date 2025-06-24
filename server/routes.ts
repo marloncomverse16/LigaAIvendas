@@ -6458,23 +6458,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Dashboard request - User: ${userId}, Dates: ${startDate} to ${endDate}`);
 
-      // Buscar dados das mensagens Meta (usando tabelas que existem)
+      // Buscar dados corretos das tabelas de relatórios Meta API
       const metaMessagesQuery = `
         SELECT COUNT(*) as total_messages,
-               COUNT(CASE WHEN from_me = true THEN 1 END) as sent_messages,
-               COUNT(CASE WHEN from_me = false THEN 1 END) as received_messages,
-               COUNT(DISTINCT contact_phone) as unique_contacts
-        FROM meta_chat_messages 
+               COUNT(CASE WHEN delivery_status = 'delivered' THEN 1 END) as delivered_messages,
+               COUNT(DISTINCT contact_number) as unique_contacts
+        FROM meta_message_reports 
         WHERE user_id = $1 
-        ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
-      `;
-
-      // Buscar dados de contatos WhatsApp
-      const whatsappContactsQuery = `
-        SELECT COUNT(*) as total_contacts
-        FROM whatsapp_contacts 
-        WHERE user_id = $1 
-        ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
+        ${startDate && endDate ? 'AND sent_at::date BETWEEN $2 AND $3' : ''}
       `;
 
       // Buscar dados dos relatórios de conversas Meta API
@@ -6483,7 +6474,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                SUM(CASE WHEN cost_brl IS NOT NULL THEN cost_brl ELSE 0 END) as total_cost
         FROM meta_conversation_reports 
         WHERE user_id = $1 
-        ${startDate && endDate ? 'AND created_at::date BETWEEN $2 AND $3' : ''}
+        ${startDate && endDate ? 'AND started_at::date BETWEEN $2 AND $3' : ''}
+      `;
+
+      // Buscar dados dos leads que responderam
+      const metaLeadsQuery = `
+        SELECT COUNT(*) as leads_with_response
+        FROM meta_lead_response_reports 
+        WHERE user_id = $1 
+          AND has_response = true
+        ${startDate && endDate ? 'AND first_message_at::date BETWEEN $2 AND $3' : ''}
       `;
 
       console.log('Executando consultas SQL...');
@@ -6494,32 +6494,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Executando consultas com parâmetros:', params);
 
-      const [metaResults, contactsResults, conversationResults] = await Promise.all([
+      const [metaResults, conversationResults, leadsResults] = await Promise.all([
         pool.query(metaMessagesQuery, params),
-        pool.query(whatsappContactsQuery, params),
-        pool.query(metaConversationQuery, params)
+        pool.query(metaConversationQuery, params),
+        pool.query(metaLeadsQuery, params)
       ]);
 
       console.log('Meta messages results:', metaResults.rows[0]);
-      console.log('WhatsApp contacts results:', contactsResults.rows[0]);
       console.log('Meta conversation results:', conversationResults.rows[0]);
+      console.log('Meta leads results:', leadsResults.rows[0]);
 
       // Processar dados das mensagens Meta
       const metaTotalMessages = parseInt(metaResults.rows[0]?.total_messages || '0');
-      const metaSentMessages = parseInt(metaResults.rows[0]?.sent_messages || '0');
-      const metaReceivedMessages = parseInt(metaResults.rows[0]?.received_messages || '0');
+      const metaDeliveredMessages = parseInt(metaResults.rows[0]?.delivered_messages || '0');
       const metaUniqueContacts = parseInt(metaResults.rows[0]?.unique_contacts || '0');
-
-      // Processar dados de contatos WhatsApp
-      const whatsappTotalContacts = parseInt(contactsResults.rows[0]?.total_contacts || '0');
 
       // Processar dados de relatórios de conversas
       const conversationCount = parseInt(conversationResults.rows[0]?.total_conversations || '0');
       const totalCostBrl = parseFloat(conversationResults.rows[0]?.total_cost || '0');
 
+      // Processar dados de leads que responderam
+      const leadsWithResponse = parseInt(leadsResults.rows[0]?.leads_with_response || '0');
+
       // Cálculos baseados nos dados reais e configurações do usuário
       const totalMessages = metaTotalMessages;
-      const leadsWithResponse = metaReceivedMessages; // Mensagens recebidas = leads que responderam
       
       // Buscar metas do usuário (usando dados das configurações carregadas)
       console.log('Configurações do usuário carregadas:', userSettings);
@@ -6586,9 +6584,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastCheck: new Date().toISOString()
         },
         cloudReports: {
-          totalConversations: conversationCount > 0 ? conversationCount : Math.ceil(metaTotalMessages / 10),
+          totalConversations: conversationCount,
           totalMessages: metaTotalMessages,
-          totalCost: totalCostBrl > 0 ? totalCostBrl : metaTotalMessages * 0.027,
+          totalCost: totalCostBrl,
           leadsWithResponse: leadsWithResponse
         },
         qrReports: {
