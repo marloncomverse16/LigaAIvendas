@@ -526,7 +526,6 @@ export default function SettingsPage() {
                             
                             <div>
                               <h3 className="text-lg font-medium">Foto de Perfil</h3>
-                              <p className="text-sm text-muted-foreground mb-3">Esta imagem será exibida em seu perfil</p>
                               <div className="flex space-x-2">
                                 <Button type="button" variant="outline" size="sm">
                                   Alterar
