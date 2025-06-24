@@ -17,11 +17,22 @@ interface MetaTemplate {
 }
 
 /**
- * Endpoint para buscar templates diretamente sem autenticação
- * Útil para debugging e desenvolvimento
+ * Endpoint para buscar templates com autenticação do usuário
+ * Cada usuário usa suas próprias configurações da tabela settings
  */
 export async function getMetaTemplatesDirectly(req: Request, res: Response) {
-  console.log("[META-DIRECT] Iniciando busca direta de templates");
+  console.log("[META-DIRECT] Iniciando busca de templates por usuário");
+  
+  // Verificar autenticação
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({
+      error: "Usuário não autenticado",
+      success: false
+    });
+  }
+  
+  const userId = req.user!.id;
+  console.log(`[META-DIRECT] Buscando templates para usuário ${userId}`);
   
   // Declarar variáveis no escopo mais externo para uso no bloco de catch
   let token = '';
@@ -29,75 +40,41 @@ export async function getMetaTemplatesDirectly(req: Request, res: Response) {
   let apiVersion = 'v18.0';
   
   try {
-    // Buscar configurações válidas do usuário 2 (usuário ativo)
-    // Sempre usar o token mais recente da tabela settings
+    // Buscar configurações específicas do usuário logado
     const result = await pool.query(`
       SELECT 
-        settings.user_id, 
-        settings.whatsapp_meta_token, 
-        settings.whatsapp_meta_business_id, 
-        settings.whatsapp_meta_api_version
+        user_id, 
+        whatsapp_meta_token, 
+        whatsapp_meta_business_id, 
+        whatsapp_meta_api_version
       FROM settings
       WHERE 
-        settings.user_id = 2 AND
-        settings.whatsapp_meta_token IS NOT NULL AND 
-        settings.whatsapp_meta_token != '' AND
-        settings.whatsapp_meta_business_id IS NOT NULL AND 
-        settings.whatsapp_meta_business_id != ''
-      ORDER BY settings.updated_at DESC
+        user_id = $1 AND
+        whatsapp_meta_token IS NOT NULL AND 
+        whatsapp_meta_token != '' AND
+        whatsapp_meta_business_id IS NOT NULL AND 
+        whatsapp_meta_business_id != ''
+      ORDER BY updated_at DESC
       LIMIT 1
-    `);
+    `, [userId]);
 
     if (result.rows.length === 0) {
-      console.log("[META-DIRECT] Nenhum usuário com configuração Meta encontrado");
-      return res.status(404).json({ 
-        error: "Nenhum usuário com configuração Meta encontrado",
-        success: false
+      console.log(`[META-DIRECT] Configurações Meta não encontradas para usuário ${userId}`);
+      return res.status(400).json({
+        error: "Configuração WhatsApp Meta API não encontrada. Configure suas credenciais em Configurações > Integrações",
+        success: false,
+        needsConfiguration: true
       });
     }
 
-    // Examinar todas as configurações disponíveis para encontrar a mais completa
-    let bestConfig = null;
-    let bestScore = 0;
+    // Usar diretamente as configurações do usuário
+    const userSettings = result.rows[0];
+    console.log(`[META-DIRECT] Usando configurações do usuário ${userId}`);
 
-    for (const config of result.rows) {
-      // Calcular uma pontuação para cada configuração com base na completude
-      let score = 0;
-      
-      // Token com formato correto (começa com EAA e tem mais de 50 caracteres)
-      if (config.whatsapp_meta_token && config.whatsapp_meta_token.startsWith('EAA') && config.whatsapp_meta_token.length > 50) {
-        score += 5;
-      } else if (config.whatsapp_meta_api_version && config.whatsapp_meta_api_version.startsWith('EAA') && config.whatsapp_meta_api_version.length > 50) {
-        // Token armazenado no campo errado (api_version)
-        score += 4;
-      }
-      
-      // ID do negócio com formato correto (numérico)
-      if (config.whatsapp_meta_business_id && !isNaN(Number(config.whatsapp_meta_business_id))) {
-        score += 3;
-      }
-      
-      // Bonificação extra para pontuação
-      score += 1;
-      
-      if (score > bestScore) {
-        bestScore = score;
-        bestConfig = config;
-      }
-    }
-
-    if (!bestConfig) {
-      // Se não encontrou nenhuma configuração adequada, usar a primeira
-      bestConfig = result.rows[0];
-    }
-
-    const user = bestConfig;
-    console.log("[META-DIRECT] Usando configuração do usuário ID:", user.user_id, "com pontuação:", bestScore);
-
-    // Usar diretamente os valores da configuração (já foram corrigidos nas tabelas)
-    token = user.whatsapp_meta_token || '';
-    businessId = user.whatsapp_meta_business_id || '';
-    apiVersion = user.whatsapp_meta_api_version || "v18.0";
+    // Usar as configurações específicas do usuário
+    token = userSettings.whatsapp_meta_token || '';
+    businessId = userSettings.whatsapp_meta_business_id || '';
+    apiVersion = userSettings.whatsapp_meta_api_version || "v18.0";
     
     console.log("[META-DIRECT] Configuração carregada:");
     console.log("[META-DIRECT] - Token length:", token.length);
