@@ -150,6 +150,7 @@ import { sendMetaMessageDirectly } from "./api/meta-direct-send";
 import { diagnoseMeta } from "./api/meta-diagnostic";
 import { fixMetaConfigFields } from "./api/meta-fix-fields";
 import { createMessageSendingHistory, listMessageSendingHistory, updateMessageSendingHistory } from "./api/message-sending-history";
+import { CleanupScheduler } from "./api/cleanup-scheduler";
 // Removido import problemático - usando queries diretas ao banco
 import { checkMetaApiConnection } from "./meta-debug";
 import { db } from "./db";
@@ -2359,8 +2360,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = (req.user as Express.User).id;
-      const sendings = await storage.getMessageSendings(userId);
-      res.json(sendings);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = 10; // 10 resultados por página
+      const offset = (page - 1) * limit;
+      
+      // Buscar total de registros para paginação
+      const totalQuery = await pool.query(`
+        SELECT COUNT(*) as total 
+        FROM message_sending_history 
+        WHERE user_id = $1
+      `, [userId]);
+      const total = parseInt(totalQuery.rows[0].total);
+      
+      // Buscar registros com paginação
+      const sendingsQuery = await pool.query(`
+        SELECT * FROM message_sending_history 
+        WHERE user_id = $1 
+        ORDER BY created_at DESC 
+        LIMIT $2 OFFSET $3
+      `, [userId, limit, offset]);
+      
+      res.json({
+        data: sendingsQuery.rows,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page < Math.ceil(total / limit),
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Erro ao buscar envios de mensagens:", error);
       res.status(500).json({ message: "Erro ao buscar envios de mensagens" });

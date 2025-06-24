@@ -55,7 +55,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, RefreshCcw, Clock, Send, Trash2, Edit, Plus, MessageSquare, Save } from "lucide-react";
+import { CalendarIcon, RefreshCcw, Clock, Send, Trash2, Edit, Plus, MessageSquare, Save, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useForm } from "react-hook-form";
@@ -64,6 +64,7 @@ import * as z from "zod";
 import { Switch } from "@/components/ui/switch";
 import { apiRequest, queryClient } from "../lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useState } from "react";
 
 // Definição do esquema de validação para criação de templates
 const createTemplateSchema = z.object({
@@ -1411,22 +1412,26 @@ const SendingList = () => {
     },
   });
   
-  // Mutação para excluir um envio
+  // Mutação para excluir um agendamento
   const deleteSendingMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest("DELETE", `/api/message-sendings/${id}`);
-      return res.ok;
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Erro ao excluir agendamento");
+      }
+      return res.json();
     },
     onSuccess: () => {
       toast({
-        title: "Envio excluído com sucesso",
+        title: "Agendamento excluído com sucesso",
         variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/message-sendings"] });
     },
     onError: (error: Error) => {
       toast({
-        title: "Erro ao excluir envio",
+        title: "Erro ao excluir agendamento",
         description: error.message,
         variant: "destructive",
       });
@@ -1620,8 +1625,8 @@ const SendingList = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => {
-                              if (window.confirm("Tem certeza que deseja cancelar este envio?")) {
-                                cancelSendingMutation.mutate(sending.id);
+                              if (window.confirm("Tem certeza que deseja excluir este agendamento?")) {
+                                deleteSendingMutation.mutate(sending.id);
                               }
                             }}
                           >
@@ -1637,6 +1642,33 @@ const SendingList = () => {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               Nenhum envio encontrado
+            </div>
+          )}
+          
+          {/* Paginação */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Página {pagination.page} de {pagination.totalPages} ({pagination.total} registros)
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={!pagination.hasPrev}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={!pagination.hasNext}
+                >
+                  Próxima
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

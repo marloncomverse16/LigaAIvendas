@@ -203,5 +203,12 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Teste confirmado**: Scheduler executa envios na data/hora especificada
 - **Logs detalhados**: Sistema mostra progresso completo de cada agendamento
 
+### 2025-06-24 - Melhorias Sistema de Envios
+- **Exclusão de agendamentos**: Corrigida exclusão de agendamentos pendentes com validação de usuário
+- **Limpeza automática**: Sistema remove histórico de envios após 90 dias automaticamente
+- **Paginação implementada**: Histórico mostra 10 registros por página com navegação
+- **Validações de segurança**: Verificação de propriedade antes de exclusões
+- **Performance otimizada**: Queries SQL diretas para melhor desempenho
+
 *Última atualização: 24 de junho de 2025*
-*Token WhatsApp Cloud API sincronizado e sistema operacional*
+*Sistema de envios com paginação, limpeza automática e exclusão corrigida*
