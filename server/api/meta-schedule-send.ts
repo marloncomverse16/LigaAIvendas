@@ -111,8 +111,8 @@ export async function scheduleMetaMessageSend(req: Request, res: Response) {
     res.status(200).json({ 
       message: "Envio agendado com sucesso", 
       scheduledId: historyRecord.id,
-      totalRecipients: results.length,
-      scheduledAt: scheduledDate.toISOString(),
+      totalRecipients: historyRecord.total_recipients,
+      scheduledAt: historyRecord.scheduled_at,
       templateId,
       templateName
     });

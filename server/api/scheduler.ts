@@ -59,8 +59,13 @@ export class MessageScheduler {
       
       const pendingSchedules = result.rows;
 
+      console.log(`📅 Verificando agendamentos: ${pendingSchedules.length} pendentes às ${now.toISOString()}`);
+      
       if (pendingSchedules.length > 0) {
         console.log(`📅 Encontrados ${pendingSchedules.length} envios agendados para executar`);
+        for (const schedule of pendingSchedules) {
+          console.log(`📅 - ID: ${schedule.id}, Agendado para: ${schedule.scheduled_at}`);
+        }
       }
 
       for (const schedule of pendingSchedules) {
