@@ -59,12 +59,26 @@ export class MessageScheduler {
       
       const pendingSchedules = result.rows;
 
-      console.log(`📅 Verificando agendamentos: ${pendingSchedules.length} pendentes às ${now.toISOString()}`);
+      // Debug: mostrar todos os agendamentos independente do status
+      const allSchedules = await pool.query(`
+        SELECT id, status, scheduled_at, total_recipients 
+        FROM message_sending_history 
+        WHERE scheduled_at IS NOT NULL 
+        ORDER BY scheduled_at DESC 
+        LIMIT 5
+      `);
+      
+      console.log(`📅 Verificando agendamentos às ${now.toISOString()}`);
+      console.log(`📅 Total de agendamentos com data: ${allSchedules.rows.length}`);
+      for (const schedule of allSchedules.rows) {
+        console.log(`📅 - ID: ${schedule.id}, Status: ${schedule.status}, Agendado para: ${schedule.scheduled_at}`);
+      }
+      console.log(`📅 Pendentes para executar agora: ${pendingSchedules.length}`);
       
       if (pendingSchedules.length > 0) {
         console.log(`📅 Encontrados ${pendingSchedules.length} envios agendados para executar`);
         for (const schedule of pendingSchedules) {
-          console.log(`📅 - ID: ${schedule.id}, Agendado para: ${schedule.scheduled_at}`);
+          console.log(`📅 - EXECUTANDO ID: ${schedule.id}, Agendado para: ${schedule.scheduled_at}`);
         }
       }
 
@@ -98,7 +112,7 @@ export class MessageScheduler {
       }
 
       // Verificar configuração Meta API do usuário
-      const metaUserServer = await getUserServer(schedule.userId);
+      const metaUserServer = await getUserServer(schedule.user_id);
       
       if (!metaUserServer.success || !metaUserServer.phoneNumberId) {
         throw new Error("Configuração da Meta API não encontrada");

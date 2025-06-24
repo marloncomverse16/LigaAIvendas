@@ -84,25 +84,28 @@ export async function scheduleMetaMessageSend(req: Request, res: Response) {
       });
     }
     
-    // Criar registro de histórico para este envio agendado
-    const [historyRecord] = await db.insert(messageSendingHistory)
-      .values({
-        userId: req.user.id,
-        searchId: searchId,
-        templateId: templateId,
-        templateName: templateName,
-        connectionType: "whatsapp_meta_api",
-        totalRecipients: results.length,
-        status: "agendado",
-        scheduledAt: scheduledDate,
-        createdAt: new Date()
-      })
-      .returning();
+    // Criar registro de histórico usando SQL direto para garantir que scheduled_at seja salvo
+    const { pool } = await import("../db");
+    const insertResult = await pool.query(`
+      INSERT INTO message_sending_history 
+      (user_id, search_id, status, template_id, template_name, connection_type, total_recipients, scheduled_at)
+      VALUES ($1, $2, 'agendado', $3, $4, 'whatsapp_meta_api', $5, $6)
+      RETURNING id, scheduled_at, total_recipients
+    `, [
+      req.user.id,
+      searchId,
+      templateId,
+      templateName,
+      results.length,
+      scheduledDate
+    ]);
+    
+    const historyRecord = insertResult.rows[0];
 
     console.log("Envio agendado criado:", {
       id: historyRecord.id,
-      scheduledAt: scheduledDate.toISOString(),
-      totalRecipients: results.length
+      scheduledAt: historyRecord.scheduled_at,
+      totalRecipients: historyRecord.total_recipients
     });
 
     // O agendamento será executado pelo sistema de scheduler automático
