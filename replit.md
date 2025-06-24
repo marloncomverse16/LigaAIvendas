@@ -196,17 +196,19 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Confiabilidade**: Sistema funciona mesmo com reinicializações do servidor
 - **Resultado**: Agendamentos executam corretamente na data/hora especificada
 
-### 2025-06-24 - Sistema Automático de Sincronização QR Code
-- **Problema**: Novas mensagens QR Code não atualizavam automaticamente nos relatórios
-- **Causa**: Sistema dependia de sincronização manual, não capturava mensagens em tempo real
-- **Solução**: Criado serviço automático de sincronização QR Code (`server/api/qr-sync.ts`)
+### 2025-06-24 - Sistema Completo de Rastreamento QR Code
+- **Problema**: Mensagens enviadas via QR Code não apareciam nos relatórios automaticamente
+- **Solução completa implementada**:
+  - **Sincronização automática**: Monitora Evolution API a cada 30 segundos (`server/api/qr-sync.ts`)
+  - **Rastreamento de envios**: Sistema automático que registra mensagens enviadas (`server/api/qr-message-tracker.ts`)
+  - **Integração no histórico**: Envios QR Code automaticamente atualizam tabela `contacts`
+  - **Webhook de confirmação**: Endpoint `/webhook/qr-sent/:instance` para confirmações externas
 - **Funcionalidades**:
-  - Monitora Evolution API a cada 30 segundos
-  - Busca mensagens das últimas 24 horas automaticamente
-  - Atualiza tabela `contacts` com novos contatos e timestamps
-  - Funciona para todos os usuários com servidores Evolution configurados
-- **Rota adicional**: `/api/contacts/sync-qr-now` para sincronização manual forçada
-- **Resultado**: Relatórios QR Code agora mostram dados sempre atualizados automaticamente
+  - Buscar telefones da `prospecting_results` quando QR Code é enviado
+  - Criar/atualizar contatos na tabela `contacts` com `source = 'qr_code'`
+  - Sincronização em tempo real de mensagens recebidas
+  - Rastreamento em lote para múltiplos destinatários
+- **Resultado**: Sistema 100% automático - envios e recebimentos QR Code aparecem nos relatórios
 
 ### 2025-06-24 - Correção Duplicação e Erros SQL
 - **Problema**: Registros duplicados no histórico e erro SQL no scheduler
