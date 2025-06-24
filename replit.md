@@ -136,11 +136,12 @@ META_WEBHOOK_VERIFY_TOKEN=...
 ---
 
 ### 2025-06-24 - Correção Token WhatsApp Cloud API
-- **Problema identificado**: Discrepância entre tokens armazenados na tabela `settings` vs `servers`
+- **Problema identificado**: Discrepância entre tokens armazenados nas tabelas `users`, `settings` e `servers`
 - **Token correto**: EAA6rwPJFpjIBOxGSjZCZBhCrtZAfM0YlnIS9zWjS7FqjKwl1dWXQ6... (salvo em Configurações)
-- **Token incorreto**: EAA6rwPJFpjIBO1VnsRil4Mqu1N1hdB0R4CrcYZBVqiaX7tAD55JX6... (antigo na tabela servers)
-- **Solução aplicada**: Sincronização do token correto em ambas as tabelas
-- **Resultado**: Sistema agora usa consistentemente o token válido do usuário
+- **Token incorreto**: EAA6rwPJFpjIBO1VnsRil4Mqu1N1hdB0R4CrcYZBVqiaX7tAD55JX6... (antigo em múltiplas tabelas)
+- **Solução aplicada**: Sincronização do token correto em todas as três tabelas
+- **Tabelas corrigidas**: `users.whatsapp_api_token`, `settings.whatsapp_meta_token`, `servers.whatsapp_meta_token`
+- **Resultado**: Sistema agora usa consistentemente o token válido em todos os módulos
 
 *Última atualização: 24 de junho de 2025*
 *Token WhatsApp Cloud API sincronizado e sistema operacional*
