@@ -49,14 +49,15 @@ export class MessageScheduler {
       const now = new Date();
       
       // Buscar envios agendados que devem ser executados agora
-      const pendingSchedules = await db.select()
-        .from(messageSendingHistory)
-        .where(
-          and(
-            eq(messageSendingHistory.status, "agendado"),
-            lte(messageSendingHistory.scheduledAt, now)
-          )
-        );
+      const { pool } = await import("../db");
+      const result = await pool.query(`
+        SELECT * FROM message_sending_history 
+        WHERE status = 'agendado' 
+        AND scheduled_at IS NOT NULL 
+        AND scheduled_at <= $1
+      `, [now]);
+      
+      const pendingSchedules = result.rows;
 
       if (pendingSchedules.length > 0) {
         console.log(`📅 Encontrados ${pendingSchedules.length} envios agendados para executar`);
@@ -74,13 +75,13 @@ export class MessageScheduler {
     try {
       console.log(`📅 Executando envio agendado ${schedule.id} para ${schedule.totalRecipients} destinatários`);
       
-      // Atualizar status para "em_andamento"
-      await db.update(messageSendingHistory)
-        .set({ 
-          status: "em_andamento",
-          startedAt: new Date()
-        })
-        .where(eq(messageSendingHistory.id, schedule.id));
+      // Atualizar status para "em_andamento" usando SQL direto
+      const { pool } = await import("../db");
+      await pool.query(`
+        UPDATE message_sending_history 
+        SET status = 'em_andamento', started_at = $1 
+        WHERE id = $2
+      `, [new Date(), schedule.id]);
 
       // Buscar os resultados da pesquisa
       const results = await db.select()
@@ -151,29 +152,26 @@ export class MessageScheduler {
         }
       }
       
-      // Atualizar status final
-      await db.update(messageSendingHistory)
-        .set({ 
-          status: "concluido",
-          successCount,
-          errorCount,
-          errorMessage: lastError || null,
-          completedAt: new Date()
-        })
-        .where(eq(messageSendingHistory.id, schedule.id));
+      // Atualizar status final usando SQL direto
+      await pool.query(`
+        UPDATE message_sending_history 
+        SET status = 'concluido', success_count = $1, error_count = $2, 
+            error_message = $3, completed_at = $4 
+        WHERE id = $5
+      `, [successCount, errorCount, lastError || null, new Date(), schedule.id]);
 
       console.log(`📅 Envio agendado ${schedule.id} concluído: ${successCount} enviados, ${errorCount} erros`);
       
     } catch (error: any) {
       console.error(`📅 Erro no envio agendado ${schedule.id}:`, error);
       
-      // Atualizar status para "erro"
-      await db.update(messageSendingHistory)
-        .set({ 
-          status: "erro",
-          errorMessage: error.message || "Erro desconhecido"
-        })
-        .where(eq(messageSendingHistory.id, schedule.id));
+      // Atualizar status para "erro" usando SQL direto
+      const { pool } = await import("../db");
+      await pool.query(`
+        UPDATE message_sending_history 
+        SET status = 'erro', error_message = $1 
+        WHERE id = $2
+      `, [error.message || "Erro desconhecido", schedule.id]);
     }
   }
 }

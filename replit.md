@@ -187,5 +187,13 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Confiabilidade**: Sistema funciona mesmo com reinicializações do servidor
 - **Resultado**: Agendamentos executam corretamente na data/hora especificada
 
+### 2025-06-24 - Correção Duplicação e Erros SQL
+- **Problema**: Registros duplicados no histórico e erro SQL no scheduler
+- **Causa**: Frontend criava registro duplo + problemas com operadores Drizzle
+- **Solução**: Removida criação dupla no frontend + SQL direto no scheduler
+- **Coluna adicionada**: scheduled_at na tabela message_sending_history
+- **SQL corrigido**: Queries diretas para evitar problemas de sintaxe
+- **Resultado**: Agendamentos únicos e scheduler funcionando sem erros
+
 *Última atualização: 24 de junho de 2025*
 *Token WhatsApp Cloud API sincronizado e sistema operacional*

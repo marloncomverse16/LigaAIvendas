@@ -606,23 +606,7 @@ const CreateSendingForm = () => {
         webhookUrl: null
       });
       
-      // Criar o registro de histórico de envio
-      const historyRes = await apiRequest("POST", "/api/message-sending-history", {
-        // Campos obrigatórios do schema
-        sendingId: null, // Será preenchido pelo servidor
-        resultId: null, // Opcional
-        status: "pendente",
-        errorMessage: null,
-        // Campos adicionais
-        userId: data.userId,
-        searchId: parseInt(data.searchId.toString()),
-        templateId: selectedTemplate.id.toString(),
-        templateName: selectedTemplate.name,
-        messageText: null,
-        connectionType: "whatsapp_meta_api",
-        totalRecipients: totalRecipients,
-        webhookUrl: null
-      });
+      // Não criar registro duplo aqui - o endpoint já cria o registro no backend
       
       // Preparar dados do envio
       const sendData = {
@@ -655,7 +639,7 @@ const CreateSendingForm = () => {
         throw new Error(`Erro ao enviar mensagens: ${errorText}`);
       }
       
-      return await historyRes.json();
+      return await sendRes.json();
     },
     onSuccess: (result, variables) => {
       const isScheduled = variables.scheduledAt;
