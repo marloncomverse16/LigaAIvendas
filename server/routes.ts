@@ -6816,18 +6816,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Lead não encontrado" });
       }
       
-      // Buscar atividades do lead
+      // Buscar atividades do lead (com isolamento por usuário)
       const activitiesQuery = `
         SELECT 
           a.*,
           u.name as user_name
         FROM crm_lead_activities a
         LEFT JOIN users u ON a.user_id = u.id
-        WHERE a.lead_id = $1
+        INNER JOIN crm_leads l ON a.lead_id = l.id
+        WHERE a.lead_id = $1 AND l.user_id = $2
         ORDER BY a.created_at DESC
       `;
       
-      const activitiesResult = await pool.query(activitiesQuery, [leadId]);
+      const activitiesResult = await pool.query(activitiesQuery, [leadId, req.user!.id]);
       
       res.json({
         lead: result.rows[0],
