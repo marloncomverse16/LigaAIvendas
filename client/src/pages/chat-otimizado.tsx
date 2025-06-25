@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip, ExternalLink, Eye, Video, Headphones } from 'lucide-react';
+import { Loader2, RefreshCw, Send, Image as ImageIcon, FileAudio, FileVideo, Paperclip, ExternalLink, Eye, Video, Headphones, Search, X } from 'lucide-react';
 
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -595,6 +595,24 @@ export default function ChatOtimizado() {
   // Estado para preservar o texto digitado durante atualizações
   const [inputText, setInputText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Estado para filtro de busca
+  const [searchFilter, setSearchFilter] = useState("");
+  
+  // Função para filtrar chats baseada na busca
+  const filteredChats = useMemo(() => {
+    if (!searchFilter.trim()) {
+      return chats;
+    }
+    
+    const searchTerm = searchFilter.toLowerCase().trim();
+    return chats.filter(chat => {
+      const chatName = getChatName(chat).toLowerCase();
+      const chatId = (chat.id || chat.remoteJid || '').toLowerCase();
+      
+      return chatName.includes(searchTerm) || chatId.includes(searchTerm);
+    });
+  }, [chats, searchFilter]);
   
   // Formulário definido uma única vez para evitar re-renderização
   const form = useForm<SendFormValues>({
