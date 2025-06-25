@@ -1,44 +1,26 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  Eye, 
-  Users, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle,
-  UserCheck,
-  Phone,
-  Mail,
-  Building,
-  Calendar
-} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 
-// Tipos
 interface CrmLead {
   id: number;
   userId: number;
   phoneNumber: string;
   name?: string;
-  email?: string;
-  company?: string;
   status: 'sendo_atendido_ia' | 'finalizado_ia' | 'precisa_atendimento_humano' | 'transferido_humano' | 'finalizado_humano' | 'abandonado';
-  priority: 'baixa' | 'media' | 'alta' | 'urgente';
   source: string;
   sourceId?: number;
   assignedToUserId?: number;
@@ -85,45 +67,38 @@ interface LeadsResponse {
   };
 }
 
-// Esquema de validação para criar/editar lead
 const leadFormSchema = z.object({
   phoneNumber: z.string().min(1, "Telefone é obrigatório"),
   name: z.string().optional(),
-  status: z.enum(['sendo_atendido_ia', 'finalizado_ia', 'precisa_atendimento_humano', 'transferido_humano', 'finalizado_humano', 'abandonado']).optional(),
+  status: z.enum(['sendo_atendido_ia', 'finalizado_ia', 'precisa_atendimento_humano', 'transferido_humano', 'finalizado_humano', 'abandonado']),
   source: z.string().min(1, "Origem é obrigatória"),
   notes: z.string().optional(),
 });
 
 type LeadFormData = z.infer<typeof leadFormSchema>;
 
-// Mapear status para labels em português
 const statusLabels = {
   'sendo_atendido_ia': 'Sendo Atendido pela IA',
-  'finalizado_ia': 'Finalizada pela IA',
-  'precisa_atendimento_humano': 'Precisa de Atendimento Humano',
+  'finalizado_ia': 'Finalizado pela IA',
+  'precisa_atendimento_humano': 'Precisa Atendimento Humano',
   'transferido_humano': 'Transferido para Humano',
   'finalizado_humano': 'Finalizado por Humano',
   'abandonado': 'Abandonado'
 };
 
-
-
 const statusColors = {
   'sendo_atendido_ia': 'bg-blue-100 text-blue-800',
   'finalizado_ia': 'bg-green-100 text-green-800',
-  'precisa_atendimento_humano': 'bg-orange-100 text-orange-800',
+  'precisa_atendimento_humano': 'bg-yellow-100 text-yellow-800',
   'transferido_humano': 'bg-purple-100 text-purple-800',
   'finalizado_humano': 'bg-emerald-100 text-emerald-800',
   'abandonado': 'bg-gray-100 text-gray-800'
 };
 
-
-
 export default function CrmLeadsPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-
   const [page, setPage] = useState(1);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
@@ -164,20 +139,25 @@ export default function CrmLeadsPage() {
   });
 
   // Mutation para criar lead
-  const createLeadMutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: async (data: LeadFormData) => {
-      const response = await apiRequest("POST", "/api/crm/leads", data);
+      const response = await fetch("/api/crm/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Erro ao criar lead");
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Lead criado",
-        description: "Lead criado com sucesso no sistema.",
-      });
-      setIsCreateDialogOpen(false);
-      form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/crm/stats"] });
+      setIsCreateDialogOpen(false);
+      form.reset();
+      toast({
+        title: "Lead criado com sucesso",
+        description: "O lead foi adicionado ao sistema.",
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -188,55 +168,50 @@ export default function CrmLeadsPage() {
     },
   });
 
-  // Mutation para transferir para humano
-  const transferToHumanMutation = useMutation({
-    mutationFn: async (leadId: number) => {
-      const response = await apiRequest("POST", `/api/crm/leads/${leadId}/transfer-human`, {});
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Lead transferido",
-        description: "Lead transferido para atendimento humano com sucesso.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/crm/stats"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao transferir lead",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const onSubmit = (data: LeadFormData) => {
-    createLeadMutation.mutate(data);
+    createMutation.mutate(data);
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('pt-BR');
+    } catch {
+      return 'Data inválida';
+    }
+  };
+
+  const getStatIcon = (type: string) => {
+    switch(type) {
+      case 'total': return Users;
+      case 'sendo_atendido_ia': return Clock;
+      case 'finalizado_ia': return CheckCircle;
+      case 'precisa_atendimento_humano': return AlertCircle;
+      default: return User;
+    }
   };
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">CRM de Leads</h1>
+          <h1 className="text-3xl font-bold tracking-tight">CRM de Leads</h1>
           <p className="text-muted-foreground">
-            Gerencie seus leads e acompanhe o atendimento em cada estágio
+            Gerencie e acompanhe seus leads de forma eficiente
           </p>
         </div>
         
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="mr-2 h-4 w-4" />
               Novo Lead
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>Criar Novo Lead</DialogTitle>
               <DialogDescription>
-                Adicione um novo lead ao sistema CRM
+                Adicione um novo lead ao sistema de CRM.
               </DialogDescription>
             </DialogHeader>
             
@@ -272,83 +247,28 @@ export default function CrmLeadsPage() {
 
                 <FormField
                   control={form.control}
-                  name="email"
+                  name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="email@exemplo.com" type="email" {...field} />
-                      </FormControl>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(statusLabels).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="company"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Empresa</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nome da empresa" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecionar status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {Object.entries(statusLabels).map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="priority"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Prioridade</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecionar prioridade" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {Object.entries(priorityLabels).map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
                 <FormField
                   control={form.control}
@@ -356,19 +276,9 @@ export default function CrmLeadsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Origem</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecionar origem" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="manual">Manual</SelectItem>
-                          <SelectItem value="prospecting">Prospecção</SelectItem>
-                          <SelectItem value="chat">Chat</SelectItem>
-                          <SelectItem value="webhook">Webhook</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input placeholder="Origem do lead" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -381,7 +291,10 @@ export default function CrmLeadsPage() {
                     <FormItem>
                       <FormLabel>Observações</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Observações sobre o lead" {...field} />
+                        <Textarea 
+                          placeholder="Observações sobre o lead" 
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -396,8 +309,8 @@ export default function CrmLeadsPage() {
                   >
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={createLeadMutation.isPending}>
-                    {createLeadMutation.isPending ? "Criando..." : "Criar Lead"}
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? "Criando..." : "Criar Lead"}
                   </Button>
                 </div>
               </form>
@@ -407,59 +320,47 @@ export default function CrmLeadsPage() {
       </div>
 
       {/* Estatísticas */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Leads</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total_leads}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sendo Atendido IA</CardTitle>
-              <Clock className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{stats.sendo_atendido_ia}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Finalizado IA</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.finalizado_ia}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Precisa Atendimento</CardTitle>
-              <AlertCircle className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{stats.precisa_atendimento_humano}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Convertidos</CardTitle>
-              <UserCheck className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{stats.converted_leads}</div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Leads</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.total_leads || 0}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Sendo Atendidos pela IA</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.sendo_atendido_ia || 0}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Finalizados pela IA</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.finalizado_ia || 0}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Precisam Atenção Humana</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.precisa_atendimento_humano || 0}</div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Filtros */}
       <Card>
@@ -467,59 +368,32 @@ export default function CrmLeadsPage() {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 flex-wrap">
-            <div className="flex-1 min-w-[200px]">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por telefone, nome, email..."
+                  placeholder="Buscar por telefone ou nome..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-8"
                 />
               </div>
             </div>
-
+            
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrar por status" />
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                {Object.entries(statusLabels).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
                     {label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrar por prioridade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as prioridades</SelectItem>
-                {Object.entries(priorityLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {(searchTerm || statusFilter || priorityFilter) && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter("");
-                  setPriorityFilter("");
-                }}
-              >
-                Limpar Filtros
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -534,93 +408,47 @@ export default function CrmLeadsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
-              <p className="mt-2 text-sm text-muted-foreground">Carregando leads...</p>
-            </div>
+            <div className="text-center py-8">Carregando leads...</div>
           ) : leadsData?.leads.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Nenhum lead encontrado</p>
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum lead encontrado
             </div>
           ) : (
             <div className="space-y-4">
               {leadsData?.leads.map((lead) => (
-                <div
-                  key={lead.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
+                <div key={lead.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1">
                     <div className="flex items-center space-x-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-medium">
-                            {lead.name || lead.phoneNumber}
-                          </h3>
+                      <div className="flex-1">
+                        <h3 className="font-medium">{lead.name || 'Nome não informado'}</h3>
+                        <div className="flex items-center space-x-2 mt-1">
                           <Badge className={statusColors[lead.status]}>
                             {statusLabels[lead.status]}
                           </Badge>
-                          <Badge className={priorityColors[lead.priority]}>
-                            {priorityLabels[lead.priority]}
-                          </Badge>
                         </div>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-2">
                           <div className="flex items-center space-x-1">
                             <Phone className="h-3 w-3" />
                             <span>{lead.phoneNumber}</span>
                           </div>
-                          {lead.email && (
-                            <div className="flex items-center space-x-1">
-                              <Mail className="h-3 w-3" />
-                              <span>{lead.email}</span>
-                            </div>
-                          )}
-                          {lead.company && (
-                            <div className="flex items-center space-x-1">
-                              <Building className="h-3 w-3" />
-                              <span>{lead.company}</span>
-                            </div>
-                          )}
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-3 w-3" />
-                            <span>
-                              {new Date(lead.lastActivityAt).toLocaleDateString('pt-BR')}
-                            </span>
+                            <span>{formatDate(lead.createdAt)}</span>
                           </div>
                         </div>
                       </div>
                     </div>
-
-                    <div className="flex items-center space-x-2">
-                      {lead.status === 'precisa_atendimento_humano' && (
-                        <Button
-                          size="sm"
-                          onClick={() => transferToHumanMutation.mutate(lead.id)}
-                          disabled={transferToHumanMutation.isPending}
-                        >
-                          <UserCheck className="h-4 w-4 mr-1" />
-                          Transferir
-                        </Button>
-                      )}
-                      
-                      <Button size="sm" variant="outline">
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver Detalhes
-                      </Button>
-                    </div>
                   </div>
-
-                  {lead.notes && (
-                    <div className="mt-2 p-2 bg-muted rounded text-sm">
-                      <strong>Observações:</strong> {lead.notes}
-                    </div>
-                  )}
-
-                  {lead.aiNotes && (
-                    <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
-                      <strong>Notas da IA:</strong> {lead.aiNotes}
-                    </div>
-                  )}
+                  
+                  <div className="flex items-center space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setSelectedLead(lead)}
+                    >
+                      Ver Detalhes
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -628,32 +456,115 @@ export default function CrmLeadsPage() {
 
           {/* Paginação */}
           {leadsData && leadsData.pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <div className="text-sm text-muted-foreground">
-                Página {leadsData.pagination.page} de {leadsData.pagination.totalPages}
-              </div>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(page - 1)}
-                  disabled={page === 1}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(page + 1)}
-                  disabled={page === leadsData.pagination.totalPages}
-                >
-                  Próxima
-                </Button>
-              </div>
+            <div className="flex justify-center space-x-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setPage(page - 1)}
+                disabled={page <= 1}
+              >
+                Anterior
+              </Button>
+              <span className="flex items-center px-4">
+                Página {page} de {leadsData.pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setPage(page + 1)}
+                disabled={page >= leadsData.pagination.totalPages}
+              >
+                Próxima
+              </Button>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de Detalhes do Lead */}
+      <Dialog open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Lead</DialogTitle>
+            <DialogDescription>
+              Informações completas sobre o lead selecionado
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedLead && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Nome</h4>
+                  <p className="text-base">{selectedLead.name || 'Nome não informado'}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Telefone</h4>
+                  <p className="text-base">{selectedLead.phoneNumber}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Status</h4>
+                  <Badge className={statusColors[selectedLead.status]}>
+                    {statusLabels[selectedLead.status]}
+                  </Badge>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Origem</h4>
+                  <p className="text-base">{selectedLead.source}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Data de Criação</h4>
+                  <p className="text-base">{formatDate(selectedLead.createdAt)}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Última Atividade</h4>
+                  <p className="text-base">{formatDate(selectedLead.lastActivityAt)}</p>
+                </div>
+              </div>
+
+              {selectedLead.notes && (
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Observações</h4>
+                  <p className="text-base bg-muted/50 p-3 rounded-md">{selectedLead.notes}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Follow-ups</h4>
+                  <p className="text-base">{selectedLead.followUpCount}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Convertido</h4>
+                  <Badge variant={selectedLead.isConverted ? "default" : "secondary"}>
+                    {selectedLead.isConverted ? "Sim" : "Não"}
+                  </Badge>
+                </div>
+              </div>
+
+              {selectedLead.isConverted && selectedLead.conversionValue && (
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Valor da Conversão</h4>
+                  <p className="text-base">{selectedLead.conversionValue}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" onClick={() => setSelectedLead(null)}>
+                  Fechar
+                </Button>
+                <Button>
+                  Editar Lead
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
