@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User, Edit, DollarSign, ArrowRight, MessageCircle, Send, X, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User, Edit, DollarSign, ArrowRight, Download, Filter } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,10 +112,12 @@ export default function CrmLeadsPage() {
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [leadToUpdate, setLeadToUpdate] = useState<CrmLead | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({
+    start: '',
+    end: ''
+  });
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Buscar estatísticas
   const { data: stats } = useQuery<CrmStats>({
@@ -123,8 +125,8 @@ export default function CrmLeadsPage() {
   });
 
   // Buscar leads com filtros
-  const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["/api/crm/leads", page, searchTerm, statusFilter],
+  const { data: leadsData, isLoading, refetch } = useQuery<LeadsResponse>({
+    queryKey: ["/api/crm/leads", page, searchTerm, statusFilter, dateFilter],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -133,6 +135,8 @@ export default function CrmLeadsPage() {
       
       if (searchTerm) params.append("search", searchTerm);
       if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
+      if (dateFilter.start) params.append("startDate", dateFilter.start);
+      if (dateFilter.end) params.append("endDate", dateFilter.end);
       
       const response = await fetch(`/api/crm/leads?${params}`);
       if (!response.ok) throw new Error("Erro ao buscar leads");
@@ -648,14 +652,7 @@ export default function CrmLeadsPage() {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <Button 
-                      size="sm"
-                      className="bg-orange-500 hover:bg-orange-600 text-white"
-                      onClick={() => openChat(lead)}
-                    >
-                      <MessageCircle className="h-3 w-3 mr-1" />
-                      Chat
-                    </Button>
+
                     <Button 
                       size="sm"
                       className="bg-orange-500 hover:bg-orange-600 text-white"
