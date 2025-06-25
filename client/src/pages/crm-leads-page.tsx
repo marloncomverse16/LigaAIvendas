@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User, Edit, DollarSign, ArrowRight, Download, Filter, X } from "lucide-react";
+import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User, Edit, DollarSign, ArrowRight, Download, Filter, X, ChevronDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Form,
   FormControl,
@@ -334,26 +340,30 @@ export default function CrmLeadsPage() {
     setIsEditMode(true);
   };
 
+  // Função para buscar dados dos leads
+  const fetchLeadsData = async () => {
+    const params = new URLSearchParams({
+      page: "1",
+      limit: "1000", // Limite alto para pegar todos
+    });
+    
+    if (searchTerm) params.append("search", searchTerm);
+    if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
+    if (dateFilter.start) params.append("startDate", dateFilter.start);
+    if (dateFilter.end) params.append("endDate", dateFilter.end);
+    
+    const response = await fetch(`/api/crm/leads?${params}`);
+    if (!response.ok) throw new Error("Erro ao buscar dados para exportação");
+    
+    return await response.json();
+  };
+
   // Função para exportar dados para CSV
   const exportToCSV = async () => {
     try {
       setIsExporting(true);
       
-      // Buscar todos os leads com os filtros aplicados (sem paginação)
-      const params = new URLSearchParams({
-        page: "1",
-        limit: "1000", // Limite alto para pegar todos
-      });
-      
-      if (searchTerm) params.append("search", searchTerm);
-      if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
-      if (dateFilter.start) params.append("startDate", dateFilter.start);
-      if (dateFilter.end) params.append("endDate", dateFilter.end);
-      
-      const response = await fetch(`/api/crm/leads?${params}`);
-      if (!response.ok) throw new Error("Erro ao buscar dados para exportação");
-      
-      const data: LeadsResponse = await response.json();
+      const data: LeadsResponse = await fetchLeadsData();
       
       // Gerar CSV
       const csvHeaders = 'Telefone,Nome,Status,Origem,Valor Conversão,Notas,Data Criação,Última Atividade\n';
@@ -384,15 +394,65 @@ export default function CrmLeadsPage() {
       document.body.removeChild(link);
       
       toast({
-        title: "Exportação concluída",
-        description: `${data.leads.length} leads exportados com sucesso`,
+        title: "Exportação CSV concluída",
+        description: `${data.leads.length} leads exportados em CSV`,
       });
       
     } catch (error) {
-      console.error('Erro ao exportar:', error);
+      console.error('Erro ao exportar CSV:', error);
       toast({
         title: "Erro na exportação",
         description: "Erro ao exportar dados para CSV",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Função para exportar dados para Excel
+  const exportToExcel = async () => {
+    try {
+      setIsExporting(true);
+      
+      // Importar dinamicamente o XLSX
+      const XLSX = await import('xlsx');
+      
+      const data: LeadsResponse = await fetchLeadsData();
+      
+      // Preparar dados para Excel
+      const excelData = data.leads.map(lead => ({
+        'Telefone': lead.phoneNumber,
+        'Nome': lead.name || '',
+        'Status': statusLabels[lead.status],
+        'Origem': lead.source,
+        'Valor Conversão': lead.conversionValue || '',
+        'Notas': lead.notes || '',
+        'Data Criação': new Date(lead.createdAt).toLocaleDateString('pt-BR'),
+        'Última Atividade': new Date(lead.lastActivityAt).toLocaleDateString('pt-BR')
+      }));
+      
+      // Criar workbook e worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      
+      // Adicionar worksheet ao workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads CRM');
+      
+      // Fazer download do arquivo
+      const fileName = `leads_crm_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      
+      toast({
+        title: "Exportação Excel concluída",
+        description: `${data.leads.length} leads exportados em Excel`,
+      });
+      
+    } catch (error) {
+      console.error('Erro ao exportar Excel:', error);
+      toast({
+        title: "Erro na exportação",
+        description: "Erro ao exportar dados para Excel",
         variant: "destructive",
       });
     } finally {
@@ -431,14 +491,28 @@ export default function CrmLeadsPage() {
             <Filter className="h-4 w-4 mr-2" />
             Filtros por Data
           </Button>
-          <Button
-            onClick={exportToCSV}
-            disabled={isExporting}
-            variant="outline"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            {isExporting ? "Exportando..." : "Exportar CSV"}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                disabled={isExporting}
+                variant="outline"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {isExporting ? "Exportando..." : "Exportar"}
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={exportToCSV} disabled={isExporting}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToExcel} disabled={isExporting}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-orange-500 hover:bg-orange-600">

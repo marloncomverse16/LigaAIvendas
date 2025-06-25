@@ -314,5 +314,17 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Experiência do usuário**: Transições suaves entre modos de visualização e edição
 - **Isolamento de segurança**: Todas as operações de edição respeitam isolamento multi-tenant
 
+### 2025-06-25 - Remoção do Chat e Implementação de Exportação Dupla
+- **Remoção completa do chat**: Botão do chat removido definitivamente da interface CRM conforme solicitação
+- **Filtros por data implementados**: Sistema completo de filtros com data início e fim
+- **Exportação CSV aprimorada**: Mantida funcionalidade de exportação CSV com cabeçalhos em português
+- **Nova exportação Excel**: Implementada exportação para formato .xlsx usando biblioteca XLSX
+- **Menu dropdown de exportação**: Interface com opções "Exportar CSV" e "Exportar Excel"
+- **Backend atualizado**: Suporte completo a filtros por data nas consultas SQL
+- **Filtros aplicados**: Exportações respeitam todos os filtros ativos (busca, status, datas)
+- **Interface limpa**: CRM focado exclusivamente na gestão de leads sem funcionalidades de chat
+- **Biblioteca XLSX instalada**: Dependência adicionada para suporte completo a Excel
+- **Importação dinâmica**: Excel importado dinamicamente para otimização de performance
+
 *Última atualização: 25 de junho de 2025*
-*Sistema CRM com funcionalidade completa de visualização, edição e alteração de status*
+*Sistema CRM completo com exportação dupla (CSV/Excel) e filtros por data*
