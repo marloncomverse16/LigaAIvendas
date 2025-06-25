@@ -1,0 +1,1123 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User, Edit, DollarSign, ArrowRight, Download, Filter, X } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
+
+interface CrmLead {
+  id: number;
+  userId: number;
+  phoneNumber: string;
+  name?: string;
+  status: 'sendo_atendido_ia' | 'finalizado_ia' | 'precisa_atendimento_humano' | 'transferido_humano' | 'finalizado_humano' | 'abandonado';
+  source: string;
+  sourceId?: number;
+  assignedToUserId?: number;
+  firstContactAt?: string;
+  lastContactAt?: string;
+  lastActivityAt: string;
+  aiAgentId?: number;
+  aiStatus?: string;
+  aiNotes?: string;
+  nextFollowUpAt?: string;
+  followUpCount: number;
+  notes?: string;
+  tags: string[];
+  isConverted: boolean;
+  convertedAt?: string;
+  conversionValue?: string;
+  createdAt: string;
+  updatedAt: string;
+  assignedUserName?: string;
+  aiAgentName?: string;
+  activityCount: number;
+}
+
+interface CrmStats {
+  total_leads: number;
+  sendo_atendido_ia: number;
+  finalizado_ia: number;
+  precisa_atendimento_humano: number;
+  transferido_humano: number;
+  finalizado_humano: number;
+  abandonado: number;
+  converted_leads: number;
+  urgent_leads: number;
+  overdue_followups: number;
+}
+
+interface LeadsResponse {
+  leads: CrmLead[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+const leadFormSchema = z.object({
+  phoneNumber: z.string().min(1, "Telefone é obrigatório"),
+  name: z.string().optional(),
+  status: z.enum(['sendo_atendido_ia', 'finalizado_ia', 'precisa_atendimento_humano', 'transferido_humano', 'finalizado_humano', 'abandonado']),
+  source: z.string().min(1, "Origem é obrigatória"),
+  notes: z.string().optional(),
+});
+
+const updateStatusSchema = z.object({
+  status: z.enum(['sendo_atendido_ia', 'finalizado_ia', 'precisa_atendimento_humano', 'transferido_humano', 'finalizado_humano', 'abandonado']),
+  conversionValue: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type LeadFormData = z.infer<typeof leadFormSchema>;
+type UpdateStatusData = z.infer<typeof updateStatusSchema>;
+
+const statusLabels = {
+  'sendo_atendido_ia': 'Sendo Atendido pela IA',
+  'finalizado_ia': 'Finalizado pela IA',
+  'precisa_atendimento_humano': 'Precisa Atendimento Humano',
+  'transferido_humano': 'Transferido para Humano',
+  'finalizado_humano': 'Finalizado por Humano',
+  'abandonado': 'Abandonado'
+};
+
+const statusColors = {
+  'sendo_atendido_ia': 'bg-blue-100 text-blue-800',
+  'finalizado_ia': 'bg-green-100 text-green-800',
+  'precisa_atendimento_humano': 'bg-yellow-100 text-yellow-800',
+  'transferido_humano': 'bg-purple-100 text-purple-800',
+  'finalizado_humano': 'bg-emerald-100 text-emerald-800',
+  'abandonado': 'bg-gray-100 text-gray-800'
+};
+
+export default function CrmLeadsPage() {
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [leadToUpdate, setLeadToUpdate] = useState<CrmLead | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({
+    start: '',
+    end: ''
+  });
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Buscar estatísticas
+  const { data: stats } = useQuery<CrmStats>({
+    queryKey: ["/api/crm/stats"],
+  });
+
+  // Buscar leads com filtros
+  const { data: leadsData, isLoading, refetch } = useQuery<LeadsResponse>({
+    queryKey: ["/api/crm/leads", page, searchTerm, statusFilter, dateFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: "10",
+      });
+      
+      if (searchTerm) params.append("search", searchTerm);
+      if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
+      if (dateFilter.start) params.append("startDate", dateFilter.start);
+      if (dateFilter.end) params.append("endDate", dateFilter.end);
+      
+      const response = await fetch(`/api/crm/leads?${params}`);
+      if (!response.ok) throw new Error("Erro ao buscar leads");
+      return response.json();
+    },
+  });
+
+  // Formulário para criar lead
+  const form = useForm<LeadFormData>({
+    resolver: zodResolver(leadFormSchema),
+    defaultValues: {
+      phoneNumber: "",
+      name: "",
+      status: "sendo_atendido_ia",
+      source: "manual",
+      notes: "",
+    },
+  });
+
+  // Mutation para criar lead
+  const createMutation = useMutation({
+    mutationFn: async (data: LeadFormData) => {
+      const response = await fetch("/api/crm/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Erro ao criar lead");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/stats"] });
+      setIsCreateDialogOpen(false);
+      form.reset();
+      toast({
+        title: "Lead criado com sucesso",
+        description: "O lead foi adicionado ao sistema.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao criar lead",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para atualizar status do lead
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ leadId, data }: { leadId: number, data: UpdateStatusData }) => {
+      const response = await fetch(`/api/crm/leads/${leadId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Erro ao atualizar lead");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/stats"] });
+      setIsStatusDialogOpen(false);
+      setLeadToUpdate(null);
+      statusForm.reset();
+      toast({
+        title: "Status atualizado com sucesso",
+        description: "O lead foi atualizado no sistema.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar lead",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para editar informações do lead
+  const editLeadMutation = useMutation({
+    mutationFn: async ({ leadId, data }: { leadId: number, data: LeadFormData }) => {
+      const response = await fetch(`/api/crm/leads/${leadId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Erro ao editar lead");
+      return response.json();
+    },
+    onSuccess: (updatedLead) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/stats"] });
+      setSelectedLead(updatedLead);
+      setIsEditMode(false);
+      editForm.reset();
+      toast({
+        title: "Lead editado com sucesso",
+        description: "As informações foram atualizadas.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao editar lead",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Formulário para atualizar status
+  const statusForm = useForm<UpdateStatusData>({
+    resolver: zodResolver(updateStatusSchema),
+    defaultValues: {
+      status: 'sendo_atendido_ia',
+      conversionValue: '',
+      notes: '',
+    },
+  });
+
+  // Formulário para editar lead
+  const editForm = useForm<LeadFormData>({
+    resolver: zodResolver(leadFormSchema),
+    defaultValues: {
+      phoneNumber: "",
+      name: "",
+      status: 'sendo_atendido_ia',
+      source: "",
+      notes: "",
+    },
+  });
+
+  const onSubmit = (data: LeadFormData) => {
+    createMutation.mutate(data);
+  };
+
+  const onStatusSubmit = (data: UpdateStatusData) => {
+    if (leadToUpdate) {
+      updateStatusMutation.mutate({ leadId: leadToUpdate.id, data });
+    }
+  };
+
+  const onEditSubmit = (data: LeadFormData) => {
+    if (selectedLead) {
+      editLeadMutation.mutate({ leadId: selectedLead.id, data });
+    }
+  };
+
+  const openStatusDialog = (lead: CrmLead) => {
+    setLeadToUpdate(lead);
+    statusForm.reset({
+      status: lead.status,
+      conversionValue: lead.conversionValue || '',
+      notes: lead.notes || '',
+    });
+    setIsStatusDialogOpen(true);
+  };
+
+  const openEditMode = (lead: CrmLead) => {
+    setSelectedLead(lead);
+    editForm.reset({
+      phoneNumber: lead.phoneNumber,
+      name: lead.name || '',
+      status: lead.status,
+      source: lead.source,
+      notes: lead.notes || '',
+    });
+    setIsEditMode(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditMode(false);
+    editForm.reset();
+  };
+
+  // Funções do chat integrado
+  const openChat = async (lead: CrmLead) => {
+    if (!lead || !lead.phoneNumber) {
+      toast({
+        title: "Erro no chat",
+        description: "Número de telefone não encontrado para este lead.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedLead(lead);
+    setIsChatOpen(true);
+    setLoadingMessages(true);
+    
+    try {
+      // Buscar mensagens do contato específico
+      const response = await fetch(`/api/chat/messages/phone/${encodeURIComponent(lead.phoneNumber)}`);
+      if (response.ok) {
+        const messages = await response.json();
+        setChatMessages(messages);
+      } else {
+        setChatMessages([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar mensagens:', error);
+      setChatMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedLead) return;
+    
+    try {
+      const response = await fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: selectedLead.phoneNumber,
+          message: newMessage,
+          method: 'meta'
+        })
+      });
+      
+      if (response.ok) {
+        setNewMessage('');
+        await openChat(selectedLead);
+        toast({
+          title: "Mensagem enviada",
+          description: "A mensagem foi enviada com sucesso.",
+        });
+      } else {
+        throw new Error('Erro ao enviar mensagem');
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: "Não foi possível enviar a mensagem.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('pt-BR');
+    } catch {
+      return 'Data inválida';
+    }
+  };
+
+  const getStatIcon = (type: string) => {
+    switch(type) {
+      case 'total': return Users;
+      case 'sendo_atendido_ia': return Clock;
+      case 'finalizado_ia': return CheckCircle;
+      case 'precisa_atendimento_humano': return AlertCircle;
+      default: return User;
+    }
+  };
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">CRM de Leads</h1>
+          <p className="text-muted-foreground">
+            Gerencie e acompanhe seus leads de forma eficiente
+          </p>
+        </div>
+        
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Lead
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Criar Novo Lead</DialogTitle>
+              <DialogDescription>
+                Adicione um novo lead ao sistema de CRM.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefone</FormLabel>
+                      <FormControl>
+                        <Input placeholder="(11) 99999-9999" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nome do lead" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(statusLabels).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="source"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Origem</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Origem do lead" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Observações</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Observações sobre o lead" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    type="button" 
+                    onClick={() => setIsCreateDialogOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? "Criando..." : "Criar Lead"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Estatísticas */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Leads</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.total_leads || 0}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Sendo Atendidos pela IA</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.sendo_atendido_ia || 0}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Finalizados pela IA</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.finalizado_ia || 0}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Precisam Atenção Humana</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.precisa_atendimento_humano || 0}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filtros */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtros</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por telefone ou nome..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                {Object.entries(statusLabels).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lista de Leads */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Leads</CardTitle>
+          <CardDescription>
+            {leadsData?.pagination.total || 0} leads encontrados
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">Carregando leads...</div>
+          ) : leadsData?.leads.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum lead encontrado
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {leadsData?.leads.map((lead) => (
+                <div key={lead.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-1">
+                        <h3 className="font-medium">{lead.name || 'Nome não informado'}</h3>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge className={statusColors[lead.status]}>
+                            {statusLabels[lead.status]}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-2">
+                          <div className="flex items-center space-x-1">
+                            <Phone className="h-3 w-3" />
+                            <span>{lead.phoneNumber}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatDate(lead.createdAt)}</span>
+                          </div>
+                          {lead.conversionValue && (
+                            <div className="flex items-center space-x-1">
+                              <DollarSign className="h-3 w-3" />
+                              <span className="font-medium text-green-600">R$ {lead.conversionValue}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+
+                    <Button 
+                      size="sm"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                      onClick={() => openStatusDialog(lead)}
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Alterar Status
+                    </Button>
+                    <Button 
+                      size="sm"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                      onClick={() => setSelectedLead(lead)}
+                    >
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Paginação */}
+          {leadsData && leadsData.pagination.totalPages > 1 && (
+            <div className="flex justify-center space-x-2 mt-6">
+              <Button
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={() => setPage(page - 1)}
+                disabled={page <= 1}
+              >
+                Anterior
+              </Button>
+              <span className="flex items-center px-4">
+                Página {page} de {leadsData.pagination.totalPages}
+              </span>
+              <Button
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={() => setPage(page + 1)}
+                disabled={page >= leadsData.pagination.totalPages}
+              >
+                Próxima
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal de Detalhes do Lead */}
+      <Dialog open={!!selectedLead} onOpenChange={() => {
+        setSelectedLead(null);
+        setIsEditMode(false);
+      }}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {isEditMode ? "Editar Lead" : "Detalhes do Lead"}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditMode ? "Edite as informações deste lead." : "Informações completas sobre o lead selecionado"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedLead && !isEditMode && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Nome</h4>
+                  <p className="text-base">{selectedLead.name || 'Nome não informado'}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Telefone</h4>
+                  <p className="text-base">{selectedLead.phoneNumber}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Status</h4>
+                  <Badge className={statusColors[selectedLead.status]}>
+                    {statusLabels[selectedLead.status]}
+                  </Badge>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Origem</h4>
+                  <p className="text-base">{selectedLead.source}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Data de Criação</h4>
+                  <p className="text-base">{formatDate(selectedLead.createdAt)}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Última Atividade</h4>
+                  <p className="text-base">{formatDate(selectedLead.lastActivityAt)}</p>
+                </div>
+              </div>
+
+              {selectedLead.notes && (
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Observações</h4>
+                  <p className="text-base bg-muted/50 p-3 rounded-md">{selectedLead.notes}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Follow-ups</h4>
+                  <p className="text-base">{selectedLead.followUpCount}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Convertido</h4>
+                  <Badge variant={selectedLead.isConverted ? "default" : "secondary"}>
+                    {selectedLead.isConverted ? "Sim" : "Não"}
+                  </Badge>
+                </div>
+              </div>
+
+              {selectedLead.isConverted && selectedLead.conversionValue && (
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground">Valor da Conversão</h4>
+                  <p className="text-base">{selectedLead.conversionValue}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button 
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  onClick={() => setSelectedLead(null)}
+                >
+                  Fechar
+                </Button>
+                <Button 
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  onClick={() => openEditMode(selectedLead)}
+                >
+                  Editar Lead
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {selectedLead && isEditMode && (
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="phoneNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefone</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Número do telefone" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do lead" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(statusLabels).map(([key, label]) => (
+                              <SelectItem key={key} value={key}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="source"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Origem</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Origem do lead" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={editForm.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Observações</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Observações sobre o lead" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button 
+                    type="button" 
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    onClick={cancelEdit}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    disabled={editLeadMutation.isPending}
+                  >
+                    {editLeadMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Alterar Status */}
+      <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Alterar Status do Lead</DialogTitle>
+            <DialogDescription>
+              Altere o status e adicione informações sobre este lead.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {leadToUpdate && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-3 rounded-md">
+                <h4 className="font-semibold text-sm">Lead Atual</h4>
+                <p className="text-sm text-muted-foreground">{leadToUpdate.name || 'Nome não informado'}</p>
+                <p className="text-sm text-muted-foreground">{leadToUpdate.phoneNumber}</p>
+                <Badge className={`${statusColors[leadToUpdate.status]} mt-1`}>
+                  {statusLabels[leadToUpdate.status]}
+                </Badge>
+              </div>
+
+              <Form {...statusForm}>
+                <form onSubmit={statusForm.handleSubmit(onStatusSubmit)} className="space-y-4">
+                  <FormField
+                    control={statusForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Novo Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(statusLabels).map(([key, label]) => (
+                              <SelectItem key={key} value={key}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={statusForm.control}
+                    name="conversionValue"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Valor da Venda (R$)
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="text" 
+                            placeholder="Ex: 1500,00" 
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={statusForm.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Observações</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Adicione observações sobre este lead..."
+                            className="resize-none"
+                            rows={3}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button 
+                      type="button" 
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                      onClick={() => setIsStatusDialogOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                      disabled={updateStatusMutation.isPending}
+                    >
+                      {updateStatusMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Chat Integrado */}
+      {isChatOpen && selectedLead && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl h-[600px] flex flex-col">
+            {/* Header do Chat */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <MessageCircle className="h-5 w-5 text-orange-500" />
+                  <div>
+                    <h3 className="font-semibold text-lg">
+                      {selectedLead.name || 'Lead sem nome'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{selectedLead.phoneNumber}</p>
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsChatOpen(false)}
+                className="hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Área de Mensagens */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {loadingMessages ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+                  <span className="ml-2 text-muted-foreground">Carregando mensagens...</span>
+                </div>
+              ) : chatMessages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>Nenhuma mensagem encontrada</p>
+                    <p className="text-sm">Inicie uma conversa com este lead</p>
+                  </div>
+                </div>
+              ) : (
+                chatMessages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[70%] rounded-lg p-3 ${
+                        message.direction === 'outbound'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                      }`}
+                    >
+                      <p className="text-sm">{message.content || message.message}</p>
+                      <p className={`text-xs mt-1 ${
+                        message.direction === 'outbound' 
+                          ? 'text-orange-100' 
+                          : 'text-muted-foreground'
+                      }`}>
+                        {message.timestamp ? new Date(message.timestamp).toLocaleTimeString('pt-BR') : ''}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Input de Nova Mensagem */}
+            <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex space-x-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Digite sua mensagem..."
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim()}
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Pressione Enter para enviar • Via Meta API
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

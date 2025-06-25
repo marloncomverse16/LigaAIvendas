@@ -6780,7 +6780,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priority, 
         search,
         assignedTo,
-        source 
+        source,
+        startDate,
+        endDate
       } = req.query;
       
       const offset = (Number(page) - 1) * Number(limit);
@@ -6817,6 +6819,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (search) {
         whereClause += ` AND (l.phone_number ILIKE $${paramIndex} OR l.name ILIKE $${paramIndex} OR l.email ILIKE $${paramIndex} OR l.company ILIKE $${paramIndex})`;
         params.push(`%${search}%`);
+        paramIndex++;
+      }
+      
+      if (startDate) {
+        whereClause += ` AND DATE(l.created_at) >= $${paramIndex}`;
+        params.push(startDate);
+        paramIndex++;
+      }
+      
+      if (endDate) {
+        whereClause += ` AND DATE(l.created_at) <= $${paramIndex}`;
+        params.push(endDate);
         paramIndex++;
       }
       
