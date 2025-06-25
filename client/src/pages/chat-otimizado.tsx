@@ -1696,15 +1696,39 @@ export default function ChatOtimizado() {
             </div>
           </div>
         
+        {/* Campo de busca */}
+        <div className="p-3 border-b bg-white dark:bg-gray-800">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Buscar contatos..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="pl-10 pr-10"
+            />
+            {searchFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                onClick={() => setSearchFilter("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+        
         {/* Lista de chats */}
         <div className="flex-1 overflow-y-auto scrollbar-custom max-h-full">
-          {chats.length === 0 ? (
+          {filteredChats.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
-              {loading ? 'Carregando contatos...' : 'Nenhum chat encontrado'}
+              {loading ? 'Carregando contatos...' : searchFilter ? 'Nenhum contato encontrado para esta busca' : 'Nenhum chat encontrado'}
             </div>
           ) : (
             <div className="divide-y">
-              {chats.map((chat) => (
+              {filteredChats.map((chat) => (
                 <div
                   key={chat.id || chat.remoteJid}
                   className={`p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center space-x-3 relative ${
