@@ -14,7 +14,9 @@ import {
   insertLeadInteractionSchema, insertLeadRecommendationSchema,
   insertProspectingSearchSchema, insertProspectingResultSchema,
   insertUserSchema, ConnectionStatus, insertServerSchema,
-  userAiAgents, serverAiAgents, contacts, insertContactSchema
+  userAiAgents, serverAiAgents, contacts, insertContactSchema,
+  crmLeads, crmLeadActivities, insertCrmLeadSchema, insertCrmLeadActivitySchema,
+  leadStatusEnum, leadPriorityEnum, CrmLead, CrmLeadActivity
 } from "@shared/schema";
 import { z } from "zod";
 import axios from "axios";

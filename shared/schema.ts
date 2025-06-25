@@ -1,4 +1,22 @@
 import { pgTable, text, serial, integer, boolean, timestamp, json, pgEnum } from "drizzle-orm/pg-core";
+
+// Enum para status dos leads no CRM
+export const leadStatusEnum = pgEnum("lead_status", [
+  "sendo_atendido_ia", // Sendo atendido pela IA
+  "finalizado_ia", // Finalizado pela IA  
+  "precisa_atendimento_humano", // Precisa de atendimento humano
+  "transferido_humano", // Transferido para humano
+  "finalizado_humano", // Finalizado por humano
+  "abandonado" // Lead abandonado/sem resposta
+]);
+
+// Enum para prioridade dos leads
+export const leadPriorityEnum = pgEnum("lead_priority", [
+  "baixa",
+  "media", 
+  "alta",
+  "urgente"
+]);
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1038,6 +1056,143 @@ export type InsertMetaBillingReport = z.infer<typeof insertMetaBillingReportSche
 
 export type MetaLeadResponseReport = typeof metaLeadResponseReports.$inferSelect;
 export type InsertMetaLeadResponseReport = z.infer<typeof insertMetaLeadResponseReportSchema>;
+
+// ===== SISTEMA DE CRM PARA LEADS =====
+// Tabela principal para gerenciar leads no CRM
+export const crmLeads = pgTable("crm_leads", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  
+  // Dados do lead
+  phoneNumber: text("phone_number").notNull(),
+  name: text("name"),
+  email: text("email"),
+  company: text("company"),
+  
+  // Status e estágio do atendimento
+  status: leadStatusEnum("status").notNull().default("sendo_atendido_ia"),
+  priority: leadPriorityEnum("priority").notNull().default("media"),
+  
+  // Origem do lead
+  source: text("source").notNull(), // 'prospecting', 'chat', 'webhook', 'manual'
+  sourceId: integer("source_id"), // ID da fonte (prospecting_results.id, etc)
+  
+  // Dados de atendimento
+  assignedToUserId: integer("assigned_to_user_id").references(() => users.id), // Usuário responsável
+  firstContactAt: timestamp("first_contact_at"), // Primeiro contato
+  lastContactAt: timestamp("last_contact_at"), // Último contato
+  lastActivityAt: timestamp("last_activity_at").defaultNow(), // Última atividade
+  
+  // Agente IA responsável
+  aiAgentId: integer("ai_agent_id").references(() => serverAiAgents.id),
+  aiStatus: text("ai_status"), // Status específico da IA
+  aiNotes: text("ai_notes"), // Observações da IA
+  
+  // Dados de follow-up
+  nextFollowUpAt: timestamp("next_follow_up_at"), // Próximo follow-up agendado
+  followUpCount: integer("follow_up_count").default(0), // Quantidade de follow-ups realizados
+  
+  // Observações e tags
+  notes: text("notes"), // Observações manuais
+  tags: text("tags").array().default([]), // Tags para categorização
+  
+  // Dados de conversão
+  isConverted: boolean("is_converted").default(false),
+  convertedAt: timestamp("converted_at"),
+  conversionValue: text("conversion_value"), // Valor da conversão
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tabela para histórico de atividades do lead
+export const crmLeadActivities = pgTable("crm_lead_activities", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull().references(() => crmLeads.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  
+  // Dados da atividade
+  activityType: text("activity_type").notNull(), // 'status_change', 'message_sent', 'message_received', 'note_added', 'call_made', 'meeting_scheduled'
+  description: text("description").notNull(),
+  
+  // Status anterior e novo (para mudanças de status)
+  previousStatus: leadStatusEnum("previous_status"),
+  newStatus: leadStatusEnum("new_status"),
+  
+  // Dados adicionais
+  metadata: json("metadata"), // Dados extras específicos da atividade
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Relações para o CRM
+export const crmLeadsRelations = relations(crmLeads, ({ one, many }) => ({
+  user: one(users, {
+    fields: [crmLeads.userId],
+    references: [users.id],
+  }),
+  assignedUser: one(users, {
+    fields: [crmLeads.assignedToUserId],
+    references: [users.id],
+  }),
+  aiAgent: one(serverAiAgents, {
+    fields: [crmLeads.aiAgentId],
+    references: [serverAiAgents.id],
+  }),
+  activities: many(crmLeadActivities),
+}));
+
+export const crmLeadActivitiesRelations = relations(crmLeadActivities, ({ one }) => ({
+  lead: one(crmLeads, {
+    fields: [crmLeadActivities.leadId],
+    references: [crmLeads.id],
+  }),
+  user: one(users, {
+    fields: [crmLeadActivities.userId],
+    references: [users.id],
+  }),
+}));
+
+// Schemas para inserção
+export const insertCrmLeadSchema = createInsertSchema(crmLeads).pick({
+  phoneNumber: true,
+  name: true,
+  email: true,
+  company: true,
+  status: true,
+  priority: true,
+  source: true,
+  sourceId: true,
+  assignedToUserId: true,
+  firstContactAt: true,
+  lastContactAt: true,
+  aiAgentId: true,
+  aiStatus: true,
+  aiNotes: true,
+  nextFollowUpAt: true,
+  notes: true,
+  tags: true,
+  isConverted: true,
+  convertedAt: true,
+  conversionValue: true,
+});
+
+export const insertCrmLeadActivitySchema = createInsertSchema(crmLeadActivities).pick({
+  leadId: true,
+  activityType: true,
+  description: true,
+  previousStatus: true,
+  newStatus: true,
+  metadata: true,
+});
+
+// Types
+export type CrmLead = typeof crmLeads.$inferSelect;
+export type InsertCrmLead = z.infer<typeof insertCrmLeadSchema>;
+
+export type CrmLeadActivity = typeof crmLeadActivities.$inferSelect;
+export type InsertCrmLeadActivity = z.infer<typeof insertCrmLeadActivitySchema>;
 
 // Tabela para armazenar mensagens de WhatsApp
 
