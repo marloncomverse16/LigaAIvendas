@@ -639,6 +639,116 @@ export default function CrmLeadsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal para Alterar Status */}
+      <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Alterar Status do Lead</DialogTitle>
+            <DialogDescription>
+              Altere o status e adicione informações sobre este lead.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {leadToUpdate && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-3 rounded-md">
+                <h4 className="font-semibold text-sm">Lead Atual</h4>
+                <p className="text-sm text-muted-foreground">{leadToUpdate.name || 'Nome não informado'}</p>
+                <p className="text-sm text-muted-foreground">{leadToUpdate.phoneNumber}</p>
+                <Badge className={`${statusColors[leadToUpdate.status]} mt-1`}>
+                  {statusLabels[leadToUpdate.status]}
+                </Badge>
+              </div>
+
+              <Form {...statusForm}>
+                <form onSubmit={statusForm.handleSubmit(onStatusSubmit)} className="space-y-4">
+                  <FormField
+                    control={statusForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Novo Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(statusLabels).map(([key, label]) => (
+                              <SelectItem key={key} value={key}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={statusForm.control}
+                    name="conversionValue"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Valor da Venda (R$)
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="text" 
+                            placeholder="Ex: 1500,00" 
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={statusForm.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Observações</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Adicione observações sobre este lead..."
+                            className="resize-none"
+                            rows={3}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setIsStatusDialogOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={updateStatusMutation.isPending}
+                    >
+                      {updateStatusMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
