@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User } from "lucide-react";
+import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User, Edit, DollarSign, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,7 +75,14 @@ const leadFormSchema = z.object({
   notes: z.string().optional(),
 });
 
+const updateStatusSchema = z.object({
+  status: z.enum(['sendo_atendido_ia', 'finalizado_ia', 'precisa_atendimento_humano', 'transferido_humano', 'finalizado_humano', 'abandonado']),
+  conversionValue: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 type LeadFormData = z.infer<typeof leadFormSchema>;
+type UpdateStatusData = z.infer<typeof updateStatusSchema>;
 
 const statusLabels = {
   'sendo_atendido_ia': 'Sendo Atendido pela IA',
@@ -102,6 +109,8 @@ export default function CrmLeadsPage() {
   const [page, setPage] = useState(1);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [leadToUpdate, setLeadToUpdate] = useState<CrmLead | null>(null);
 
   // Buscar estatísticas
   const { data: stats } = useQuery<CrmStats>({
@@ -168,8 +177,65 @@ export default function CrmLeadsPage() {
     },
   });
 
+  // Mutation para atualizar status do lead
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ leadId, data }: { leadId: number, data: UpdateStatusData }) => {
+      const response = await fetch(`/api/crm/leads/${leadId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Erro ao atualizar lead");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/stats"] });
+      setIsStatusDialogOpen(false);
+      setLeadToUpdate(null);
+      statusForm.reset();
+      toast({
+        title: "Status atualizado com sucesso",
+        description: "O lead foi atualizado no sistema.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar lead",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Formulário para atualizar status
+  const statusForm = useForm<UpdateStatusData>({
+    resolver: zodResolver(updateStatusSchema),
+    defaultValues: {
+      status: 'sendo_atendido_ia',
+      conversionValue: '',
+      notes: '',
+    },
+  });
+
   const onSubmit = (data: LeadFormData) => {
     createMutation.mutate(data);
+  };
+
+  const onStatusSubmit = (data: UpdateStatusData) => {
+    if (leadToUpdate) {
+      updateStatusMutation.mutate({ leadId: leadToUpdate.id, data });
+    }
+  };
+
+  const openStatusDialog = (lead: CrmLead) => {
+    setLeadToUpdate(lead);
+    statusForm.reset({
+      status: lead.status,
+      conversionValue: lead.conversionValue || '',
+      notes: lead.notes || '',
+    });
+    setIsStatusDialogOpen(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -441,6 +507,14 @@ export default function CrmLeadsPage() {
                   </div>
                   
                   <div className="flex items-center space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => openStatusDialog(lead)}
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Alterar Status
+                    </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
