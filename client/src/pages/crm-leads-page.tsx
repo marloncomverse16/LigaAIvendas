@@ -575,7 +575,7 @@ export default function CrmLeadsPage() {
                   <div className="flex items-center space-x-2">
                     <Button 
                       size="sm"
-                      className="bg-primary hover:bg-primary-dark text-white"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
                       onClick={() => openStatusDialog(lead)}
                     >
                       <Edit className="h-3 w-3 mr-1" />
@@ -583,7 +583,7 @@ export default function CrmLeadsPage() {
                     </Button>
                     <Button 
                       size="sm"
-                      className="bg-primary hover:bg-primary-dark text-white"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
                       onClick={() => setSelectedLead(lead)}
                     >
                       Ver Detalhes
@@ -598,7 +598,7 @@ export default function CrmLeadsPage() {
           {leadsData && leadsData.pagination.totalPages > 1 && (
             <div className="flex justify-center space-x-2 mt-6">
               <Button
-                className="bg-primary hover:bg-primary-dark text-white"
+                className="bg-orange-500 hover:bg-orange-600 text-white"
                 onClick={() => setPage(page - 1)}
                 disabled={page <= 1}
               >
@@ -608,7 +608,7 @@ export default function CrmLeadsPage() {
                 Página {page} de {leadsData.pagination.totalPages}
               </span>
               <Button
-                className="bg-primary hover:bg-primary-dark text-white"
+                className="bg-orange-500 hover:bg-orange-600 text-white"
                 onClick={() => setPage(page + 1)}
                 disabled={page >= leadsData.pagination.totalPages}
               >
@@ -700,13 +700,13 @@ export default function CrmLeadsPage() {
 
               <div className="flex justify-end space-x-2 pt-4">
                 <Button 
-                  className="bg-primary hover:bg-primary-dark text-white"
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
                   onClick={() => setSelectedLead(null)}
                 >
                   Fechar
                 </Button>
                 <Button 
-                  className="bg-primary hover:bg-primary-dark text-white"
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
                   onClick={() => openEditMode(selectedLead)}
                 >
                   Editar Lead
@@ -809,14 +809,14 @@ export default function CrmLeadsPage() {
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button 
                     type="button" 
-                    className="bg-primary hover:bg-primary-dark text-white"
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
                     onClick={cancelEdit}
                   >
                     Cancelar
                   </Button>
                   <Button 
                     type="submit" 
-                    className="bg-primary hover:bg-primary-dark text-white"
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
                     disabled={editLeadMutation.isPending}
                   >
                     {editLeadMutation.isPending ? "Salvando..." : "Salvar Alterações"}
@@ -919,14 +919,14 @@ export default function CrmLeadsPage() {
                   <div className="flex justify-end space-x-2 pt-4">
                     <Button 
                       type="button" 
-                      className="bg-primary hover:bg-primary-dark text-white"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
                       onClick={() => setIsStatusDialogOpen(false)}
                     >
                       Cancelar
                     </Button>
                     <Button 
                       type="submit" 
-                      className="bg-primary hover:bg-primary-dark text-white"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
                       disabled={updateStatusMutation.isPending}
                     >
                       {updateStatusMutation.isPending ? "Salvando..." : "Salvar Alterações"}
