@@ -1086,20 +1086,6 @@ export default function ServerManagementPage() {
                   <h3 className="text-md font-semibold">Outros Webhooks</h3>
                   <FormField
                     control={form.control}
-                    name="whatsappWebhookUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Webhook de WhatsApp</FormLabel>
-                        <FormControl>
-                          <Input placeholder="URL do webhook para notificações do WhatsApp" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
                     name="prospectingWebhookUrl"
                     render={({ field }) => (
                       <FormItem>
@@ -1414,20 +1400,6 @@ export default function ServerManagementPage() {
                   <h3 className="text-md font-semibold">Outros Webhooks</h3>
                   <FormField
                     control={editForm.control}
-                    name="whatsappWebhookUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Webhook de WhatsApp</FormLabel>
-                        <FormControl>
-                          <Input placeholder="URL do webhook para notificações do WhatsApp" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
                     name="prospectingWebhookUrl"
                     render={({ field }) => (
                       <FormItem>
@@ -1482,22 +1454,6 @@ export default function ServerManagementPage() {
                     )}
                   />
                   
-                  <FormField
-                    control={editForm.control}
-                    name="messageSendingWebhookUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Webhook de Envio de Mensagens</FormLabel>
-                        <FormControl>
-                          <Input placeholder="URL do webhook para envio de mensagens em massa" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormDescription>
-                          Este webhook será usado quando o envio via QR code for selecionado
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </TabsContent>
                 
                 <TabsContent value="avancado" className="space-y-4 pt-4">
