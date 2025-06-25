@@ -575,6 +575,7 @@ export default function CrmLeadsPage() {
                   <div className="flex items-center space-x-2">
                     <Button 
                       size="sm"
+                      className="bg-primary hover:bg-primary-dark text-white"
                       onClick={() => openStatusDialog(lead)}
                     >
                       <Edit className="h-3 w-3 mr-1" />
@@ -582,6 +583,7 @@ export default function CrmLeadsPage() {
                     </Button>
                     <Button 
                       size="sm"
+                      className="bg-primary hover:bg-primary-dark text-white"
                       onClick={() => setSelectedLead(lead)}
                     >
                       Ver Detalhes
@@ -596,6 +598,7 @@ export default function CrmLeadsPage() {
           {leadsData && leadsData.pagination.totalPages > 1 && (
             <div className="flex justify-center space-x-2 mt-6">
               <Button
+                className="bg-primary hover:bg-primary-dark text-white"
                 onClick={() => setPage(page - 1)}
                 disabled={page <= 1}
               >
@@ -605,6 +608,7 @@ export default function CrmLeadsPage() {
                 Página {page} de {leadsData.pagination.totalPages}
               </span>
               <Button
+                className="bg-primary hover:bg-primary-dark text-white"
                 onClick={() => setPage(page + 1)}
                 disabled={page >= leadsData.pagination.totalPages}
               >
@@ -695,10 +699,16 @@ export default function CrmLeadsPage() {
               )}
 
               <div className="flex justify-end space-x-2 pt-4">
-                <Button onClick={() => setSelectedLead(null)}>
+                <Button 
+                  className="bg-primary hover:bg-primary-dark text-white"
+                  onClick={() => setSelectedLead(null)}
+                >
                   Fechar
                 </Button>
-                <Button onClick={() => openEditMode(selectedLead)}>
+                <Button 
+                  className="bg-primary hover:bg-primary-dark text-white"
+                  onClick={() => openEditMode(selectedLead)}
+                >
                   Editar Lead
                 </Button>
               </div>
@@ -797,10 +807,18 @@ export default function CrmLeadsPage() {
                 />
 
                 <div className="flex justify-end space-x-2 pt-4">
-                  <Button type="button" onClick={cancelEdit}>
+                  <Button 
+                    type="button" 
+                    className="bg-primary hover:bg-primary-dark text-white"
+                    onClick={cancelEdit}
+                  >
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={editLeadMutation.isPending}>
+                  <Button 
+                    type="submit" 
+                    className="bg-primary hover:bg-primary-dark text-white"
+                    disabled={editLeadMutation.isPending}
+                  >
                     {editLeadMutation.isPending ? "Salvando..." : "Salvar Alterações"}
                   </Button>
                 </div>
@@ -901,13 +919,14 @@ export default function CrmLeadsPage() {
                   <div className="flex justify-end space-x-2 pt-4">
                     <Button 
                       type="button" 
-                      variant="outline" 
+                      className="bg-primary hover:bg-primary-dark text-white"
                       onClick={() => setIsStatusDialogOpen(false)}
                     >
                       Cancelar
                     </Button>
                     <Button 
                       type="submit" 
+                      className="bg-primary hover:bg-primary-dark text-white"
                       disabled={updateStatusMutation.isPending}
                     >
                       {updateStatusMutation.isPending ? "Salvando..." : "Salvar Alterações"}
