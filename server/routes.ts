@@ -6690,6 +6690,442 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ROTAS DO SISTEMA DE CRM PARA LEADS =====
+  
+  // Listar leads com filtros e paginação
+  app.get("/api/crm/leads", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const { 
+        page = 1, 
+        limit = 10, 
+        status, 
+        priority, 
+        search,
+        assignedTo,
+        source 
+      } = req.query;
+      
+      const offset = (Number(page) - 1) * Number(limit);
+      
+      // Construir query SQL com filtros
+      let whereClause = "WHERE l.user_id = $1";
+      const params: any[] = [req.user!.id];
+      let paramIndex = 2;
+      
+      if (status) {
+        whereClause += ` AND l.status = $${paramIndex}`;
+        params.push(status);
+        paramIndex++;
+      }
+      
+      if (priority) {
+        whereClause += ` AND l.priority = $${paramIndex}`;
+        params.push(priority);
+        paramIndex++;
+      }
+      
+      if (assignedTo) {
+        whereClause += ` AND l.assigned_to_user_id = $${paramIndex}`;
+        params.push(assignedTo);
+        paramIndex++;
+      }
+      
+      if (source) {
+        whereClause += ` AND l.source = $${paramIndex}`;
+        params.push(source);
+        paramIndex++;
+      }
+      
+      if (search) {
+        whereClause += ` AND (l.phone_number ILIKE $${paramIndex} OR l.name ILIKE $${paramIndex} OR l.email ILIKE $${paramIndex} OR l.company ILIKE $${paramIndex})`;
+        params.push(`%${search}%`);
+        paramIndex++;
+      }
+      
+      // Query principal com JOIN para dados do usuário responsável
+      const leadQuery = `
+        SELECT 
+          l.*,
+          u.name as assigned_user_name,
+          sa.name as ai_agent_name,
+          (SELECT COUNT(*) FROM crm_lead_activities WHERE lead_id = l.id) as activity_count
+        FROM crm_leads l
+        LEFT JOIN users u ON l.assigned_to_user_id = u.id
+        LEFT JOIN server_ai_agents sa ON l.ai_agent_id = sa.id
+        ${whereClause}
+        ORDER BY l.last_activity_at DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+      
+      params.push(Number(limit), offset);
+      
+      // Query para contar total
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM crm_leads l
+        ${whereClause}
+      `;
+      
+      const [leadsResult, countResult] = await Promise.all([
+        pool.query(leadQuery, params),
+        pool.query(countQuery, params.slice(0, -2)) // Remove limit e offset para contagem
+      ]);
+      
+      const total = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(total / Number(limit));
+      
+      res.json({
+        leads: leadsResult.rows,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          totalPages,
+        }
+      });
+      
+    } catch (error) {
+      console.error("Erro ao buscar leads:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
+  // Buscar lead específico por ID
+  app.get("/api/crm/leads/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const leadId = parseInt(req.params.id);
+      
+      const leadQuery = `
+        SELECT 
+          l.*,
+          u.name as assigned_user_name,
+          sa.name as ai_agent_name
+        FROM crm_leads l
+        LEFT JOIN users u ON l.assigned_to_user_id = u.id
+        LEFT JOIN server_ai_agents sa ON l.ai_agent_id = sa.id
+        WHERE l.id = $1 AND l.user_id = $2
+      `;
+      
+      const result = await pool.query(leadQuery, [leadId, req.user!.id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Lead não encontrado" });
+      }
+      
+      // Buscar atividades do lead
+      const activitiesQuery = `
+        SELECT 
+          a.*,
+          u.name as user_name
+        FROM crm_lead_activities a
+        LEFT JOIN users u ON a.user_id = u.id
+        WHERE a.lead_id = $1
+        ORDER BY a.created_at DESC
+      `;
+      
+      const activitiesResult = await pool.query(activitiesQuery, [leadId]);
+      
+      res.json({
+        lead: result.rows[0],
+        activities: activitiesResult.rows
+      });
+      
+    } catch (error) {
+      console.error("Erro ao buscar lead:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
+  // Criar novo lead
+  app.post("/api/crm/leads", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const validatedData = insertCrmLeadSchema.parse(req.body);
+      
+      const insertQuery = `
+        INSERT INTO crm_leads (
+          user_id, phone_number, name, email, company, status, priority,
+          source, source_id, assigned_to_user_id, first_contact_at,
+          last_contact_at, ai_agent_id, ai_status, ai_notes,
+          next_follow_up_at, notes, tags, is_converted,
+          converted_at, conversion_value
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+        ) RETURNING *
+      `;
+      
+      const values = [
+        req.user!.id,
+        validatedData.phoneNumber,
+        validatedData.name,
+        validatedData.email,
+        validatedData.company,
+        validatedData.status || 'sendo_atendido_ia',
+        validatedData.priority || 'media',
+        validatedData.source,
+        validatedData.sourceId,
+        validatedData.assignedToUserId,
+        validatedData.firstContactAt,
+        validatedData.lastContactAt,
+        validatedData.aiAgentId,
+        validatedData.aiStatus,
+        validatedData.aiNotes,
+        validatedData.nextFollowUpAt,
+        validatedData.notes,
+        validatedData.tags || [],
+        validatedData.isConverted || false,
+        validatedData.convertedAt,
+        validatedData.conversionValue
+      ];
+      
+      const result = await pool.query(insertQuery, values);
+      const newLead = result.rows[0];
+      
+      // Registrar atividade de criação
+      const activityQuery = `
+        INSERT INTO crm_lead_activities (
+          lead_id, user_id, activity_type, description, new_status
+        ) VALUES ($1, $2, 'status_change', 'Lead criado no sistema', $3)
+      `;
+      
+      await pool.query(activityQuery, [
+        newLead.id,
+        req.user!.id,
+        newLead.status
+      ]);
+      
+      res.status(201).json(newLead);
+      
+    } catch (error) {
+      console.error("Erro ao criar lead:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Dados inválidos", details: error.errors });
+      }
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
+  // Atualizar lead
+  app.put("/api/crm/leads/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const leadId = parseInt(req.params.id);
+      const validatedData = insertCrmLeadSchema.partial().parse(req.body);
+      
+      // Buscar lead atual para comparação
+      const currentLeadResult = await pool.query(
+        "SELECT * FROM crm_leads WHERE id = $1 AND user_id = $2",
+        [leadId, req.user!.id]
+      );
+      
+      if (currentLeadResult.rows.length === 0) {
+        return res.status(404).json({ error: "Lead não encontrado" });
+      }
+      
+      const currentLead = currentLeadResult.rows[0];
+      
+      // Construir query de update dinâmica
+      const updateFields = [];
+      const updateValues = [];
+      let paramIndex = 1;
+      
+      Object.entries(validatedData).forEach(([key, value]) => {
+        if (value !== undefined) {
+          updateFields.push(`${key} = $${paramIndex}`);
+          updateValues.push(value);
+          paramIndex++;
+        }
+      });
+      
+      // Sempre atualizar last_activity_at
+      updateFields.push(`updated_at = NOW()`);
+      updateFields.push(`last_activity_at = NOW()`);
+      
+      updateValues.push(leadId, req.user!.id);
+      
+      const updateQuery = `
+        UPDATE crm_leads 
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}
+        RETURNING *
+      `;
+      
+      const result = await pool.query(updateQuery, updateValues);
+      const updatedLead = result.rows[0];
+      
+      // Registrar atividade se o status mudou
+      if (validatedData.status && validatedData.status !== currentLead.status) {
+        const activityQuery = `
+          INSERT INTO crm_lead_activities (
+            lead_id, user_id, activity_type, description, 
+            previous_status, new_status
+          ) VALUES ($1, $2, 'status_change', $3, $4, $5)
+        `;
+        
+        await pool.query(activityQuery, [
+          leadId,
+          req.user!.id,
+          `Status alterado de ${currentLead.status} para ${validatedData.status}`,
+          currentLead.status,
+          validatedData.status
+        ]);
+      }
+      
+      res.json(updatedLead);
+      
+    } catch (error) {
+      console.error("Erro ao atualizar lead:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Dados inválidos", details: error.errors });
+      }
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
+  // Transferir lead para atendimento humano
+  app.post("/api/crm/leads/:id/transfer-human", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const leadId = parseInt(req.params.id);
+      const { assignedToUserId, notes } = req.body;
+      
+      // Atualizar status do lead
+      const updateQuery = `
+        UPDATE crm_leads 
+        SET 
+          status = 'transferido_humano',
+          assigned_to_user_id = $1,
+          last_activity_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $2 AND user_id = $3
+        RETURNING *
+      `;
+      
+      const result = await pool.query(updateQuery, [
+        assignedToUserId || req.user!.id,
+        leadId,
+        req.user!.id
+      ]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Lead não encontrado" });
+      }
+      
+      // Registrar atividade
+      const activityQuery = `
+        INSERT INTO crm_lead_activities (
+          lead_id, user_id, activity_type, description, 
+          previous_status, new_status, metadata
+        ) VALUES ($1, $2, 'status_change', $3, $4, 'transferido_humano', $5)
+      `;
+      
+      await pool.query(activityQuery, [
+        leadId,
+        req.user!.id,
+        'Lead transferido para atendimento humano',
+        result.rows[0].status,
+        { notes, transferredAt: new Date().toISOString() }
+      ]);
+      
+      res.json(result.rows[0]);
+      
+    } catch (error) {
+      console.error("Erro ao transferir lead:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
+  // Buscar estatísticas do CRM
+  app.get("/api/crm/stats", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as total_leads,
+          COUNT(CASE WHEN status = 'sendo_atendido_ia' THEN 1 END) as sendo_atendido_ia,
+          COUNT(CASE WHEN status = 'finalizado_ia' THEN 1 END) as finalizado_ia,
+          COUNT(CASE WHEN status = 'precisa_atendimento_humano' THEN 1 END) as precisa_atendimento_humano,
+          COUNT(CASE WHEN status = 'transferido_humano' THEN 1 END) as transferido_humano,
+          COUNT(CASE WHEN status = 'finalizado_humano' THEN 1 END) as finalizado_humano,
+          COUNT(CASE WHEN status = 'abandonado' THEN 1 END) as abandonado,
+          COUNT(CASE WHEN is_converted = true THEN 1 END) as converted_leads,
+          COUNT(CASE WHEN priority = 'urgente' THEN 1 END) as urgent_leads,
+          COUNT(CASE WHEN next_follow_up_at <= NOW() AND next_follow_up_at IS NOT NULL THEN 1 END) as overdue_followups
+        FROM crm_leads 
+        WHERE user_id = $1
+      `;
+      
+      const result = await pool.query(statsQuery, [req.user!.id]);
+      const stats = result.rows[0];
+      
+      // Converter strings para números
+      Object.keys(stats).forEach(key => {
+        stats[key] = parseInt(stats[key]);
+      });
+      
+      res.json(stats);
+      
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+  
+  // Adicionar atividade ao lead
+  app.post("/api/crm/leads/:id/activities", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const leadId = parseInt(req.params.id);
+      const { activityType, description, metadata } = req.body;
+      
+      // Verificar se o lead existe e pertence ao usuário
+      const leadCheck = await pool.query(
+        "SELECT id FROM crm_leads WHERE id = $1 AND user_id = $2",
+        [leadId, req.user!.id]
+      );
+      
+      if (leadCheck.rows.length === 0) {
+        return res.status(404).json({ error: "Lead não encontrado" });
+      }
+      
+      const activityQuery = `
+        INSERT INTO crm_lead_activities (
+          lead_id, user_id, activity_type, description, metadata
+        ) VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `;
+      
+      const result = await pool.query(activityQuery, [
+        leadId,
+        req.user!.id,
+        activityType,
+        description,
+        metadata || {}
+      ]);
+      
+      // Atualizar última atividade do lead
+      await pool.query(
+        "UPDATE crm_leads SET last_activity_at = NOW(), updated_at = NOW() WHERE id = $1",
+        [leadId]
+      );
+      
+      res.status(201).json(result.rows[0]);
+      
+    } catch (error) {
+      console.error("Erro ao adicionar atividade:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
   // Configure HTTP server
   const httpServer = createServer(app);
   
