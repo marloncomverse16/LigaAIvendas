@@ -636,6 +636,12 @@ export default function CrmLeadsPage() {
                             <Calendar className="h-3 w-3" />
                             <span>{formatDate(lead.createdAt)}</span>
                           </div>
+                          {lead.conversionValue && (
+                            <div className="flex items-center space-x-1">
+                              <DollarSign className="h-3 w-3" />
+                              <span className="font-medium text-green-600">R$ {lead.conversionValue}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
