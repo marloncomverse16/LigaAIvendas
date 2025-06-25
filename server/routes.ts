@@ -4106,6 +4106,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const phoneNumber = req.params.phoneNumber;
       const userId = req.user.id;
       
+      // Validar se o número de telefone é válido
+      if (!phoneNumber || phoneNumber === 'undefined' || phoneNumber === 'null' || phoneNumber.trim() === '') {
+        return res.status(400).json({ 
+          error: 'Número de telefone inválido',
+          message: 'Um número de telefone válido é obrigatório' 
+        });
+      }
+      
       console.log(`🔍 Buscando mensagens para telefone ${phoneNumber} do usuário ${userId}`);
       
       // 1. BUSCAR MENSAGENS DA META API
@@ -6999,6 +7007,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const currentLead = currentLeadResult.rows[0];
       
+      // Mapeamento de campos JavaScript para SQL
+      const fieldMapping = {
+        phoneNumber: 'phone_number',
+        assignedToUserId: 'assigned_to_user_id',
+        firstContactAt: 'first_contact_at',
+        lastContactAt: 'last_contact_at',
+        lastActivityAt: 'last_activity_at',
+        aiAgentId: 'ai_agent_id',
+        aiStatus: 'ai_status',
+        aiNotes: 'ai_notes',
+        nextFollowUpAt: 'next_follow_up_at',
+        followUpCount: 'follow_up_count',
+        isConverted: 'is_converted',
+        convertedAt: 'converted_at',
+        conversionValue: 'conversion_value',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+        sourceId: 'source_id'
+      };
+
       // Construir query de update dinâmica
       const updateFields = [];
       const updateValues = [];
@@ -7006,7 +7034,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       Object.entries(validatedData).forEach(([key, value]) => {
         if (value !== undefined) {
-          updateFields.push(`${key} = $${paramIndex}`);
+          const sqlField = fieldMapping[key] || key;
+          updateFields.push(`${sqlField} = $${paramIndex}`);
           updateValues.push(value);
           paramIndex++;
         }

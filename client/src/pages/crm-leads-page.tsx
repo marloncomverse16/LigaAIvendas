@@ -311,13 +311,22 @@ export default function CrmLeadsPage() {
 
   // Funções do chat integrado
   const openChat = async (lead: CrmLead) => {
+    if (!lead || !lead.phoneNumber) {
+      toast({
+        title: "Erro no chat",
+        description: "Número de telefone não encontrado para este lead.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSelectedLead(lead);
     setIsChatOpen(true);
     setLoadingMessages(true);
     
     try {
       // Buscar mensagens do contato específico
-      const response = await fetch(`/api/chat/messages/phone/${lead.phoneNumber}`);
+      const response = await fetch(`/api/chat/messages/phone/${encodeURIComponent(lead.phoneNumber)}`);
       if (response.ok) {
         const messages = await response.json();
         setChatMessages(messages);
