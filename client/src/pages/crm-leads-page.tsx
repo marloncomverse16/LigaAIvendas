@@ -437,7 +437,6 @@ export default function CrmLeadsPage() {
                 <div className="flex justify-end space-x-2">
                   <Button 
                     type="button" 
-                    variant="outline" 
                     onClick={() => setIsCreateDialogOpen(false)}
                   >
                     Cancelar
@@ -575,7 +574,6 @@ export default function CrmLeadsPage() {
                   
                   <div className="flex items-center space-x-2">
                     <Button 
-                      variant="outline" 
                       size="sm"
                       onClick={() => openStatusDialog(lead)}
                     >
@@ -583,7 +581,6 @@ export default function CrmLeadsPage() {
                       Alterar Status
                     </Button>
                     <Button 
-                      variant="outline" 
                       size="sm"
                       onClick={() => setSelectedLead(lead)}
                     >
@@ -599,7 +596,6 @@ export default function CrmLeadsPage() {
           {leadsData && leadsData.pagination.totalPages > 1 && (
             <div className="flex justify-center space-x-2 mt-6">
               <Button
-                variant="outline"
                 onClick={() => setPage(page - 1)}
                 disabled={page <= 1}
               >
@@ -609,7 +605,6 @@ export default function CrmLeadsPage() {
                 Página {page} de {leadsData.pagination.totalPages}
               </span>
               <Button
-                variant="outline"
                 onClick={() => setPage(page + 1)}
                 disabled={page >= leadsData.pagination.totalPages}
               >
@@ -700,7 +695,7 @@ export default function CrmLeadsPage() {
               )}
 
               <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline" onClick={() => setSelectedLead(null)}>
+                <Button onClick={() => setSelectedLead(null)}>
                   Fechar
                 </Button>
                 <Button onClick={() => openEditMode(selectedLead)}>
@@ -802,7 +797,7 @@ export default function CrmLeadsPage() {
                 />
 
                 <div className="flex justify-end space-x-2 pt-4">
-                  <Button type="button" variant="outline" onClick={cancelEdit}>
+                  <Button type="button" onClick={cancelEdit}>
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={editLeadMutation.isPending}>
