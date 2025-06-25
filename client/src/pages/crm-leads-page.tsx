@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User, Edit, DollarSign, ArrowRight } from "lucide-react";
+import { Plus, Phone, Calendar, Search, Users, CheckCircle, AlertCircle, Clock, User, Edit, DollarSign, ArrowRight, MessageCircle, Send, X, ArrowLeft, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,6 +112,10 @@ export default function CrmLeadsPage() {
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [leadToUpdate, setLeadToUpdate] = useState<CrmLead | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Buscar estatísticas
   const { data: stats } = useQuery<CrmStats>({
@@ -303,6 +307,62 @@ export default function CrmLeadsPage() {
   const cancelEdit = () => {
     setIsEditMode(false);
     editForm.reset();
+  };
+
+  // Funções do chat integrado
+  const openChat = async (lead: CrmLead) => {
+    setSelectedLead(lead);
+    setIsChatOpen(true);
+    setLoadingMessages(true);
+    
+    try {
+      // Buscar mensagens do contato específico
+      const response = await fetch(`/api/chat/messages/phone/${lead.phoneNumber}`);
+      if (response.ok) {
+        const messages = await response.json();
+        setChatMessages(messages);
+      } else {
+        setChatMessages([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar mensagens:', error);
+      setChatMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedLead) return;
+    
+    try {
+      const response = await fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: selectedLead.phoneNumber,
+          message: newMessage,
+          method: 'meta'
+        })
+      });
+      
+      if (response.ok) {
+        setNewMessage('');
+        await openChat(selectedLead);
+        toast({
+          title: "Mensagem enviada",
+          description: "A mensagem foi enviada com sucesso.",
+        });
+      } else {
+        throw new Error('Erro ao enviar mensagem');
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: "Não foi possível enviar a mensagem.",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -573,6 +633,14 @@ export default function CrmLeadsPage() {
                   </div>
                   
                   <div className="flex items-center space-x-2">
+                    <Button 
+                      size="sm"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                      onClick={() => openChat(lead)}
+                    >
+                      <MessageCircle className="h-3 w-3 mr-1" />
+                      Chat
+                    </Button>
                     <Button 
                       size="sm"
                       className="bg-orange-500 hover:bg-orange-600 text-white"
