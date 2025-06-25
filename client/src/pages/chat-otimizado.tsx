@@ -599,6 +599,21 @@ export default function ChatOtimizado() {
   // Estado para filtro de busca
   const [searchFilter, setSearchFilter] = useState("");
   
+  // Formata o nome do chat para exibição
+  const getChatName = (chat: any) => {
+    if (!chat) return '';
+    
+    // Diferentes formatos possíveis para o nome do chat
+    if (chat.name) return chat.name;
+    if (chat.pushName) return chat.pushName;
+    if (chat.notifyName) return chat.notifyName;
+    if (chat.subject) return chat.subject;
+    
+    // Fallback para ID formatado
+    const id = chat.id || chat.remoteJid || 'Desconhecido';
+    return id.includes('@') ? id.split('@')[0] : id;
+  };
+  
   // Função para filtrar chats baseada na busca
   const filteredChats = useMemo(() => {
     if (!searchFilter.trim()) {
@@ -1567,22 +1582,7 @@ export default function ChatOtimizado() {
   const isFromMe = (msg: any) => {
     return msg.key?.fromMe === true || msg.fromMe === true;
   };
-  
-  // Formata o nome do chat para exibição
-  const getChatName = (chat: any) => {
-    if (!chat) return '';
-    
-    // Diferentes formatos possíveis para o nome do chat
-    if (chat.name) return chat.name;
-    if (chat.pushName) return chat.pushName;
-    if (chat.notifyName) return chat.notifyName;
-    if (chat.subject) return chat.subject;
-    
-    // Se não tiver nome, usar o ID formatado sem o sufixo @c.us ou @s.whatsapp.net
-    const id = chat.id || chat.remoteJid || '';
-    return id.split('@')[0] || 'Desconhecido';
-  };
-  
+
   // Formata o nome do contato da mensagem
   const getMessageSender = (msg: any) => {
     if (isFromMe(msg)) return 'Você';
