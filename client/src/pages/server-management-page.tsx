@@ -47,7 +47,7 @@ const serverFormSchema = z.object({
   schedulingWebhookUrl: z.string().nullable().optional(),
   crmWebhookUrl: z.string().nullable().optional(),
   messageSendingWebhookUrl: z.string().nullable().optional(), // Webhook para envio de mensagens
-  instanceId: z.string().nullable().optional(),
+
   active: z.boolean().default(true),
 });
 
@@ -81,7 +81,7 @@ interface Server {
   contactsWebhookUrl: string | null;
   schedulingWebhookUrl: string | null;
   crmWebhookUrl: string | null;
-  instanceId: string | null;
+
   maxUsers: number;
   active: boolean | null;
   createdAt: string | Date;
@@ -626,7 +626,7 @@ export default function ServerManagementPage() {
       crmWebhookUrl: server.crmWebhookUrl || "",
       // Adicionado campo de webhook de envio de mensagens
       messageSendingWebhookUrl: server.messageSendingWebhookUrl || "",
-      instanceId: server.instanceId || "",
+
       // Garantir que active seja um boolean válido
       active: server.active === null ? false : Boolean(server.active),
       // Adicionar os campos Meta WhatsApp
@@ -1525,23 +1525,6 @@ export default function ServerManagementPage() {
                 </TabsContent>
                 
                 <TabsContent value="avancado" className="space-y-4 pt-4">
-                  <FormField
-                    control={editForm.control}
-                    name="instanceId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ID da Instância (Evolution API)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex: liguia" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                        <FormDescription>
-                          Identificador único da instância na Evolution API.
-                        </FormDescription>
-                      </FormItem>
-                    )}
-                  />
-                  
                   <FormField
                     control={editForm.control}
                     name="active"

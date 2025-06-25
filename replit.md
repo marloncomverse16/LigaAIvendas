@@ -210,6 +210,12 @@ META_WEBHOOK_VERIFY_TOKEN=...
   - Rastreamento em lote para múltiplos destinatários
 - **Resultado**: Sistema 100% automático - envios e recebimentos QR Code aparecem nos relatórios
 
+### 2025-06-25 - Remoção Campo ID da Instância (Evolution API)
+- **Solicitação do usuário**: Removido campo "ID da Instância (Evolution API)" da seção avançada
+- **Localização**: Formulário de edição e criação de servidores em configurações avançadas
+- **Alterações**: Schema, interface TypeScript e campos do formulário removidos
+- **Motivo**: Simplificação da interface conforme solicitação do usuário
+
 ### 2025-06-24 - Correção Duplicação e Erros SQL
 - **Problema**: Registros duplicados no histórico e erro SQL no scheduler
 - **Causa**: Frontend criava registro duplo + problemas com operadores Drizzle
