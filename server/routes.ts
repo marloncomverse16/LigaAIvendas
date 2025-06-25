@@ -6852,8 +6852,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const total = parseInt(countResult.rows[0].total);
       const totalPages = Math.ceil(total / Number(limit));
       
+      // Mapear campos snake_case para camelCase
+      const mappedLeads = leadsResult.rows.map((lead: any) => ({
+        id: lead.id,
+        userId: lead.user_id,
+        phoneNumber: lead.phone_number,
+        name: lead.name,
+        email: lead.email,
+        company: lead.company,
+        status: lead.status,
+        priority: lead.priority,
+        source: lead.source,
+        sourceId: lead.source_id,
+        assignedToUserId: lead.assigned_to_user_id,
+        firstContactAt: lead.first_contact_at,
+        lastContactAt: lead.last_contact_at,
+        lastActivityAt: lead.last_activity_at,
+        aiAgentId: lead.ai_agent_id,
+        aiStatus: lead.ai_status,
+        aiNotes: lead.ai_notes,
+        nextFollowUpAt: lead.next_follow_up_at,
+        followUpCount: lead.follow_up_count,
+        notes: lead.notes,
+        tags: lead.tags,
+        isConverted: lead.is_converted,
+        convertedAt: lead.converted_at,
+        conversionValue: lead.conversion_value, // Mapeamento correto
+        createdAt: lead.created_at,
+        updatedAt: lead.updated_at,
+        assignedUserName: lead.assigned_user_name,
+        aiAgentName: lead.ai_agent_name,
+        activityCount: parseInt(lead.activity_count)
+      }));
+      
       res.json({
-        leads: leadsResult.rows,
+        leads: mappedLeads,
         pagination: {
           page: Number(page),
           limit: Number(limit),
