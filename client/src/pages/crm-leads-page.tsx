@@ -89,10 +89,7 @@ interface LeadsResponse {
 const leadFormSchema = z.object({
   phoneNumber: z.string().min(1, "Telefone é obrigatório"),
   name: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  company: z.string().optional(),
   status: z.enum(['sendo_atendido_ia', 'finalizado_ia', 'precisa_atendimento_humano', 'transferido_humano', 'finalizado_humano', 'abandonado']).optional(),
-  priority: z.enum(['baixa', 'media', 'alta', 'urgente']).optional(),
   source: z.string().min(1, "Origem é obrigatória"),
   notes: z.string().optional(),
 });
@@ -109,12 +106,7 @@ const statusLabels = {
   'abandonado': 'Abandonado'
 };
 
-const priorityLabels = {
-  'baixa': 'Baixa',
-  'media': 'Média',
-  'alta': 'Alta',
-  'urgente': 'Urgente'
-};
+
 
 const statusColors = {
   'sendo_atendido_ia': 'bg-blue-100 text-blue-800',
@@ -125,18 +117,13 @@ const statusColors = {
   'abandonado': 'bg-gray-100 text-gray-800'
 };
 
-const priorityColors = {
-  'baixa': 'bg-gray-100 text-gray-800',
-  'media': 'bg-yellow-100 text-yellow-800',
-  'alta': 'bg-orange-100 text-orange-800',
-  'urgente': 'bg-red-100 text-red-800'
-};
+
 
 export default function CrmLeadsPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+
   const [page, setPage] = useState(1);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
@@ -148,7 +135,7 @@ export default function CrmLeadsPage() {
 
   // Buscar leads com filtros
   const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["/api/crm/leads", page, searchTerm, statusFilter, priorityFilter],
+    queryKey: ["/api/crm/leads", page, searchTerm, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -157,7 +144,6 @@ export default function CrmLeadsPage() {
       
       if (searchTerm) params.append("search", searchTerm);
       if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
-      if (priorityFilter && priorityFilter !== "all") params.append("priority", priorityFilter);
       
       const response = await fetch(`/api/crm/leads?${params}`);
       if (!response.ok) throw new Error("Erro ao buscar leads");
@@ -171,10 +157,7 @@ export default function CrmLeadsPage() {
     defaultValues: {
       phoneNumber: "",
       name: "",
-      email: "",
-      company: "",
       status: "sendo_atendido_ia",
-      priority: "media",
       source: "manual",
       notes: "",
     },
