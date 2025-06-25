@@ -39,14 +39,12 @@ const serverFormSchema = z.object({
   whatsappMetaToken: z.string().nullable().optional(), // Token para a API da Meta
   whatsappMetaBusinessId: z.string().nullable().optional(), // ID do negócio na plataforma Meta
   whatsappMetaApiVersion: z.string().nullable().optional(), // Versão da API da Meta
-  whatsappWebhookUrl: z.string().nullable().optional(),
   aiAgentName: z.string().nullable().optional(),
   aiAgentWebhookUrl: z.string().nullable().optional(),
   prospectingWebhookUrl: z.string().nullable().optional(),
   contactsWebhookUrl: z.string().nullable().optional(),
   schedulingWebhookUrl: z.string().nullable().optional(),
   crmWebhookUrl: z.string().nullable().optional(),
-  messageSendingWebhookUrl: z.string().nullable().optional(), // Webhook para envio de mensagens
 
   active: z.boolean().default(true),
 });
@@ -74,7 +72,6 @@ interface Server {
   whatsappMetaToken: string | null;
   whatsappMetaBusinessId: string | null;
   whatsappMetaApiVersion: string | null;
-  whatsappWebhookUrl: string | null;
   aiAgentName: string | null;
   aiAgentWebhookUrl: string | null;
   prospectingWebhookUrl: string | null;
@@ -311,8 +308,7 @@ export default function ServerManagementPage() {
           ...data,
           maxUsers: Number(data.maxUsers),
           // Garantir que os campos de webhook sejam incluídos mesmo que sejam null
-          messageSendingWebhookUrl: data.messageSendingWebhookUrl || null,
-          whatsappWebhookUrl: data.whatsappWebhookUrl || null,
+
           aiAgentWebhookUrl: data.aiAgentWebhookUrl || null,
           prospectingWebhookUrl: data.prospectingWebhookUrl || null,
           contactsWebhookUrl: data.contactsWebhookUrl || null,
@@ -321,7 +317,7 @@ export default function ServerManagementPage() {
         };
         
         console.log("Dados processados (VERIFICAR WEBHOOK URL):", JSON.stringify(processedData, null, 2));
-        console.log("messageSendingWebhookUrl:", processedData.messageSendingWebhookUrl);
+
         
         const res = await apiRequest("PUT", `/api/servers/${id}`, processedData);
         console.log("Resposta recebida com status:", res.status);
@@ -617,15 +613,12 @@ export default function ServerManagementPage() {
       apiToken: server.apiToken || "",
       n8nApiUrl: server.n8nApiUrl || "",
       maxUsers: server.maxUsers || 10, // Valor padrão se for nulo
-      whatsappWebhookUrl: server.whatsappWebhookUrl || "",
       aiAgentName: server.aiAgentName || "",
       aiAgentWebhookUrl: server.aiAgentWebhookUrl || "",
       prospectingWebhookUrl: server.prospectingWebhookUrl || "",
       contactsWebhookUrl: server.contactsWebhookUrl || "",
       schedulingWebhookUrl: server.schedulingWebhookUrl || "",
       crmWebhookUrl: server.crmWebhookUrl || "",
-      // Adicionado campo de webhook de envio de mensagens
-      messageSendingWebhookUrl: server.messageSendingWebhookUrl || "",
 
       // Garantir que active seja um boolean válido
       active: server.active === null ? false : Boolean(server.active),
