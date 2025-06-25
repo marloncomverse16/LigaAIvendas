@@ -111,6 +111,7 @@ export default function CrmLeadsPage() {
   const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [leadToUpdate, setLeadToUpdate] = useState<CrmLead | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Buscar estatísticas
   const { data: stats } = useQuery<CrmStats>({
@@ -208,6 +209,37 @@ export default function CrmLeadsPage() {
     },
   });
 
+  // Mutation para editar informações do lead
+  const editLeadMutation = useMutation({
+    mutationFn: async ({ leadId, data }: { leadId: number, data: LeadFormData }) => {
+      const response = await fetch(`/api/crm/leads/${leadId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Erro ao editar lead");
+      return response.json();
+    },
+    onSuccess: (updatedLead) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/stats"] });
+      setSelectedLead(updatedLead);
+      setIsEditMode(false);
+      editForm.reset();
+      toast({
+        title: "Lead editado com sucesso",
+        description: "As informações foram atualizadas.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao editar lead",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Formulário para atualizar status
   const statusForm = useForm<UpdateStatusData>({
     resolver: zodResolver(updateStatusSchema),
@@ -215,6 +247,18 @@ export default function CrmLeadsPage() {
       status: 'sendo_atendido_ia',
       conversionValue: '',
       notes: '',
+    },
+  });
+
+  // Formulário para editar lead
+  const editForm = useForm<LeadFormData>({
+    resolver: zodResolver(leadFormSchema),
+    defaultValues: {
+      phoneNumber: "",
+      name: "",
+      status: 'sendo_atendido_ia',
+      source: "",
+      notes: "",
     },
   });
 
@@ -228,6 +272,12 @@ export default function CrmLeadsPage() {
     }
   };
 
+  const onEditSubmit = (data: LeadFormData) => {
+    if (selectedLead) {
+      editLeadMutation.mutate({ leadId: selectedLead.id, data });
+    }
+  };
+
   const openStatusDialog = (lead: CrmLead) => {
     setLeadToUpdate(lead);
     statusForm.reset({
@@ -236,6 +286,23 @@ export default function CrmLeadsPage() {
       notes: lead.notes || '',
     });
     setIsStatusDialogOpen(true);
+  };
+
+  const openEditMode = (lead: CrmLead) => {
+    setSelectedLead(lead);
+    editForm.reset({
+      phoneNumber: lead.phoneNumber,
+      name: lead.name || '',
+      status: lead.status,
+      source: lead.source,
+      notes: lead.notes || '',
+    });
+    setIsEditMode(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditMode(false);
+    editForm.reset();
   };
 
   const formatDate = (dateString: string) => {
@@ -554,16 +621,21 @@ export default function CrmLeadsPage() {
       </Card>
 
       {/* Modal de Detalhes do Lead */}
-      <Dialog open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
+      <Dialog open={!!selectedLead} onOpenChange={() => {
+        setSelectedLead(null);
+        setIsEditMode(false);
+      }}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Detalhes do Lead</DialogTitle>
+            <DialogTitle>
+              {isEditMode ? "Editar Lead" : "Detalhes do Lead"}
+            </DialogTitle>
             <DialogDescription>
-              Informações completas sobre o lead selecionado
+              {isEditMode ? "Edite as informações deste lead." : "Informações completas sobre o lead selecionado"}
             </DialogDescription>
           </DialogHeader>
           
-          {selectedLead && (
+          {selectedLead && !isEditMode && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -631,11 +703,114 @@ export default function CrmLeadsPage() {
                 <Button variant="outline" onClick={() => setSelectedLead(null)}>
                   Fechar
                 </Button>
-                <Button>
+                <Button onClick={() => openEditMode(selectedLead)}>
                   Editar Lead
                 </Button>
               </div>
             </div>
+          )}
+
+          {selectedLead && isEditMode && (
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="phoneNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefone</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Número do telefone" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do lead" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(statusLabels).map(([key, label]) => (
+                              <SelectItem key={key} value={key}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="source"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Origem</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Origem do lead" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={editForm.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Observações</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Observações sobre o lead" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button type="button" variant="outline" onClick={cancelEdit}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={editLeadMutation.isPending}>
+                    {editLeadMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
           )}
         </DialogContent>
       </Dialog>

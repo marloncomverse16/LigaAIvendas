@@ -300,5 +300,19 @@ META_WEBHOOK_VERIFY_TOKEN=...
   - `GET /api/crm/stats`: Estatísticas isoladas por usuário
   - Todas as outras rotas já tinham isolamento adequado
 
+### 2025-06-25 - Sistema Completo de Edição de Leads no CRM
+- **Funcionalidade de edição implementada**: Modal "Ver Detalhes" agora permite editar informações dos leads
+- **Interface alternada**: Modal alterna entre modo visualização e modo edição
+- **Formulário de edição completo**: Permite alterar telefone, nome, status, origem e observações
+- **Integração com API existente**: Utiliza rota PUT `/api/crm/leads/:id` já implementada
+- **Validação de dados**: Formulário com validação Zod e feedback visual
+- **Estados de carregamento**: Interface mostra estados de salvamento e erro
+- **Botões funcionais**:
+  - "Alterar Status": Modal específico para mudança de status com valor de venda
+  - "Ver Detalhes" → "Editar Lead": Modo de edição completo das informações
+  - "Cancelar" e "Salvar Alterações": Controles intuitivos de edição
+- **Experiência do usuário**: Transições suaves entre modos de visualização e edição
+- **Isolamento de segurança**: Todas as operações de edição respeitam isolamento multi-tenant
+
 *Última atualização: 25 de junho de 2025*
-*Sistema CRM com isolamento multi-tenant completo e interface otimizada*
+*Sistema CRM com funcionalidade completa de visualização, edição e alteração de status*
