@@ -253,9 +253,9 @@ META_WEBHOOK_VERIFY_TOKEN=...
 ### 2025-06-25 - Sistema Completo de CRM para Leads
 - **Implementação completa do CRM**: Sistema robusto para gestão de leads com 3 estágios principais
 - **Estrutura de banco de dados**:
-  - Tabela `crm_leads`: Dados principais do lead (telefone, nome, email, empresa, status, prioridade)
+  - Tabela `crm_leads`: Dados principais do lead (telefone, nome, status)
   - Tabela `crm_lead_activities`: Histórico completo de atividades e mudanças de status
-  - Tipos enum: `lead_status` e `lead_priority` para padronização
+  - Tipos enum: `lead_status` para padronização
 - **Status de atendimento**: 6 estágios claros de acompanhamento:
   - `sendo_atendido_ia`: Sendo Atendido pela IA
   - `finalizado_ia`: Finalizada pela IA  
@@ -263,31 +263,42 @@ META_WEBHOOK_VERIFY_TOKEN=...
   - `transferido_humano`: Transferido para Humano
   - `finalizado_humano`: Finalizado por Humano
   - `abandonado`: Abandonado
-- **Sistema de prioridades**: 4 níveis (baixa, média, alta, urgente) com cores distintivas
-- **API completa implementada**:
-  - `GET /api/crm/leads`: Listagem com filtros avançados e paginação
-  - `GET /api/crm/leads/:id`: Detalhes do lead com histórico de atividades
-  - `POST /api/crm/leads`: Criação de novos leads
-  - `PUT /api/crm/leads/:id`: Atualização de leads existentes
-  - `POST /api/crm/leads/:id/transfer-human`: Transferência para atendimento humano
-  - `GET /api/crm/stats`: Estatísticas consolidadas do CRM
-  - `POST /api/crm/leads/:id/activities`: Adição de atividades ao histórico
-- **Interface frontend completa**:
+- **API completa implementada com isolamento garantido**:
+  - `GET /api/crm/leads`: Listagem com filtros avançados e paginação (user_id isolado)
+  - `GET /api/crm/leads/:id`: Detalhes do lead com histórico de atividades (user_id isolado)
+  - `POST /api/crm/leads`: Criação de novos leads (user_id automático)
+  - `PUT /api/crm/leads/:id`: Atualização de leads existentes (user_id verificado)
+  - `POST /api/crm/leads/:id/transfer-human`: Transferência para atendimento humano (user_id verificado)
+  - `GET /api/crm/stats`: Estatísticas consolidadas do CRM (user_id isolado)
+  - `POST /api/crm/leads/:id/activities`: Adição de atividades ao histórico (user_id verificado)
+- **Interface frontend simplificada**:
   - Dashboard de estatísticas com cartões informativos
-  - Sistema de filtros por status, prioridade e busca textual
-  - Listagem responsiva com informações essenciais do lead
-  - Formulário de criação com validação Zod
+  - Sistema de filtros por status e busca textual
+  - Listagem responsiva com campos essenciais (telefone, nome, status)
+  - Modal de detalhes funcional com informações completas
   - Paginação automática para grandes volumes
-  - Botões de ação contextuais (transferir, ver detalhes)
-- **Funcionalidades avançadas**:
+  - Interface otimizada para melhor ajuste na tela
+- **Funcionalidades essenciais**:
   - Rastreamento automático de atividades
-  - Sistema de tags para categorização
   - Acompanhamento de conversões
-  - Follow-ups agendados
-  - Isolamento completo por usuário (multi-tenant)
+  - **Isolamento completo por usuário**: Todas as consultas verificam user_id
+  - **Segurança aprimorada**: Atividades do CRM respeitam isolamento multi-tenant
   - Validações rigorosas de segurança
 - **Integração ao sistema**: Página adicionada ao menu de navegação como "CRM de Leads"
-- **Dados de demonstração**: 5 leads de exemplo criados para teste das funcionalidades
+- **Dados limpos**: Removidos dados de exemplo para garantir ambiente de produção limpo
+
+### 2025-06-25 - Correção Completa do Isolamento de Dados CRM
+- **Isolamento multi-tenant garantido**: Todas as rotas do CRM agora verificam user_id
+- **Segurança aprimorada**: Consulta de atividades corrigida com JOIN para verificar propriedade do lead
+- **Dados limpos**: Removidos todos os dados de exemplo/teste do sistema
+- **Interface simplificada**: CRM agora mostra apenas campos essenciais (telefone, nome, status)
+- **Modal funcional**: Sistema de visualização de detalhes completamente operacional
+- **Validação rigorosa**: Todas as operações CRM respeitam isolamento por usuário
+- **Rotas corrigidas**:
+  - `GET /api/crm/leads/:id`: Atividades isoladas por usuário
+  - `POST /api/crm/leads/:id/activities`: Verificação de propriedade do lead
+  - `GET /api/crm/stats`: Estatísticas isoladas por usuário
+  - Todas as outras rotas já tinham isolamento adequado
 
 *Última atualização: 25 de junho de 2025*
-*Sistema CRM de leads operacional com interface completa e funcionalidades avançadas*
+*Sistema CRM com isolamento multi-tenant completo e interface otimizada*
