@@ -1840,7 +1840,7 @@ export default function ChatOtimizado() {
                         loading || 
                         form.formState.isSubmitting
                       }
-                      className="bg-green-600 hover:bg-green-700"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
                     >
                       {form.formState.isSubmitting ? (
                         <Loader2 className="h-4 w-4 animate-spin text-white" />
@@ -1914,7 +1914,7 @@ export default function ChatOtimizado() {
               {!loading && connected && chats.length === 0 && (
                 <Button 
                   onClick={loadChats} 
-                  variant="default"
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Carregar Contatos

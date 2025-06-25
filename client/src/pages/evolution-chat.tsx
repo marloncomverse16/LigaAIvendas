@@ -280,8 +280,7 @@ export default function EvolutionChatPage() {
           {/* Action Buttons */}
           <div className="flex px-4 py-2 border-b border-gray-200 space-x-2">
             <Button 
-              variant="default" 
-              className="flex-1 text-xs h-9"
+              className="flex-1 text-xs h-9 bg-orange-500 hover:bg-orange-600 text-white"
               onClick={() => refreshContacts()}
               disabled={isLoadingContacts || !connectionStatus.connected}
             >
@@ -435,7 +434,7 @@ export default function EvolutionChatPage() {
                   <Button 
                     type="submit" 
                     size="icon" 
-                    className="h-10 w-10 rounded-full"
+                    className="h-10 w-10 rounded-full bg-orange-500 hover:bg-orange-600 text-white"
                     disabled={!message.trim() || sendMessageMutation.isPending || !connectionStatus.connected}
                   >
                     <Send className="h-5 w-5" />
