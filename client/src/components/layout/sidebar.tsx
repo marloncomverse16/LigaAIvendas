@@ -82,8 +82,8 @@ export function Sidebar() {
       permissionKey: "accessWhatsapp"
     },
     { 
-      path: "/leads", 
-      label: "Leads", 
+      path: "/crm-leads", 
+      label: "CRM de Leads", 
       icon: <Users size={collapsed ? 24 : 20} />, 
       permissionKey: "accessLeads"
     },

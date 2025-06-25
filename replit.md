@@ -250,5 +250,44 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Dados autênticos**: Todos os dados vêm das tabelas reais do banco sem fallbacks
 - **Isolamento garantido**: Todos os relatórios respeitam isolamento por usuário
 
-*Última atualização: 24 de junho de 2025*
-*Relatórios Meta API exibindo dados corretos com mapeamento adequado*
+### 2025-06-25 - Sistema Completo de CRM para Leads
+- **Implementação completa do CRM**: Sistema robusto para gestão de leads com 3 estágios principais
+- **Estrutura de banco de dados**:
+  - Tabela `crm_leads`: Dados principais do lead (telefone, nome, email, empresa, status, prioridade)
+  - Tabela `crm_lead_activities`: Histórico completo de atividades e mudanças de status
+  - Tipos enum: `lead_status` e `lead_priority` para padronização
+- **Status de atendimento**: 6 estágios claros de acompanhamento:
+  - `sendo_atendido_ia`: Sendo Atendido pela IA
+  - `finalizado_ia`: Finalizada pela IA  
+  - `precisa_atendimento_humano`: Precisa de Atendimento Humano
+  - `transferido_humano`: Transferido para Humano
+  - `finalizado_humano`: Finalizado por Humano
+  - `abandonado`: Abandonado
+- **Sistema de prioridades**: 4 níveis (baixa, média, alta, urgente) com cores distintivas
+- **API completa implementada**:
+  - `GET /api/crm/leads`: Listagem com filtros avançados e paginação
+  - `GET /api/crm/leads/:id`: Detalhes do lead com histórico de atividades
+  - `POST /api/crm/leads`: Criação de novos leads
+  - `PUT /api/crm/leads/:id`: Atualização de leads existentes
+  - `POST /api/crm/leads/:id/transfer-human`: Transferência para atendimento humano
+  - `GET /api/crm/stats`: Estatísticas consolidadas do CRM
+  - `POST /api/crm/leads/:id/activities`: Adição de atividades ao histórico
+- **Interface frontend completa**:
+  - Dashboard de estatísticas com cartões informativos
+  - Sistema de filtros por status, prioridade e busca textual
+  - Listagem responsiva com informações essenciais do lead
+  - Formulário de criação com validação Zod
+  - Paginação automática para grandes volumes
+  - Botões de ação contextuais (transferir, ver detalhes)
+- **Funcionalidades avançadas**:
+  - Rastreamento automático de atividades
+  - Sistema de tags para categorização
+  - Acompanhamento de conversões
+  - Follow-ups agendados
+  - Isolamento completo por usuário (multi-tenant)
+  - Validações rigorosas de segurança
+- **Integração ao sistema**: Página adicionada ao menu de navegação como "CRM de Leads"
+- **Dados de demonstração**: 5 leads de exemplo criados para teste das funcionalidades
+
+*Última atualização: 25 de junho de 2025*
+*Sistema CRM de leads operacional com interface completa e funcionalidades avançadas*

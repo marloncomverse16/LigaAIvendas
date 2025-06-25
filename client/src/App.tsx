@@ -28,6 +28,7 @@ import ContactsPageNew from "@/pages/contacts-page-new";
 import MetaTestPage from "@/pages/meta-test-page";
 import ChatOtimizado from "@/pages/chat-otimizado";
 import ReportsPage from "@/pages/reports-page";
+import CrmLeadsPage from "@/pages/crm-leads-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { SidebarProvider } from "@/providers/sidebar-provider";
@@ -47,6 +48,7 @@ function Router() {
       <ProtectedRoute path="/connection" component={ConnectionPage} />
       <ProtectedRoute path="/contatos" component={ContactsPageNew} />
       <ProtectedRoute path="/relatorios" component={ReportsPage} />
+      <ProtectedRoute path="/crm-leads" component={CrmLeadsPage} />
 
       <ProtectedRoute path="/whatsapp-web" component={WhatsappWebPage} />
       <ProtectedRoute path="/new-chat" component={WhatsappWebPage} />
