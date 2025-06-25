@@ -135,8 +135,8 @@ const priorityColors = {
 export default function CrmLeadsPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [priorityFilter, setPriorityFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
@@ -156,8 +156,8 @@ export default function CrmLeadsPage() {
       });
       
       if (searchTerm) params.append("search", searchTerm);
-      if (statusFilter) params.append("status", statusFilter);
-      if (priorityFilter) params.append("priority", priorityFilter);
+      if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
+      if (priorityFilter && priorityFilter !== "all") params.append("priority", priorityFilter);
       
       const response = await fetch(`/api/crm/leads?${params}`);
       if (!response.ok) throw new Error("Erro ao buscar leads");
@@ -502,7 +502,7 @@ export default function CrmLeadsPage() {
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="all">Todos os status</SelectItem>
                 {Object.entries(statusLabels).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
@@ -516,7 +516,7 @@ export default function CrmLeadsPage() {
                 <SelectValue placeholder="Filtrar por prioridade" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas as prioridades</SelectItem>
+                <SelectItem value="all">Todas as prioridades</SelectItem>
                 {Object.entries(priorityLabels).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}

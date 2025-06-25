@@ -6714,13 +6714,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const params: any[] = [req.user!.id];
       let paramIndex = 2;
       
-      if (status) {
+      if (status && status !== "all") {
         whereClause += ` AND l.status = $${paramIndex}`;
         params.push(status);
         paramIndex++;
       }
       
-      if (priority) {
+      if (priority && priority !== "all") {
         whereClause += ` AND l.priority = $${paramIndex}`;
         params.push(priority);
         paramIndex++;
