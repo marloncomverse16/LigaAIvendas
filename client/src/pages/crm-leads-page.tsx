@@ -1006,6 +1006,106 @@ export default function CrmLeadsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Chat Integrado */}
+      {isChatOpen && selectedLead && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl h-[600px] flex flex-col">
+            {/* Header do Chat */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <MessageCircle className="h-5 w-5 text-orange-500" />
+                  <div>
+                    <h3 className="font-semibold text-lg">
+                      {selectedLead.name || 'Lead sem nome'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{selectedLead.phoneNumber}</p>
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsChatOpen(false)}
+                className="hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Área de Mensagens */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {loadingMessages ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+                  <span className="ml-2 text-muted-foreground">Carregando mensagens...</span>
+                </div>
+              ) : chatMessages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>Nenhuma mensagem encontrada</p>
+                    <p className="text-sm">Inicie uma conversa com este lead</p>
+                  </div>
+                </div>
+              ) : (
+                chatMessages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[70%] rounded-lg p-3 ${
+                        message.direction === 'outbound'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                      }`}
+                    >
+                      <p className="text-sm">{message.content || message.message}</p>
+                      <p className={`text-xs mt-1 ${
+                        message.direction === 'outbound' 
+                          ? 'text-orange-100' 
+                          : 'text-muted-foreground'
+                      }`}>
+                        {message.timestamp ? new Date(message.timestamp).toLocaleTimeString('pt-BR') : ''}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Input de Nova Mensagem */}
+            <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex space-x-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Digite sua mensagem..."
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim()}
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Pressione Enter para enviar • Via Meta API
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -4098,6 +4098,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🚀 ENDPOINT PARA BUSCAR MENSAGENS POR NÚMERO DE TELEFONE (para CRM integrado)
+  app.get("/api/chat/messages/phone/:phoneNumber", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const phoneNumber = req.params.phoneNumber;
+      const userId = req.user.id;
+      
+      console.log(`🔍 Buscando mensagens para telefone ${phoneNumber} do usuário ${userId}`);
+      
+      // 1. BUSCAR MENSAGENS DA META API
+      let metaMessages = [];
+      try {
+        const metaQuery = await pool.query(
+          'SELECT * FROM meta_chat_messages WHERE user_id = $1 AND contact_phone = $2 ORDER BY created_at ASC',
+          [userId, phoneNumber]
+        );
+        
+        metaMessages = metaQuery.rows.map((msg: any) => ({
+          id: `meta_${msg.id}`,
+          content: msg.message_content,
+          message: msg.message_content,
+          timestamp: msg.created_at,
+          direction: msg.from_me ? 'outbound' : 'inbound',
+          status: msg.status || 'delivered',
+          fromMe: msg.from_me
+        }));
+        console.log(`📥 Encontradas ${metaMessages.length} mensagens da Meta API`);
+      } catch (error) {
+        console.log('⚠️ Erro ao buscar mensagens da Meta:', error);
+      }
+      
+      // 2. BUSCAR MENSAGENS ENVIADAS (do banco)
+      let sentMessages = [];
+      try {
+        const sentQuery = await pool.query(
+          'SELECT id, message, message_type, created_at, status FROM chat_messages_sent WHERE user_id = $1 AND contact_phone = $2 ORDER BY created_at ASC',
+          [userId, phoneNumber]
+        );
+        
+        sentMessages = sentQuery.rows.map((msg: any) => ({
+          id: `sent_${msg.id}`,
+          content: msg.message,
+          message: msg.message,
+          timestamp: msg.created_at,
+          direction: 'outbound',
+          status: msg.status,
+          fromMe: true
+        }));
+        console.log(`📤 Encontradas ${sentMessages.length} mensagens enviadas`);
+      } catch (error) {
+        console.log('⚠️ Erro ao buscar mensagens enviadas:', error);
+      }
+      
+      // 3. COMBINAR E ORDENAR
+      const allMessages = [...metaMessages, ...sentMessages];
+      allMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      
+      console.log(`✅ Total: ${allMessages.length} mensagens para ${phoneNumber}`);
+      
+      res.json(allMessages);
+      
+    } catch (error) {
+      console.error('❌ Erro ao buscar mensagens por telefone:', error);
+      res.status(500).json({ error: 'Erro ao buscar mensagens' });
+    }
+  });
+
   // Rota removida - será substituída pela nova implementação Meta Cloud API
   
   // Nova rota específica para envio de mensagens de texto via Meta Cloud
