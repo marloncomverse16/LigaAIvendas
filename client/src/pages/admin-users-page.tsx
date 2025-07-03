@@ -512,15 +512,14 @@ export default function AdminUsersPage() {
       password: formValues.password ? '***' : 'VAZIO'
     });
 
-    // Validação simples dos campos obrigatórios
-    if (!formValues.username || !formValues.email || !formValues.name || !formValues.company || !formValues.phone || !formValues.serverId || !formValues.password) {
+    // Validação simples dos campos obrigatórios (serverId não é obrigatório se atribuição automática)
+    if (!formValues.username || !formValues.email || !formValues.name || !formValues.company || !formValues.phone || !formValues.password) {
       const camposFaltando = [];
       if (!formValues.username) camposFaltando.push("Username");
       if (!formValues.email) camposFaltando.push("Email");
       if (!formValues.name) camposFaltando.push("Nome");
       if (!formValues.company) camposFaltando.push("Empresa");
       if (!formValues.phone) camposFaltando.push("Telefone");
-      if (!formValues.serverId) camposFaltando.push("Servidor");
       if (!formValues.password) camposFaltando.push("Senha");
       
       console.log("❌ Campos faltando:", camposFaltando);
