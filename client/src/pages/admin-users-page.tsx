@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare, User as UserIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare, User as UserIcon, Bot } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -105,6 +105,21 @@ export default function AdminUsersPage() {
   // Estados para gerenciar os agentes IA do usuário
   const [userAiAgents, setUserAiAgents] = useState<any[]>([]);
   const [availableAiAgents, setAvailableAiAgents] = useState<any[]>([]);
+  
+  // Estados para o fluxo de criação de usuário com agentes IA
+  const [showAiAgentSelection, setShowAiAgentSelection] = useState(false);
+  const [newlyCreatedUser, setNewlyCreatedUser] = useState<any>(null);
+  
+  // Query para buscar agentes IA disponíveis para o novo usuário
+  const { data: newUserAvailableAgents = [], refetch: refetchNewUserAgents } = useQuery({
+    queryKey: ["/api/servers", newlyCreatedUser?.serverId, "available-ai-agents", newlyCreatedUser?.id],
+    queryFn: async () => {
+      if (!newlyCreatedUser?.serverId || !newlyCreatedUser?.id) return [];
+      const res = await apiRequest("GET", `/api/servers/${newlyCreatedUser.serverId}/available-ai-agents/${newlyCreatedUser.id}`);
+      return await res.json();
+    },
+    enabled: !!newlyCreatedUser?.serverId && !!newlyCreatedUser?.id,
+  });
 
   // Buscar todos os usuários
   const { data: users = [], isLoading } = useQuery({
@@ -204,14 +219,23 @@ export default function AdminUsersPage() {
       const res = await apiRequest("POST", "/api/admin/users", userData);
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (newUser) => {
       toast({
         title: "Usuário criado com sucesso",
         description: "Operação concluída com sucesso",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      
+      // Guardar dados do novo usuário e mostrar seleção de agentes
+      setNewlyCreatedUser(newUser);
       setIsCreateOpen(false);
       resetForm();
+      
+      // Mostrar modal de seleção de agentes após pequeno delay
+      setTimeout(() => {
+        setShowAiAgentSelection(true);
+      }, 500);
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
       toast({
@@ -475,6 +499,8 @@ export default function AdminUsersPage() {
       const newUser = await createUserMutation.mutateAsync(userData as InsertUser);
       
       if (newUser && newUser.id) {
+        let finalServerId = selectedServerId;
+        
         // Se um servidor foi selecionado manualmente, associar o usuário a este servidor
         if (selectedServerId) {
           console.log(`Associando o novo usuário ${newUser.id} ao servidor ${selectedServerId}`);
@@ -507,6 +533,9 @@ export default function AdminUsersPage() {
             const response = await autoAssignServerMutation.mutateAsync(newUser.id);
             console.log("Servidor atribuído automaticamente:", response);
             
+            // Definir o serverId que foi atribuído automaticamente
+            finalServerId = response?.server?.id;
+            
             // Invalidar queries para atualizar dados
             queryClient.invalidateQueries({ queryKey: ["/api/user-servers"] });
             queryClient.invalidateQueries({ queryKey: ["/api/servers/users-count"] });
@@ -522,10 +551,69 @@ export default function AdminUsersPage() {
             });
           }
         }
+        
+        // Após atribuir o servidor, mostrar seleção de agentes IA
+        if (finalServerId) {
+          setNewlyCreatedUser({ ...newUser, serverId: finalServerId });
+          setShowAiAgentSelection(true);
+          // Não fechamos o modal aqui, pois vamos mostrar a seleção de agentes
+        }
       }
     } catch (error) {
       console.error("Erro ao criar usuário:", error);
+      toast({
+        title: "Erro ao criar usuário",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+      
+      // Em caso de erro, fechar o modal
+      setIsCreateModalOpen(false);
+      resetForm();
     }
+    
+    // Invalidar a query para recarregar a lista de usuários
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+  };
+  
+  // Função para resetar o formulário
+  const resetForm = () => {
+    setFormValues({
+      username: "",
+      email: "",
+      name: "",
+      company: "",
+      phone: "",
+      bio: "",
+      availableTokens: 1000,
+      tokenExpirationDays: 30,
+      monthlyFee: "0",
+      serverId: undefined,
+      isAdmin: false,
+      // Controles de acesso a módulos
+      accessDashboard: true,
+      accessLeads: true,
+      accessProspecting: true,
+      accessAiAgent: true,
+      accessWhatsapp: true,
+      accessContacts: true,
+      accessScheduling: true,
+      accessReports: true,
+      accessSettings: true
+    });
+  };
+  
+  // Função para finalizar o processo de criação
+  const finishUserCreation = () => {
+    setShowAiAgentSelection(false);
+    setNewlyCreatedUser(null);
+    setIsCreateModalOpen(false);
+    resetForm();
+    
+    toast({
+      title: "Usuário criado com sucesso",
+      description: "O usuário foi criado e configurado completamente.",
+    });
   };
 
   const handleUpdateUser = async () => {
@@ -624,30 +712,33 @@ export default function AdminUsersPage() {
     deleteUserMutation.mutate(currentUser.id);
   };
 
-  const resetForm = () => {
-    setFormValues({
-      username: "",
-      email: "",
-      name: "",
-      company: "",
-      phone: "",
-      bio: "",
-      availableTokens: 1000,
-      tokenExpirationDays: 30,
-      monthlyFee: "0",
-      serverId: undefined,
-      isAdmin: false,
-      // Controles de acesso a módulos
-      accessDashboard: true,
-      accessLeads: true,
-      accessProspecting: true,
-      accessAiAgent: true,
-      accessWhatsapp: true,
-      accessContacts: true,
-      accessScheduling: true,
-      accessReports: true,
-      accessSettings: true
-    });
+  // Função para associar agente IA ao novo usuário
+  const handleAssociateNewUserAgent = async (agentId: number) => {
+    if (!newlyCreatedUser) return;
+    
+    try {
+      await apiRequest("POST", `/api/user-ai-agents`, {
+        userId: newlyCreatedUser.id,
+        serverAiAgentId: agentId
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setShowAiAgentSelection(false);
+      setNewlyCreatedUser(null);
+      
+      // Mostrar sucesso
+      toast({
+        title: "Agente IA Associado",
+        description: "Agente IA foi associado ao usuário com sucesso.",
+      });
+      
+    } catch (error: any) {
+      toast({
+        title: "Erro ao Associar Agente",
+        description: error.message || "Erro ao associar agente IA ao usuário.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditUser = async (user: UserType) => {
@@ -1688,6 +1779,68 @@ export default function AdminUsersPage() {
           open={isPermissionsDialogOpen}
           onOpenChange={setIsPermissionsDialogOpen}
         />
+
+        {/* Modal para seleção de agentes IA após criação de usuário */}
+        <Dialog open={showAiAgentSelection} onOpenChange={setShowAiAgentSelection}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-orange-500" />
+                Selecionar Agente IA para {newlyCreatedUser?.username}
+              </DialogTitle>
+              <DialogDescription>
+                Escolha um agente IA para associar ao usuário recém-criado. Esta associação pode ser alterada posteriormente.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {newUserAvailableAgents.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <p>Nenhum agente IA disponível para este usuário.</p>
+                  <p className="text-sm">Todos os agentes já estão associados a outros usuários.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {newUserAvailableAgents.map((agent: any) => (
+                    <div
+                      key={agent.id}
+                      className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => handleAssociateNewUserAgent(agent.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium">{agent.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {agent.description || "Agente IA para automatização de tarefas"}
+                          </p>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+                        >
+                          Selecionar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAiAgentSelection(false);
+                  setNewlyCreatedUser(null);
+                }}
+              >
+                Pular por Agora
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
   );
 }
