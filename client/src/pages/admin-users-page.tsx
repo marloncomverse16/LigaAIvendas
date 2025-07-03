@@ -563,15 +563,15 @@ export default function AdminUsersPage() {
         
         // Se um servidor foi selecionado manualmente, associar o usuário a este servidor
         if (selectedServerId) {
-          console.log(`Associando o novo usuário ${newUser.id} ao servidor ${selectedServerId}`);
+          console.log(`✅ Servidor selecionado manualmente: ${selectedServerId}. Associando usuário ${newUser.id}.`);
           
           try {
             // Associar ao servidor selecionado
             await updateUserServer(newUser.id, selectedServerId);
             
             toast({
-              title: "Servidor associado com sucesso",
-              description: "O usuário foi associado ao servidor selecionado.",
+              title: "Usuário criado com sucesso",
+              description: `Usuário ${newUser.username} criado e associado ao servidor selecionado.`,
             });
             
             // Invalidar queries para atualizar dados
@@ -587,6 +587,7 @@ export default function AdminUsersPage() {
             });
           }
         } else {
+          console.log(`⚠️ Nenhum servidor selecionado. Tentando atribuição automática para usuário ${newUser.id}.`);
           // Se nenhum servidor foi selecionado, atribuir automaticamente ao servidor com menos usuários
           try {
             // Chamar a API para atribuir automaticamente
@@ -615,12 +616,6 @@ export default function AdminUsersPage() {
             });
           }
         }
-        
-        // Exibir toast de sucesso
-        toast({
-          title: "Usuário criado com sucesso",
-          description: `Usuário ${newUser.username} foi criado e configurado adequadamente.`,
-        });
         
         // Fechar o modal e resetar o formulário
         setIsCreateOpen(false);
