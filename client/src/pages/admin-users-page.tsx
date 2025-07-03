@@ -1013,7 +1013,6 @@ export default function AdminUsersPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => {
-                                  setCurrentUser(user);
                                   autoAssignServerMutation.mutate(user.id);
                                 }}
                               >
