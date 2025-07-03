@@ -2385,23 +2385,28 @@ export class DatabaseStorage implements IStorage {
       await db.delete(leadRecommendations).where(eq(leadRecommendations.userId, id));
       console.log(`✅ Lead interactions e recommendations deletados para usuário ${id}`);
       
-      // 4. Prospecting Results (dependem de searches) - CORRIGIDO
+      // 4. Message Sending History (PRIMEIRO - depende de sendings e searches)
+      const sendings = await db.select().from(messageSendings).where(eq(messageSendings.userId, id));
+      for (const sending of sendings) {
+        await db.delete(messageSendingHistory).where(eq(messageSendingHistory.sendingId, sending.id));
+      }
+      
+      // Deletar também histórico que pode referenciar searches do usuário
       const searches = await db.select().from(prospectingSearches).where(eq(prospectingSearches.userId, id));
+      for (const search of searches) {
+        await db.delete(messageSendingHistory).where(eq(messageSendingHistory.searchId, search.id));
+      }
+      console.log(`✅ Message sending history deletado para usuário ${id}`);
+      
+      // 5. Prospecting Results (dependem de searches)
       for (const search of searches) {
         await db.delete(prospectingResults).where(eq(prospectingResults.searchId, search.id));
       }
       console.log(`✅ Prospecting results deletados para usuário ${id}`);
       
-      // 5. Prospecting Searches
+      // 6. Prospecting Searches (após limpar todas as dependências)
       await db.delete(prospectingSearches).where(eq(prospectingSearches.userId, id));
       console.log(`✅ Prospecting searches deletados para usuário ${id}`);
-      
-      // 6. Message Sending History (depende de message sendings)
-      const sendings = await db.select().from(messageSendings).where(eq(messageSendings.userId, id));
-      for (const sending of sendings) {
-        await db.delete(messageSendingHistory).where(eq(messageSendingHistory.sendingId, sending.id));
-      }
-      console.log(`✅ Message sending history deletado para usuário ${id}`);
       
       // 7. Message Sendings e Templates
       await db.delete(messageSendings).where(eq(messageSendings.userId, id));
@@ -2418,7 +2423,23 @@ export class DatabaseStorage implements IStorage {
       await db.delete(userServers).where(eq(userServers.userId, id));
       console.log(`✅ User servers relation deletada para usuário ${id}`);
       
-      // 10. Core user data
+      // 10. CRM Data e Meta API data (usar pool para queries SQL diretas)
+      const { pool } = await import('./db');
+      
+      // Primeiro deletar atividades CRM que dependem dos leads CRM
+      await pool.query(`DELETE FROM crm_lead_activities WHERE lead_id IN (SELECT id FROM crm_leads WHERE user_id = $1)`, [id]);
+      await pool.query(`DELETE FROM crm_leads WHERE user_id = $1`, [id]);
+      console.log(`✅ CRM leads e atividades deletados para usuário ${id}`);
+      
+      // 11. Meta API data relacionada ao usuário
+      await pool.query(`DELETE FROM meta_chat_messages WHERE user_id = $1`, [id]);
+      await pool.query(`DELETE FROM meta_conversations WHERE user_id = $1`, [id]);
+      await pool.query(`DELETE FROM meta_message_reports WHERE user_id = $1`, [id]);
+      await pool.query(`DELETE FROM meta_billing_reports WHERE user_id = $1`, [id]);
+      await pool.query(`DELETE FROM meta_lead_response_reports WHERE user_id = $1`, [id]);
+      console.log(`✅ Meta API data deletado para usuário ${id}`);
+      
+      // 12. Core user data
       await db.delete(leads).where(eq(leads.userId, id));
       await db.delete(prospects).where(eq(prospects.userId, id));
       await db.delete(dispatches).where(eq(dispatches.userId, id));
