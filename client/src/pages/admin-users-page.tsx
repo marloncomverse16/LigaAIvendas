@@ -197,13 +197,14 @@ export default function AdminUsersPage() {
   };
 
   // Função auxiliar para associar usuário ao servidor
-  const updateUserServer = async (userId: number, serverId: number | undefined) => {
+  const updateUserServer = async (userId: number, serverId: number | undefined): Promise<boolean> => {
     try {
       if (!serverId) return false;
       
       // Criar associação na tabela de relações user_servers
       const response = await apiRequest("POST", "/api/user-servers", { userId, serverId });
-      console.log(`Usuário ${userId} associado ao servidor ${serverId}`, response);
+      const result = await response.json();
+      console.log(`Usuário ${userId} associado ao servidor ${serverId}`, result);
       
       return true;
     } catch (error) {
@@ -293,14 +294,6 @@ export default function AdminUsersPage() {
   // Atribuir servidor automaticamente para um usuário
   const autoAssignServerMutation = useMutation({
     mutationFn: async (userId: number) => {
-      // Verificar se o usuário ainda existe antes de tentar atribuir servidor
-      const users = usersQuery.data || [];
-      const userExists = users.find(u => u.id === userId);
-      
-      if (!userExists) {
-        throw new Error("Usuário não encontrado - não é possível atribuir servidor");
-      }
-      
       const res = await apiRequest("POST", "/api/admin/auto-assign-server", { userId });
       return await res.json();
     },
@@ -630,7 +623,7 @@ export default function AdminUsersPage() {
         });
         
         // Fechar o modal e resetar o formulário
-        setCreateModalOpen(false);
+        setIsCreateOpen(false);
         resetForm();
         
         // Invalidar queries para recarregar a lista
@@ -663,7 +656,7 @@ export default function AdminUsersPage() {
       });
       
       // Em caso de erro, fechar o modal
-      setCreateModalOpen(false);
+      setIsCreateOpen(false);
       resetForm();
     }
   };
