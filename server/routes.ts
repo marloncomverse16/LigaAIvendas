@@ -4967,6 +4967,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     return getAvailableServerAiAgents(req, res);
   });
+
+  // Rota para buscar agentes IA disponíveis durante criação de usuário (apenas admin)
+  app.get("/api/servers/:serverId/available-ai-agents-creation", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    // Verificar se é admin
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: "Acesso negado - apenas administradores" });
+    }
+    
+    try {
+      const serverId = parseInt(req.params.serverId);
+      
+      // Buscar todos os agentes IA do servidor
+      const allServerAgents = await db
+        .select()
+        .from(serverAiAgents)
+        .where(eq(serverAiAgents.serverId, serverId));
+
+      // Buscar todos os agentes já associados a usuários
+      const associatedAgents = await db
+        .select({ agentId: userAiAgents.serverAiAgentId })
+        .from(userAiAgents);
+
+      const associatedAgentIds = associatedAgents.map(a => a.agentId);
+
+      // Filtrar agentes disponíveis (não associados)
+      const availableAgents = allServerAgents.filter(agent => 
+        !associatedAgentIds.includes(agent.id)
+      );
+
+      res.json(availableAgents);
+    } catch (error) {
+      console.error("Erro ao buscar agentes IA disponíveis:", error);
+      res.status(500).json({ message: "Erro ao buscar agentes IA disponíveis" });
+    }
+  });
   
   app.post("/api/user-ai-agents", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });

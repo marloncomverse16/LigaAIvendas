@@ -76,6 +76,7 @@ export default function AdminUsersPage() {
 
   const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [formValues, setFormValues] = useState<UserFormValues>({
     username: "",
     email: "",
@@ -106,19 +107,17 @@ export default function AdminUsersPage() {
   const [userAiAgents, setUserAiAgents] = useState<any[]>([]);
   const [availableAiAgents, setAvailableAiAgents] = useState<any[]>([]);
   
-  // Estados para o fluxo de criação de usuário com agentes IA
-  const [showAiAgentSelection, setShowAiAgentSelection] = useState(false);
-  const [newlyCreatedUser, setNewlyCreatedUser] = useState<any>(null);
+
   
-  // Query para buscar agentes IA disponíveis para o novo usuário
-  const { data: newUserAvailableAgents = [], refetch: refetchNewUserAgents } = useQuery({
-    queryKey: ["/api/servers", newlyCreatedUser?.serverId, "available-ai-agents", newlyCreatedUser?.id],
+  // Query para buscar agentes IA disponíveis baseado no servidor selecionado
+  const { data: availableAgentsForCreation = [] } = useQuery({
+    queryKey: ["/api/servers", formValues.serverId, "available-ai-agents-creation"],
     queryFn: async () => {
-      if (!newlyCreatedUser?.serverId || !newlyCreatedUser?.id) return [];
-      const res = await apiRequest("GET", `/api/servers/${newlyCreatedUser.serverId}/available-ai-agents/${newlyCreatedUser.id}`);
+      if (!formValues.serverId) return [];
+      const res = await apiRequest("GET", `/api/servers/${formValues.serverId}/available-ai-agents-creation`);
       return await res.json();
     },
-    enabled: !!newlyCreatedUser?.serverId && !!newlyCreatedUser?.id,
+    enabled: !!formValues.serverId,
   });
 
   // Buscar todos os usuários
@@ -217,24 +216,27 @@ export default function AdminUsersPage() {
   const createUserMutation = useMutation({
     mutationFn: async (userData: InsertUser) => {
       const res = await apiRequest("POST", "/api/admin/users", userData);
-      return await res.json();
+      const newUser = await res.json();
+      
+      // Se um agente IA foi selecionado, associá-lo ao usuário
+      if (selectedAgentId) {
+        await apiRequest("POST", `/api/user-ai-agents`, {
+          userId: newUser.id,
+          serverAiAgentId: selectedAgentId
+        });
+      }
+      
+      return newUser;
     },
-    onSuccess: (newUser) => {
+    onSuccess: () => {
       toast({
         title: "Usuário criado com sucesso",
-        description: "Operação concluída com sucesso",
+        description: selectedAgentId ? "Usuário criado e agente IA associado com sucesso" : "Operação concluída com sucesso",
       });
       
-      // Guardar dados do novo usuário e mostrar seleção de agentes
-      setNewlyCreatedUser(newUser);
       setIsCreateOpen(false);
       resetForm();
-      
-      // Mostrar modal de seleção de agentes após pequeno delay
-      setTimeout(() => {
-        setShowAiAgentSelection(true);
-      }, 500);
-      
+      setSelectedAgentId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
@@ -554,8 +556,7 @@ export default function AdminUsersPage() {
         
         // Após atribuir o servidor, mostrar seleção de agentes IA
         if (finalServerId) {
-          setNewlyCreatedUser({ ...newUser, serverId: finalServerId });
-          setShowAiAgentSelection(true);
+          // Usuário criado com sucesso e servidor associado
           // Não fechamos o modal aqui, pois vamos mostrar a seleção de agentes
         }
       }
@@ -601,13 +602,12 @@ export default function AdminUsersPage() {
       accessReports: true,
       accessSettings: true
     });
+    setSelectedAgentId(null);
   };
   
   // Função para finalizar o processo de criação
   const finishUserCreation = () => {
-    setShowAiAgentSelection(false);
-    setNewlyCreatedUser(null);
-    setIsCreateModalOpen(false);
+    setIsCreateOpen(false);
     resetForm();
     
     toast({
@@ -712,34 +712,7 @@ export default function AdminUsersPage() {
     deleteUserMutation.mutate(currentUser.id);
   };
 
-  // Função para associar agente IA ao novo usuário
-  const handleAssociateNewUserAgent = async (agentId: number) => {
-    if (!newlyCreatedUser) return;
-    
-    try {
-      await apiRequest("POST", `/api/user-ai-agents`, {
-        userId: newlyCreatedUser.id,
-        serverAiAgentId: agentId
-      });
-      
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      setShowAiAgentSelection(false);
-      setNewlyCreatedUser(null);
-      
-      // Mostrar sucesso
-      toast({
-        title: "Agente IA Associado",
-        description: "Agente IA foi associado ao usuário com sucesso.",
-      });
-      
-    } catch (error: any) {
-      toast({
-        title: "Erro ao Associar Agente",
-        description: error.message || "Erro ao associar agente IA ao usuário.",
-        variant: "destructive",
-      });
-    }
-  };
+
 
   const handleEditUser = async (user: UserType) => {
     setCurrentUser(user);
@@ -1337,6 +1310,44 @@ export default function AdminUsersPage() {
                     Use a atribuição automática para conectar ao servidor com menos usuários.
                   </p>
                 </div>
+
+                {/* Seleção de Agente IA */}
+                {formValues.serverId && (
+                  <div className="space-y-2">
+                    <Label htmlFor="aiAgent">Agente IA (Opcional)</Label>
+                    <Select 
+                      onValueChange={(value) => setSelectedAgentId(value ? parseInt(value) : null)}
+                      value={selectedAgentId?.toString() || ""}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um agente IA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Nenhum agente</SelectItem>
+                        {availableAgentsForCreation.length === 0 ? (
+                          <div className="p-2 text-center text-sm text-gray-500">
+                            Nenhum agente IA disponível
+                          </div>
+                        ) : (
+                          availableAgentsForCreation.map((agent: any) => (
+                            <SelectItem 
+                              key={agent.id} 
+                              value={agent.id.toString()}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Bot className="h-4 w-4 text-orange-500" />
+                                {agent.name}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Selecione um agente IA para associar automaticamente ao usuário. Esta associação pode ser alterada posteriormente.
+                    </p>
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="permissions" className="space-y-4">
@@ -1780,67 +1791,7 @@ export default function AdminUsersPage() {
           onOpenChange={setIsPermissionsDialogOpen}
         />
 
-        {/* Modal para seleção de agentes IA após criação de usuário */}
-        <Dialog open={showAiAgentSelection} onOpenChange={setShowAiAgentSelection}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-orange-500" />
-                Selecionar Agente IA para {newlyCreatedUser?.username}
-              </DialogTitle>
-              <DialogDescription>
-                Escolha um agente IA para associar ao usuário recém-criado. Esta associação pode ser alterada posteriormente.
-              </DialogDescription>
-            </DialogHeader>
 
-            <div className="space-y-4">
-              {newUserAvailableAgents.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p>Nenhum agente IA disponível para este usuário.</p>
-                  <p className="text-sm">Todos os agentes já estão associados a outros usuários.</p>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {newUserAvailableAgents.map((agent: any) => (
-                    <div
-                      key={agent.id}
-                      className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => handleAssociateNewUserAgent(agent.id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-medium">{agent.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {agent.description || "Agente IA para automatização de tarefas"}
-                          </p>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
-                        >
-                          Selecionar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAiAgentSelection(false);
-                  setNewlyCreatedUser(null);
-                }}
-              >
-                Pular por Agora
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
   );
 }
