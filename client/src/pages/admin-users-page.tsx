@@ -625,11 +625,18 @@ export default function AdminUsersPage() {
           }
         }
         
-        // Após atribuir o servidor, mostrar seleção de agentes IA
-        if (finalServerId) {
-          // Usuário criado com sucesso e servidor associado
-          // Não fechamos o modal aqui, pois vamos mostrar a seleção de agentes
-        }
+        // Exibir toast de sucesso
+        toast({
+          title: "Usuário criado com sucesso",
+          description: `Usuário ${newUser.username} foi criado e configurado adequadamente.`,
+        });
+        
+        // Fechar o modal e resetar o formulário
+        setIsCreateModalOpen(false);
+        resetForm();
+        
+        // Invalidar queries para recarregar a lista
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       }
     } catch (error) {
       console.error("Erro detalhado na criação:", error);
@@ -661,9 +668,6 @@ export default function AdminUsersPage() {
       setIsCreateModalOpen(false);
       resetForm();
     }
-    
-    // Invalidar a query para recarregar a lista de usuários
-    queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
   };
   
   // Função para resetar o formulário
@@ -1006,7 +1010,7 @@ export default function AdminUsersPage() {
                 <TableBody>
                   {users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
+                      <TableCell colSpan={8} className="text-center py-8">
                         Nenhum usuário encontrado. Crie o primeiro usuário.
                       </TableCell>
                     </TableRow>
