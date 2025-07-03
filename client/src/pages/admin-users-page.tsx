@@ -597,17 +597,21 @@ export default function AdminUsersPage() {
           // Se nenhum servidor foi selecionado, atribuir automaticamente ao servidor com menos usuários
           try {
             // Chamar a API para atribuir automaticamente
-            const response = await autoAssignServerMutation.mutateAsync(newUser.id);
-            console.log("Servidor atribuído automaticamente:", response);
+            const response = await apiRequest("POST", "/api/admin/auto-assign-server", { userId: newUser.id });
+            const assignResult = await response.json();
             
-            // Definir o serverId que foi atribuído automaticamente
-            finalServerId = response?.server?.id;
+            finalServerId = assignResult.server.id;
+            
+            toast({
+              title: "Servidor atribuído automaticamente",
+              description: `Usuário conectado ao servidor ${assignResult.server.name}`,
+            });
             
             // Invalidar queries para atualizar dados
             queryClient.invalidateQueries({ queryKey: ["/api/user-servers"] });
             queryClient.invalidateQueries({ queryKey: ["/api/servers/users-count"] });
-            if (response && response.server && response.server.id) {
-              queryClient.invalidateQueries({ queryKey: ["/api/user-servers", response.server.id] });
+            if (assignResult.server?.id) {
+              queryClient.invalidateQueries({ queryKey: ["/api/user-servers", assignResult.server.id] });
             }
           } catch (error) {
             console.error("Erro ao atribuir servidor automaticamente:", error);
@@ -626,7 +630,7 @@ export default function AdminUsersPage() {
         });
         
         // Fechar o modal e resetar o formulário
-        setIsCreateModalOpen(false);
+        setCreateModalOpen(false);
         resetForm();
         
         // Invalidar queries para recarregar a lista
@@ -659,7 +663,7 @@ export default function AdminUsersPage() {
       });
       
       // Em caso de erro, fechar o modal
-      setIsCreateModalOpen(false);
+      setCreateModalOpen(false);
       resetForm();
     }
   };
