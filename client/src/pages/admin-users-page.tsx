@@ -215,12 +215,6 @@ export default function AdminUsersPage() {
   // Criar um novo usuário
   const createUserMutation = useMutation({
     mutationFn: async (userData: InsertUser) => {
-      // Validar formulário antes de enviar
-      const validationErrors = validateForm();
-      if (validationErrors.length > 0) {
-        throw new Error(`Campos obrigatórios:\n• ${validationErrors.join('\n• ')}`);
-      }
-      
       const res = await apiRequest("POST", "/api/admin/users", userData);
       const newUser = await res.json();
       
@@ -248,6 +242,7 @@ export default function AdminUsersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
+      console.error("Erro detalhado na criação:", error);
       toast({
         title: "Erro ao criar usuário",
         description: error.message,
@@ -512,6 +507,16 @@ export default function AdminUsersPage() {
   });
 
   const handleCreateUser = async () => {
+    // Validação simples dos campos obrigatórios
+    if (!formValues.username || !formValues.email || !formValues.name || !formValues.company || !formValues.serverId || !formValues.password) {
+      toast({
+        title: "Campos obrigatórios em falta",
+        description: "Preencha todos os campos obrigatórios marcados com *",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validar senhas
     if (formValues.password !== formValues.confirmPassword) {
       toast({
