@@ -5270,12 +5270,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.body;
       
+      console.log("🔧 Auto-assign chamado para userId:", userId, "tipo:", typeof userId);
+      
       if (!userId) {
         return res.status(400).json({ message: "userId é obrigatório" });
       }
       
       // Verificar se o usuário existe
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(Number(userId));
+      console.log("👤 Usuário encontrado:", user ? `ID ${user.id} - ${user.username}` : "USUÁRIO NÃO ENCONTRADO");
+      
       if (!user) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
