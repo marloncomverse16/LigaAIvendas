@@ -299,6 +299,14 @@ export default function AdminUsersPage() {
   // Atribuir servidor automaticamente para um usuário
   const autoAssignServerMutation = useMutation({
     mutationFn: async (userId: number) => {
+      // Verificar se o usuário ainda existe antes de tentar atribuir servidor
+      const users = usersQuery.data || [];
+      const userExists = users.find(u => u.id === userId);
+      
+      if (!userExists) {
+        throw new Error("Usuário não encontrado - não é possível atribuir servidor");
+      }
+      
       const res = await apiRequest("POST", "/api/admin/auto-assign-server", { userId });
       return await res.json();
     },
@@ -518,12 +526,13 @@ export default function AdminUsersPage() {
     });
 
     // Validação simples dos campos obrigatórios
-    if (!formValues.username || !formValues.email || !formValues.name || !formValues.company || !formValues.serverId || !formValues.password) {
+    if (!formValues.username || !formValues.email || !formValues.name || !formValues.company || !formValues.phone || !formValues.serverId || !formValues.password) {
       const camposFaltando = [];
       if (!formValues.username) camposFaltando.push("Username");
       if (!formValues.email) camposFaltando.push("Email");
       if (!formValues.name) camposFaltando.push("Nome");
       if (!formValues.company) camposFaltando.push("Empresa");
+      if (!formValues.phone) camposFaltando.push("Telefone");
       if (!formValues.serverId) camposFaltando.push("Servidor");
       if (!formValues.password) camposFaltando.push("Senha");
       
@@ -1241,12 +1250,17 @@ export default function AdminUsersPage() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nome Completo</Label>
+                    <Label htmlFor="name" className="flex items-center gap-1">
+                      Nome Completo
+                      <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="name"
                       name="name"
                       value={formValues.name}
                       onChange={handleInputChange}
+                      required
+                      className={!formValues.name ? "border-red-300" : ""}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1267,12 +1281,17 @@ export default function AdminUsersPage() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone</Label>
+                    <Label htmlFor="phone" className="flex items-center gap-1">
+                      Telefone
+                      <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="phone"
                       name="phone"
                       value={formValues.phone}
                       onChange={handleInputChange}
+                      required
+                      className={!formValues.phone ? "border-red-300" : ""}
                     />
                   </div>
                   <div className="space-y-2">
