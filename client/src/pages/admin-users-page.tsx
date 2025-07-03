@@ -1316,14 +1316,14 @@ export default function AdminUsersPage() {
                   <div className="space-y-2">
                     <Label htmlFor="aiAgent">Agente IA (Opcional)</Label>
                     <Select 
-                      onValueChange={(value) => setSelectedAgentId(value ? parseInt(value) : null)}
-                      value={selectedAgentId?.toString() || ""}
+                      onValueChange={(value) => setSelectedAgentId(value === "none" ? null : parseInt(value))}
+                      value={selectedAgentId?.toString() || "none"}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um agente IA" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nenhum agente</SelectItem>
+                        <SelectItem value="none">Nenhum agente</SelectItem>
                         {availableAgentsForCreation.length === 0 ? (
                           <div className="p-2 text-center text-sm text-gray-500">
                             Nenhum agente IA disponível

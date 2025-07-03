@@ -4970,15 +4970,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rota para buscar agentes IA disponíveis durante criação de usuário (apenas admin)
   app.get("/api/servers/:serverId/available-ai-agents-creation", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    console.log("🔍 Rota available-ai-agents-creation chamada para servidor:", req.params.serverId);
+    
+    if (!req.isAuthenticated()) {
+      console.log("❌ Usuário não autenticado");
+      return res.status(401).json({ message: "Não autenticado" });
+    }
     
     // Verificar se é admin
     if (!req.user.isAdmin) {
+      console.log("❌ Usuário não é admin:", req.user.username);
       return res.status(403).json({ message: "Acesso negado - apenas administradores" });
     }
     
     try {
       const serverId = parseInt(req.params.serverId);
+      console.log("🔍 Buscando agentes para servidor ID:", serverId);
       
       // Buscar todos os agentes IA do servidor
       const allServerAgents = await db
@@ -4986,18 +4993,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(serverAiAgents)
         .where(eq(serverAiAgents.serverId, serverId));
 
+      console.log("📊 Agentes encontrados no servidor:", allServerAgents.length);
+
       // Buscar todos os agentes já associados a usuários
       const associatedAgents = await db
         .select({ agentId: userAiAgents.serverAiAgentId })
         .from(userAiAgents);
 
       const associatedAgentIds = associatedAgents.map(a => a.agentId);
+      console.log("🔗 Agentes já associados:", associatedAgentIds);
 
       // Filtrar agentes disponíveis (não associados)
       const availableAgents = allServerAgents.filter(agent => 
         !associatedAgentIds.includes(agent.id)
       );
 
+      console.log("✅ Agentes disponíveis para criação:", availableAgents.length);
       res.json(availableAgents);
     } catch (error) {
       console.error("Erro ao buscar agentes IA disponíveis:", error);
