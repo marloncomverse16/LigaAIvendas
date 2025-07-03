@@ -2365,100 +2365,82 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`🗑️ Iniciando exclusão do usuário ${id}...`);
       
-      // Deletar dados relacionados ao usuário em ordem apropriada devido às chaves estrangeiras
-      
-      // 1. AI Agent Steps e FAQs primeiro
-      await db.delete(aiAgentSteps).where(eq(aiAgentSteps.userId, id));
-      await db.delete(aiAgentFaqs).where(eq(aiAgentFaqs.userId, id));
-      console.log(`✅ AI Agent steps e FAQs deletados para usuário ${id}`);
-      
-      // 2. AI Agent
-      await db.delete(aiAgent).where(eq(aiAgent.userId, id));
-      console.log(`✅ AI Agent deletado para usuário ${id}`);
-      
-      // 3. Lead Interactions e Recommendations (dependem de leads)
-      const userLeads = await db.select().from(leads).where(eq(leads.userId, id));
-      for (const lead of userLeads) {
-        await db.delete(leadInteractions).where(eq(leadInteractions.leadId, lead.id));
-        await db.delete(leadRecommendations).where(eq(leadRecommendations.leadId, lead.id));
-      }
-      await db.delete(leadRecommendations).where(eq(leadRecommendations.userId, id));
-      console.log(`✅ Lead interactions e recommendations deletados para usuário ${id}`);
-      
-      // 4. Message Sending History (PRIMEIRO - depende de sendings e searches)
-      const sendings = await db.select().from(messageSendings).where(eq(messageSendings.userId, id));
-      for (const sending of sendings) {
-        await db.delete(messageSendingHistory).where(eq(messageSendingHistory.sendingId, sending.id));
-      }
-      
-      // Deletar também histórico que pode referenciar searches do usuário
-      const searches = await db.select().from(prospectingSearches).where(eq(prospectingSearches.userId, id));
-      for (const search of searches) {
-        await db.delete(messageSendingHistory).where(eq(messageSendingHistory.searchId, search.id));
-      }
-      console.log(`✅ Message sending history deletado para usuário ${id}`);
-      
-      // 5. Prospecting Results (dependem de searches)
-      for (const search of searches) {
-        await db.delete(prospectingResults).where(eq(prospectingResults.searchId, search.id));
-      }
-      console.log(`✅ Prospecting results deletados para usuário ${id}`);
-      
-      // 6. Prospecting Searches (após limpar todas as dependências)
-      await db.delete(prospectingSearches).where(eq(prospectingSearches.userId, id));
-      console.log(`✅ Prospecting searches deletados para usuário ${id}`);
-      
-      // 7. Message Sendings e Templates
-      await db.delete(messageSendings).where(eq(messageSendings.userId, id));
-      await db.delete(messageTemplates).where(eq(messageTemplates.userId, id));
-      console.log(`✅ Message sendings e templates deletados para usuário ${id}`);
-      
-      // 8. WhatsApp data e Contacts
-      await db.delete(whatsappMessages).where(eq(whatsappMessages.userId, id));
-      await db.delete(whatsappContacts).where(eq(whatsappContacts.userId, id));
-      await db.delete(contacts).where(eq(contacts.userId, id));
-      console.log(`✅ WhatsApp messages, whatsapp contacts e contacts deletados para usuário ${id}`);
-      
-      // 9. User servers relation
-      await db.delete(userServers).where(eq(userServers.userId, id));
-      console.log(`✅ User servers relation deletada para usuário ${id}`);
-      
-      // 10. CRM Data e Meta API data (usar pool para queries SQL diretas)
+      // Usar SQL direto para deletar todas as dependências e o usuário
       const { pool } = await import('./db');
       
-      // Primeiro deletar atividades CRM que dependem dos leads CRM
-      await pool.query(`DELETE FROM crm_lead_activities WHERE lead_id IN (SELECT id FROM crm_leads WHERE user_id = $1)`, [id]);
-      await pool.query(`DELETE FROM crm_leads WHERE user_id = $1`, [id]);
-      console.log(`✅ CRM leads e atividades deletados para usuário ${id}`);
+      // Executar todas as exclusões em uma transação
+      await pool.query('BEGIN');
       
-      // 11. Meta API data relacionada ao usuário
-      await pool.query(`DELETE FROM meta_chat_messages WHERE user_id = $1`, [id]);
-      await pool.query(`DELETE FROM meta_conversations WHERE user_id = $1`, [id]);
-      await pool.query(`DELETE FROM meta_message_reports WHERE user_id = $1`, [id]);
-      await pool.query(`DELETE FROM meta_billing_reports WHERE user_id = $1`, [id]);
-      await pool.query(`DELETE FROM meta_lead_response_reports WHERE user_id = $1`, [id]);
-      console.log(`✅ Meta API data deletado para usuário ${id}`);
-      
-      // 12. Core user data
-      await db.delete(leads).where(eq(leads.userId, id));
-      await db.delete(prospects).where(eq(prospects.userId, id));
-      await db.delete(dispatches).where(eq(dispatches.userId, id));
-      await db.delete(metrics).where(eq(metrics.userId, id));
-      await db.delete(settings).where(eq(settings.userId, id));
-      console.log(`✅ Core user data deletado para usuário ${id}`);
-      
-      // 11. Finalmente, deletar o usuário
-      const result = await db.delete(users).where(eq(users.id, id));
-      
-      // Verificar se o usuário foi deletado verificando se ainda existe
-      const userCheck = await db.select().from(users).where(eq(users.id, id));
-      
-      if (userCheck.length === 0) {
-        console.log(`✅ Usuário ${id} excluído com sucesso!`);
-        return true;
-      } else {
-        console.log(`❌ Falha ao excluir usuário ${id} - ainda existe no banco`);
-        return false;
+      try {
+        // 1. Deletar tabelas dependentes usando SQL direto para evitar problemas de ordem
+        console.log('🧹 Limpando dados relacionados...');
+        
+        // CRM data
+        await pool.query(`DELETE FROM crm_lead_activities WHERE lead_id IN (SELECT id FROM crm_leads WHERE user_id = $1 OR assigned_to_user_id = $1)`, [id]);
+        await pool.query(`DELETE FROM crm_leads WHERE user_id = $1 OR assigned_to_user_id = $1`, [id]);
+        
+        // Lead interactions e recommendations
+        await pool.query(`DELETE FROM lead_interactions WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM lead_recommendations WHERE user_id = $1 OR lead_id IN (SELECT id FROM leads WHERE user_id = $1)`, [id]);
+        
+        // Message sending history (pode referenciar searches)
+        await pool.query(`DELETE FROM message_sending_history WHERE user_id = $1 OR search_id IN (SELECT id FROM prospecting_searches WHERE user_id = $1) OR sending_id IN (SELECT id FROM message_sendings WHERE user_id = $1)`, [id]);
+        
+        // Prospecting data
+        await pool.query(`DELETE FROM prospecting_results WHERE search_id IN (SELECT id FROM prospecting_searches WHERE user_id = $1)`, [id]);
+        await pool.query(`DELETE FROM prospecting_schedules WHERE created_by = $1`, [id]);
+        await pool.query(`DELETE FROM prospecting_dispatch_history WHERE executed_by = $1`, [id]);
+        await pool.query(`DELETE FROM prospecting_searches WHERE user_id = $1`, [id]);
+        
+        // Message data
+        await pool.query(`DELETE FROM message_sendings WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM message_templates WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM chat_messages_sent WHERE user_id = $1`, [id]);
+        
+        // WhatsApp and contact data
+        await pool.query(`DELETE FROM whatsapp_messages WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM whatsapp_contacts WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM contacts WHERE user_id = $1`, [id]);
+        
+        // Meta API data
+        await pool.query(`DELETE FROM meta_chat_messages WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM meta_conversation_reports WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM meta_message_reports WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM meta_billing_reports WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM meta_lead_response_reports WHERE user_id = $1`, [id]);
+        
+        // AI Agent data
+        await pool.query(`DELETE FROM ai_agent_steps WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM ai_agent_faqs WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM ai_agent WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM user_ai_agents WHERE user_id = $1`, [id]);
+        
+        // Server relations
+        await pool.query(`DELETE FROM user_servers WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM server_users WHERE user_id = $1`, [id]);
+        
+        // Core data
+        await pool.query(`DELETE FROM leads WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM prospects WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM dispatches WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM metrics WHERE user_id = $1`, [id]);
+        await pool.query(`DELETE FROM settings WHERE user_id = $1`, [id]);
+        
+        // Finalmente, deletar o usuário
+        const result = await pool.query(`DELETE FROM users WHERE id = $1`, [id]);
+        
+        if (result.rowCount && result.rowCount > 0) {
+          await pool.query('COMMIT');
+          console.log(`✅ Usuário ${id} excluído com sucesso!`);
+          return true;
+        } else {
+          await pool.query('ROLLBACK');
+          console.log(`❌ Usuário ${id} não encontrado para exclusão`);
+          return false;
+        }
+      } catch (error) {
+        await pool.query('ROLLBACK');
+        throw error;
       }
     } catch (error) {
       console.error("Erro ao deletar usuário:", error);
