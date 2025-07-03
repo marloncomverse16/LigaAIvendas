@@ -4997,9 +4997,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM server_ai_agents sa
         WHERE sa.server_id = $1
         AND sa.id NOT IN (
-          SELECT COALESCE(ua.server_ai_agent_id, 0)
+          SELECT COALESCE(ua.agent_id, 0)
           FROM user_ai_agents ua
-          WHERE ua.server_ai_agent_id IS NOT NULL
+          WHERE ua.agent_id IS NOT NULL
         )
         ORDER BY sa.name
       `, [serverId]);
