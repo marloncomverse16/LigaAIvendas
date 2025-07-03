@@ -231,14 +231,8 @@ export default function AdminUsersPage() {
       return newUser;
     },
     onSuccess: () => {
-      toast({
-        title: "Usuário criado com sucesso",
-        description: selectedAgentIds.length > 0 ? `Usuário criado e ${selectedAgentIds.length} agente(s) IA associado(s) com sucesso` : "Operação concluída com sucesso",
-      });
-      
-      setIsCreateOpen(false);
-      resetForm();
-      setSelectedAgentIds([]);
+      // Este onSuccess será chamado automaticamente, mas a lógica principal está no handleCreateUser
+      console.log("✅ CreateUserMutation onSuccess disparado");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
