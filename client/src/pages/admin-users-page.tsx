@@ -507,11 +507,31 @@ export default function AdminUsersPage() {
   });
 
   const handleCreateUser = async () => {
+    // Debug dos valores do formulário
+    console.log("🔍 Valores do formulário:", {
+      username: formValues.username,
+      email: formValues.email,
+      name: formValues.name,
+      company: formValues.company,
+      serverId: formValues.serverId,
+      password: formValues.password ? '***' : 'VAZIO'
+    });
+
     // Validação simples dos campos obrigatórios
     if (!formValues.username || !formValues.email || !formValues.name || !formValues.company || !formValues.serverId || !formValues.password) {
+      const camposFaltando = [];
+      if (!formValues.username) camposFaltando.push("Username");
+      if (!formValues.email) camposFaltando.push("Email");
+      if (!formValues.name) camposFaltando.push("Nome");
+      if (!formValues.company) camposFaltando.push("Empresa");
+      if (!formValues.serverId) camposFaltando.push("Servidor");
+      if (!formValues.password) camposFaltando.push("Senha");
+      
+      console.log("❌ Campos faltando:", camposFaltando);
+      
       toast({
         title: "Campos obrigatórios em falta",
-        description: "Preencha todos os campos obrigatórios marcados com *",
+        description: `Faltam: ${camposFaltando.join(', ')}`,
         variant: "destructive",
       });
       return;
