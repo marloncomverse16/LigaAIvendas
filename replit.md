@@ -326,5 +326,18 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Biblioteca XLSX instalada**: Dependência adicionada para suporte completo a Excel
 - **Importação dinâmica**: Excel importado dinamicamente para otimização de performance
 
-*Última atualização: 25 de junho de 2025*
-*Sistema CRM completo com exportação dupla (CSV/Excel) e filtros por data*
+### 2025-07-03 - Correção Completa do Sistema de Exclusão de Usuários
+- **Problema identificado**: Exclusão de usuários falhava devido a dependências de chave estrangeira não tratadas adequadamente
+- **Análise realizada**: Descobertas 29 tabelas que referenciam a tabela `users` através de chaves estrangeiras
+- **Solução implementada**: Reescrita completa do método `deleteUser` usando SQL direto com transações
+- **Melhorias técnicas**:
+  - **Transações SQL**: Sistema usa BEGIN/COMMIT/ROLLBACK para garantir integridade
+  - **Ordem correta**: Dados dependentes removidos antes das referências principais
+  - **Cobertura completa**: Trata todas as 29 tabelas identificadas na análise
+  - **Rollback automático**: Em caso de erro, todas as alterações são revertidas
+- **Tabelas tratadas**: CRM leads/atividades, Meta API data, message history, prospecting data, AI agents, server relations, contacts, mensagens WhatsApp, settings, leads principais
+- **Teste validado**: Usuário "Leriane" removido com sucesso, usuário teste criado para validação
+- **Sistema robusto**: Funciona mesmo com dependências complexas e dados inter-relacionados
+
+*Última atualização: 03 de julho de 2025*
+*Sistema de exclusão de usuários completamente corrigido e funcional*
