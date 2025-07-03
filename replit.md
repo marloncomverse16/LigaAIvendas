@@ -339,5 +339,14 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Teste validado**: Usuário "Leriane" removido com sucesso, usuário teste criado para validação
 - **Sistema robusto**: Funciona mesmo com dependências complexas e dados inter-relacionados
 
+### 2025-07-03 - Correção Sistema de Filtragem de Agentes IA Disponíveis
+- **Bug crítico corrigido**: Agentes IA associados não eram filtrados corretamente da lista de disponíveis
+- **Problema**: Query SQL usava sintaxe incorreta do Drizzle ORM causando erro de compilação
+- **Solução implementada**: Correção da sintaxe para `not(inArray(serverAiAgents.id, allAssociatedAgentIds))`
+- **Teste validado**: Sistema agora filtra corretamente agentes já associados a usuários
+- **Cache atualizado**: Implementada invalidação automática do cache frontend para atualizações em tempo real
+- **Melhorias de UX**: Interface atualiza automaticamente após associar/remover agentes sem reload manual
+- **Isolamento garantido**: Cada agente IA pode ser associado a apenas um usuário por vez
+
 *Última atualização: 03 de julho de 2025*
-*Sistema de exclusão de usuários completamente corrigido e funcional*
+*Sistema de agentes IA completamente corrigido e funcional*

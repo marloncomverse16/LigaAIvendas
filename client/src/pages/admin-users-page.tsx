@@ -347,6 +347,14 @@ export default function AdminUsersPage() {
           getAvailableServerAiAgents(formValues.serverId, currentUser.id);
         }
       }
+      
+      // Invalidar o cache para garantir atualização automática na interface
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/servers", formValues.serverId, "available-ai-agents", currentUser?.id].filter(Boolean)
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/users", currentUser?.id, "ai-agents"].filter(Boolean)
+      });
     },
     onError: (error) => {
       toast({
@@ -377,6 +385,14 @@ export default function AdminUsersPage() {
           getAvailableServerAiAgents(formValues.serverId, currentUser.id);
         }
       }
+      
+      // Invalidar o cache para garantir atualização automática na interface
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/servers", formValues.serverId, "available-ai-agents", currentUser?.id].filter(Boolean)
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/users", currentUser?.id, "ai-agents"].filter(Boolean)
+      });
     },
     onError: (error) => {
       toast({

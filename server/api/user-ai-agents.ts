@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../db";
 import { userAiAgents, serverAiAgents, type InsertUserAiAgent } from "@shared/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, not, inArray } from "drizzle-orm";
 
 /**
  * Retorna os agentes IA associados ao usuário atual
@@ -63,19 +63,21 @@ export async function getAvailableServerAiAgents(req: Request, res: Response) {
     // Extrair apenas os IDs para um array
     const allAssociatedAgentIds = allAssociatedAgents.map(ua => ua.agentId);
     
+    let whereConditions = [
+      eq(serverAiAgents.serverId, serverId),
+      eq(serverAiAgents.active, true)
+    ];
+    
+    // Se há agentes associados, excluí-los da busca
+    if (allAssociatedAgentIds.length > 0) {
+      whereConditions.push(not(inArray(serverAiAgents.id, allAssociatedAgentIds)));
+    }
+    
     // Buscar agentes do servidor que não estão associados a nenhum usuário
     const availableAgents = await db
       .select()
       .from(serverAiAgents)
-      .where(
-        and(
-          eq(serverAiAgents.serverId, serverId),
-          eq(serverAiAgents.active, true),
-          allAssociatedAgentIds.length > 0 
-            ? sql`${serverAiAgents.id} NOT IN (${allAssociatedAgentIds.join(',')})`
-            : undefined // Se não houver agentes associados, não aplicar esta condição
-        )
-      );
+      .where(and(...whereConditions));
     
     return res.status(200).json(availableAgents);
   } catch (error) {
