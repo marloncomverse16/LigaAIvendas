@@ -1183,11 +1183,11 @@ export default function AdminUsersPage() {
                               });
                               
                               if (availableServers.length > 0) {
-                                // Ordenar por quantidade de usuários (menor primeiro)
+                                // Ordenar por quantidade de usuários (maior primeiro) - dar preferência ao mais próximo da lotação
                                 const sortedServers = availableServers.sort((a, b) => {
                                   const aCount = serversCount.find(sc => sc.serverId === a.id)?.userCount || 0;
                                   const bCount = serversCount.find(sc => sc.serverId === b.id)?.userCount || 0;
-                                  return aCount - bCount;
+                                  return bCount - aCount; // Invertido para dar preferência ao mais lotado
                                 });
                                 
                                 const bestServer = sortedServers[0];

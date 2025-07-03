@@ -348,5 +348,13 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Melhorias de UX**: Interface atualiza automaticamente após associar/remover agentes sem reload manual
 - **Isolamento garantido**: Cada agente IA pode ser associado a apenas um usuário por vez
 
+### 2025-07-03 - Otimização do Algoritmo de Balanceamento de Servidores
+- **Estratégia melhorada**: Sistema de atribuição automática agora prioriza servidor mais próximo da lotação máxima
+- **Lógica implementada**: Algoritmo busca servidor com maior taxa de utilização entre os disponíveis
+- **Eficiência aprimorada**: Melhor distribuição de carga concentrando usuários nos servidores já em uso
+- **Backend otimizado**: Função `getServerWithLeastUsers` já implementava lógica correta de maior utilização
+- **Frontend corrigido**: Interface de criação de usuário agora ordena servidores por maior ocupação primeiro
+- **Balanceamento inteligente**: Sistema evita dispersão desnecessária entre múltiplos servidores subutilizados
+
 *Última atualização: 03 de julho de 2025*
-*Sistema de agentes IA completamente corrigido e funcional*
+*Sistema de balanceamento de servidores otimizado e funcional*
