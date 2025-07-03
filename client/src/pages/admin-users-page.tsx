@@ -182,22 +182,18 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Função auxiliar para atualizar o serverId do usuário e associar ao servidor
+  // Função auxiliar para associar usuário ao servidor
   const updateUserServer = async (userId: number, serverId: number | undefined) => {
     try {
       if (!serverId) return false;
       
-      // Atualizar o serverId no objeto de usuário
-      await apiRequest("POST", "/api/user/select-server", { serverId });
-      console.log(`ServerId ${serverId} atualizado para o usuário ${userId}`);
-      
-      // Criar associação na tabela de relações
-      await apiRequest("POST", "/api/user-servers", { userId, serverId });
-      console.log(`Usuário ${userId} associado ao servidor ${serverId}`);
+      // Criar associação na tabela de relações user_servers
+      const response = await apiRequest("POST", "/api/user-servers", { userId, serverId });
+      console.log(`Usuário ${userId} associado ao servidor ${serverId}`, response);
       
       return true;
     } catch (error) {
-      console.error("Erro ao atualizar servidor do usuário:", error);
+      console.error("Erro ao associar usuário ao servidor:", error);
       return false;
     }
   };
@@ -1167,10 +1163,57 @@ export default function AdminUsersPage() {
                     <Button 
                       type="button"
                       variant="outline"
-                      disabled={!currentUser || autoAssignServerMutation.isPending}
-                      onClick={() => {
+                      disabled={autoAssignServerMutation.isPending}
+                      onClick={async () => {
                         if (currentUser) {
+                          // Para usuário existente, usar API de atribuição automática
                           autoAssignServerMutation.mutate(currentUser.id);
+                        } else {
+                          // Para criação de usuário, selecionar servidor com menos usuários
+                          try {
+                            const response = await apiRequest("GET", "/api/servers/users-count");
+                            const serversCount = await response.json();
+                            
+                            if (serversCount.length > 0) {
+                              // Encontrar servidor com menos usuários que não esteja lotado
+                              const availableServers = servers.filter(server => {
+                                const serverCount = serversCount.find(sc => sc.serverId === server.id);
+                                const currentUsers = serverCount ? serverCount.userCount : 0;
+                                return currentUsers < (server.maxUsers || 999);
+                              });
+                              
+                              if (availableServers.length > 0) {
+                                // Ordenar por quantidade de usuários (menor primeiro)
+                                const sortedServers = availableServers.sort((a, b) => {
+                                  const aCount = serversCount.find(sc => sc.serverId === a.id)?.userCount || 0;
+                                  const bCount = serversCount.find(sc => sc.serverId === b.id)?.userCount || 0;
+                                  return aCount - bCount;
+                                });
+                                
+                                const bestServer = sortedServers[0];
+                                console.log("Servidor selecionado automaticamente:", bestServer);
+                                setFormValues({ ...formValues, serverId: bestServer.id });
+                                
+                                toast({
+                                  title: "Servidor atribuído automaticamente",
+                                  description: `Selecionado: ${bestServer.name} (${bestServer.provider})`,
+                                });
+                              } else {
+                                toast({
+                                  title: "Nenhum servidor disponível",
+                                  description: "Todos os servidores estão com capacidade máxima.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }
+                          } catch (error) {
+                            console.error("Erro ao buscar servidores:", error);
+                            toast({
+                              title: "Erro ao atribuir servidor",
+                              description: "Não foi possível buscar os servidores disponíveis.",
+                              variant: "destructive",
+                            });
+                          }
                         }
                       }}
                       className="flex gap-1 items-center"
