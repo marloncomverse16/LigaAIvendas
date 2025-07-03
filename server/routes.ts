@@ -22,7 +22,7 @@ import { z } from "zod";
 import axios from "axios";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNotNull } from "drizzle-orm";
 import { db, pool } from "./db";
 import { checkConnectionStatus, disconnectWhatsApp, connectWhatsApp } from "./connection";
 import * as whatsappApi from "./api/whatsapp-api";
@@ -4989,7 +4989,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Buscar todos os agentes IA do servidor
       const allServerAgents = await db
-        .select()
+        .select({
+          id: serverAiAgents.id,
+          name: serverAiAgents.name,
+          serverId: serverAiAgents.serverId,
+          webhookUrl: serverAiAgents.webhookUrl
+        })
         .from(serverAiAgents)
         .where(eq(serverAiAgents.serverId, serverId));
 
@@ -4997,10 +5002,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Buscar todos os agentes já associados a usuários
       const associatedAgents = await db
-        .select({ agentId: userAiAgents.serverAiAgentId })
-        .from(userAiAgents);
+        .select({ 
+          agentId: userAiAgents.serverAiAgentId 
+        })
+        .from(userAiAgents)
+        .where(isNotNull(userAiAgents.serverAiAgentId));
 
-      const associatedAgentIds = associatedAgents.map(a => a.agentId);
+      const associatedAgentIds = associatedAgents.map(a => a.agentId).filter(id => id !== null);
       console.log("🔗 Agentes já associados:", associatedAgentIds);
 
       // Filtrar agentes disponíveis (não associados)
