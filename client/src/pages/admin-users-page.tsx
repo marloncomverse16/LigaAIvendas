@@ -686,7 +686,7 @@ export default function AdminUsersPage() {
       accessReports: true,
       accessSettings: true
     });
-    setSelectedAgentId(null);
+    setSelectedAgentIds([]);
   };
   
   // Função para finalizar o processo de criação
