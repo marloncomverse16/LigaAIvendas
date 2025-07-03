@@ -215,6 +215,12 @@ export default function AdminUsersPage() {
   // Criar um novo usuário
   const createUserMutation = useMutation({
     mutationFn: async (userData: InsertUser) => {
+      // Validar formulário antes de enviar
+      const validationErrors = validateForm();
+      if (validationErrors.length > 0) {
+        throw new Error(`Campos obrigatórios:\n• ${validationErrors.join('\n• ')}`);
+      }
+      
       const res = await apiRequest("POST", "/api/admin/users", userData);
       const newUser = await res.json();
       
@@ -223,7 +229,7 @@ export default function AdminUsersPage() {
         for (const agentId of selectedAgentIds) {
           await apiRequest("POST", `/api/user-ai-agents`, {
             userId: newUser.id,
-            serverAiAgentId: agentId
+            agentId: agentId
           });
         }
       }
@@ -318,6 +324,35 @@ export default function AdminUsersPage() {
     },
   });
   
+  // Função de validação do formulário
+  const validateForm = () => {
+    const errors: string[] = [];
+    
+    if (!formValues.username.trim()) {
+      errors.push("Nome de usuário é obrigatório");
+    }
+    
+    if (!formValues.email.trim()) {
+      errors.push("Email é obrigatório");
+    } else if (!/\S+@\S+\.\S+/.test(formValues.email)) {
+      errors.push("Email deve ter formato válido");
+    }
+    
+    if (!formValues.password || formValues.password.length < 6) {
+      errors.push("Senha deve ter pelo menos 6 caracteres");
+    }
+    
+    if (formValues.password !== formValues.confirmPassword) {
+      errors.push("Confirmação de senha não confere");
+    }
+    
+    if (!formValues.serverId) {
+      errors.push("Servidor é obrigatório");
+    }
+    
+    return errors;
+  };
+
   // Criar uma instância do WhatsApp para um usuário
   const createWhatsappInstanceMutation = useMutation({
     mutationFn: async ({ userId, webhookUrl }: { userId: number; webhookUrl: string }) => {
@@ -1093,17 +1128,24 @@ export default function AdminUsersPage() {
               <TabsContent value="basic" className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="username">Nome de Usuário</Label>
+                    <Label htmlFor="username" className="flex items-center gap-1">
+                      Nome de Usuário
+                      <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="username"
                       name="username"
                       value={formValues.username}
                       onChange={handleInputChange}
                       required
+                      className={!formValues.username.trim() ? "border-red-300" : ""}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className="flex items-center gap-1">
+                      Email
+                      <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="email"
                       name="email"
@@ -1111,13 +1153,17 @@ export default function AdminUsersPage() {
                       value={formValues.email}
                       onChange={handleInputChange}
                       required
+                      className={(!formValues.email.trim() || !/\S+@\S+\.\S+/.test(formValues.email)) ? "border-red-300" : ""}
                     />
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="password">Senha</Label>
+                    <Label htmlFor="password" className="flex items-center gap-1">
+                      Senha
+                      <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="password"
                       name="password"
@@ -1125,10 +1171,17 @@ export default function AdminUsersPage() {
                       value={formValues.password || ""}
                       onChange={handleInputChange}
                       required
+                      className={(!formValues.password || formValues.password.length < 6) ? "border-red-300" : ""}
                     />
+                    {formValues.password && formValues.password.length < 6 && (
+                      <p className="text-sm text-red-500">A senha deve ter pelo menos 6 caracteres</p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                    <Label htmlFor="confirmPassword" className="flex items-center gap-1">
+                      Confirmar Senha
+                      <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="confirmPassword"
                       name="confirmPassword"
@@ -1136,7 +1189,11 @@ export default function AdminUsersPage() {
                       value={formValues.confirmPassword || ""}
                       onChange={handleInputChange}
                       required
+                      className={(formValues.password !== formValues.confirmPassword) ? "border-red-300" : ""}
                     />
+                    {formValues.confirmPassword && formValues.password !== formValues.confirmPassword && (
+                      <p className="text-sm text-red-500">As senhas não conferem</p>
+                    )}
                   </div>
                 </div>
                 
@@ -1194,7 +1251,10 @@ export default function AdminUsersPage() {
               
               <TabsContent value="server" className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="serverId">Servidor</Label>
+                  <Label htmlFor="serverId" className="flex items-center gap-1">
+                    Servidor
+                    <span className="text-red-500">*</span>
+                  </Label>
                   <div className="flex gap-2 mb-2">
                     <Select 
                       onValueChange={(value) => handleSelectChange("serverId", value)}
