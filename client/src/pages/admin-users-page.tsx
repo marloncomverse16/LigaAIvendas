@@ -623,10 +623,28 @@ export default function AdminUsersPage() {
         }
       }
     } catch (error) {
+      console.error("Erro detalhado na criação:", error);
+      
+      let errorMessage = "Erro desconhecido";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Tentar extrair mensagem de erro do objeto
+        const errorObj = error as any;
+        if (errorObj.response?.data?.message) {
+          errorMessage = errorObj.response.data.message;
+        } else if (errorObj.message) {
+          errorMessage = errorObj.message;
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
+      }
+      
       console.error("Erro ao criar usuário:", error);
       toast({
         title: "Erro ao criar usuário",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        description: errorMessage,
         variant: "destructive",
       });
       
@@ -1232,12 +1250,17 @@ export default function AdminUsersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="company">Empresa</Label>
+                    <Label htmlFor="company" className="flex items-center gap-1">
+                      Empresa
+                      <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="company"
                       name="company"
                       value={formValues.company}
                       onChange={handleInputChange}
+                      required
+                      className={!formValues.company ? "border-red-300" : ""}
                     />
                   </div>
                 </div>
