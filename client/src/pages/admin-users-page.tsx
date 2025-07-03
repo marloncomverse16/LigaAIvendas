@@ -76,7 +76,7 @@ export default function AdminUsersPage() {
 
   const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<number[]>([]);
   const [formValues, setFormValues] = useState<UserFormValues>({
     username: "",
     email: "",
@@ -218,12 +218,14 @@ export default function AdminUsersPage() {
       const res = await apiRequest("POST", "/api/admin/users", userData);
       const newUser = await res.json();
       
-      // Se um agente IA foi selecionado, associá-lo ao usuário
-      if (selectedAgentId) {
-        await apiRequest("POST", `/api/user-ai-agents`, {
-          userId: newUser.id,
-          serverAiAgentId: selectedAgentId
-        });
+      // Se agentes IA foram selecionados, associá-los ao usuário
+      if (selectedAgentIds.length > 0) {
+        for (const agentId of selectedAgentIds) {
+          await apiRequest("POST", `/api/user-ai-agents`, {
+            userId: newUser.id,
+            serverAiAgentId: agentId
+          });
+        }
       }
       
       return newUser;
@@ -231,12 +233,12 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       toast({
         title: "Usuário criado com sucesso",
-        description: selectedAgentId ? "Usuário criado e agente IA associado com sucesso" : "Operação concluída com sucesso",
+        description: selectedAgentIds.length > 0 ? `Usuário criado e ${selectedAgentIds.length} agente(s) IA associado(s) com sucesso` : "Operação concluída com sucesso",
       });
       
       setIsCreateOpen(false);
       resetForm();
-      setSelectedAgentId(null);
+      setSelectedAgentIds([]);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
@@ -1311,40 +1313,44 @@ export default function AdminUsersPage() {
                   </p>
                 </div>
 
-                {/* Seleção de Agente IA */}
+                {/* Seleção de Agentes IA */}
                 {formValues.serverId && (
                   <div className="space-y-2">
-                    <Label htmlFor="aiAgent">Agente IA (Opcional)</Label>
-                    <Select 
-                      onValueChange={(value) => setSelectedAgentId(value === "none" ? null : parseInt(value))}
-                      value={selectedAgentId?.toString() || "none"}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um agente IA" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum agente</SelectItem>
-                        {availableAgentsForCreation.length === 0 ? (
-                          <div className="p-2 text-center text-sm text-gray-500">
-                            Nenhum agente IA disponível
-                          </div>
-                        ) : (
-                          availableAgentsForCreation.map((agent: any) => (
-                            <SelectItem 
-                              key={agent.id} 
-                              value={agent.id.toString()}
+                    <Label>Agentes IA (Opcional)</Label>
+                    <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                      {availableAgentsForCreation.length === 0 ? (
+                        <div className="text-center text-sm text-gray-500 py-2">
+                          Nenhum agente IA disponível
+                        </div>
+                      ) : (
+                        availableAgentsForCreation.map((agent: any) => (
+                          <div key={agent.id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`agent-${agent.id}`}
+                              checked={selectedAgentIds.includes(agent.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedAgentIds([...selectedAgentIds, agent.id]);
+                                } else {
+                                  setSelectedAgentIds(selectedAgentIds.filter(id => id !== agent.id));
+                                }
+                              }}
+                              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                            />
+                            <label 
+                              htmlFor={`agent-${agent.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2 cursor-pointer"
                             >
-                              <div className="flex items-center gap-2">
-                                <Bot className="h-4 w-4 text-orange-500" />
-                                {agent.name}
-                              </div>
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                              <Bot className="h-4 w-4 text-orange-500" />
+                              {agent.name}
+                            </label>
+                          </div>
+                        ))
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
-                      Selecione um agente IA para associar automaticamente ao usuário. Esta associação pode ser alterada posteriormente.
+                      Selecione um ou mais agentes IA para associar automaticamente ao usuário. Estas associações podem ser alteradas posteriormente.
                     </p>
                   </div>
                 )}
