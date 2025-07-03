@@ -4987,36 +4987,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const serverId = parseInt(req.params.serverId);
       console.log("🔍 Buscando agentes para servidor ID:", serverId);
       
-      // Buscar todos os agentes IA do servidor
-      const allServerAgents = await db
-        .select({
-          id: serverAiAgents.id,
-          name: serverAiAgents.name,
-          serverId: serverAiAgents.serverId,
-          webhookUrl: serverAiAgents.webhookUrl
-        })
-        .from(serverAiAgents)
-        .where(eq(serverAiAgents.serverId, serverId));
+      // Usar SQL direto para evitar problemas do Drizzle ORM
+      const result = await pool.query(`
+        SELECT 
+          sa.id,
+          sa.name,
+          sa.server_id as "serverId",
+          sa.webhook_url as "webhookUrl"
+        FROM server_ai_agents sa
+        WHERE sa.server_id = $1
+        AND sa.id NOT IN (
+          SELECT COALESCE(ua.server_ai_agent_id, 0)
+          FROM user_ai_agents ua
+          WHERE ua.server_ai_agent_id IS NOT NULL
+        )
+        ORDER BY sa.name
+      `, [serverId]);
 
-      console.log("📊 Agentes encontrados no servidor:", allServerAgents.length);
-
-      // Buscar todos os agentes já associados a usuários
-      const associatedAgents = await db
-        .select({ 
-          agentId: userAiAgents.serverAiAgentId 
-        })
-        .from(userAiAgents)
-        .where(isNotNull(userAiAgents.serverAiAgentId));
-
-      const associatedAgentIds = associatedAgents.map(a => a.agentId).filter(id => id !== null);
-      console.log("🔗 Agentes já associados:", associatedAgentIds);
-
-      // Filtrar agentes disponíveis (não associados)
-      const availableAgents = allServerAgents.filter(agent => 
-        !associatedAgentIds.includes(agent.id)
-      );
-
-      console.log("✅ Agentes disponíveis para criação:", availableAgents.length);
+      const availableAgents = result.rows;
+      console.log("📊 Agentes encontrados no servidor:", availableAgents.length);
+      console.log("✅ Agentes disponíveis para criação:", availableAgents);
+      
       res.json(availableAgents);
     } catch (error) {
       console.error("Erro ao buscar agentes IA disponíveis:", error);
