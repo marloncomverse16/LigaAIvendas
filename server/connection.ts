@@ -383,36 +383,52 @@ export async function connectWhatsApp(req: Request, res: Response) {
             
             console.log(`API online com token ${token?.substring(0, 3)}... Versão: ${apiStatus.data?.version || 'desconhecida'}`);
             
-            // PASSO 1: Buscar instâncias existentes
-            console.log(`🔍 Buscando instâncias existentes...`);
-            const listResult = await evolutionClient.listInstances();
+            // PASSO 1: Buscar instâncias existentes usando axios diretamente
+            console.log(`🔍 PASSO 1: Verificando se instância já existe...`);
+            let instanceExists = false;
             
-            if (listResult.success) {
-              const instances = listResult.instances;
-              console.log(`📋 Encontradas ${instances.length} instâncias: ${instances.join(', ')}`);
+            try {
+              const listResponse = await axios.get(`${userServer.server.apiUrl}/instance/fetchInstances`, {
+                headers: { 'apikey': token }
+              });
+              
+              const instances = listResponse.data;
+              console.log(`📋 Total de instâncias encontradas: ${instances.length}`);
+              
+              // Listar nomes das instâncias para debug
+              const instanceNames = instances.map(inst => inst.name);
+              console.log(`📋 Nomes das instâncias: ${instanceNames.join(', ')}`);
+              
+              // Verificar se existe uma instância com o nome do usuário
+              instanceExists = instances.some(instance => instance.name === user.username);
+              console.log(`   - Instância "${user.username}" ${instanceExists ? 'EXISTE' : 'NÃO EXISTE'}`);
               
               // PASSO 2: Se existir uma instância com o nome do usuário, deletá-la
-              if (instances.includes(user.username)) {
-                console.log(`🗑️ Instância "${user.username}" já existe. Deletando...`);
-                const deleteResult = await evolutionClient.deleteInstance(user.username);
-                
-                if (deleteResult.success) {
+              if (instanceExists) {
+                console.log(`🗑️ PASSO 2: Deletando instância existente "${user.username}"...`);
+                try {
+                  const deleteResponse = await axios.delete(`${userServer.server.apiUrl}/instance/delete/${user.username}`, {
+                    headers: { 'apikey': token }
+                  });
                   console.log(`✅ Instância "${user.username}" deletada com sucesso`);
-                } else {
-                  console.log(`⚠️ Não foi possível deletar a instância "${user.username}": ${deleteResult.error}`);
+                  console.log(`📋 Resposta: ${JSON.stringify(deleteResponse.data)}`);
+                } catch (deleteError) {
+                  console.log(`⚠️ Erro ao deletar instância "${user.username}": ${deleteError.message}`);
+                  // Continuar mesmo com erro na deleção
                 }
                 
-                // Aguardar um pouco para a deleção processar
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // Aguardar para a deleção processar
+                console.log('⏳ Aguardando 3 segundos para a deleção processar...');
+                await new Promise(resolve => setTimeout(resolve, 3000));
               } else {
-                console.log(`ℹ️ Nenhuma instância com o nome "${user.username}" foi encontrada`);
+                console.log(`ℹ️ PASSO 2: Nenhuma instância com o nome "${user.username}" encontrada, continuando...`);
               }
-            } else {
-              console.log(`⚠️ Não foi possível listar instâncias: ${listResult.error}`);
+            } catch (listError) {
+              console.log(`⚠️ Erro ao listar instâncias: ${listError.message}. Continuando com criação...`);
             }
             
-            // PASSO 3: Criar uma nova instância com o nome do usuário usando axios diretamente
-            console.log(`🆕 Criando nova instância "${user.username}"...`);
+            // PASSO 3: Criar nova instância com o nome do usuário
+            console.log(`🆕 PASSO 3: Criando nova instância "${user.username}"...`);
             try {
               const createPayload = {
                 instanceName: user.username,
@@ -420,35 +436,96 @@ export async function connectWhatsApp(req: Request, res: Response) {
                 integration: "WHATSAPP-BAILEYS"
               };
               
-              const headers = { 
-                'Content-Type': 'application/json',
-                'apikey': token 
-              };
-              
               const createResponse = await axios.post(
                 `${userServer.server.apiUrl}/instance/create`, 
                 createPayload, 
-                { headers }
+                { headers: { 'apikey': token, 'Content-Type': 'application/json' } }
               );
               
               if (createResponse.status === 201 || createResponse.status === 200) {
-                console.log(`✅ Instância "${user.username}" criada com sucesso usando axios diretamente`);
-                console.log(`📋 Dados da instância:`, createResponse.data);
+                console.log(`✅ Instância "${user.username}" criada com sucesso`);
+                console.log(`📋 Status: ${createResponse.status}`);
+                console.log(`📋 Dados: ${JSON.stringify(createResponse.data)}`);
               } else {
-                console.log(`❌ Erro ao criar instância: status ${createResponse.status}`);
-                continue;
+                console.log(`⚠️ Status inesperado ao criar instância: ${createResponse.status}`);
               }
             } catch (createError) {
-              console.log(`❌ Não foi possível criar instância "${user.username}": ${createError.message}`);
-              continue; // Tentar próximo token
+              console.log(`❌ Erro ao criar instância "${user.username}": ${createError.message}`);
+              if (createError.response?.status === 403 && createError.response?.data?.response?.message?.[0]?.includes('already in use')) {
+                console.log(`ℹ️ Instância já existe mas não foi detectada na listagem. Continuando com geração do QR...`);
+              } else {
+                continue; // Tentar próximo token apenas se não for erro de nome já em uso
+              }
             }
             
-            // Aguardar um pouco para a instância inicializar
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            // Aguardar para a instância inicializar
+            console.log('⏳ Aguardando 5 segundos para a instância inicializar...');
+            await new Promise(resolve => setTimeout(resolve, 5000));
             
-            // PASSO 4: Gerar o QR code
-            console.log(`📱 Gerando QR code para a instância "${user.username}"...`);
-            qrResult = await evolutionClient.getQrCode();
+            // PASSO 4: Gerar QR code usando múltiplos endpoints
+            console.log(`📱 PASSO 4: Gerando QR code para a instância "${user.username}"...`);
+            
+            const qrEndpoints = [
+              `${userServer.server.apiUrl}/instance/connect/${user.username}`,
+              `${userServer.server.apiUrl}/instance/qrcode/${user.username}`,
+              `${userServer.server.apiUrl}/qrcode/${user.username}`
+            ];
+
+            let qrCodeObtained = false;
+            let finalQrResult = null;
+            
+            for (const endpoint of qrEndpoints) {
+              if (qrCodeObtained) break;
+
+              console.log(`🔄 Tentando endpoint: ${endpoint}`);
+              
+              // Tentar POST primeiro
+              try {
+                const qrResponse = await axios.post(endpoint, { instanceName: user.username }, {
+                  headers: { 'apikey': token, 'Content-Type': 'application/json' }
+                });
+                console.log(`✅ POST bem-sucedido - Status: ${qrResponse.status}`);
+                
+                const qrCode = qrResponse.data?.qrcode || qrResponse.data?.qrCode || qrResponse.data?.base64;
+                if (qrCode) {
+                  console.log(`✅ QR Code obtido com sucesso via POST!`);
+                  finalQrResult = { success: true, qrCode };
+                  qrCodeObtained = true;
+                  break;
+                } else {
+                  console.log(`⚠️ POST retornou dados mas sem QR code: ${JSON.stringify(qrResponse.data)}`);
+                }
+              } catch (postError) {
+                console.log(`❌ POST falhou: ${postError.message}`);
+              }
+
+              // Tentar GET se POST falhar
+              try {
+                const qrResponse = await axios.get(endpoint, {
+                  headers: { 'apikey': token }
+                });
+                console.log(`✅ GET bem-sucedido - Status: ${qrResponse.status}`);
+                
+                const qrCode = qrResponse.data?.qrcode || qrResponse.data?.qrCode || qrResponse.data?.base64;
+                if (qrCode) {
+                  console.log(`✅ QR Code obtido com sucesso via GET!`);
+                  finalQrResult = { success: true, qrCode };
+                  qrCodeObtained = true;
+                  break;
+                } else {
+                  console.log(`⚠️ GET retornou dados mas sem QR code: ${JSON.stringify(qrResponse.data)}`);
+                }
+              } catch (getError) {
+                console.log(`❌ GET falhou: ${getError.message}`);
+              }
+            }
+
+            if (!qrCodeObtained) {
+              console.log('❌ Não foi possível obter QR code de nenhum endpoint');
+              finalQrResult = { success: false, error: 'Nenhum endpoint retornou QR code válido' };
+            }
+
+            qrResult = finalQrResult;
             
             if (qrResult.success && (qrResult.qrCode || qrResult.connected)) {
               sucessoComEvolution = true;
