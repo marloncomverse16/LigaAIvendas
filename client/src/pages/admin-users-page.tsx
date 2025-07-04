@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare, User as UserIcon, Bot, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare, User as UserIcon, Bot, Download, Search, Filter } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -101,8 +101,11 @@ export default function AdminUsersPage() {
     accessSettings: true
   });
   
+  // Estados para filtros e busca
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "user">("all");
 
-  
   // Estados para gerenciar os agentes IA do usuário
   const [userAiAgents, setUserAiAgents] = useState<any[]>([]);
   const [availableAiAgents, setAvailableAiAgents] = useState<any[]>([]);
@@ -129,6 +132,32 @@ export default function AdminUsersPage() {
       return data;
     }
   });
+
+  // Aplicar filtros aos usuários
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+
+    return users.filter((user: any) => {
+      // Filtro de busca (nome, email, empresa, username)
+      const matchesSearch = searchTerm === "" || 
+        (user.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.email?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.company?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.username?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      // Filtro de status
+      const matchesStatus = statusFilter === "all" || 
+        (statusFilter === "active" && user.active) ||
+        (statusFilter === "inactive" && !user.active);
+
+      // Filtro de role
+      const matchesRole = roleFilter === "all" ||
+        (roleFilter === "admin" && user.isAdmin) ||
+        (roleFilter === "user" && !user.isAdmin);
+
+      return matchesSearch && matchesStatus && matchesRole;
+    });
+  }, [users, searchTerm, statusFilter, roleFilter]);
 
   // Buscar todos os servidores disponíveis
   const { data: servers = [], isLoading: isLoadingServers } = useQuery<Server[]>({
@@ -1090,6 +1119,63 @@ export default function AdminUsersPage() {
         </div>
         </div>
 
+        {/* Filtros de busca */}
+        <Card className="shadow-sm mb-6">
+          <CardContent className="p-4">
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Campo de busca */}
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Buscar por nome, email, empresa ou username..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              
+              {/* Filtros */}
+              <div className="flex flex-col sm:flex-row gap-4 lg:gap-2">
+                {/* Filtro de Status */}
+                <div className="w-full sm:w-40">
+                  <Select value={statusFilter} onValueChange={(value: "all" | "active" | "inactive") => setStatusFilter(value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="active">Ativo</SelectItem>
+                      <SelectItem value="inactive">Inativo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Filtro de Tipo */}
+                <div className="w-full sm:w-40">
+                  <Select value={roleFilter} onValueChange={(value: "all" | "admin" | "user") => setRoleFilter(value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="user">Usuário</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Contador de resultados */}
+                <div className="flex items-center text-sm text-muted-foreground whitespace-nowrap">
+                  <Filter className="h-4 w-4 mr-2" />
+                  {filteredUsers.length} de {users.length} usuários
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="shadow-sm">
           <CardContent className="p-0">
             {isLoading ? (
@@ -1111,14 +1197,17 @@ export default function AdminUsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.length === 0 ? (
+                  {filteredUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8">
-                        Nenhum usuário encontrado. Crie o primeiro usuário.
+                        {users.length === 0 
+                          ? "Nenhum usuário encontrado. Crie o primeiro usuário."
+                          : "Nenhum usuário corresponde aos filtros aplicados."
+                        }
                       </TableCell>
                     </TableRow>
                   ) : (
-                    users.map((user: UserType) => (
+                    filteredUsers.map((user: UserType) => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name || user.username}</TableCell>
                         <TableCell>{user.email}</TableCell>
