@@ -724,6 +724,7 @@ export const serverAiAgents = pgTable("server_ai_agents", {
   name: text("name").notNull(), // Nome do agente de IA
   description: text("description"),
   webhookUrl: text("webhook_url"), // URL do webhook para integrações deste agente
+  cloudWebhookUrl: text("cloud_webhook_url"), // URL do webhook Cloud para integrações específicas
   active: boolean("active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
@@ -917,6 +918,7 @@ export const insertServerAiAgentSchema = createInsertSchema(serverAiAgents).pick
   name: true,
   description: true,
   webhookUrl: true,
+  cloudWebhookUrl: true,
   active: true,
 });
 

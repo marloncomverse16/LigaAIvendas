@@ -56,6 +56,7 @@ const aiAgentFormSchema = z.object({
   name: z.string().min(1, { message: "Nome é obrigatório" }),
   description: z.string().optional(),
   webhookUrl: z.string().min(1, { message: "URL do webhook é obrigatório" }),
+  cloudWebhookUrl: z.string().optional(),
   active: z.boolean().default(true),
 });
 
@@ -92,6 +93,7 @@ interface ServerAiAgent {
   name: string;
   description: string | null;
   webhookUrl: string | null;
+  cloudWebhookUrl: string | null;
   active: boolean;
   createdAt: string | Date;
   updatedAt: string | Date | null;
@@ -574,6 +576,7 @@ export default function ServerManagementPage() {
       name: "",
       description: "",
       webhookUrl: "",
+      cloudWebhookUrl: "",
       active: true,
     });
     
@@ -585,6 +588,7 @@ export default function ServerManagementPage() {
       name: agent.name,
       description: agent.description || "",
       webhookUrl: agent.webhookUrl || "",
+      cloudWebhookUrl: agent.cloudWebhookUrl || "",
       active: agent.active,
     });
     
@@ -1729,6 +1733,23 @@ export default function ServerManagementPage() {
               
               <FormField
                 control={aiAgentForm.control}
+                name="cloudWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook Cloud</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL específica para integração Cloud API" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      URL específica para integrações com WhatsApp Cloud API
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={aiAgentForm.control}
                 name="active"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
@@ -1820,6 +1841,23 @@ export default function ServerManagementPage() {
                     </FormControl>
                     <FormDescription>
                       URL para onde serão enviadas as notificações do agente IA
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={aiAgentForm.control}
+                name="cloudWebhookUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook Cloud</FormLabel>
+                    <FormControl>
+                      <Input placeholder="URL específica para integração Cloud API" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      URL específica para integrações com WhatsApp Cloud API
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
