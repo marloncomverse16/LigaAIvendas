@@ -16,6 +16,8 @@ import { sendQRConnectionWebhook, sendQRDisconnectionWebhook } from "./qr-connec
  * Verifica o status da conexão com a Evolution API
  */
 export async function checkConnectionStatus(req: Request, res: Response) {
+  const startTime = Date.now();
+  console.log(`🔍 [${new Date().toLocaleTimeString()}] INICIANDO verificação de status de conexão...`);
   if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
   
   try {
@@ -112,18 +114,24 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         
         // Verificar se houve mudança de estado para disparar webhook
         const previousState = lastConnectionState[userId];
+        console.log(`🔍 Estado anterior: ${previousState}, Estado atual: ${isConnected}`);
+        console.log(`🔍 Cache de estados atual:`, Object.keys(lastConnectionState).map(k => `${k}:${lastConnectionState[k]}`));
+        
         if (previousState !== undefined && previousState !== isConnected) {
           console.log(`🔄 MUDANÇA DE ESTADO DETECTADA: ${previousState} → ${isConnected}`);
           
           // Estado mudou de desconectado para conectado - disparar webhook de conexão
           if (!previousState && isConnected) {
             console.log("📤 Disparando webhook de CONEXÃO QR Code...");
+            console.log(`📊 Detalhes: previousState=${previousState}, isConnected=${isConnected}, userId=${userId}`);
             try {
               await sendQRConnectionWebhook(userId);
               console.log("✅ Webhook de conexão enviado com sucesso");
             } catch (webhookError) {
               console.error("❌ Erro ao enviar webhook de conexão:", webhookError);
             }
+          } else {
+            console.log(`ℹ️ Não dispará webhook: previousState=${previousState}, isConnected=${isConnected}`);
           }
         }
         
