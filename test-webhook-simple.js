@@ -23,7 +23,9 @@ async function testWebhookSystem() {
         u.username as user_username,
         sa.name as agent_name,
         s.name as server_name,
-        s.ai_agent_webhook_url as webhook_url
+        s.ai_agent_webhook_url as webhook_url,
+        sa.webhook_url as agent_webhook_url,
+        sa.cloud_webhook_url as agent_cloud_webhook_url
       FROM users u
       LEFT JOIN user_servers us ON u.id = us.user_id
       LEFT JOIN servers s ON us.server_id = s.id
@@ -51,7 +53,9 @@ async function testWebhookSystem() {
     console.log(`   - Usuário: ${userData.user_name || userData.user_username}`);
     console.log(`   - Agente: ${userData.agent_name || 'Não configurado'}`);
     console.log(`   - Servidor: ${userData.server_name}`);
-    console.log(`   - Webhook URL: ${userData.webhook_url}\n`);
+    console.log(`   - Webhook URL: ${userData.webhook_url}`);
+    console.log(`   - Agent Webhook URL: ${userData.agent_webhook_url || 'Não configurado'}`);
+    console.log(`   - Agent Cloud Webhook URL: ${userData.agent_cloud_webhook_url || 'Não configurado'}\n`);
 
     // Preparar payload do webhook
     const payload = {
@@ -62,7 +66,9 @@ async function testWebhookSystem() {
         agentName: userData.agent_name || 'Agente não configurado',
         serverName: userData.server_name,
         connected: true,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        webhookUrl: userData.agent_webhook_url,
+        cloudWebhookUrl: userData.agent_cloud_webhook_url
       }
     };
 

@@ -420,23 +420,27 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Separação clara**: Webhooks gerais vs. webhooks específicos para Cloud API
 - **Compatibilidade**: Sistema funciona com agentes existentes que só possuem webhook padrão
 
-### 2025-07-04 - Sistema Automático de Webhook para Conexões QR Code
+### 2025-07-04 - Sistema Automático de Webhook para Conexões QR Code com Configuração Completa de Agentes
 - **Funcionalidade implementada**: Sistema completo de notificação automática quando QR Code WhatsApp é conectado
 - **Arquivo criado**: `server/api/qr-connection-webhook.ts` com funções especializadas:
-  - `getUserConnectionInfo()`: Busca informações completas do usuário, agente e servidor
+  - `getUserConnectionInfo()`: Busca informações completas do usuário, agente e servidor incluindo URLs de webhook
   - `getInstanceWebhookUrl()`: Obtém URL do webhook configurado no servidor
   - `sendQRConnectionWebhook()`: Envia notificação de conexão bem-sucedida
   - `sendQRDisconnectionWebhook()`: Envia notificação de desconexão
 - **Integração no WebSocket**: Detecção automática de mudanças de estado de conexão em `server/websocket.ts`
-- **Payload estruturado**: Webhooks incluem identificação completa:
+- **Payload aprimorado**: Webhooks incluem identificação completa e configuração do agente:
   - `userId`, `userName`, `agentName`, `serverName`
   - `connected` (boolean), `timestamp` (ISO string)
+  - **NOVO**: `webhookUrl` - URL do webhook padrão do agente
+  - **NOVO**: `cloudWebhookUrl` - URL do webhook Cloud API específico do agente
   - Evento específico: `qr_code_connected` ou `qr_code_disconnected`
 - **Frontend atualizado**: `client/src/pages/connection-page.tsx` mostra feedback de webhook enviado
-- **Teste validado**: Sistema enviando webhooks com sucesso para agentes IA externos
+- **Query SQL aprimorada**: Busca tanto webhook_url quanto cloud_webhook_url da tabela server_ai_agents
+- **Teste validado**: Sistema enviando webhooks com sucesso incluindo configurações completas do agente
 - **URL de destino**: "Webhook de Configuração Instancia Evolution" configurado na gestão de servidores
-- **Fluxo completo**: QR Code conecta → WebSocket detecta → Webhook automático → Agente IA notificado
+- **Fluxo completo**: QR Code conecta → WebSocket detecta → Webhook automático → Agente IA notificado com configurações
 - **Isolamento garantido**: Webhooks respeitam configurações específicas por usuário e servidor
+- **Configuração do agente**: Agentes IA externos recebem suas próprias URLs de webhook para configuração automática
 
 *Última atualização: 04 de julho de 2025*
-*Sistema automático de webhook para conexões QR Code WhatsApp implementado e testado*
+*Sistema automático de webhook para conexões QR Code com configuração completa de agentes implementado e testado*
