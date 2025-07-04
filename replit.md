@@ -370,5 +370,12 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Funcionalidades mantidas**: Preservadas configurações de comportamento, follow-ups automáticos e movimento CRM
 - **Solicitação atendida**: Conforme pedido específico para remover opção de agendamento automático
 
+### 2025-07-04 - Remoção Movimentação Automática de CRM
+- **Seção removida**: Removida completamente a seção "Movimentação Automática de CRM" da página Agente de IA
+- **Interface ainda mais simplificada**: Agente de IA agora foca apenas em comportamento e follow-ups automáticos
+- **Campo removido**: autoMoveCrm removido da interface TypeScript e estado inicial
+- **Funcionalidades finais**: Apenas configurações de comportamento e follow-ups automáticos mantidos
+- **Solicitação atendida**: Conforme pedido específico para remover opção de movimentação automática
+
 *Última atualização: 04 de julho de 2025*
-*Interface de gerenciamento de usuários e agente IA simplificadas conforme solicitações*
+*Interface do agente IA simplificada ao máximo com apenas comportamento e follow-ups*

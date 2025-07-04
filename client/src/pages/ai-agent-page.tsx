@@ -51,7 +51,6 @@ interface AiAgent {
   followUpCount: number | null;
   messageInterval: string | null;
   followUpPrompt: string | null;
-  autoMoveCrm: boolean;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -133,7 +132,6 @@ export default function AiAgentPage() {
     mediaDownloadUrl: null,
     mediaFilename: null,
     mediaFormat: null,
-    autoMoveCrm: false,
     followUpEnabled: false,
     followUpCount: 0,
     messageInterval: "30 minutos",
@@ -684,32 +682,6 @@ export default function AiAgentPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* CRM Auto Movement Settings */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium">Movimentação Automática de CRM</h3>
-                        <p className="text-sm text-muted-foreground">Permite que o agente mova os contatos automaticamente entre os fluxos do CRM</p>
-                      </div>
-                      <Switch
-                        id="autoMoveCrm-status"
-                        checked={agentData.autoMoveCrm || false}
-                        onCheckedChange={(checked) => handleSwitchChange("autoMoveCrm" as keyof AiAgent, checked)}
-                      />
-                    </div>
-                    
-                    {agentData.autoMoveCrm && (
-                      <div className="flex items-center gap-2 mt-4 p-4 bg-muted rounded-md">
-                        <ArrowRightLeft className="h-5 w-5 text-primary" />
-                        <p className="text-sm">
-                          O agente poderá mover contatos entre: <span className="font-medium">Lead → Prospect → Cliente</span> com base nas respostas recebidas.
-                        </p>
-                      </div>
-                    )}
                   </div>
                   
                   <Separator />
