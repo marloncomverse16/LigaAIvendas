@@ -37,7 +37,7 @@ const goalsSchema = z.object({
     { message: "Valor inválido. Digite um número válido." }
   ),
   quantidadeLeadsVendas: z.number().min(0, "Deve ser um número positivo"),
-  quantosDisparosPorLead: z.number().min(1, "Deve ser pelo menos 1"),
+  quantosDisparosPorLead: z.number().min(0, "Deve ser um número positivo"),
   custoIcloudTotal: z.string().refine(
     (val) => !isNaN(parseFloat(val.replace(/[^0-9,.-]/g, "").replace(",", "."))),
     { message: "Valor inválido. Digite um número válido." }
@@ -207,7 +207,7 @@ function GoalsSettings() {
       metaVendasEmpresa: "0",
       ticketMedioVendas: "0",
       quantidadeLeadsVendas: 0,
-      quantosDisparosPorLead: 1,
+      quantosDisparosPorLead: 0,
       custoIcloudTotal: "0",
       quantasMensagensEnviadas: 0,
     },
@@ -215,7 +215,7 @@ function GoalsSettings() {
       metaVendasEmpresa: settings.metaVendasEmpresa || "0",
       ticketMedioVendas: settings.ticketMedioVendas || "0",
       quantidadeLeadsVendas: settings.quantidadeLeadsVendas || 0,
-      quantosDisparosPorLead: settings.quantosDisparosPorLead || 1,
+      quantosDisparosPorLead: settings.quantosDisparosPorLead || 0,
       custoIcloudTotal: settings.custoIcloudTotal || "0",
       quantasMensagensEnviadas: settings.quantasMensagensEnviadas || 0,
     } : undefined,

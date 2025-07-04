@@ -377,5 +377,21 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Funcionalidades finais**: Apenas configurações de comportamento e follow-ups automáticos mantidos
 - **Solicitação atendida**: Conforme pedido específico para remover opção de movimentação automática
 
+### 2025-07-04 - Padronização Valores Iniciais das Metas como Zero
+- **Política de novos usuários**: Todos os novos usuários agora começam com metas inicializadas em zero
+- **Campos atualizados**:
+  - `metaVendasEmpresa`: "0" (string)
+  - `ticketMedioVendas`: "0" (string)
+  - `quantidadeLeadsVendas`: 0 (number)
+  - `quantosDisparosPorLead`: 0 (number) - alterado de 1 para 0
+  - `custoIcloudTotal`: "0" (string)
+  - `quantasMensagensEnviadas`: 0 (number)
+- **Atualizações realizadas**:
+  - **Backend**: Função `initializeUserData` e `createDefaultSettings` atualizadas
+  - **Frontend**: Formulário de metas e valores padrão atualizados
+  - **Schema**: Drizzle schema atualizado com novos valores padrão
+  - **Validação**: Campo `quantosDisparosPorLead` aceita 0 como valor mínimo
+- **Objetivo**: Permitir que usuários definam suas próprias metas personalizadas desde o início
+
 *Última atualização: 04 de julho de 2025*
-*Interface do agente IA simplificada ao máximo com apenas comportamento e follow-ups*
+*Sistema padronizado para inicialização com valores zero em todas as metas*

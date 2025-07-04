@@ -82,7 +82,7 @@ export const settings = pgTable("settings", {
   metaVendasEmpresa: text("meta_vendas_empresa").default("0"),
   ticketMedioVendas: text("ticket_medio_vendas").default("0"),
   quantidadeLeadsVendas: integer("quantidade_leads_vendas").default(0),
-  quantosDisparosPorLead: integer("quantos_disparos_por_lead").default(1),
+  quantosDisparosPorLead: integer("quantos_disparos_por_lead").default(0),
   custoIcloudTotal: text("custo_icloud_total").default("0"),
   quantasMensagensEnviadas: integer("quantas_mensagens_enviadas").default(0),
   // WhatsApp Meta Cloud API (Específico por usuário)
