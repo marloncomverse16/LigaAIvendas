@@ -408,5 +408,29 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Colunas otimizadas**: Larguras ajustadas automaticamente para melhor visualização
 - **Compatibilidade**: Funciona para todos os usuários cadastrados no sistema
 
+### 2025-07-04 - Sistema Avançado de Filtros e Exportação Excel para Servidores
+- **Implementação completa**: Sistema de filtros avançados para página de gerenciamento de servidores
+- **Funcionalidades de busca**:
+  - Busca em tempo real por nome, IP, provedor e URL da API
+  - Filtros por status (ativo/inativo/todos)
+  - Filtros por provedor específico
+  - Contador de resultados em tempo real
+- **Exportação Excel**: Botão "Exportar Excel" com dados completos dos servidores
+- **Dados exportados**: Todas as informações relevantes incluindo tokens mascarados por segurança
+- **Interface responsiva**: Layout consistente com outras páginas administrativas
+- **Performance otimizada**: Uso de useMemo para filtros em tempo real
+
+### 2025-07-04 - CORREÇÃO CRÍTICA: Bug de Usuários Conectados aos Servidores
+- **Problema identificado**: Usuários com `server_id` definido na tabela `users` não apareciam em "usuários conectados"
+- **Causa raiz**: Inconsistência entre tabela `users` (campo `server_id`) e tabela `user_servers` (associações)
+- **Usuários afetados**: gui@teste.com, janaina@teste.com, prime@teste.com
+- **Solução aplicada**: Criação automática de registros na tabela `user_servers` para usuários com `server_id` definido
+- **Usuários corrigidos**: 
+  - gui@teste.com (ID 34) → servidor ID 1
+  - janaina@teste.com (ID 18) → servidor ID 1  
+  - prime@teste.com (ID 20) → servidor ID 1
+- **Sistema corrigido**: Função "usuários conectados" agora exibe corretamente todos os usuários associados
+- **Integridade garantida**: Sincronização entre tabelas `users.server_id` e `user_servers` estabelecida
+
 *Última atualização: 04 de julho de 2025*
-*Sistema completo de exportação Excel implementado para gestão de usuários*
+*Bug crítico de associações usuário-servidor completamente resolvido*
