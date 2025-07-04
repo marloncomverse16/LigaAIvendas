@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,7 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { 
-  Filter, Loader2, MinusCircle, Pencil, PlusCircle, RefreshCw, Search, Trash2, Users, X 
+  Download, Filter, Loader2, MinusCircle, Pencil, PlusCircle, RefreshCw, Search, Trash2, Users, X 
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -110,6 +110,14 @@ export default function ServerManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userServerDialogOpen, setUserServerDialogOpen] = useState(false);
   const [serverUserSearch, setServerUserSearch] = useState("");
+  
+  // Estados para filtros avançados
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [providerFilter, setProviderFilter] = useState<"all" | "contabo" | "digitalocean" | "aws" | "outros">("all");
+  
+  // Estado para exportação
+  const [isExporting, setIsExporting] = useState(false);
   
   // Estados específicos para agentes IA
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
@@ -695,23 +703,131 @@ export default function ServerManagementPage() {
     }
   };
   
-  const filteredServers = servers.filter((server: Server) => {
-    // Primeiro filtramos pelo estado (ativo/inativo)
-    if (filter === "active" && !server.active) return false;
-    if (filter === "inactive" && server.active) return false;
-    
-    // Depois filtramos pela busca
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        server.name.toLowerCase().includes(query) ||
-        server.ipAddress.toLowerCase().includes(query) ||
-        server.provider.toLowerCase().includes(query)
-      );
+  // Função para exportar servidores para Excel
+  const handleExportExcel = async () => {
+    if (!filteredServers || filteredServers.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Nenhum servidor disponível para exportação",
+        variant: "destructive",
+      });
+      return;
     }
+
+    setIsExporting(true);
     
-    return true;
-  });
+    try {
+      // Importação dinâmica da biblioteca XLSX
+      const XLSX = await import('xlsx');
+      
+      // Preparar dados dos servidores para exportação
+      const serversForExport = filteredServers.map((server: Server) => ({
+        ID: server.id,
+        Nome: server.name || '',
+        'Endereço IP': server.ipAddress || '',
+        Provedor: server.provider || '',
+        'URL da API': server.apiUrl || '',
+        'Token da API': server.apiToken ? '***Token Configurado***' : 'Não Configurado',
+        'URL N8N': server.n8nApiUrl || '',
+        'Token WhatsApp Meta': server.whatsappMetaToken ? '***Token Configurado***' : 'Não Configurado',
+        'Business ID Meta': server.whatsappMetaBusinessId || '',
+        'Versão API Meta': server.whatsappMetaApiVersion || '',
+        'Nome Agente IA': server.aiAgentName || '',
+        'Webhook Agente IA': server.aiAgentWebhookUrl || '',
+        'Webhook Prospecção': server.prospectingWebhookUrl || '',
+        'Webhook Contatos': server.contactsWebhookUrl || '',
+        'Webhook Agendamento': server.schedulingWebhookUrl || '',
+        'Webhook CRM': server.crmWebhookUrl || '',
+        'Máximo de Usuários': server.maxUsers || 0,
+        Status: server.active ? 'Ativo' : 'Inativo',
+        'Data de Criação': server.createdAt ? format(new Date(server.createdAt), 'dd/MM/yyyy HH:mm') : '',
+        'Última Atualização': server.updatedAt ? format(new Date(server.updatedAt), 'dd/MM/yyyy HH:mm') : ''
+      }));
+
+      // Criar planilha
+      const worksheet = XLSX.utils.json_to_sheet(serversForExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Servidores');
+
+      // Ajustar largura das colunas
+      const columnWidths = [
+        { wch: 10 }, // ID
+        { wch: 25 }, // Nome
+        { wch: 18 }, // Endereço IP
+        { wch: 15 }, // Provedor
+        { wch: 40 }, // URL da API
+        { wch: 20 }, // Token da API
+        { wch: 40 }, // URL N8N
+        { wch: 25 }, // Token WhatsApp Meta
+        { wch: 25 }, // Business ID Meta
+        { wch: 15 }, // Versão API Meta
+        { wch: 20 }, // Nome Agente IA
+        { wch: 40 }, // Webhook Agente IA
+        { wch: 40 }, // Webhook Prospecção
+        { wch: 40 }, // Webhook Contatos
+        { wch: 40 }, // Webhook Agendamento
+        { wch: 40 }, // Webhook CRM
+        { wch: 15 }, // Máximo de Usuários
+        { wch: 12 }, // Status
+        { wch: 18 }, // Data de Criação
+        { wch: 18 }  // Última Atualização
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Gerar nome do arquivo com data e hora
+      const now = new Date();
+      const fileName = `servidores_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+
+      // Fazer download do arquivo
+      XLSX.writeFile(workbook, fileName);
+
+      toast({
+        title: "Sucesso",
+        description: `${filteredServers.length} servidores exportados para Excel com sucesso!`,
+      });
+
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao exportar servidores para Excel",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  
+  // Aplicar filtros avançados aos servidores
+  const filteredServers = useMemo(() => {
+    if (!servers) return [];
+
+    return servers.filter((server: Server) => {
+      // Filtro de busca (nome, IP, provedor, URL da API)
+      const matchesSearch = searchTerm === "" || 
+        (server.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (server.ipAddress?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (server.provider?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (server.apiUrl?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      // Filtro de status
+      const matchesStatus = statusFilter === "all" || 
+        (statusFilter === "active" && server.active) ||
+        (statusFilter === "inactive" && !server.active);
+
+      // Filtro de provedor
+      const matchesProvider = providerFilter === "all" || 
+        (providerFilter === "contabo" && server.provider?.toLowerCase().includes("contabo")) ||
+        (providerFilter === "digitalocean" && server.provider?.toLowerCase().includes("digitalocean")) ||
+        (providerFilter === "aws" && server.provider?.toLowerCase().includes("aws")) ||
+        (providerFilter === "outros" && 
+          !server.provider?.toLowerCase().includes("contabo") &&
+          !server.provider?.toLowerCase().includes("digitalocean") &&
+          !server.provider?.toLowerCase().includes("aws"));
+
+      return matchesSearch && matchesStatus && matchesProvider;
+    });
+  }, [servers, searchTerm, statusFilter, providerFilter]);
   
   return (
     <div className="px-4 md:px-6 w-full max-w-7xl mx-auto space-y-4 py-4">
@@ -722,53 +838,88 @@ export default function ServerManagementPage() {
             Adicione, edite e gerencie servidores para a plataforma.
           </p>
         </div>
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Adicionar Servidor
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleExportExcel}
+            disabled={isExporting || !filteredServers || filteredServers.length === 0}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            {isExporting ? "Exportando..." : "Exportar Excel"}
+          </Button>
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Adicionar Servidor
+          </Button>
+        </div>
       </div>
       
-      <div className="flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
-        <div className="flex flex-wrap gap-2">
-          <Button 
-            variant={filter === "all" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setFilter("all")}
-            className={filter === "all" ? "bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" : ""}
-          >
-            Todos
-          </Button>
-          <Button 
-            variant={filter === "active" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setFilter("active")}
-            className={filter === "active" ? "bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" : ""}
-          >
-            Ativos
-          </Button>
-          <Button 
-            variant={filter === "inactive" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setFilter("inactive")}
-            className={filter === "inactive" ? "bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" : ""}
-          >
-            Inativos
-          </Button>
-        </div>
-        
-        <div className="w-full sm:w-auto relative">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar servidores..." 
-            className="pl-8 w-full sm:w-auto min-w-[200px]"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
+      {/* Filtros de busca avançados */}
+      <Card className="shadow-sm mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Campo de busca */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Buscar por nome, IP, provedor ou URL da API..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            {/* Filtros */}
+            <div className="flex flex-col sm:flex-row gap-4 lg:gap-2">
+              {/* Filtro de Status */}
+              <div className="w-full sm:w-40">
+                <Select value={statusFilter} onValueChange={(value: "all" | "active" | "inactive") => setStatusFilter(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Filtro de Provedor */}
+              <div className="w-full sm:w-40">
+                <Select value={providerFilter} onValueChange={(value: "all" | "contabo" | "digitalocean" | "aws" | "outros") => setProviderFilter(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Provedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="contabo">Contabo</SelectItem>
+                    <SelectItem value="digitalocean">DigitalOcean</SelectItem>
+                    <SelectItem value="aws">AWS</SelectItem>
+                    <SelectItem value="outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Contador de resultados */}
+              <div className="flex items-center text-sm text-muted-foreground whitespace-nowrap">
+                <Filter className="h-4 w-4 mr-2" />
+                {filteredServers.length} de {servers?.length || 0} servidores
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       
       <div className="border rounded-md shadow-sm">
         <Table className="w-full">
@@ -794,11 +945,10 @@ export default function ServerManagementPage() {
             ) : filteredServers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  {searchQuery ? (
-                    <p>Nenhum servidor encontrado para "{searchQuery}"</p>
-                  ) : (
-                    <p>Nenhum servidor disponível</p>
-                  )}
+                  {servers?.length === 0 
+                    ? "Nenhum servidor encontrado. Adicione o primeiro servidor."
+                    : "Nenhum servidor corresponde aos filtros aplicados."
+                  }
                 </TableCell>
               </TableRow>
             ) : (
