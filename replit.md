@@ -439,23 +439,5 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Fluxo FUNCIONAL**: QR Code conecta → Sistema detecta mudança → Webhook POST enviado → Agente IA notificado
 - **Isolamento garantido**: Webhooks respeitam configurações específicas por usuário via `user_servers`
 
-### 2025-07-04 - Sistema de Webhook Automático: Análise Técnica e Correção da Detecção
-- **Investigação completa realizada**: Sistema de webhook automático estava implementado mas não detectando mudanças de estado
-- **Problema identificado**: Lógica de detecção estava na função errada - `checkConnectionStatus` ao invés da função principal de verificação
-- **Correção implementada**: Movida lógica de webhook para função `checkEvolutionConnection` linha 821 onde realmente acontece a verificação
-- **Sistema aprimorado**:
-  - Logs detalhados com prefixo `[WEBHOOK-EVOLUTION]` para tracking específico  
-  - Função `resetConnectionStatus()` criada para testes
-  - Rota `/api/reset-connection-status` para simular mudanças de estado
-  - Detecção correta: `previouslyConnected` vs `newlyConnected` com validação booleana rigorosa
-- **Fluxo de teste validado**:
-  1. Reset do status na memória através da API
-  2. Próxima verificação detecta mudança `false → true`  
-  3. Webhook disparado automaticamente para URL configurada
-  4. Sistema continua funcionando em modo automático
-- **Campo correto confirmado**: `whatsapp_webhook_url` na tabela `servers` contém URL de destino
-- **URL do webhook**: https://webhook.primerastreadores.com/webhook/e4da7e7b-c5c1-4fea-8ea4-c843f4443c47
-- **Status**: Sistema pronto para produção - webhook será enviado automaticamente na próxima conexão real de WhatsApp
-
 *Última atualização: 04 de julho de 2025*
-*Sistema automático de webhook para conexões QR Code WhatsApp implementado, corrigido e validado tecnicamente*
+*Sistema automático de webhook para conexões QR Code WhatsApp implementado e testado*

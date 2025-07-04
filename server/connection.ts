@@ -6,12 +6,6 @@ import { EvolutionApiClient } from "./evolution-api";
 // Status de conexão do WhatsApp por usuário
 export const connectionStatus: Record<number, any> = {};
 
-// Função para resetar status de conexão (útil para testar webhook)
-export function resetConnectionStatus(userId: number) {
-  console.log(`🔄 RESET: Resetando status de conexão para usuário ${userId}`);
-  delete connectionStatus[userId];
-}
-
 /**
  * Função aprimorada para verificação da conexão com a Evolution API
  * Verifica se a API está online e também se está conectada ao WhatsApp
@@ -258,11 +252,6 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         // Verificar se houve mudança de estado (desconectado → conectado)
         const previouslyConnected = connectionStatus[userId]?.connected || false;
         const newlyConnected = evolutionStatus.connected === true;
-        
-        console.log(`[WEBHOOK] Análise de mudança de estado:`);
-        console.log(`[WEBHOOK] - previouslyConnected: ${previouslyConnected}`);
-        console.log(`[WEBHOOK] - newlyConnected: ${newlyConnected}`);
-        console.log(`[WEBHOOK] - Deve disparar webhook? ${newlyConnected && !previouslyConnected}`);
         
         // Atualizar status na memória
         connectionStatus[userId] = {
@@ -830,15 +819,6 @@ export async function connectWhatsApp(req: Request, res: Response) {
                   console.log("Status de conexão via Evolution API:", connectionResult);
                   
                   if (connectionResult.connected) {
-                    // Verificar se houve mudança de estado (desconectado → conectado)
-                    const previouslyConnected = connectionStatus[userId]?.connected || false;
-                    const newlyConnected = connectionResult.connected === true;
-                    
-                    console.log(`[WEBHOOK-EVOLUTION] Análise de mudança de estado:`);
-                    console.log(`[WEBHOOK-EVOLUTION] - previouslyConnected: ${previouslyConnected}`);
-                    console.log(`[WEBHOOK-EVOLUTION] - newlyConnected: ${newlyConnected}`);
-                    console.log(`[WEBHOOK-EVOLUTION] - Deve disparar webhook? ${newlyConnected && !previouslyConnected}`);
-                    
                     connectionStatus[userId] = {
                       connected: true,
                       source: 'evolution',
@@ -847,22 +827,6 @@ export async function connectWhatsApp(req: Request, res: Response) {
                       lastUpdated: new Date()
                     };
                     console.log("Status atualizado: Conectado via Evolution API");
-                    
-                    // Se conectado pela primeira vez, disparar webhook
-                    if (newlyConnected && !previouslyConnected) {
-                      console.log(`🔔 WEBHOOK: Mudança de estado detectada via Evolution API: DESCONECTADO → CONECTADO para usuário ${userId}`);
-                      console.log(`📤 WEBHOOK: Disparando webhook de conexão QR Code...`);
-                      
-                      // Importar dinamicamente a função de webhook
-                      import('./api/qr-connection-webhook.js').then(({ sendQRConnectionWebhook }) => {
-                        sendQRConnectionWebhook(userId).catch(error => {
-                          console.error(`❌ WEBHOOK: Erro ao enviar webhook de conexão automático:`, error);
-                        });
-                      }).catch(error => {
-                        console.error(`❌ WEBHOOK: Erro ao importar módulo de webhook:`, error);
-                      });
-                    }
-                    
                     return; // Não continuar com o webhook
                   } else {
                     console.log("Evolution API indica que não está conectado ainda. Mantendo QR code visível.");
