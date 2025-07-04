@@ -70,24 +70,26 @@ async function getUserConnectionInfo(userId: number): Promise<QRConnectionWebhoo
 async function getInstanceWebhookUrl(userId: number): Promise<string | null> {
   try {
     const query = `
-      SELECT s.ai_agent_webhook_url
+      SELECT s.whatsapp_webhook_url
       FROM user_servers us
       JOIN servers s ON us.server_id = s.id
       WHERE us.user_id = $1
         AND s.active = true
-        AND s.ai_agent_webhook_url IS NOT NULL
-        AND s.ai_agent_webhook_url != ''
+        AND s.whatsapp_webhook_url IS NOT NULL
+        AND s.whatsapp_webhook_url != ''
       LIMIT 1
     `;
 
     const result = await pool.query(query, [userId]);
 
     if (result.rows.length === 0) {
-      console.log(`⚠️ Webhook de configuração de instância não encontrado para usuário ${userId}`);
+      console.log(`⚠️ Webhook de configuração de instância Evolution não encontrado para usuário ${userId}`);
       return null;
     }
 
-    return result.rows[0].ai_agent_webhook_url;
+    const webhookUrl = result.rows[0].whatsapp_webhook_url;
+    console.log(`🔗 Webhook de configuração encontrado: ${webhookUrl}`);
+    return webhookUrl;
 
   } catch (error) {
     console.error('❌ Erro ao buscar URL do webhook:', error);
