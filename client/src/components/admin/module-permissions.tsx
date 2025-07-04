@@ -60,10 +60,10 @@ export default function ModulePermissions({ permissions, onChange }: ModulePermi
 
   const moduleItems = [
     { key: "accessDashboard" as const, label: "Dashboard", description: "Acesso à página principal" },
-    { key: "accessLeads" as const, label: "Leads", description: "Visualização e gestão de leads" },
+    { key: "accessLeads" as const, label: "CRM de Leads", description: "Visualização e gestão de leads" },
     { key: "accessProspecting" as const, label: "Prospecção", description: "Ferramentas de prospecção" },
-    { key: "accessAiAgent" as const, label: "Agente IA", description: "Funcionalidades do assistente de IA" },
-    { key: "accessWhatsapp" as const, label: "Conexão WhatsApp", description: "Conexão com WhatsApp" },
+    { key: "accessAiAgent" as const, label: "Agente de IA", description: "Funcionalidades do assistente de IA" },
+    { key: "accessWhatsapp" as const, label: "Conexões", description: "Conexões WhatsApp e envio de mensagens" },
     { key: "accessContacts" as const, label: "Contatos", description: "Gerenciamento de contatos" },
     { key: "accessScheduling" as const, label: "Agendamentos", description: "Sistema de calendário" },
     { key: "accessReports" as const, label: "Relatórios", description: "Estatísticas e relatórios" },
