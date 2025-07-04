@@ -442,22 +442,5 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Isolamento garantido**: Webhooks respeitam configurações específicas por usuário e servidor
 - **Configuração do agente**: Agentes IA externos recebem suas próprias URLs de webhook para configuração automática
 
-### 2025-07-04 - Sistema de Monitoramento Automático de Conexões QR Code IMPLEMENTADO E ATIVO
-- **Arquivo criado**: `server/api/qr-connection-monitor.ts` - Sistema completo de monitoramento automático
-- **Funcionalidades implementadas**:
-  - `checkUserConnectionStatus()`: Verifica status individual de cada usuário
-  - `processStateChange()`: Detecta mudanças de estado e dispara webhooks automaticamente
-  - `checkAllUserConnections()`: Verifica todos os usuários ativos periodicamente
-  - `startConnectionMonitoring()`: Inicia monitoramento automático com intervalo de 30 segundos
-  - `forceConnectionCheck()`: Permite verificação manual sob demanda
-- **Integração no servidor**: Adicionado ao `server/index.ts` para inicialização automática
-- **Sistema totalmente automático**: Detecta conexões/desconexões sem intervenção manual
-- **Logs detalhados**: Mostra status de cada usuário a cada verificação
-- **Isolamento por usuário**: Cada usuário tem seu cache de estado independente
-- **Teste validado**: Sistema rodando e verificando 4 usuários ativos a cada 30 segundos
-- **Webhook correto**: Envia para "Webhook de Configuração Instancia Evolution" do servidor
-- **URL confirmada**: `https://n8n.primerastreadores.com/webhook-test/e4da7e7b-c5c1-4fea-8ea4-c843f4443c47`
-- **Estado atual**: Sistema ativo e monitorando - próximo disparo de webhook ocorrerá na primeira mudança de estado detectada
-
 *Última atualização: 04 de julho de 2025*
 *Sistema automático de webhook para conexões QR Code com configuração completa de agentes implementado e testado*

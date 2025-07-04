@@ -2,7 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupWebSocketServer } from "./websocket";
-import { startConnectionMonitoring } from "./api/qr-connection-monitor";
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
@@ -72,8 +71,5 @@ app.use((req, res, next) => {
     // Iniciar servidor WebSocket
     setupWebSocketServer(server);
     log(`WebSocket server started on /api/ws`);
-    
-    // Iniciar monitoramento automático de conexões QR Code
-    startConnectionMonitoring();
   });
 })();

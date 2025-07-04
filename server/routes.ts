@@ -7333,60 +7333,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configure HTTP server
   const httpServer = createServer(app);
   
-  // Endpoint de teste para simular conexões QR Code
-  app.post("/api/test/qr-connection", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
-    
-    try {
-      const userId = req.user!.id;
-      const { action } = req.body; // "connect" ou "disconnect"
-      
-      console.log(`🧪 [TESTE] Simulando ${action} para usuário ${userId}...`);
-      
-      if (action === "connect") {
-        // Simular conexão QR Code
-        const { sendQRConnectionWebhook } = await import('./api/qr-connection-webhook');
-        
-        console.log(`🧪 [TESTE] Disparando webhook de CONEXÃO QR Code para usuário ${userId}...`);
-        const result = await sendQRConnectionWebhook(userId);
-        
-        return res.status(200).json({
-          success: true,
-          message: "Webhook de conexão QR Code enviado",
-          result: result
-        });
-        
-      } else if (action === "disconnect") {
-        // Simular desconexão QR Code
-        const { sendQRDisconnectionWebhook } = await import('./api/qr-connection-webhook');
-        
-        console.log(`🧪 [TESTE] Disparando webhook de DESCONEXÃO QR Code para usuário ${userId}...`);
-        const result = await sendQRDisconnectionWebhook(userId);
-        
-        return res.status(200).json({
-          success: true,
-          message: "Webhook de desconexão QR Code enviado",
-          result: result
-        });
-        
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: "Ação inválida. Use 'connect' ou 'disconnect'"
-        });
-      }
-      
-    } catch (error) {
-      console.error('❌ [TESTE] Erro ao testar webhook QR Code:', error);
-      
-      return res.status(500).json({
-        success: false,
-        message: "Erro ao testar webhook QR Code",
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
-      });
-    }
-  });
-
   // Configurar WebSocket Server no arquivo websocket.ts
   // Esta função será chamada externamente após a criação do servidor HTTP
   
@@ -7491,4 +7437,3 @@ async function getQrContactsCount(userId: number, startDate?: string, endDate?: 
     return 0;
   }
 }
-
