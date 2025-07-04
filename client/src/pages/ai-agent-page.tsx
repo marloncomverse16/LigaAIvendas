@@ -51,11 +51,6 @@ interface AiAgent {
   followUpCount: number | null;
   messageInterval: string | null;
   followUpPrompt: string | null;
-  schedulingEnabled: boolean;
-  agendaId: string | null;
-  schedulingPromptConsult: string | null;
-  schedulingPromptTime: string | null;
-  schedulingDuration: string | null;
   autoMoveCrm: boolean;
   createdAt: string;
   updatedAt: string | null;
@@ -142,12 +137,7 @@ export default function AiAgentPage() {
     followUpEnabled: false,
     followUpCount: 0,
     messageInterval: "30 minutos",
-    followUpPrompt: "",
-    schedulingEnabled: false,
-    agendaId: "",
-    schedulingPromptConsult: "",
-    schedulingPromptTime: "",
-    schedulingDuration: "30 minutos"
+    followUpPrompt: ""
   });
   
   // State for step form
@@ -774,70 +764,6 @@ export default function AiAgentPage() {
                             name="followUpPrompt"
                             placeholder="Gostaria de mais informações sobre nossos serviços?"
                             value={agentData.followUpPrompt || ""}
-                            onChange={handleAgentInputChange}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Scheduling Settings */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">Agendamento Automático</h3>
-                      <Switch
-                        id="scheduling-status"
-                        checked={agentData.schedulingEnabled}
-                        onCheckedChange={(checked) => handleSwitchChange("schedulingEnabled" as keyof AiAgent, checked)}
-                      />
-                    </div>
-                    
-                    {agentData.schedulingEnabled && (
-                      <div className="grid gap-4 mt-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="agendaId">ID da Agenda</Label>
-                          <Input
-                            id="agendaId"
-                            name="agendaId"
-                            placeholder="ID da sua agenda conectada"
-                            value={agentData.agendaId || ""}
-                            onChange={handleAgentInputChange}
-                          />
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="schedulingDuration">Duração da Consulta</Label>
-                            <Input
-                              id="schedulingDuration"
-                              name="schedulingDuration"
-                              placeholder="30 minutos"
-                              value={agentData.schedulingDuration || ""}
-                              onChange={handleAgentInputChange}
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="schedulingPromptConsult">Mensagem para Consulta</Label>
-                          <Textarea
-                            id="schedulingPromptConsult"
-                            name="schedulingPromptConsult"
-                            placeholder="Gostaria de agendar uma consulta?"
-                            value={agentData.schedulingPromptConsult || ""}
-                            onChange={handleAgentInputChange}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="schedulingPromptTime">Mensagem para Horário</Label>
-                          <Textarea
-                            id="schedulingPromptTime"
-                            name="schedulingPromptTime"
-                            placeholder="Qual horário seria melhor para você?"
-                            value={agentData.schedulingPromptTime || ""}
                             onChange={handleAgentInputChange}
                           />
                         </div>

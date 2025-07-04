@@ -363,5 +363,12 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Correções JavaScript**: Resolvido erro de variável inconsistente (setSelectedAgentId) que causava crashes no frontend
 - **Logs melhorados**: Sistema de debug aprimorado para acompanhar processo de criação de usuários
 
+### 2025-07-04 - Remoção Funcionalidade de Agendamento Automático
+- **Seção removida**: Removida completamente a seção "Agendamento Automático" da página Agente de IA
+- **Interface simplificada**: Agente de IA agora foca apenas em comportamento, follow-ups e movimento CRM
+- **Tipos atualizados**: Removidos campos schedulingEnabled, agendaId, schedulingPromptConsult, schedulingPromptTime, schedulingDuration
+- **Funcionalidades mantidas**: Preservadas configurações de comportamento, follow-ups automáticos e movimento CRM
+- **Solicitação atendida**: Conforme pedido específico para remover opção de agendamento automático
+
 *Última atualização: 04 de julho de 2025*
-*Interface de gerenciamento de usuários simplificada e sistema de criação estabilizado*
+*Interface de gerenciamento de usuários e agente IA simplificadas conforme solicitações*
