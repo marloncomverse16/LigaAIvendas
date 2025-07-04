@@ -366,6 +366,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Registrar rotas de conexão
   app.get("/api/connections/status", checkConnectionStatusNew);
   
+  // Nova rota para disparar webhook quando a tela "WhatsApp Conectado" aparecer
+  app.post("/api/connections/webhook-connected", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Não autenticado" });
+      }
+
+      const userId = (req.user as Express.User).id;
+      console.log(`🔔 Webhook de conexão solicitado pelo frontend para usuário ${userId}`);
+
+      // Importar a função de envio de webhook
+      const { sendQRConnectionWebhook } = await import('./api/qr-connection-webhook');
+      
+      // Disparar webhook imediatamente
+      const webhookSent = await sendQRConnectionWebhook(userId);
+      
+      if (webhookSent) {
+        console.log(`✅ Webhook de conexão enviado com sucesso para usuário ${userId}`);
+        res.json({ 
+          success: true, 
+          message: "Webhook de conexão enviado com sucesso",
+          webhookSent: true 
+        });
+      } else {
+        console.log(`⚠️ Falha ao enviar webhook de conexão para usuário ${userId}`);
+        res.json({ 
+          success: false, 
+          message: "Falha ao enviar webhook de conexão",
+          webhookSent: false 
+        });
+      }
+    } catch (error) {
+      console.error("❌ Erro ao processar webhook de conexão:", error);
+      res.status(500).json({ 
+        error: "Erro interno do servidor",
+        message: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+  
   // Nova rota para buscar configurações da Evolution API
   app.get("/api/connections/evolution-config", async (req: Request, res: Response) => {
     try {

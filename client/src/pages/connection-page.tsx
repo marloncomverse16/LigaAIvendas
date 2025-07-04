@@ -40,8 +40,8 @@ export default function ConnectionPage() {
             description: "WhatsApp conectado com sucesso! Webhook de notificação enviado.",
           });
           
-          // Webhook já é enviado automaticamente pelo backend via WebSocket
-          console.log("🔔 QR Code conectado - webhook sendo enviado pelo backend");
+          // Chamar a nova rota para disparar webhook imediatamente
+          triggerConnectionWebhook();
         }
       }
     };
@@ -101,6 +101,45 @@ export default function ConnectionPage() {
       removeConfigHandler();
     };
   }, [toast]);
+
+  // Função para disparar webhook de conexão via frontend
+  const triggerConnectionWebhook = async () => {
+    try {
+      console.log("🔔 Disparando webhook de conexão via frontend...");
+      
+      const response = await fetch('/api/connections/webhook-connected', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.webhookSent) {
+        console.log("✅ Webhook de conexão enviado com sucesso:", result);
+        toast({
+          title: "Webhook Enviado",
+          description: "Notificação de conexão enviada para o agente IA com sucesso!",
+        });
+      } else {
+        console.log("⚠️ Falha ao enviar webhook:", result);
+        toast({
+          title: "Aviso",
+          description: "Webhook enviado mas pode não ter sido processado completamente.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("❌ Erro ao disparar webhook de conexão:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao enviar notificação de conexão.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const checkConnectionStatus = () => {
     if (!user) return;
@@ -246,8 +285,20 @@ export default function ConnectionPage() {
                   </span>
                 </div>
                 
+                {/* Botão de teste de webhook */}
+                <div className="w-full max-w-xs pt-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full mb-2"
+                    onClick={triggerConnectionWebhook}
+                    disabled={loading}
+                  >
+                    🔔 Testar Webhook de Conexão
+                  </Button>
+                </div>
+
                 {/* Botão de desconexão */}
-                <div className="w-full max-w-xs pt-4">
+                <div className="w-full max-w-xs">
                   <Button 
                     variant="destructive" 
                     className="w-full"
