@@ -2929,6 +2929,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Rota para resetar status de conexão (útil para teste)
+  app.post("/api/reset-connection-status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user!.id;
+      
+      // Importar e usar a função de reset
+      const { resetConnectionStatus } = await import('./connection.js');
+      resetConnectionStatus(userId);
+      
+      res.json({
+        success: true,
+        message: `Status de conexão resetado para usuário ${userId}`,
+        userId: userId
+      });
+      
+    } catch (error) {
+      console.error('❌ Erro ao resetar status:', error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao resetar status",
+        error: error.message
+      });
+    }
+  });
+
+  // Rota de teste para forçar envio de webhook de conexão QR Code
+  app.post("/api/test-qr-webhook", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const userId = req.user!.id;
+      console.log(`🧪 Teste manual de webhook QR Code para usuário ${userId}`);
+      
+      // Importar e executar o webhook
+      const { sendQRConnectionWebhook } = await import('./api/qr-connection-webhook.js');
+      const webhookResult = await sendQRConnectionWebhook(userId);
+      
+      if (webhookResult) {
+        res.json({
+          success: true,
+          message: "Webhook de teste enviado com sucesso!",
+          userId: userId
+        });
+      } else {
+        res.json({
+          success: false,
+          message: "Falha no envio do webhook de teste",
+          userId: userId
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro no teste de webhook:', error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao testar webhook",
+        error: error.message
+      });
+    }
+  });
+
   // Nova API de contatos - busca diretamente do banco de dados
   app.get("/api/contacts", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
