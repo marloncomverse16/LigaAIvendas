@@ -4212,9 +4212,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const messageId = result.rows[0]?.id;
         console.log(`💾 Mensagem salva na tabela chat_messages_sent com ID: ${messageId}`);
         
-        // Tentar enviar via Meta Cloud API
-// Módulo removido - usando nova implementação Meta Cloud API
-        // Serviço removido - usando nova implementação
+        // Tentar enviar via Meta Cloud API usando nova implementação
+        const { MetaCloudChatService } = await import('./api/meta-cloud-chat');
+        const cloudService = new MetaCloudChatService();
         const sendResult = await cloudService.sendMessage(userId, phoneNumber, message);
         
         if (sendResult.success) {
@@ -4331,8 +4331,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📤 Enviando mensagem via Meta Cloud API para ${phoneNumber}: "${message.substring(0, 30)}..."`);
       
-// Módulo removido - usando nova implementação Meta Cloud API
-        // Serviço removido - usando nova implementação
+      // Usar nova implementação Meta Cloud API
+      const { MetaCloudChatService } = await import('./api/meta-cloud-chat');
+      const cloudService = new MetaCloudChatService();
       const result = await cloudService.sendMessage(userId, phoneNumber, message);
       
       if (!result.success) {

@@ -1479,7 +1479,7 @@ export default function ChatOtimizado() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            phoneNumber: chatId,
+            to: chatId,
             message: messageText
           })
         });
