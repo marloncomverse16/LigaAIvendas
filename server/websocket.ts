@@ -3,6 +3,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import axios from "axios";
 import { EvolutionApiClient } from "./evolution-api";
+import { sendQRConnectionWebhook, sendQRDisconnectionWebhook } from "./api/qr-connection-webhook";
 
 // Armazenar as conexões WebSocket ativas por usuário
 const userConnections: Map<number, WebSocket[]> = new Map();
@@ -51,15 +52,31 @@ async function connectToEvolutionSocket(userId: number, apiUrl: string, token: s
         
         // Processar mensagem recebida e encaminhar para o cliente
         if (message.event === 'status.instance') {
+          const isConnected = message.data?.connected || false;
+          const wasConnected = evolutionClients.has(userId) && evolutionClients.get(userId) !== null;
+          
           sendToUser(userId, {
             type: 'connection_status',
             data: {
-              connected: message.data?.connected || false,
+              connected: isConnected,
               state: message.data?.state,
               phone: message.data?.phone,
               batteryLevel: message.data?.batteryLevel
             }
           });
+          
+          // Detectar mudança de estado de conexão e enviar webhook
+          if (isConnected && !wasConnected) {
+            console.log(`🔔 QR Code conectado para usuário ${userId}, enviando webhook...`);
+            sendQRConnectionWebhook(userId).catch(error => {
+              console.error(`❌ Erro ao enviar webhook de conexão:`, error);
+            });
+          } else if (!isConnected && wasConnected) {
+            console.log(`🔔 QR Code desconectado para usuário ${userId}, enviando webhook...`);
+            sendQRDisconnectionWebhook(userId).catch(error => {
+              console.error(`❌ Erro ao enviar webhook de desconexão:`, error);
+            });
+          }
         }
         // Adicionar outros eventos conforme necessário
       } catch (error) {

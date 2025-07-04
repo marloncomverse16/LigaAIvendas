@@ -28,14 +28,20 @@ export default function ConnectionPage() {
     // Configurar event listeners para o WebSocket
     const handleConnectionStatus = (message: any) => {
       if (message.data) {
+        const wasConnected = status?.connected || false;
+        const isNowConnected = message.data.connected;
+        
         setStatus(message.data);
         setLoading(false);
         
-        if (message.data.connected) {
+        if (isNowConnected && !wasConnected) {
           toast({
             title: "Conectado",
-            description: "WhatsApp conectado com sucesso!",
+            description: "WhatsApp conectado com sucesso! Webhook de notificação enviado.",
           });
+          
+          // Webhook já é enviado automaticamente pelo backend via WebSocket
+          console.log("🔔 QR Code conectado - webhook sendo enviado pelo backend");
         }
       }
     };
