@@ -608,11 +608,19 @@ export default function AdminUsersPage() {
             }
           } catch (error) {
             console.error("Erro ao atribuir servidor automaticamente:", error);
-            toast({
-              title: "Erro ao atribuir servidor",
-              description: "O usuário foi criado, mas não foi possível atribuir automaticamente um servidor.",
-              variant: "destructive",
-            });
+            
+            // Verificar se o erro é por usuário não encontrado (que pode acontecer se usuário foi excluído)
+            const errorResponse = error as any;
+            if (errorResponse?.status === 404) {
+              console.log("Usuário não encontrado para atribuição automática, possivelmente foi excluído");
+              // Não mostrar toast de erro para este caso específico
+            } else {
+              toast({
+                title: "Erro ao atribuir servidor",
+                description: "O usuário foi criado, mas não foi possível atribuir automaticamente um servidor.",
+                variant: "destructive",
+              });
+            }
           }
         }
         

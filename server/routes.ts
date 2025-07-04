@@ -5276,12 +5276,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "userId é obrigatório" });
       }
       
-      // Verificar se o usuário existe
+      // Verificar se o usuário existe e se está ativo
       const user = await storage.getUser(Number(userId));
-      console.log("👤 Usuário encontrado:", user ? `ID ${user.id} - ${user.username}` : "USUÁRIO NÃO ENCONTRADO");
+      console.log("👤 Usuário encontrado:", user ? `ID ${user.id} - ${user.username} (ativo: ${user.active})` : "USUÁRIO NÃO ENCONTRADO");
       
       if (!user) {
+        console.log("❌ Usuário não encontrado, possivelmente foi excluído");
         return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Verificar se o usuário está ativo
+      if (!user.active) {
+        console.log("❌ Usuário está inativo, não atribuindo servidor");
+        return res.status(400).json({ message: "Usuário está inativo" });
       }
       
       // Encontrar o servidor com a MAIOR ocupação que ainda tenha vagas disponíveis
