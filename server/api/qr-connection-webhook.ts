@@ -13,8 +13,6 @@ interface QRConnectionWebhookData {
   serverName: string;
   connected: boolean;
   timestamp: Date;
-  webhookUrl?: string;
-  cloudWebhookUrl?: string;
 }
 
 /**
@@ -30,9 +28,7 @@ async function getUserConnectionInfo(userId: number): Promise<QRConnectionWebhoo
         u.username as user_username,
         sa.name as agent_name,
         s.name as server_name,
-        s.ai_agent_webhook_url as instance_webhook_url,
-        sa.webhook_url,
-        sa.cloud_webhook_url
+        s.ai_agent_webhook_url as instance_webhook_url
       FROM users u
       LEFT JOIN user_servers us ON u.id = us.user_id
       LEFT JOIN servers s ON us.server_id = s.id
@@ -59,9 +55,7 @@ async function getUserConnectionInfo(userId: number): Promise<QRConnectionWebhoo
       agentName: row.agent_name || 'Agente não configurado',
       serverName: row.server_name || 'Servidor não identificado',
       connected: true,
-      timestamp: new Date(),
-      webhookUrl: row.webhook_url,
-      cloudWebhookUrl: row.cloud_webhook_url
+      timestamp: new Date()
     };
 
   } catch (error) {
@@ -131,9 +125,7 @@ export async function sendQRConnectionWebhook(userId: number): Promise<boolean> 
         agentName: connectionInfo.agentName,
         serverName: connectionInfo.serverName,
         connected: connectionInfo.connected,
-        timestamp: connectionInfo.timestamp.toISOString(),
-        webhookUrl: connectionInfo.webhookUrl,
-        cloudWebhookUrl: connectionInfo.cloudWebhookUrl
+        timestamp: connectionInfo.timestamp.toISOString()
       }
     };
 
@@ -198,9 +190,7 @@ export async function sendQRDisconnectionWebhook(userId: number): Promise<boolea
         agentName: connectionInfo.agentName,
         serverName: connectionInfo.serverName,
         connected: false,
-        timestamp: new Date().toISOString(),
-        webhookUrl: connectionInfo.webhookUrl,
-        cloudWebhookUrl: connectionInfo.cloudWebhookUrl
+        timestamp: new Date().toISOString()
       }
     };
 
