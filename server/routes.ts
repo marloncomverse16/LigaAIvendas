@@ -429,6 +429,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota para desconectar o WhatsApp
   app.post("/api/connections/disconnect", disconnectWhatsApp);
   
+  // Rota para envio manual de webhook quando WhatsApp conectar
+  app.post("/api/connections/send-manual-webhook", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Não autenticado" });
+      }
+
+      const userId = (req.user as any).id;
+      console.log(`🔔 Solicitação de webhook manual recebida para usuário ${userId}`);
+
+      // Importar e chamar a função de webhook manual
+      const { sendManualConnectionWebhook } = await import('./api/manual-connection-webhook');
+      const success = await sendManualConnectionWebhook(userId);
+
+      if (success) {
+        console.log(`✅ Webhook manual enviado com sucesso para usuário ${userId}`);
+        res.json({ 
+          success: true, 
+          message: "Webhook de conexão enviado com sucesso" 
+        });
+      } else {
+        console.log(`❌ Falha ao enviar webhook manual para usuário ${userId}`);
+        res.status(500).json({ 
+          success: false, 
+          error: "Falha ao enviar webhook de conexão" 
+        });
+      }
+
+    } catch (error) {
+      console.error("❌ Erro ao processar webhook manual:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Erro interno do servidor" 
+      });
+    }
+  });
+  
   // Temporariamente desativado para evitar problemas de conexão
   // app.use("/api/evolution-webhook", evolutionWebhookRoutes);
   // app.use("/api/evolution-webhook-receiver", evolutionWebhookReceiver);

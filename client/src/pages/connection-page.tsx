@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, XCircle, Smartphone, QrCode, AlertCircle } from "lucide-react";
+import { Loader2, XCircle, Smartphone, QrCode, AlertCircle, Send } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import websocketService from "@/services/websocket-service";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,6 +20,7 @@ export default function ConnectionPage() {
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
+  const [sendingWebhook, setSendingWebhook] = useState(false);
 
   // Verificar status atual ao carregar a página
   useEffect(() => {
@@ -200,6 +201,51 @@ export default function ConnectionPage() {
     }
   };
 
+  const handleSendWebhook = async () => {
+    if (!user) {
+      toast({
+        title: "Não autenticado",
+        description: "Faça login para enviar webhook",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingWebhook(true);
+
+    try {
+      const response = await fetch('/api/connections/send-manual-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        toast({
+          title: "Webhook Enviado",
+          description: "Webhook de conexão enviado com sucesso!",
+          variant: "default",
+        });
+      } else {
+        throw new Error(result.error || 'Falha ao enviar webhook');
+      }
+
+    } catch (error) {
+      console.error('Erro ao enviar webhook:', error);
+      toast({
+        title: "Erro no Webhook",
+        description: error instanceof Error ? error.message : "Falha ao enviar webhook de conexão",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingWebhook(false);
+    }
+  };
+
   return (
     <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 flex flex-col items-center justify-center">
       <div className="max-w-3xl w-full">
@@ -246,8 +292,28 @@ export default function ConnectionPage() {
                   </span>
                 </div>
                 
-                {/* Botão de desconexão */}
+                {/* Botão de envio de webhook manual */}
                 <div className="w-full max-w-xs pt-4">
+                  <Button 
+                    variant="default" 
+                    className="w-full mb-3 bg-blue-600 hover:bg-blue-700"
+                    onClick={handleSendWebhook}
+                    disabled={sendingWebhook}
+                  >
+                    {sendingWebhook ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Enviando Webhook...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-5 w-5" /> Enviar Webhook de Conexão
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Botão de desconexão */}
+                <div className="w-full max-w-xs">
                   <Button 
                     variant="destructive" 
                     className="w-full"
@@ -261,6 +327,7 @@ export default function ConnectionPage() {
                 {/* Informações adicionais */}
                 <div className="mt-6 text-center text-sm text-muted-foreground">
                   <p>Seu WhatsApp está conectado e pronto para receber e enviar mensagens automaticamente.</p>
+                  <p className="mt-2 text-xs">Clique em "Enviar Webhook de Conexão" para notificar sistemas externos.</p>
                 </div>
               </div>
             ) : (
