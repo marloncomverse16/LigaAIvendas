@@ -6,6 +6,12 @@ import { Request, Response } from "express";
 import axios from "axios";
 import { storage } from "../storage";
 
+// Cache para armazenar o último estado de conexão de cada usuário
+const lastConnectionState: Record<number, boolean> = {};
+
+// Importar funções de webhook para notificação automática
+import { sendQRConnectionWebhook, sendQRDisconnectionWebhook } from "./qr-connection-webhook";
+
 /**
  * Verifica o status da conexão com a Evolution API
  */
@@ -104,6 +110,26 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         console.log("🟢 CONECTADO: Estado detectado corretamente");
         console.log("Estado final da conexão: ✅ CONECTADO");
         
+        // Verificar se houve mudança de estado para disparar webhook
+        const previousState = lastConnectionState[userId];
+        if (previousState !== undefined && previousState !== isConnected) {
+          console.log(`🔄 MUDANÇA DE ESTADO DETECTADA: ${previousState} → ${isConnected}`);
+          
+          // Estado mudou de desconectado para conectado - disparar webhook de conexão
+          if (!previousState && isConnected) {
+            console.log("📤 Disparando webhook de CONEXÃO QR Code...");
+            try {
+              await sendQRConnectionWebhook(userId);
+              console.log("✅ Webhook de conexão enviado com sucesso");
+            } catch (webhookError) {
+              console.error("❌ Erro ao enviar webhook de conexão:", webhookError);
+            }
+          }
+        }
+        
+        // Atualizar estado no cache
+        lastConnectionState[userId] = isConnected;
+        
         return res.status(200).json({
           connected: true,
           qrCode: req.query.includeQr === 'true' ? await getQrCodeForInstance(server, instanceName, headers) : null,
@@ -120,6 +146,27 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       
       // Se chegou aqui, não está conectado
       console.log("Estado final da conexão: ❌ DESCONECTADO");
+      
+      // Verificar se houve mudança de estado para disparar webhook
+      const previousState = lastConnectionState[userId];
+      if (previousState !== undefined && previousState !== false) {
+        console.log(`🔄 MUDANÇA DE ESTADO DETECTADA: ${previousState} → false`);
+        
+        // Estado mudou de conectado para desconectado - disparar webhook de desconexão
+        if (previousState && !false) {
+          console.log("📤 Disparando webhook de DESCONEXÃO QR Code...");
+          try {
+            await sendQRDisconnectionWebhook(userId);
+            console.log("✅ Webhook de desconexão enviado com sucesso");
+          } catch (webhookError) {
+            console.error("❌ Erro ao enviar webhook de desconexão:", webhookError);
+          }
+        }
+      }
+      
+      // Atualizar estado no cache
+      lastConnectionState[userId] = false;
+      
       return res.status(200).json({
         connected: false,
         qrCode: req.query.includeQr === 'true' ? await getQrCodeForInstance(server, instanceName, headers) : null,
@@ -145,6 +192,27 @@ export async function checkConnectionStatus(req: Request, res: Response) {
         
         if (isConnected) {
           console.log("🟢 CONECTADO (via alternativa): Estado 'open' detectado");
+          
+          // Verificar se houve mudança de estado para disparar webhook
+          const previousState = lastConnectionState[userId];
+          if (previousState !== undefined && previousState !== isConnected) {
+            console.log(`🔄 MUDANÇA DE ESTADO DETECTADA (via alternativa): ${previousState} → ${isConnected}`);
+            
+            // Estado mudou de desconectado para conectado - disparar webhook de conexão
+            if (!previousState && isConnected) {
+              console.log("📤 Disparando webhook de CONEXÃO QR Code (via alternativa)...");
+              try {
+                await sendQRConnectionWebhook(userId);
+                console.log("✅ Webhook de conexão enviado com sucesso (via alternativa)");
+              } catch (webhookError) {
+                console.error("❌ Erro ao enviar webhook de conexão (via alternativa):", webhookError);
+              }
+            }
+          }
+          
+          // Atualizar estado no cache
+          lastConnectionState[userId] = isConnected;
+          
           return res.status(200).json({
             connected: true,
             lastUpdated: new Date()
@@ -156,6 +224,26 @@ export async function checkConnectionStatus(req: Request, res: Response) {
       
       // Se chegou aqui, não conseguimos determinar o status ou não está conectado
       console.log("❌ DESCONECTADO: Não foi possível determinar o status");
+      
+      // Verificar se houve mudança de estado para disparar webhook
+      const previousState = lastConnectionState[userId];
+      if (previousState !== undefined && previousState !== false) {
+        console.log(`🔄 MUDANÇA DE ESTADO DETECTADA (erro/alternativa): ${previousState} → false`);
+        
+        // Estado mudou de conectado para desconectado - disparar webhook de desconexão
+        if (previousState && !false) {
+          console.log("📤 Disparando webhook de DESCONEXÃO QR Code (erro/alternativa)...");
+          try {
+            await sendQRDisconnectionWebhook(userId);
+            console.log("✅ Webhook de desconexão enviado com sucesso (erro/alternativa)");
+          } catch (webhookError) {
+            console.error("❌ Erro ao enviar webhook de desconexão (erro/alternativa):", webhookError);
+          }
+        }
+      }
+      
+      // Atualizar estado no cache
+      lastConnectionState[userId] = false;
       
       // Em desenvolvimento, forçar conexão para testes
       // return res.status(200).json({
@@ -170,6 +258,27 @@ export async function checkConnectionStatus(req: Request, res: Response) {
     }
   } catch (error: any) {
     console.error(`Erro geral ao verificar status:`, error);
+    
+    // Verificar se houve mudança de estado para disparar webhook mesmo em caso de erro
+    const userId = (req.user as Express.User).id;
+    const previousState = lastConnectionState[userId];
+    if (previousState !== undefined && previousState !== false) {
+      console.log(`🔄 MUDANÇA DE ESTADO DETECTADA (erro geral): ${previousState} → false`);
+      
+      // Estado mudou de conectado para desconectado - disparar webhook de desconexão
+      if (previousState && !false) {
+        console.log("📤 Disparando webhook de DESCONEXÃO QR Code (erro geral)...");
+        try {
+          await sendQRDisconnectionWebhook(userId);
+          console.log("✅ Webhook de desconexão enviado com sucesso (erro geral)");
+        } catch (webhookError) {
+          console.error("❌ Erro ao enviar webhook de desconexão (erro geral):", webhookError);
+        }
+      }
+    }
+    
+    // Atualizar estado no cache (desconectado devido ao erro)
+    lastConnectionState[userId] = false;
     
     // Em desenvolvimento, forçar conexão para testes
     // return res.status(200).json({
