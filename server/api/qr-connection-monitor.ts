@@ -10,6 +10,12 @@ import { sendQRConnectionWebhook, sendQRDisconnectionWebhook } from './qr-connec
 // Cache para armazenar o último estado de conexão de cada usuário
 const lastConnectionState: Record<number, boolean> = {};
 
+// Função para resetar cache de um usuário específico (para testes)
+function resetUserCache(userId: number) {
+  delete lastConnectionState[userId];
+  console.log(`🔄 Cache resetado para usuário ${userId}`);
+}
+
 // Função para verificar status de conexão de um usuário específico
 async function checkUserConnectionStatus(userId: number): Promise<boolean | null> {
   try {
@@ -73,13 +79,17 @@ async function checkUserConnectionStatus(userId: number): Promise<boolean | null
 
 // Função para processar mudança de estado e enviar webhook
 async function processStateChange(userId: number, previousState: boolean | undefined, currentState: boolean) {
+  console.log(`🔍 Processando estado do usuário ${userId}: ${previousState} → ${currentState}`);
+  
+  // Detectar primeira conexão ou mudança de estado
+  const firstConnection = previousState === undefined && currentState === true;
   const stateChanged = previousState !== undefined && previousState !== currentState;
   
-  if (stateChanged) {
-    console.log(`🔄 MUDANÇA DE ESTADO DETECTADA para usuário ${userId}: ${previousState} → ${currentState}`);
+  if (firstConnection || stateChanged) {
+    console.log(`🔄 EVENTO DETECTADO para usuário ${userId}: ${previousState} → ${currentState}`);
     
-    if (!previousState && currentState) {
-      // Estado mudou de desconectado para conectado - disparar webhook de conexão
+    if ((previousState === undefined || !previousState) && currentState) {
+      // Primeira conexão ou reconexão - disparar webhook de conexão
       console.log(`📤 Disparando webhook de CONEXÃO QR Code para usuário ${userId}...`);
       try {
         const success = await sendQRConnectionWebhook(userId);
@@ -105,6 +115,8 @@ async function processStateChange(userId: number, previousState: boolean | undef
         console.error(`❌ Erro ao enviar webhook de desconexão para usuário ${userId}:`, webhookError);
       }
     }
+  } else {
+    console.log(`ℹ️  Nenhuma mudança de estado relevante para usuário ${userId}`);
   }
   
   // Atualizar estado no cache
@@ -128,8 +140,21 @@ async function checkAllUserConnections() {
         const previousState = lastConnectionState[user.id];
         const currentState = await checkUserConnectionStatus(user.id);
         
-        if (currentState !== null) {
-          await processStateChange(user.id, previousState, currentState);
+        console.log(`🔍 Usuário ${user.id} (${user.username}): estado anterior = ${previousState}, estado atual = ${currentState}`);
+        
+        // Processar mudança de estado (incluindo quando currentState é null = desconectado)
+        if (currentState !== null || previousState !== undefined) {
+          const normalizedCurrentState = currentState === null ? false : currentState;
+          console.log(`🔧 Chamando processStateChange para usuário ${user.id}: ${previousState} → ${normalizedCurrentState}`);
+          
+          try {
+            await processStateChange(user.id, previousState, normalizedCurrentState);
+            console.log(`📊 Usuário ${user.id} (${user.username}): ${normalizedCurrentState ? 'CONECTADO' : 'DESCONECTADO'}`);
+          } catch (processError) {
+            console.error(`❌ Erro em processStateChange para usuário ${user.id}:`, processError);
+          }
+        } else {
+          console.log(`⏭️  Pulando processStateChange para usuário ${user.id} (currentState=${currentState}, previousState=${previousState})`);
         }
       } catch (userError) {
         console.error(`❌ Erro ao processar usuário ${user.id}:`, userError);
@@ -188,4 +213,22 @@ export function getMonitoringStatus() {
 export async function forceConnectionCheck() {
   console.log('🔄 Forçando verificação manual de conexões...');
   await checkAllUserConnections();
+}
+
+// Função para testar webhook manualmente
+export async function testWebhookForUser(userId: number) {
+  console.log(`🧪 Testando webhook para usuário ${userId}...`);
+  
+  // Resetar cache para forçar detecção de mudança
+  resetUserCache(userId);
+  
+  // Verificar status atual
+  const currentState = await checkUserConnectionStatus(userId);
+  
+  if (currentState !== null) {
+    // Simular mudança de estado (undefined → currentState irá disparar webhook)
+    await processStateChange(userId, undefined, currentState);
+  }
+  
+  return currentState;
 }
