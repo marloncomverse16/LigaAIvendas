@@ -356,5 +356,12 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Frontend corrigido**: Interface de criação de usuário agora ordena servidores por maior ocupação primeiro
 - **Balanceamento inteligente**: Sistema evita dispersão desnecessária entre múltiplos servidores subutilizados
 
-*Última atualização: 03 de julho de 2025*
-*Sistema de balanceamento de servidores otimizado e funcional*
+### 2025-07-04 - Limpeza Interface de Gerenciamento de Usuários
+- **Opções removidas do menu de ações**: Removidas "Permissões de Acesso" e "Atribuir Servidor Auto" do dropdown de três pontos
+- **Interface simplificada**: Menu de ações agora contém apenas: Editar, Ativar/Desativar Usuário, e Excluir
+- **Sistema de criação corrigido**: Validação aprimorada para suportar tanto seleção manual quanto atribuição automática de servidor
+- **Correções JavaScript**: Resolvido erro de variável inconsistente (setSelectedAgentId) que causava crashes no frontend
+- **Logs melhorados**: Sistema de debug aprimorado para acompanhar processo de criação de usuários
+
+*Última atualização: 04 de julho de 2025*
+*Interface de gerenciamento de usuários simplificada e sistema de criação estabilizado*
