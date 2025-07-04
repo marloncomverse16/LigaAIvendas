@@ -408,5 +408,17 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Colunas otimizadas**: Larguras ajustadas automaticamente para melhor visualização
 - **Compatibilidade**: Funciona para todos os usuários cadastrados no sistema
 
+### 2025-07-04 - Sistema Inteligente de Roteamento de Webhooks Cloud API
+- **Problema resolvido**: Mensagens Cloud API agora são roteadas para webhook específico
+- **Campo adicionado**: `cloudWebhookUrl` na tabela `server_ai_agents` e formulários
+- **Interface atualizada**: Novos formulários de criação/edição de agentes IA incluem campo "URL do Webhook Cloud"
+- **Lógica implementada**: Sistema prioriza `cloudWebhookUrl` para mensagens Cloud API, fallback para `webhookUrl`
+- **Query otimizada**: `COALESCE(sa.cloud_webhook_url, sa.webhook_url)` para seleção automática
+- **Logs detalhados**: Sistema mostra qual webhook está sendo usado (Cloud ou padrão)
+- **Schema atualizado**: `insertServerAiAgentSchema` inclui novo campo para validação
+- **Fluxo aprimorado**: Cloud API → Meta Webhook → Agente específico → Webhook Cloud (prioritário)
+- **Separação clara**: Webhooks gerais vs. webhooks específicos para Cloud API
+- **Compatibilidade**: Sistema funciona com agentes existentes que só possuem webhook padrão
+
 *Última atualização: 04 de julho de 2025*
-*Sistema completo de exportação Excel implementado para gestão de usuários*
+*Sistema inteligente de roteamento de webhooks Cloud API implementado*

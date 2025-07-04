@@ -192,12 +192,15 @@ async function findUserByPhoneNumberId(phoneNumberId: string) {
     console.log(`🔍 Buscando usuário para phone_number_id: ${phoneNumberId}`);
 
     // Buscar usuário que possui este phone_number_id e o agente específico associado
+    // Priorizar cloudWebhookUrl para mensagens Cloud API, fallback para webhookUrl
     const userAgentQuery = `
       SELECT 
         us.user_id,
         u.name as user_name,
         u.username as user_username,
-        sa.webhook_url as ai_agent_webhook_url,
+        COALESCE(sa.cloud_webhook_url, sa.webhook_url) as ai_agent_webhook_url,
+        sa.cloud_webhook_url,
+        sa.webhook_url,
         sa.name as ai_agent_name
       FROM user_servers us
       JOIN users u ON us.user_id = u.id
@@ -244,20 +247,36 @@ async function findUserByPhoneNumberId(phoneNumberId: string) {
         userName: fallbackRow.user_name,
         userUsername: fallbackRow.user_username,
         aiAgentWebhookUrl: null,
-        aiAgentName: null
+        aiAgentName: null,
+        cloudWebhookUrl: null,
+        webhookUrl: null
       };
     }
 
     const row = result.rows[0];
     console.log(`✅ Usuário encontrado: ${row.user_id}, AI Agent: ${row.ai_agent_name || 'Não configurado'}`);
-    console.log(`📍 Webhook URL do agente: ${row.ai_agent_webhook_url || 'Não configurado'}`);
+    
+    // Log detalhado dos webhooks disponíveis
+    if (row.cloud_webhook_url) {
+      console.log(`🌐 Webhook Cloud configurado: ${row.cloud_webhook_url}`);
+      console.log(`✅ Usando Webhook Cloud para mensagens Cloud API`);
+    } else if (row.webhook_url) {
+      console.log(`🔗 Webhook padrão disponível: ${row.webhook_url}`);
+      console.log(`⚠️ Webhook Cloud não configurado, usando webhook padrão`);
+    } else {
+      console.log(`❌ Nenhum webhook configurado no agente`);
+    }
+    
+    console.log(`📍 Webhook final selecionado: ${row.ai_agent_webhook_url || 'Não configurado'}`);
 
     return {
       userId: row.user_id,
       userName: row.user_name,
       userUsername: row.user_username,
       aiAgentWebhookUrl: row.ai_agent_webhook_url,
-      aiAgentName: row.ai_agent_name
+      aiAgentName: row.ai_agent_name,
+      cloudWebhookUrl: row.cloud_webhook_url,
+      webhookUrl: row.webhook_url
     };
 
   } catch (error) {
