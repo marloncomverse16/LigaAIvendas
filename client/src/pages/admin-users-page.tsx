@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare, User as UserIcon, Bot } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare, User as UserIcon, Bot, Download } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -961,6 +961,106 @@ export default function AdminUsersPage() {
     setDefaultAiAgentMutation.mutate(userAgentId);
   };
 
+  // Função para exportar usuários para Excel
+  const handleExportToExcel = async () => {
+    if (!users || users.length === 0) {
+      toast({
+        title: "Nenhum usuário para exportar",
+        description: "Não há usuários disponíveis para exportação.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Importar XLSX dinamicamente
+      const XLSX = await import('xlsx');
+      
+      // Preparar dados para exportação
+      const dataToExport = users.map((user) => ({
+        ID: user.id,
+        'Nome de Usuário': user.username,
+        'Email': user.email,
+        'Nome Completo': user.name || '',
+        'Empresa': user.company || '',
+        'Telefone': user.phone || '',
+        'Biografia': user.bio || '',
+        'É Admin': user.isAdmin ? 'Sim' : 'Não',
+        'Status': user.active ? 'Ativo' : 'Inativo',
+        'Tokens Disponíveis': user.availableTokens || 0,
+        'Dias para Expirar Tokens': user.tokenExpirationDays || 0,
+        'Mensalidade (R$)': user.monthlyFee || '0',
+        'Servidor ID': user.serverId || '',
+        'Acesso Dashboard': user.accessDashboard ? 'Sim' : 'Não',
+        'Acesso Leads': user.accessLeads ? 'Sim' : 'Não',
+        'Acesso Prospecção': user.accessProspecting ? 'Sim' : 'Não',
+        'Acesso Agente IA': user.accessAiAgent ? 'Sim' : 'Não',
+        'Acesso WhatsApp': user.accessWhatsapp ? 'Sim' : 'Não',
+        'Acesso Contatos': user.accessContacts ? 'Sim' : 'Não',
+        'Acesso Agendamento': user.accessScheduling ? 'Sim' : 'Não',
+        'Acesso Relatórios': user.accessReports ? 'Sim' : 'Não',
+        'Acesso Configurações': user.accessSettings ? 'Sim' : 'Não',
+        'Data de Criação': user.createdAt ? new Date(user.createdAt).toLocaleDateString('pt-BR') : ''
+      }));
+
+      // Criar workbook e worksheet
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      
+      // Adicionar worksheet ao workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Usuários');
+      
+      // Ajustar larguras das colunas
+      const columnWidths = [
+        { wch: 10 }, // ID
+        { wch: 20 }, // Nome de Usuário
+        { wch: 30 }, // Email
+        { wch: 25 }, // Nome Completo
+        { wch: 20 }, // Empresa
+        { wch: 15 }, // Telefone
+        { wch: 30 }, // Biografia
+        { wch: 10 }, // É Admin
+        { wch: 10 }, // Status
+        { wch: 15 }, // Tokens Disponíveis
+        { wch: 20 }, // Dias para Expirar Tokens
+        { wch: 15 }, // Mensalidade
+        { wch: 12 }, // Servidor ID
+        { wch: 15 }, // Acesso Dashboard
+        { wch: 12 }, // Acesso Leads
+        { wch: 15 }, // Acesso Prospecção
+        { wch: 15 }, // Acesso Agente IA
+        { wch: 15 }, // Acesso WhatsApp
+        { wch: 15 }, // Acesso Contatos
+        { wch: 18 }, // Acesso Agendamento
+        { wch: 15 }, // Acesso Relatórios
+        { wch: 18 }, // Acesso Configurações
+        { wch: 15 }  // Data de Criação
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+      
+      // Gerar nome do arquivo com data e hora
+      const now = new Date();
+      const fileName = `usuarios_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+      
+      // Fazer download do arquivo
+      XLSX.writeFile(workbook, fileName);
+      
+      toast({
+        title: "Exportação concluída",
+        description: `Arquivo ${fileName} baixado com sucesso com ${users.length} usuários.`,
+      });
+      
+    } catch (error) {
+      console.error("Erro ao exportar usuários:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os usuários para Excel.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex items-center justify-between mb-6">
@@ -972,12 +1072,22 @@ export default function AdminUsersPage() {
             Gerencie todos os usuários do sistema e suas configurações
           </p>
         </div>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleExportToExcel}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Exportar Excel
+          </Button>
           <Button 
             onClick={() => setIsCreateOpen(true)}
             className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
           >
             <Plus className="mr-2 h-4 w-4" /> Novo Usuário
           </Button>
+        </div>
         </div>
 
         <Card className="shadow-sm">

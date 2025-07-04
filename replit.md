@@ -393,5 +393,20 @@ META_WEBHOOK_VERIFY_TOKEN=...
   - **Validação**: Campo `quantosDisparosPorLead` aceita 0 como valor mínimo
 - **Objetivo**: Permitir que usuários definam suas próprias metas personalizadas desde o início
 
+### 2025-07-04 - Sistema de Exportação Excel para Usuários
+- **Nova funcionalidade**: Botão "Exportar Excel" na página de gerenciamento de usuários
+- **Localização**: Cabeçalho da página ao lado do botão "Novo Usuário"
+- **Campos exportados**: Dados completos dos usuários incluindo:
+  - Informações pessoais (ID, username, email, nome, empresa, telefone, bio)
+  - Status administrativo e de ativação
+  - Configurações de tokens e mensalidade
+  - Permissões de acesso a todos os módulos
+  - Data de criação
+- **Formato do arquivo**: Excel (.xlsx) com nome automático incluindo data e hora
+- **Biblioteca utilizada**: xlsx com importação dinâmica para otimização
+- **Tratamento de erros**: Validação de dados disponíveis e feedback ao usuário
+- **Colunas otimizadas**: Larguras ajustadas automaticamente para melhor visualização
+- **Compatibilidade**: Funciona para todos os usuários cadastrados no sistema
+
 *Última atualização: 04 de julho de 2025*
-*Sistema padronizado para inicialização com valores zero em todas as metas*
+*Sistema completo de exportação Excel implementado para gestão de usuários*
