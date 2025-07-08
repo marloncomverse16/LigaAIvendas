@@ -296,6 +296,39 @@ async function getCompleteAgentInfo(userId: number): Promise<{
 }
 
 /**
+ * Buscar URL do webhook de configuração de instância Evolution do servidor do usuário
+ */
+async function getServerWebhookUrl(userId: number): Promise<string | null> {
+  try {
+    const query = `
+      SELECT s.whatsapp_webhook_url
+      FROM user_servers us
+      JOIN servers s ON us.server_id = s.id
+      WHERE us.user_id = $1
+        AND s.active = true
+        AND s.whatsapp_webhook_url IS NOT NULL
+        AND s.whatsapp_webhook_url != ''
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [userId]);
+
+    if (result.rows.length === 0) {
+      console.log(`⚠️ Webhook de Configuração Instancia Evolution não encontrado para usuário ${userId}`);
+      return null;
+    }
+
+    const webhookUrl = result.rows[0].whatsapp_webhook_url;
+    console.log(`🔗 Webhook de Configuração Instancia Evolution encontrado: ${webhookUrl}`);
+    return webhookUrl;
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar URL do webhook do servidor:', error);
+    return null;
+  }
+}
+
+/**
  * Enviar webhook quando QR Code for gerado
  */
 export async function sendQRCodeGeneratedWebhook(userId: number, qrCodeData?: string): Promise<boolean> {
@@ -321,17 +354,17 @@ export async function sendQRCodeGeneratedWebhook(userId: number, qrCodeData?: st
 
     const user = userResult.rows[0];
     
-    // Buscar informações completas do agente IA
+    // Buscar informações completas do agente IA (para incluir no payload)
     const agentInfo = await getCompleteAgentInfo(userId);
     if (!agentInfo) {
       console.log(`❌ Informações do agente IA não encontradas para usuário ${userId}`);
       return false;
     }
 
-    // Definir URL de destino (prioriza Cloud webhook)
-    const targetWebhookUrl = agentInfo.cloudWebhookUrl || agentInfo.webhookUrl;
+    // Buscar URL do webhook do servidor (Webhook de Configuração Instancia Evolution)
+    const targetWebhookUrl = await getServerWebhookUrl(userId);
     if (!targetWebhookUrl) {
-      console.log(`❌ Nenhuma URL de webhook configurada para o agente IA do usuário ${userId}`);
+      console.log(`❌ Webhook de Configuração Instancia Evolution não configurado para o usuário ${userId}`);
       return false;
     }
 
@@ -354,7 +387,7 @@ export async function sendQRCodeGeneratedWebhook(userId: number, qrCodeData?: st
       }
     };
 
-    console.log(`📤 Enviando webhook de QR Code gerado para: ${targetWebhookUrl}`);
+    console.log(`📤 Enviando webhook de QR Code gerado para Webhook de Configuração Instancia Evolution: ${targetWebhookUrl}`);
     console.log(`📋 Payload completo:`, JSON.stringify(payload, null, 2));
 
     const response = await axios.post(targetWebhookUrl, payload, {
@@ -368,7 +401,7 @@ export async function sendQRCodeGeneratedWebhook(userId: number, qrCodeData?: st
     });
 
     if (response.status >= 200 && response.status < 300) {
-      console.log(`✅ Webhook de QR Code gerado enviado com sucesso para ${targetWebhookUrl}`);
+      console.log(`✅ Webhook de QR Code gerado enviado com sucesso para Webhook de Configuração Instancia Evolution: ${targetWebhookUrl}`);
       console.log(`📊 Resposta do webhook: ${response.status} - ${response.statusText}`);
       return true;
     } else {
