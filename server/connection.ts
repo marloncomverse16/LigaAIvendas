@@ -509,6 +509,20 @@ export async function connectWhatsApp(req: Request, res: Response) {
                 const qrCode = qrResponse.data?.qrcode || qrResponse.data?.qrCode || qrResponse.data?.base64;
                 if (qrCode) {
                   console.log(`✅ QR Code obtido com sucesso via POST!`);
+                  
+                  // Enviar webhook para agente IA quando QR Code for gerado
+                  console.log("📱 Enviando webhook de QR Code gerado via POST para agente IA...");
+                  try {
+                    const webhookSent = await sendQRCodeGeneratedWebhook(userId, qrCode);
+                    if (webhookSent) {
+                      console.log("✅ Webhook de QR Code gerado via POST enviado com sucesso");
+                    } else {
+                      console.log("⚠️ Falha ao enviar webhook de QR Code gerado via POST");
+                    }
+                  } catch (webhookError) {
+                    console.error("❌ Erro ao enviar webhook de QR Code gerado via POST:", webhookError);
+                  }
+                  
                   finalQrResult = { success: true, qrCode };
                   qrCodeObtained = true;
                   break;
@@ -529,6 +543,20 @@ export async function connectWhatsApp(req: Request, res: Response) {
                 const qrCode = qrResponse.data?.qrcode || qrResponse.data?.qrCode || qrResponse.data?.base64;
                 if (qrCode) {
                   console.log(`✅ QR Code obtido com sucesso via GET!`);
+                  
+                  // Enviar webhook para agente IA quando QR Code for gerado
+                  console.log("📱 Enviando webhook de QR Code gerado via GET para agente IA...");
+                  try {
+                    const webhookSent = await sendQRCodeGeneratedWebhook(userId, qrCode);
+                    if (webhookSent) {
+                      console.log("✅ Webhook de QR Code gerado via GET enviado com sucesso");
+                    } else {
+                      console.log("⚠️ Falha ao enviar webhook de QR Code gerado via GET");
+                    }
+                  } catch (webhookError) {
+                    console.error("❌ Erro ao enviar webhook de QR Code gerado via GET:", webhookError);
+                  }
+                  
                   finalQrResult = { success: true, qrCode };
                   qrCodeObtained = true;
                   break;

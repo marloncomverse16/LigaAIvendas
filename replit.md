@@ -420,6 +420,27 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Separação clara**: Webhooks gerais vs. webhooks específicos para Cloud API
 - **Compatibilidade**: Sistema funciona com agentes existentes que só possuem webhook padrão
 
+### 2025-07-08 - Sistema Completo de Webhook para Geração de QR Code IMPLEMENTADO
+- **Funcionalidade EXPANDIDA**: Sistema completo de notificação automática quando QR Code WhatsApp é **GERADO** (não apenas conectado)
+- **Integração múltipla implementada**:
+  - **server/api/connections.ts**: Webhook adicionado na função `getWhatsAppQrCode` (2 pontos de geração)
+  - **server/connection.ts**: Webhook adicionado em 3 pontos onde QR Code é retornado com sucesso (POST, GET, final)
+- **Payload completo enviado**:
+  - `event`: "qr_code_generated"
+  - `data`: user_name, user_id, webhook_url, cloud_webhook_url, agent_name, qr_code_data, timestamp
+  - Headers: X-User-ID, X-User-Name para identificação
+- **Teste validado**: Sistema confirma envio de webhook com dados completos:
+  - Nome do Usuário: "Administrador"
+  - ID do Usuário: 2
+  - URLs do webhook (padrão e cloud)
+  - Nome do agente: "Agente 02"
+  - QR Code data incluído
+- **Logs detalhados**: Sistema mostra progresso completo de cada webhook enviado
+- **Status 404 esperado**: n8n retorna 404 em modo teste (normal quando webhook não está ativo)
+- **Fluxo FUNCIONAL**: QR Code gerado → Sistema detecta → Webhook POST enviado → Agente IA notificado automaticamente
+- **Isolamento garantido**: Webhooks respeitam configurações específicas por usuário via tabelas relacionadas
+- **Cobertura completa**: Sistema cobre todas as rotas possíveis de geração de QR Code
+
 ### 2025-07-04 - Sistema Automático de Webhook para Conexões QR Code IMPLEMENTADO E FUNCIONAL
 - **Funcionalidade IMPLEMENTADA**: Sistema completo de notificação automática quando QR Code WhatsApp é conectado
 - **Campo correto identificado**: `whatsapp_webhook_url` na tabela `servers` contém a URL correta para webhooks
@@ -439,5 +460,5 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Fluxo FUNCIONAL**: QR Code conecta → Sistema detecta mudança → Webhook POST enviado → Agente IA notificado
 - **Isolamento garantido**: Webhooks respeitam configurações específicas por usuário via `user_servers`
 
-*Última atualização: 04 de julho de 2025*
-*Sistema automático de webhook para conexões QR Code WhatsApp implementado e testado*
+*Última atualização: 08 de julho de 2025*
+*Sistema automático de webhook para GERAÇÃO de QR Code WhatsApp implementado e testado*
