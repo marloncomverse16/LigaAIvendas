@@ -446,6 +446,17 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Sistema dinâmico VALIDADO**: Usuário pode alterar webhook URL nas configurações e sistema se adapta automaticamente
 - **Teste final Status 200 confirmado**: Sistema comprovadamente funcional enviando webhooks para URLs corretos
 
+### 2025-07-08 - Correção Crítica Campo de Busca Webhook QR Code ✅
+- **Problema identificado**: Sistema buscava webhook no campo `whatsapp_webhook_url` quando deveria buscar em `contacts_webhook_url`
+- **Mapeamento correto confirmado**:
+  - `contacts_webhook_url`: `https://webhook.primerastreadores.com/webhook/e4da7e7b-c5c1-4fea-8ea4-c843f4443c47` (correto)
+  - `whatsapp_webhook_url`: `https://n8n.primerastreadores.com/webhook-test/e4da7e7b-c5c1-4fea-8ea4-c843f4443c47` (campo diferente)
+- **Correções implementadas**:
+  - `getServerWebhookUrl()` corrigida para buscar `s.contacts_webhook_url`
+  - `getInstanceWebhookUrl()` corrigida para buscar `s.contacts_webhook_url`
+- **Resultado final**: Sistema agora envia webhooks para endereço correto com Status 200 (sucesso)
+- **Fluxo validado**: QR Code gerado → Webhook enviado para webhook.primerastreadores.com → Resposta HTTP 200 recebida
+
 ### 2025-07-04 - Sistema Automático de Webhook para Conexões QR Code IMPLEMENTADO E FUNCIONAL
 - **Funcionalidade IMPLEMENTADA**: Sistema completo de notificação automática quando QR Code WhatsApp é conectado
 - **Campo correto identificado**: `whatsapp_webhook_url` na tabela `servers` contém a URL correta para webhooks

@@ -70,13 +70,13 @@ async function getUserConnectionInfo(userId: number): Promise<QRConnectionWebhoo
 async function getInstanceWebhookUrl(userId: number): Promise<string | null> {
   try {
     const query = `
-      SELECT s.whatsapp_webhook_url
+      SELECT s.contacts_webhook_url
       FROM user_servers us
       JOIN servers s ON us.server_id = s.id
       WHERE us.user_id = $1
         AND s.active = true
-        AND s.whatsapp_webhook_url IS NOT NULL
-        AND s.whatsapp_webhook_url != ''
+        AND s.contacts_webhook_url IS NOT NULL
+        AND s.contacts_webhook_url != ''
       LIMIT 1
     `;
 
@@ -87,7 +87,7 @@ async function getInstanceWebhookUrl(userId: number): Promise<string | null> {
       return null;
     }
 
-    const webhookUrl = result.rows[0].whatsapp_webhook_url;
+    const webhookUrl = result.rows[0].contacts_webhook_url;
     console.log(`🔗 Webhook de configuração encontrado: ${webhookUrl}`);
     return webhookUrl;
 
@@ -301,13 +301,13 @@ async function getCompleteAgentInfo(userId: number): Promise<{
 async function getServerWebhookUrl(userId: number): Promise<string | null> {
   try {
     const query = `
-      SELECT s.whatsapp_webhook_url
+      SELECT s.contacts_webhook_url
       FROM user_servers us
       JOIN servers s ON us.server_id = s.id
       WHERE us.user_id = $1
         AND s.active = true
-        AND s.whatsapp_webhook_url IS NOT NULL
-        AND s.whatsapp_webhook_url != ''
+        AND s.contacts_webhook_url IS NOT NULL
+        AND s.contacts_webhook_url != ''
       LIMIT 1
     `;
 
@@ -318,7 +318,7 @@ async function getServerWebhookUrl(userId: number): Promise<string | null> {
       return null;
     }
 
-    const webhookUrl = result.rows[0].whatsapp_webhook_url;
+    const webhookUrl = result.rows[0].contacts_webhook_url;
     console.log(`🔗 Webhook de Configuração Instancia Evolution encontrado: ${webhookUrl}`);
     return webhookUrl;
 
