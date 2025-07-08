@@ -357,6 +357,21 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
         
         if (qrCode) {
           console.log(`QR Code obtido: ${qrCode.substring(0, 100)}...`);
+          
+          // Enviar webhook para agente IA quando QR Code for gerado
+          console.log("📱 Enviando webhook de QR Code gerado para agente IA...");
+          try {
+            const { sendQRCodeGeneratedWebhook } = await import('./qr-connection-webhook.js');
+            const webhookSent = await sendQRCodeGeneratedWebhook(userId, qrCode);
+            if (webhookSent) {
+              console.log("✅ Webhook de QR Code gerado enviado com sucesso");
+            } else {
+              console.log("⚠️ Falha ao enviar webhook de QR Code gerado");
+            }
+          } catch (webhookError) {
+            console.error("❌ Erro ao enviar webhook de QR Code gerado:", webhookError);
+          }
+          
           return res.status(200).json({
             success: true,
             qrCode: qrCode,
@@ -396,6 +411,21 @@ export async function getWhatsAppQrCode(req: Request, res: Response) {
         
         if (qrCode) {
           console.log(`QR Code obtido via connect: ${qrCode.substring(0, 100)}...`);
+          
+          // Enviar webhook para agente IA quando QR Code for gerado
+          console.log("📱 Enviando webhook de QR Code gerado via connect para agente IA...");
+          try {
+            const { sendQRCodeGeneratedWebhook } = await import('./qr-connection-webhook.js');
+            const webhookSent = await sendQRCodeGeneratedWebhook(userId, qrCode);
+            if (webhookSent) {
+              console.log("✅ Webhook de QR Code gerado via connect enviado com sucesso");
+            } else {
+              console.log("⚠️ Falha ao enviar webhook de QR Code gerado via connect");
+            }
+          } catch (webhookError) {
+            console.error("❌ Erro ao enviar webhook de QR Code gerado via connect:", webhookError);
+          }
+          
           return res.status(200).json({
             success: true,
             qrCode: qrCode,

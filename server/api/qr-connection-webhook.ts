@@ -254,52 +254,121 @@ export async function sendQRDisconnectionWebhook(userId: number): Promise<boolea
 }
 
 /**
+ * Buscar informações completas do agente IA para o webhook
+ */
+async function getCompleteAgentInfo(userId: number): Promise<{
+  webhookUrl: string | null;
+  cloudWebhookUrl: string | null;
+  agentName: string;
+} | null> {
+  try {
+    const query = `
+      SELECT 
+        sa.webhook_url,
+        sa.cloud_webhook_url,
+        sa.name as agent_name
+      FROM user_ai_agents ua
+      JOIN server_ai_agents sa ON ua.agent_id = sa.id
+      WHERE ua.user_id = $1
+        AND sa.active = true
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [userId]);
+
+    if (result.rows.length === 0) {
+      console.log(`⚠️ Agente IA não encontrado para usuário ${userId}`);
+      return null;
+    }
+
+    const row = result.rows[0];
+    
+    return {
+      webhookUrl: row.webhook_url,
+      cloudWebhookUrl: row.cloud_webhook_url,
+      agentName: row.agent_name || 'Agente não identificado'
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar informações do agente IA:', error);
+    return null;
+  }
+}
+
+/**
  * Enviar webhook quando QR Code for gerado
  */
 export async function sendQRCodeGeneratedWebhook(userId: number, qrCodeData?: string): Promise<boolean> {
   try {
     console.log(`📱 Iniciando envio de webhook de QR Code gerado para usuário ${userId}`);
 
-    // Buscar informações do usuário, agente e servidor
-    const connectionInfo = await getUserConnectionInfo(userId);
-    if (!connectionInfo) {
-      console.log(`❌ Não foi possível obter informações completas para o webhook`);
+    // Buscar informações do usuário
+    const userQuery = `
+      SELECT 
+        u.id as user_id,
+        u.name as user_name,
+        u.username as user_username
+      FROM users u
+      WHERE u.id = $1
+    `;
+
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      console.log(`❌ Usuário ${userId} não encontrado`);
       return false;
     }
 
-    // Buscar URL do webhook Cloud do agente IA
-    const webhookUrl = await getAIAgentCloudWebhookUrl(userId);
-    if (!webhookUrl) {
-      console.log(`❌ URL do webhook Cloud do agente IA não configurada`);
+    const user = userResult.rows[0];
+    
+    // Buscar informações completas do agente IA
+    const agentInfo = await getCompleteAgentInfo(userId);
+    if (!agentInfo) {
+      console.log(`❌ Informações do agente IA não encontradas para usuário ${userId}`);
       return false;
     }
 
+    // Definir URL de destino (prioriza Cloud webhook)
+    const targetWebhookUrl = agentInfo.cloudWebhookUrl || agentInfo.webhookUrl;
+    if (!targetWebhookUrl) {
+      console.log(`❌ Nenhuma URL de webhook configurada para o agente IA do usuário ${userId}`);
+      return false;
+    }
+
+    // Preparar payload completo com TODAS as informações solicitadas
     const payload = {
       event: 'qr_code_generated',
       data: {
-        userId: connectionInfo.userId,
-        userName: connectionInfo.userName,
-        agentName: connectionInfo.agentName,
-        serverName: connectionInfo.serverName,
-        qrCodeData: qrCodeData || null,
+        // Nome do Usuario
+        user_name: user.user_name || user.user_username || `Usuário ${userId}`,
+        // ID do Usuario
+        user_id: userId,
+        // URL do Webhook (agente)
+        webhook_url: agentInfo.webhookUrl,
+        // URL do Webhook Cloud (Agente)
+        cloud_webhook_url: agentInfo.cloudWebhookUrl,
+        // Informações adicionais
+        agent_name: agentInfo.agentName,
+        qr_code_data: qrCodeData || null,
         timestamp: new Date().toISOString()
       }
     };
 
-    console.log(`📤 Enviando webhook de QR Code gerado para: ${webhookUrl}`);
+    console.log(`📤 Enviando webhook de QR Code gerado para: ${targetWebhookUrl}`);
+    console.log(`📋 Payload completo:`, JSON.stringify(payload, null, 2));
 
-    const response = await axios.post(webhookUrl, payload, {
+    const response = await axios.post(targetWebhookUrl, payload, {
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'LigAI-QRGenerated-Webhook/1.0',
-        'X-User-ID': connectionInfo.userId.toString(),
-        'X-User-Name': connectionInfo.userName
+        'X-User-ID': userId.toString(),
+        'X-User-Name': user.user_name || user.user_username || `Usuário ${userId}`
       },
       timeout: 10000
     });
 
     if (response.status >= 200 && response.status < 300) {
-      console.log(`✅ Webhook de QR Code gerado enviado com sucesso para ${webhookUrl}`);
+      console.log(`✅ Webhook de QR Code gerado enviado com sucesso para ${targetWebhookUrl}`);
       console.log(`📊 Resposta do webhook: ${response.status} - ${response.statusText}`);
       return true;
     } else {

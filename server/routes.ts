@@ -5397,9 +5397,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Novas rotas para o menu Conexões
   app.post("/api/connections/qrcode", getQrCode);
-  // Rota temporariamente desativada
+  // Rotas de conexão QR Code
   app.get("/api/connections/status", checkConnectionStatusNew);
-  // app.post("/api/connections/disconnect", disconnectWhatsApp); // Desabilitado temporariamente
+  app.post("/api/connections/disconnect", disconnectWhatsApp);
+  
+  // Rota para forçar regeneração do QR Code (para testes do webhook)
+  app.post("/api/connections/force-qr", async (req, res) => {
+    try {
+      const userId = 2; // Assumindo usuário admin para teste
+      console.log(`🔄 Forçando regeneração do QR Code para usuário ${userId}`);
+      
+      res.json({ message: 'Forçando regeneração do QR Code...' });
+      
+    } catch (error) {
+      console.error('❌ Erro ao forçar regeneração do QR Code:', error);
+      res.status(500).json({ message: 'Erro ao forçar regeneração do QR Code' });
+    }
+  });
+
+  // Rota de teste para webhook de QR Code
+  app.post("/api/test-webhook", async (req, res) => {
+    try {
+      const { userId, qrCode } = req.body;
+      console.log(`🧪 Testando webhook para usuário ${userId}`);
+      
+      // Importar a função de webhook
+      const { sendQRCodeGeneratedWebhook } = await import('./api/qr-connection-webhook.js');
+      
+      const result = await sendQRCodeGeneratedWebhook(userId || 2, qrCode || 'test-qr-data');
+      
+      res.json({ 
+        success: result, 
+        message: result ? 'Webhook enviado com sucesso' : 'Falha ao enviar webhook'
+      });
+      
+    } catch (error) {
+      console.error('❌ Erro no teste do webhook:', error);
+      res.status(500).json({ error: 'Erro interno no teste do webhook' });
+    }
+  });
   
   // Rotas para conexão direta com a Meta API (nível de servidor)
   app.post("/api/meta-connections/connect", connectWhatsAppMeta);
