@@ -2,6 +2,7 @@ import axios from "axios";
 import { Request, Response } from "express";
 import { storage } from "./storage";
 import { EvolutionApiClient } from "./evolution-api";
+import { sendQRCodeGeneratedWebhook } from "./api/qr-connection-webhook";
 
 // Status de conexão do WhatsApp por usuário
 export const connectionStatus: Record<number, any> = {};
@@ -576,6 +577,20 @@ export async function connectWhatsApp(req: Request, res: Response) {
             };
             
             console.log(`QR code armazenado com sucesso!`);
+            
+            // Enviar webhook para agente IA quando QR Code for gerado
+            console.log("📱 Enviando webhook de QR Code gerado para agente IA...");
+            try {
+              const webhookSent = await sendQRCodeGeneratedWebhook(userId, qrResult.qrCode);
+              if (webhookSent) {
+                console.log("✅ Webhook de QR Code gerado enviado com sucesso");
+              } else {
+                console.log("⚠️ Falha ao enviar webhook de QR Code gerado");
+              }
+            } catch (webhookError) {
+              console.error("❌ Erro ao enviar webhook de QR Code gerado:", webhookError);
+            }
+            
             return res.json(connectionStatus[userId]);
           } else if (qrResult.testQrCode) {
             // Se estamos em teste, usar QR code de teste
@@ -590,6 +605,20 @@ export async function connectWhatsApp(req: Request, res: Response) {
             };
             
             console.log(`QR code de teste armazenado com sucesso!`);
+            
+            // Enviar webhook para agente IA quando QR Code de teste for gerado
+            console.log("📱 Enviando webhook de QR Code de teste gerado para agente IA...");
+            try {
+              const webhookSent = await sendQRCodeGeneratedWebhook(userId, qrResult.testQrCode);
+              if (webhookSent) {
+                console.log("✅ Webhook de QR Code de teste gerado enviado com sucesso");
+              } else {
+                console.log("⚠️ Falha ao enviar webhook de QR Code de teste gerado");
+              }
+            } catch (webhookError) {
+              console.error("❌ Erro ao enviar webhook de QR Code de teste gerado:", webhookError);
+            }
+            
             return res.json(connectionStatus[userId]);
           } else if (qrResult.connected) {
             // Se já está conectado
@@ -903,6 +932,21 @@ export async function connectWhatsApp(req: Request, res: Response) {
         }
       }, 30000);
       
+      // Enviar webhook para agente IA quando QR Code for gerado
+      if (connectionStatus[userId] && connectionStatus[userId].qrCode) {
+        console.log("📱 Enviando webhook de QR Code gerado para agente IA...");
+        try {
+          const webhookSent = await sendQRCodeGeneratedWebhook(userId, connectionStatus[userId].qrCode);
+          if (webhookSent) {
+            console.log("✅ Webhook de QR Code gerado enviado com sucesso");
+          } else {
+            console.log("⚠️ Falha ao enviar webhook de QR Code gerado");
+          }
+        } catch (webhookError) {
+          console.error("❌ Erro ao enviar webhook de QR Code gerado:", webhookError);
+        }
+      }
+      
       return res.json(connectionStatus[userId]);
     } catch (webhookError: any) {
       console.error("Erro ao chamar webhook:", webhookError.message);
@@ -920,6 +964,19 @@ export async function connectWhatsApp(req: Request, res: Response) {
           qrCode: qrCodeSample,
           lastUpdated: new Date()
         };
+        
+        // Enviar webhook para agente IA quando QR Code for gerado (fallback)
+        console.log("📱 Enviando webhook de QR Code gerado para agente IA (fallback)...");
+        try {
+          const webhookSent = await sendQRCodeGeneratedWebhook(userId, qrCodeSample);
+          if (webhookSent) {
+            console.log("✅ Webhook de QR Code gerado enviado com sucesso (fallback)");
+          } else {
+            console.log("⚠️ Falha ao enviar webhook de QR Code gerado (fallback)");
+          }
+        } catch (webhookError) {
+          console.error("❌ Erro ao enviar webhook de QR Code gerado (fallback):", webhookError);
+        }
         
         return res.json(connectionStatus[userId]);
       }

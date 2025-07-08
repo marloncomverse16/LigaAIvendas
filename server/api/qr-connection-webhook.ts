@@ -1,6 +1,6 @@
 /**
  * Sistema de webhook para notificação de conexão QR Code WhatsApp
- * Envia notificações quando um QR Code é conectado com sucesso
+ * Envia notificações quando um QR Code é conectado com sucesso ou gerado
  */
 
 import axios from 'axios';
@@ -93,6 +93,39 @@ async function getInstanceWebhookUrl(userId: number): Promise<string | null> {
 
   } catch (error) {
     console.error('❌ Erro ao buscar URL do webhook:', error);
+    return null;
+  }
+}
+
+/**
+ * Buscar URL do webhook Cloud do agente IA do usuário
+ */
+async function getAIAgentCloudWebhookUrl(userId: number): Promise<string | null> {
+  try {
+    const query = `
+      SELECT COALESCE(sa.cloud_webhook_url, sa.webhook_url) as webhook_url
+      FROM user_ai_agents ua
+      JOIN server_ai_agents sa ON ua.agent_id = sa.id
+      WHERE ua.user_id = $1
+        AND sa.active = true
+        AND (sa.cloud_webhook_url IS NOT NULL OR sa.webhook_url IS NOT NULL)
+        AND (sa.cloud_webhook_url != '' OR sa.webhook_url != '')
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [userId]);
+
+    if (result.rows.length === 0) {
+      console.log(`⚠️ URL do webhook Cloud do agente IA não encontrada para usuário ${userId}`);
+      return null;
+    }
+
+    const webhookUrl = result.rows[0].webhook_url;
+    console.log(`🔗 Webhook Cloud do agente IA encontrado: ${webhookUrl}`);
+    return webhookUrl;
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar URL do webhook Cloud do agente IA:', error);
     return null;
   }
 }
@@ -216,6 +249,73 @@ export async function sendQRDisconnectionWebhook(userId: number): Promise<boolea
 
   } catch (error) {
     console.error('❌ Erro ao enviar webhook de desconexão QR Code:', error);
+    return false;
+  }
+}
+
+/**
+ * Enviar webhook quando QR Code for gerado
+ */
+export async function sendQRCodeGeneratedWebhook(userId: number, qrCodeData?: string): Promise<boolean> {
+  try {
+    console.log(`📱 Iniciando envio de webhook de QR Code gerado para usuário ${userId}`);
+
+    // Buscar informações do usuário, agente e servidor
+    const connectionInfo = await getUserConnectionInfo(userId);
+    if (!connectionInfo) {
+      console.log(`❌ Não foi possível obter informações completas para o webhook`);
+      return false;
+    }
+
+    // Buscar URL do webhook Cloud do agente IA
+    const webhookUrl = await getAIAgentCloudWebhookUrl(userId);
+    if (!webhookUrl) {
+      console.log(`❌ URL do webhook Cloud do agente IA não configurada`);
+      return false;
+    }
+
+    const payload = {
+      event: 'qr_code_generated',
+      data: {
+        userId: connectionInfo.userId,
+        userName: connectionInfo.userName,
+        agentName: connectionInfo.agentName,
+        serverName: connectionInfo.serverName,
+        qrCodeData: qrCodeData || null,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    console.log(`📤 Enviando webhook de QR Code gerado para: ${webhookUrl}`);
+
+    const response = await axios.post(webhookUrl, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'LigAI-QRGenerated-Webhook/1.0',
+        'X-User-ID': connectionInfo.userId.toString(),
+        'X-User-Name': connectionInfo.userName
+      },
+      timeout: 10000
+    });
+
+    if (response.status >= 200 && response.status < 300) {
+      console.log(`✅ Webhook de QR Code gerado enviado com sucesso para ${webhookUrl}`);
+      console.log(`📊 Resposta do webhook: ${response.status} - ${response.statusText}`);
+      return true;
+    } else {
+      console.log(`⚠️ Webhook retornou status não esperado: ${response.status}`);
+      return false;
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao enviar webhook de QR Code gerado:', error);
+    
+    if (axios.isAxiosError(error)) {
+      console.error(`   - Status: ${error.response?.status}`);
+      console.error(`   - Mensagem: ${error.message}`);
+      console.error(`   - URL: ${error.config?.url}`);
+    }
+    
     return false;
   }
 }
