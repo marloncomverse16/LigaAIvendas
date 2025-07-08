@@ -420,32 +420,32 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Separação clara**: Webhooks gerais vs. webhooks específicos para Cloud API
 - **Compatibilidade**: Sistema funciona com agentes existentes que só possuem webhook padrão
 
-### 2025-07-08 - Sistema Completo de Webhook para Geração de QR Code IMPLEMENTADO E CORRIGIDO
+### 2025-07-08 - Sistema Completo de Webhook para Geração de QR Code IMPLEMENTADO E FUNCIONANDO
 - **Funcionalidade EXPANDIDA**: Sistema completo de notificação automática quando QR Code WhatsApp é **GERADO** (não apenas conectado)
 - **Integração múltipla implementada**:
   - **server/api/connections.ts**: Webhook adicionado na função `getWhatsAppQrCode` (2 pontos de geração)
   - **server/connection.ts**: Webhook adicionado em 3 pontos onde QR Code é retornado com sucesso (POST, GET, final)
-- **Correção crítica do webhook URL**:
-  - **Problema identificado**: Sistema usava URL incorreto do banco de dados
-  - **URL correto configurado**: `https://n8n.primerastreadores.com/webhook-test/e4da7e7b-c5c1-4fea-8ea4-c843f4443c47`
-  - **Banco atualizado**: Campo `whatsapp_webhook_url` corrigido na tabela `servers`
-  - **Função `getServerWebhookUrl`**: Busca corretamente o webhook do servidor específico do usuário
+- **Correção FINAL do webhook URL**:
+  - **Problema resolvido**: Sistema agora busca URL correto do campo "Webhook de Configuração Instancia Evolution"
+  - **URL correto configurado**: `https://webhook.primerastreadores.com/webhook/e4da7e7b-c5c1-4fea-8ea4-c843f4443c47`
+  - **Localização**: Página Gerenciar Servidores → Editar Servidor → Webhooks → "Webhook de Configuração Instancia Evolution"
+  - **Função `getServerWebhookUrl`**: Busca dinamicamente do campo `whatsapp_webhook_url` da tabela `servers`
 - **Payload completo enviado**:
   - `event`: "qr_code_generated"
   - `data`: user_name, user_id, webhook_url, cloud_webhook_url, agent_name, qr_code_data, timestamp
   - Headers: X-User-ID, X-User-Name para identificação
-- **Teste validado**: Sistema confirma envio de webhook com dados completos:
+- **Teste validado com STATUS 200 - SUCESSO**:
   - Nome do Usuário: "Administrador"
   - ID do Usuário: 2
   - URLs do webhook (padrão e cloud do agente IA)
   - Nome do agente: "Agente 02"
   - QR Code data incluído
-  - **Webhook enviado para URL correto do servidor**: n8n.primerastreadores.com
+  - **Webhook enviado e recebido com sucesso**: webhook.primerastreadores.com
 - **Logs detalhados**: Sistema mostra progresso completo de cada webhook enviado
-- **Status 404 esperado**: n8n retorna 404 em modo teste (normal quando webhook não está ativo)
-- **Fluxo FUNCIONAL**: QR Code gerado → Sistema detecta → Webhook POST enviado para servidor configurado → Agente IA notificado automaticamente
+- **Fluxo COMPLETAMENTE FUNCIONAL**: QR Code gerado → Sistema detecta → Webhook POST enviado para servidor configurado → Webhook recebido com Status 200 → Agente IA notificado automaticamente
 - **Isolamento garantido**: Webhooks respeitam configurações específicas por usuário via tabelas relacionadas
 - **Cobertura completa**: Sistema cobre todas as rotas possíveis de geração de QR Code
+- **Sistema pronto para produção**: Webhook automático funcionando com resposta 200 OK
 
 ### 2025-07-04 - Sistema Automático de Webhook para Conexões QR Code IMPLEMENTADO E FUNCIONAL
 - **Funcionalidade IMPLEMENTADA**: Sistema completo de notificação automática quando QR Code WhatsApp é conectado
