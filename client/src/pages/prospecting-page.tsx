@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Search, FilePlus2, Download, X, Edit, Trash2, CheckCircle2, AlarmClock, ArrowLeft, Upload, FileSpreadsheet, AlertCircle, FileType } from "lucide-react";
+import { Loader2, Search, FilePlus2, Download, X, Edit, Trash2, CheckCircle2, AlarmClock, ArrowLeft, Upload, FileSpreadsheet, AlertCircle, FileType, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,6 +95,10 @@ export default function ProspectingPage() {
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Estados para paginação dos resultados
+  const [currentPage, setCurrentPage] = useState(1);
+  const resultsPerPage = 10;
 
   // Query para buscar servidores do usuário
   const { data: userServers } = useQuery({
@@ -140,7 +144,11 @@ export default function ProspectingPage() {
       if (!res.ok) throw new Error("Falha ao carregar resultados de prospecção");
       return await res.json() as ProspectingResult[];
     },
-    enabled: !!activeSearch
+    enabled: !!activeSearch,
+    onSuccess: () => {
+      // Reset para primeira página quando trocar de busca
+      setCurrentPage(1);
+    }
   });
 
   // Obter o webhook de prospecção do servidor conectado
@@ -412,6 +420,30 @@ export default function ProspectingPage() {
     setActiveTab("searches");
   };
 
+  // Calcular dados paginados
+  const totalResults = results?.length || 0;
+  const totalPages = Math.ceil(totalResults / resultsPerPage);
+  const startIndex = (currentPage - 1) * resultsPerPage;
+  const endIndex = startIndex + resultsPerPage;
+  const paginatedResults = results?.slice(startIndex, endIndex) || [];
+
+  // Funções de navegação da paginação
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   // Renderizar status da busca com badge
   const renderStatus = (status: string) => {
     if (status === 'pendente') {
@@ -664,50 +696,112 @@ export default function ProspectingPage() {
                           </div>
 
                           <div className="rounded-md border">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>NOME</TableHead>
-                                  <TableHead>TELEFONE</TableHead>
-                                  <TableHead>EMAIL</TableHead>
-                                  <TableHead>ENDEREÇO</TableHead>
-                                  <TableHead>SITE</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {isLoadingResults ? (
+                            <ScrollArea className="h-[500px]">
+                              <Table>
+                                <TableHeader className="sticky top-0 bg-background">
                                   <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">
-                                      <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                                    </TableCell>
+                                    <TableHead>NOME</TableHead>
+                                    <TableHead>TELEFONE</TableHead>
+                                    <TableHead>EMAIL</TableHead>
+                                    <TableHead>ENDEREÇO</TableHead>
+                                    <TableHead>SITE</TableHead>
                                   </TableRow>
-                                ) : results && results.length > 0 ? (
-                                  results.map((result) => (
-                                    <TableRow 
-                                      key={result.id}
-                                      className="cursor-pointer hover:bg-accent"
-                                      onClick={() => {
-                                        setSelectedResult(result);
-                                        setShowResultDialog(true);
-                                      }}
-                                    >
-                                      <TableCell className="font-medium">{result.name || '-'}</TableCell>
-                                      <TableCell>{result.phone || '-'}</TableCell>
-                                      <TableCell>{result.email || '-'}</TableCell>
-                                      <TableCell className="max-w-[200px] truncate">{result.address || '-'}</TableCell>
-                                      <TableCell>{result.site || '-'}</TableCell>
+                                </TableHeader>
+                                <TableBody>
+                                  {isLoadingResults ? (
+                                    <TableRow>
+                                      <TableCell colSpan={5} className="h-24 text-center">
+                                        <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                                      </TableCell>
                                     </TableRow>
-                                  ))
-                                ) : (
-                                  <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">
-                                      Nenhum resultado encontrado para esta busca
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                              </TableBody>
-                            </Table>
+                                  ) : paginatedResults && paginatedResults.length > 0 ? (
+                                    paginatedResults.map((result) => (
+                                      <TableRow 
+                                        key={result.id}
+                                        className="cursor-pointer hover:bg-accent"
+                                        onClick={() => {
+                                          setSelectedResult(result);
+                                          setShowResultDialog(true);
+                                        }}
+                                      >
+                                        <TableCell className="font-medium">{result.name || '-'}</TableCell>
+                                        <TableCell>{result.phone || '-'}</TableCell>
+                                        <TableCell>{result.email || '-'}</TableCell>
+                                        <TableCell className="max-w-[200px] truncate">{result.address || '-'}</TableCell>
+                                        <TableCell>{result.site || '-'}</TableCell>
+                                      </TableRow>
+                                    ))
+                                  ) : (
+                                    <TableRow>
+                                      <TableCell colSpan={5} className="h-24 text-center">
+                                        Nenhum resultado encontrado para esta busca
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </TableBody>
+                              </Table>
+                            </ScrollArea>
                           </div>
+
+                          {/* Controles de Paginação */}
+                          {results && results.length > 0 && (
+                            <div className="mt-4 flex items-center justify-between px-2">
+                              <div className="text-sm text-muted-foreground">
+                                Mostrando {startIndex + 1} a {Math.min(endIndex, totalResults)} de {totalResults} resultados
+                              </div>
+                              
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={goToPreviousPage}
+                                  disabled={currentPage === 1}
+                                >
+                                  <ChevronLeft className="h-4 w-4" />
+                                  Anterior
+                                </Button>
+                                
+                                <div className="flex items-center space-x-1">
+                                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                                    let pageNumber;
+                                    if (totalPages <= 5) {
+                                      pageNumber = i + 1;
+                                    } else if (currentPage <= 3) {
+                                      pageNumber = i + 1;
+                                    } else if (currentPage >= totalPages - 2) {
+                                      pageNumber = totalPages - 4 + i;
+                                    } else {
+                                      pageNumber = currentPage - 2 + i;
+                                    }
+                                    
+                                    if (pageNumber < 1 || pageNumber > totalPages) return null;
+                                    
+                                    return (
+                                      <Button
+                                        key={pageNumber}
+                                        variant={pageNumber === currentPage ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => goToPage(pageNumber)}
+                                        className="w-8 h-8 p-0"
+                                      >
+                                        {pageNumber}
+                                      </Button>
+                                    );
+                                  }).filter(Boolean)}
+                                </div>
+                                
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={goToNextPage}
+                                  disabled={currentPage === totalPages}
+                                >
+                                  Próxima
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ) : (
