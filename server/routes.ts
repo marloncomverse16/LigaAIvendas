@@ -1765,6 +1765,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar pesquisa" });
     }
   });
+
+  // Rota para verificar status da busca (para polling frontend)
+  app.get("/api/prospecting/searches/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const searchId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar pesquisa
+      const search = await storage.getProspectingSearch(searchId);
+      
+      if (!search) {
+        return res.status(404).json({ message: "Pesquisa não encontrada" });
+      }
+      
+      // Verificar se a pesquisa pertence ao usuário
+      if (search.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Retornar apenas os dados de status necessários
+      res.json({
+        id: search.id,
+        status: search.status,
+        leadsFound: search.leadsFound || 0,
+        completedAt: search.completedAt,
+        createdAt: search.createdAt
+      });
+    } catch (error) {
+      console.error("Erro ao buscar status da pesquisa:", error);
+      res.status(500).json({ message: "Erro ao buscar status da pesquisa" });
+    }
+  });
   
   app.get("/api/prospecting/searches/:id/results", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });

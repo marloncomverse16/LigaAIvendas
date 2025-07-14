@@ -99,6 +99,11 @@ export default function ProspectingPage() {
   // Estados para paginação dos resultados
   const [currentPage, setCurrentPage] = useState(1);
   const resultsPerPage = 10;
+  
+  // Estados para controle de progresso da busca
+  const [isSearchInProgress, setIsSearchInProgress] = useState(false);
+  const [progressMessage, setProgressMessage] = useState("");
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   // Query para buscar servidores do usuário
   const { data: userServers } = useQuery({
@@ -181,27 +186,100 @@ export default function ProspectingPage() {
     }
   }, [prospectingWebhookUrl, form]);
 
+  // Limpeza quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
+
 
 
   // Mutação para criar nova busca
   const createSearchMutation = useMutation({
     mutationFn: async (data: z.infer<typeof prospectingSearchSchema>) => {
+      setIsSearchInProgress(true);
+      setProgressMessage("Iniciando busca de prospecção...");
+      
       const res = await apiRequest("POST", "/api/prospecting/searches", data);
       if (!res.ok) throw new Error("Falha ao criar busca");
       return await res.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Busca criada",
-        description: "Sua busca de prospecção foi criada com sucesso",
-      });
-      form.reset();
-      setImportFile(null);
-      setPreviewData([]);
-      setImportError(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches", user?.id] });
+    onSuccess: (data) => {
+      const searchId = data.id;
+      setProgressMessage("Busca criada! Aguardando processamento...");
+      
+      // Limpar polling anterior se existir
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+      
+      // Iniciar polling para verificar o status da busca
+      const checkSearchStatus = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/prospecting/searches/${searchId}/status`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            
+            if (statusData.status === 'concluido') {
+              clearInterval(checkSearchStatus);
+              setPollingInterval(null);
+              setIsSearchInProgress(false);
+              setProgressMessage("");
+              
+              toast({
+                title: "Busca concluída",
+                description: `${statusData.leadsFound || 0} leads encontrados com sucesso`,
+              });
+              
+              // Resetar formulário e voltar para a aba de buscas
+              form.reset();
+              setImportFile(null);
+              setPreviewData([]);
+              setImportError(null);
+              setActiveTab("searches");
+              queryClient.invalidateQueries({ queryKey: ["/api/prospecting/searches", user?.id] });
+            } else if (statusData.status === 'em_andamento') {
+              setProgressMessage(`Processando... ${statusData.leadsFound || 0} leads encontrados até agora`);
+            } else if (statusData.status === 'erro') {
+              clearInterval(checkSearchStatus);
+              setPollingInterval(null);
+              setIsSearchInProgress(false);
+              setProgressMessage("");
+              
+              toast({
+                title: "Erro na busca",
+                description: "Ocorreu um erro durante o processamento. Verifique a lista de buscas.",
+                variant: "destructive",
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao verificar status da busca:", error);
+        }
+      }, 3000); // Verificar a cada 3 segundos
+      
+      // Armazenar o intervalo para limpeza posterior
+      setPollingInterval(checkSearchStatus);
+      
+      // Timeout de segurança para parar o polling após 10 minutos
+      setTimeout(() => {
+        clearInterval(checkSearchStatus);
+        setPollingInterval(null);
+        setIsSearchInProgress(false);
+        setProgressMessage("");
+        toast({
+          title: "Timeout da busca",
+          description: "A busca pode estar demorando mais que o esperado. Verifique a lista de buscas.",
+          variant: "destructive",
+        });
+      }, 600000); // 10 minutos
     },
     onError: (error) => {
+      setIsSearchInProgress(false);
+      setProgressMessage("");
       toast({
         title: "Erro ao criar busca",
         description: error.message,
@@ -213,6 +291,9 @@ export default function ProspectingPage() {
   // Mutação para importar arquivo CSV/Excel
   const importListMutation = useMutation({
     mutationFn: async (formData: FormData) => {
+      setIsSearchInProgress(true);
+      setProgressMessage("Iniciando importação de lista...");
+      
       const res = await fetch("/api/prospecting/import", {
         method: "POST",
         body: formData,
@@ -224,6 +305,9 @@ export default function ProspectingPage() {
       return await res.json();
     },
     onSuccess: (data) => {
+      setIsSearchInProgress(false);
+      setProgressMessage("");
+      
       toast({
         title: "Lista importada",
         description: `${data.leadsFound} leads importados com sucesso`,
@@ -235,6 +319,9 @@ export default function ProspectingPage() {
       setActiveTab("searches");
     },
     onError: (error) => {
+      setIsSearchInProgress(false);
+      setProgressMessage("");
+      
       toast({
         title: "Erro ao importar lista",
         description: error.message,
@@ -957,6 +1044,18 @@ export default function ProspectingPage() {
                             />
                           </div>
           
+                          {/* Interface de Progresso */}
+                          {isSearchInProgress && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                              <div className="flex items-center justify-center mb-2">
+                                <Loader2 className="h-5 w-5 animate-spin text-blue-600 mr-2" />
+                                <span className="text-blue-700 font-medium">Processando busca de prospecção</span>
+                              </div>
+                              <p className="text-sm text-blue-600">{progressMessage}</p>
+                              <p className="text-xs text-blue-500 mt-1">Esta operação pode demorar alguns minutos...</p>
+                            </div>
+                          )}
+          
                           <div className="flex justify-center pt-4">
                             <div className="flex flex-col md:flex-row gap-4 w-full md:w-3/4 mx-auto">
                               <Button 
@@ -971,11 +1070,11 @@ export default function ProspectingPage() {
                               
                               <Button 
                                 type="submit" 
-                                disabled={createSearchMutation.isPending}
+                                disabled={createSearchMutation.isPending || isSearchInProgress}
                                 className="w-full bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                                 size="lg"
                               >
-                                {createSearchMutation.isPending ? (
+                                {createSearchMutation.isPending || isSearchInProgress ? (
                                   <>
                                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                     Processando...
@@ -1099,6 +1198,18 @@ export default function ProspectingPage() {
                               </Alert>
                             </div>
 
+                            {/* Interface de Progresso para Importação */}
+                            {isSearchInProgress && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                                <div className="flex items-center justify-center mb-2">
+                                  <Loader2 className="h-5 w-5 animate-spin text-blue-600 mr-2" />
+                                  <span className="text-blue-700 font-medium">Processando importação</span>
+                                </div>
+                                <p className="text-sm text-blue-600">{progressMessage}</p>
+                                <p className="text-xs text-blue-500 mt-1">Esta operação pode demorar alguns minutos...</p>
+                              </div>
+                            )}
+
                             <div className="flex justify-center pt-4">
                               <div className="flex flex-col md:flex-row gap-4 w-full md:w-3/4 mx-auto">
                                 <Button 
@@ -1117,11 +1228,11 @@ export default function ProspectingPage() {
                                 
                                 <Button 
                                   type="submit" 
-                                  disabled={importListMutation.isPending || !importFile}
+                                  disabled={importListMutation.isPending || isSearchInProgress || !importFile}
                                   className="w-full bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
                                   size="lg"
                                 >
-                                  {importListMutation.isPending ? (
+                                  {importListMutation.isPending || isSearchInProgress ? (
                                     <>
                                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                       Importando...
