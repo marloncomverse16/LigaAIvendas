@@ -547,6 +547,12 @@ export const messageSendingHistory = pgTable("message_sending_history", {
   webhookUrl: text("webhook_url"), // Para envios via webhook
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
+  
+  // Campos para sistema de parada de emergência
+  emergencyStop: boolean("emergency_stop").default(false),
+  stoppedAt: timestamp("stopped_at"),
+  stoppedByUserId: integer("stopped_by_user_id").references(() => users.id),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
 });
@@ -587,6 +593,9 @@ export const insertMessageSendingHistorySchema = createInsertSchema(messageSendi
   connectionType: true,
   totalRecipients: true,
   webhookUrl: true,
+  emergencyStop: true,
+  stoppedAt: true,
+  stoppedByUserId: true,
 });
 
 // Types

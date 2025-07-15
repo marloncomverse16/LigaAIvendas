@@ -1443,6 +1443,34 @@ const SendingList = () => {
     },
   });
   
+  // Mutação para parar envio de emergência
+  const emergencyStopMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("PUT", `/api/message-sending-history/${id}/emergency-stop`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Erro ao parar envio de emergência");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "⛔ ENVIO PARADO COM SUCESSO",
+        description: "O envio foi marcado para parada de emergência. O N8N não processará mais mensagens deste envio.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/message-sendings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/message-sending-history"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao parar envio de emergência",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Buscar histórico de envio para um envio específico
   const { data: sendingHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["/api/message-sending-history", selectedSending],
@@ -1536,6 +1564,7 @@ const SendingList = () => {
                     <TableHead>Tipo Conexão</TableHead>
                     <TableHead>Destinatários</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1567,6 +1596,7 @@ const SendingList = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button
@@ -1645,6 +1675,23 @@ const SendingList = () => {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
+                        
+                        {/* Botão de parada de emergência - apenas para envios pendentes ou em andamento */}
+                        {(sending.status === "pendente" || sending.status === "em_andamento") && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              if (window.confirm("⛔ ATENÇÃO: Tem certeza que deseja PARAR este envio de emergência? Esta ação não pode ser desfeita.")) {
+                                emergencyStopMutation.mutate(sending.id);
+                              }
+                            }}
+                            disabled={emergencyStopMutation.isPending}
+                          >
+                            {emergencyStopMutation.isPending ? "Parando..." : "⛔ PARAR"}
+                          </Button>
+                        )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

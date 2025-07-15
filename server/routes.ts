@@ -2810,6 +2810,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/message-sending-history", createMessageSendingHistory);
   app.put("/api/message-sending-history/:id", updateMessageSendingHistory);
   
+  // Rota para parar envio de emergência
+  app.put("/api/message-sending-history/:id/emergency-stop", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const sendingId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      console.log(`⛔ EMERGENCY STOP solicitado pelo usuário ${userId} para envio ${sendingId}`);
+      
+      // Verificar se o envio existe e pertence ao usuário (ou é admin)
+      const result = await pool.query(`
+        SELECT id, user_id, status, emergency_stop 
+        FROM message_sending_history 
+        WHERE id = $1
+      `, [sendingId]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Envio não encontrado" });
+      }
+      
+      const sending = result.rows[0];
+      
+      // Verificar permissões (proprietário ou admin)
+      if (sending.user_id !== userId && !(req.user as Express.User).isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Verificar se já está parado
+      if (sending.emergency_stop) {
+        return res.status(400).json({ 
+          message: "Este envio já foi parado anteriormente",
+          stoppedAt: sending.stopped_at 
+        });
+      }
+      
+      // Atualizar registro para parar o envio
+      const updateResult = await pool.query(`
+        UPDATE message_sending_history 
+        SET 
+          emergency_stop = true,
+          stopped_at = NOW(),
+          stopped_by_user_id = $1,
+          status = CASE 
+            WHEN status = 'pendente' THEN 'parado_emergencia'
+            WHEN status = 'em_andamento' THEN 'parado_emergencia'
+            ELSE status
+          END,
+          updated_at = NOW()
+        WHERE id = $2
+        RETURNING id, status, emergency_stop, stopped_at, stopped_by_user_id
+      `, [userId, sendingId]);
+      
+      const updatedSending = updateResult.rows[0];
+      
+      console.log(`✅ EMERGENCY STOP aplicado ao envio ${sendingId}:`, updatedSending);
+      
+      res.json({
+        success: true,
+        message: "Envio parado com sucesso",
+        data: {
+          id: updatedSending.id,
+          status: updatedSending.status,
+          emergencyStop: updatedSending.emergency_stop,
+          stoppedAt: updatedSending.stopped_at,
+          stoppedByUserId: updatedSending.stopped_by_user_id
+        }
+      });
+      
+    } catch (error) {
+      console.error("❌ Erro ao parar envio de emergência:", error);
+      res.status(500).json({ message: "Erro ao parar envio de emergência" });
+    }
+  });
+  
+  // Rota para N8N verificar status de emergência
+  app.get("/api/message-sending-history/:id/emergency-status", async (req, res) => {
+    try {
+      const sendingId = parseInt(req.params.id);
+      
+      console.log(`🔍 Verificando status de emergência para envio ${sendingId}`);
+      
+      const result = await pool.query(`
+        SELECT 
+          id, 
+          emergency_stop, 
+          status, 
+          stopped_at,
+          stopped_by_user_id
+        FROM message_sending_history 
+        WHERE id = $1
+      `, [sendingId]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ 
+          error: "Envio não encontrado",
+          emergencyStop: false
+        });
+      }
+      
+      const sending = result.rows[0];
+      
+      console.log(`📊 Status de emergência para envio ${sendingId}:`, {
+        emergencyStop: sending.emergency_stop,
+        status: sending.status,
+        stoppedAt: sending.stopped_at
+      });
+      
+      res.json({
+        sendingId: sending.id,
+        emergencyStop: sending.emergency_stop || false,
+        status: sending.status,
+        stoppedAt: sending.stopped_at,
+        stoppedByUserId: sending.stopped_by_user_id,
+        message: sending.emergency_stop ? "⛔ ENVIO PARADO POR EMERGÊNCIA" : "✅ Envio liberado para continuar"
+      });
+      
+    } catch (error) {
+      console.error("❌ Erro ao verificar status de emergência:", error);
+      res.status(500).json({ 
+        error: "Erro ao verificar status de emergência",
+        emergencyStop: false 
+      });
+    }
+  });
+  
   // WhatsApp API Routes
   // Endpoint direto para obter contatos do WhatsApp (alternativa robusta)
   app.get("/api/chat/direct-contacts", getWhatsAppContacts);
