@@ -966,20 +966,19 @@ export default function ProspectingPage() {
                             </div>
                           </div>
 
-                          <div className="rounded-md border overflow-auto">
-                            <ScrollArea className="h-[500px] w-full">
-                              <div className="min-w-[1000px]">
-                                <Table>
-                                  <TableHeader className="sticky top-0 bg-background">
-                                    <TableRow>
-                                      <TableHead className="w-[200px]">NOME</TableHead>
-                                      <TableHead className="w-[150px]">TELEFONE</TableHead>
-                                      <TableHead className="w-[200px]">EMAIL</TableHead>
-                                      <TableHead className="w-[250px]">ENDEREÇO</TableHead>
-                                      <TableHead className="w-[150px]">SITE</TableHead>
-                                      <TableHead className="w-[100px] text-center">AÇÕES</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
+                          <div className="w-full border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                              <Table className="min-w-[1200px]">
+                                <TableHeader className="sticky top-0 bg-background">
+                                  <TableRow>
+                                    <TableHead className="w-[200px]">NOME</TableHead>
+                                    <TableHead className="w-[150px]">TELEFONE</TableHead>
+                                    <TableHead className="w-[200px]">EMAIL</TableHead>
+                                    <TableHead className="w-[300px]">ENDEREÇO</TableHead>
+                                    <TableHead className="w-[200px]">SITE</TableHead>
+                                    <TableHead className="w-[150px] text-center">AÇÕES</TableHead>
+                                  </TableRow>
+                                </TableHeader>
                                 <TableBody>
                                   {isLoadingResults ? (
                                     <TableRow>
@@ -1082,9 +1081,8 @@ export default function ProspectingPage() {
                                     </TableRow>
                                   )}
                                 </TableBody>
-                                </Table>
-                              </div>
-                            </ScrollArea>
+                              </Table>
+                            </div>
                           </div>
 
                           {/* Controles de Paginação */}
