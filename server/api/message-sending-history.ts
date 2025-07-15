@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../db";
 import { messageSendingHistory, insertMessageSendingHistorySchema } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 /**
  * Cria um novo registro de histórico de envio de mensagens
@@ -86,10 +86,14 @@ export async function listMessageSendingHistory(req: Request, res: Response) {
   if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
   
   try {
+    console.log(`📋 Buscando histórico de envios para usuário ${req.user.id}`);
+    
     const history = await db.select()
       .from(messageSendingHistory)
       .where(eq(messageSendingHistory.userId, req.user.id))
-      .orderBy(messageSendingHistory.createdAt);
+      .orderBy(desc(messageSendingHistory.createdAt));
+    
+    console.log(`✅ Histórico encontrado: ${history.length} registros`);
     
     return res.json(history);
   } catch (error) {
