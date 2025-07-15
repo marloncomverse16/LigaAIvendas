@@ -968,172 +968,198 @@ export default function ProspectingPage() {
                           </div>
 
                           <div className="w-full border rounded-lg overflow-hidden">
-                            <div className="h-[600px] overflow-hidden">
-                              <PanelGroup direction="horizontal" className="min-h-full">
-                                {/* Cabeçalho da tabela */}
-                                <div className="sticky top-0 z-10 bg-background border-b">
-                                  <PanelGroup direction="horizontal" className="h-12">
+                            <div className="h-[600px] flex flex-col">
+                              {/* Cabeçalho da tabela com colunas redimensionáveis */}
+                              <div className="border-b bg-background">
+                                <PanelGroup direction="horizontal" className="h-12">
+                                  <Panel defaultSize={25} minSize={15}>
+                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
+                                      NOME
+                                    </div>
+                                  </Panel>
+                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
+                                  <Panel defaultSize={15} minSize={10}>
+                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
+                                      TELEFONE
+                                    </div>
+                                  </Panel>
+                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
+                                  <Panel defaultSize={20} minSize={15}>
+                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
+                                      EMAIL
+                                    </div>
+                                  </Panel>
+                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
+                                  <Panel defaultSize={25} minSize={20}>
+                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
+                                      ENDEREÇO
+                                    </div>
+                                  </Panel>
+                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
+                                  <Panel defaultSize={10} minSize={8}>
+                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
+                                      SITE
+                                    </div>
+                                  </Panel>
+                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
+                                  <Panel defaultSize={5} minSize={12}>
+                                    <div className="h-full flex items-center justify-center px-4 font-medium bg-muted/50">
+                                      AÇÕES
+                                    </div>
+                                  </Panel>
+                                </PanelGroup>
+                              </div>
+
+                              {/* Conteúdo da tabela com scroll */}
+                              <div className="flex-1 overflow-y-auto">
+                                {isLoadingResults ? (
+                                  <div className="h-24 flex items-center justify-center">
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                  </div>
+                                ) : paginatedResults && paginatedResults.length > 0 ? (
+                                  <PanelGroup direction="horizontal" className="min-h-full">
                                     <Panel defaultSize={25} minSize={15}>
-                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
-                                        NOME
+                                      <div className="border-r">
+                                        {paginatedResults.map((result, index) => (
+                                          <div 
+                                            key={`name-${result.id}`}
+                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
+                                            onClick={() => {
+                                              setSelectedResult(result);
+                                              setShowResultDialog(true);
+                                            }}
+                                            title={result.name || '-'}
+                                          >
+                                            {result.name || '-'}
+                                          </div>
+                                        ))}
                                       </div>
                                     </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
                                     <Panel defaultSize={15} minSize={10}>
-                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
-                                        TELEFONE
+                                      <div className="border-r">
+                                        {paginatedResults.map((result, index) => (
+                                          <div 
+                                            key={`phone-${result.id}`}
+                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
+                                            onClick={() => {
+                                              setSelectedResult(result);
+                                              setShowResultDialog(true);
+                                            }}
+                                            title={result.phone || '-'}
+                                          >
+                                            {result.phone || '-'}
+                                          </div>
+                                        ))}
                                       </div>
                                     </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
                                     <Panel defaultSize={20} minSize={15}>
-                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
-                                        EMAIL
+                                      <div className="border-r">
+                                        {paginatedResults.map((result, index) => (
+                                          <div 
+                                            key={`email-${result.id}`}
+                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
+                                            onClick={() => {
+                                              setSelectedResult(result);
+                                              setShowResultDialog(true);
+                                            }}
+                                            title={result.email || '-'}
+                                          >
+                                            {result.email || '-'}
+                                          </div>
+                                        ))}
                                       </div>
                                     </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
                                     <Panel defaultSize={25} minSize={20}>
-                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
-                                        ENDEREÇO
+                                      <div className="border-r">
+                                        {paginatedResults.map((result, index) => (
+                                          <div 
+                                            key={`address-${result.id}`}
+                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
+                                            onClick={() => {
+                                              setSelectedResult(result);
+                                              setShowResultDialog(true);
+                                            }}
+                                            title={result.address || '-'}
+                                          >
+                                            {result.address || '-'}
+                                          </div>
+                                        ))}
                                       </div>
                                     </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
                                     <Panel defaultSize={10} minSize={8}>
-                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
-                                        SITE
+                                      <div className="border-r">
+                                        {paginatedResults.map((result, index) => (
+                                          <div 
+                                            key={`site-${result.id}`}
+                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
+                                            onClick={() => {
+                                              setSelectedResult(result);
+                                              setShowResultDialog(true);
+                                            }}
+                                            title={result.site || '-'}
+                                          >
+                                            {result.site || '-'}
+                                          </div>
+                                        ))}
                                       </div>
                                     </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
                                     <Panel defaultSize={5} minSize={12}>
-                                      <div className="h-full flex items-center justify-center px-4 font-medium">
-                                        AÇÕES
+                                      <div>
+                                        {paginatedResults.map((result, index) => (
+                                          <div 
+                                            key={`actions-${result.id}`}
+                                            className={`h-16 flex items-center justify-center px-2 gap-1 border-b ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
+                                          >
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                startEditProspect(result);
+                                              }}
+                                              title="Editar prospecto"
+                                              className="h-8 w-8 p-0"
+                                            >
+                                              <Edit className="h-3 w-3" />
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                deleteProspect(result.id);
+                                              }}
+                                              title="Excluir prospecto"
+                                              disabled={deleteProspectMutation.isPending}
+                                              className="h-8 w-8 p-0"
+                                            >
+                                              {deleteProspectMutation.isPending ? (
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                              ) : (
+                                                <Trash2 className="h-3 w-3" />
+                                              )}
+                                            </Button>
+                                          </div>
+                                        ))}
                                       </div>
                                     </Panel>
                                   </PanelGroup>
-                                </div>
-
-                                {/* Conteúdo da tabela com scroll */}
-                                <div className="flex-1 overflow-y-auto">
-                                  {isLoadingResults ? (
-                                    <div className="h-24 flex items-center justify-center">
-                                      <Loader2 className="h-5 w-5 animate-spin" />
+                                ) : (
+                                  <div className="h-24 flex items-center justify-center">
+                                    <div className="text-center text-muted-foreground">
+                                      {prospectFilter || cityFilter || typeFilter 
+                                        ? "Nenhum resultado encontrado com os filtros aplicados" 
+                                        : "Nenhum resultado encontrado para esta busca"
+                                      }
                                     </div>
-                                  ) : paginatedResults && paginatedResults.length > 0 ? (
-                                    paginatedResults.map((result, index) => (
-                                      <div key={result.id} className={`border-b hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/50'}`}>
-                                        <PanelGroup direction="horizontal" className="h-16">
-                                          <Panel defaultSize={25} minSize={15}>
-                                            <div 
-                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
-                                              onClick={() => {
-                                                setSelectedResult(result);
-                                                setShowResultDialog(true);
-                                              }}
-                                              title={result.name || '-'}
-                                            >
-                                              {result.name || '-'}
-                                            </div>
-                                          </Panel>
-                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
-                                          <Panel defaultSize={15} minSize={10}>
-                                            <div 
-                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
-                                              onClick={() => {
-                                                setSelectedResult(result);
-                                                setShowResultDialog(true);
-                                              }}
-                                              title={result.phone || '-'}
-                                            >
-                                              {result.phone || '-'}
-                                            </div>
-                                          </Panel>
-                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
-                                          <Panel defaultSize={20} minSize={15}>
-                                            <div 
-                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
-                                              onClick={() => {
-                                                setSelectedResult(result);
-                                                setShowResultDialog(true);
-                                              }}
-                                              title={result.email || '-'}
-                                            >
-                                              {result.email || '-'}
-                                            </div>
-                                          </Panel>
-                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
-                                          <Panel defaultSize={25} minSize={20}>
-                                            <div 
-                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
-                                              onClick={() => {
-                                                setSelectedResult(result);
-                                                setShowResultDialog(true);
-                                              }}
-                                              title={result.address || '-'}
-                                            >
-                                              {result.address || '-'}
-                                            </div>
-                                          </Panel>
-                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
-                                          <Panel defaultSize={10} minSize={8}>
-                                            <div 
-                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
-                                              onClick={() => {
-                                                setSelectedResult(result);
-                                                setShowResultDialog(true);
-                                              }}
-                                              title={result.site || '-'}
-                                            >
-                                              {result.site || '-'}
-                                            </div>
-                                          </Panel>
-                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
-                                          <Panel defaultSize={5} minSize={12}>
-                                            <div className="h-full flex items-center justify-center px-2 gap-1">
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  startEditProspect(result);
-                                                }}
-                                                title="Editar prospecto"
-                                                className="h-8 w-8 p-0"
-                                              >
-                                                <Edit className="h-3 w-3" />
-                                              </Button>
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  deleteProspect(result.id);
-                                                }}
-                                                title="Excluir prospecto"
-                                                disabled={deleteProspectMutation.isPending}
-                                                className="h-8 w-8 p-0"
-                                              >
-                                                {deleteProspectMutation.isPending ? (
-                                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                                ) : (
-                                                  <Trash2 className="h-3 w-3" />
-                                                )}
-                                              </Button>
-                                            </div>
-                                          </Panel>
-                                        </PanelGroup>
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <div className="h-24 flex items-center justify-center">
-                                      <div className="text-center text-muted-foreground">
-                                        {prospectFilter || cityFilter || typeFilter 
-                                          ? "Nenhum resultado encontrado com os filtros aplicados" 
-                                          : "Nenhum resultado encontrado para esta busca"
-                                        }
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </PanelGroup>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
 
