@@ -16,7 +16,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -110,16 +109,6 @@ export default function ProspectingPage() {
   const [prospectFilter, setProspectFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-  
-  // Estados para controle de larguras das colunas
-  const [columnWidths, setColumnWidths] = useState({
-    name: 200,
-    phone: 150,
-    email: 200,
-    address: 300,
-    site: 200,
-    actions: 150
-  });
   
   // Estados para edição/exclusão
   const [editingProspect, setEditingProspect] = useState<ProspectingResult | null>(null);
@@ -977,133 +966,17 @@ export default function ProspectingPage() {
                             </div>
                           </div>
 
-                          {/* Controles de Espaçamento das Colunas */}
-                          <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                            <h4 className="text-sm font-semibold mb-3 text-blue-800">Ajustar Espaçamento das Colunas</h4>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                              <div className="space-y-2">
-                                <Label className="text-xs text-blue-700">Nome ({columnWidths.name}px)</Label>
-                                <Slider
-                                  value={[columnWidths.name]}
-                                  onValueChange={(value) => 
-                                    setColumnWidths(prev => ({ ...prev, name: value[0] }))
-                                  }
-                                  max={400}
-                                  min={100}
-                                  step={10}
-                                  className="w-full"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs text-blue-700">Telefone ({columnWidths.phone}px)</Label>
-                                <Slider
-                                  value={[columnWidths.phone]}
-                                  onValueChange={(value) => 
-                                    setColumnWidths(prev => ({ ...prev, phone: value[0] }))
-                                  }
-                                  max={200}
-                                  min={100}
-                                  step={10}
-                                  className="w-full"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs text-blue-700">Email ({columnWidths.email}px)</Label>
-                                <Slider
-                                  value={[columnWidths.email]}
-                                  onValueChange={(value) => 
-                                    setColumnWidths(prev => ({ ...prev, email: value[0] }))
-                                  }
-                                  max={300}
-                                  min={150}
-                                  step={10}
-                                  className="w-full"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs text-blue-700">Endereço ({columnWidths.address}px)</Label>
-                                <Slider
-                                  value={[columnWidths.address]}
-                                  onValueChange={(value) => 
-                                    setColumnWidths(prev => ({ ...prev, address: value[0] }))
-                                  }
-                                  max={500}
-                                  min={200}
-                                  step={10}
-                                  className="w-full"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs text-blue-700">Site ({columnWidths.site}px)</Label>
-                                <Slider
-                                  value={[columnWidths.site]}
-                                  onValueChange={(value) => 
-                                    setColumnWidths(prev => ({ ...prev, site: value[0] }))
-                                  }
-                                  max={300}
-                                  min={150}
-                                  step={10}
-                                  className="w-full"
-                                />
-                              </div>
-                            </div>
-                            <div className="mt-3 flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setColumnWidths({
-                                  name: 200,
-                                  phone: 150,
-                                  email: 200,
-                                  address: 300,
-                                  site: 200,
-                                  actions: 150
-                                })}
-                              >
-                                Resetar Padrão
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setColumnWidths({
-                                  name: 250,
-                                  phone: 180,
-                                  email: 250,
-                                  address: 400,
-                                  site: 250,
-                                  actions: 150
-                                })}
-                              >
-                                Espaçamento Amplo
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setColumnWidths({
-                                  name: 150,
-                                  phone: 120,
-                                  email: 150,
-                                  address: 200,
-                                  site: 150,
-                                  actions: 150
-                                })}
-                              >
-                                Espaçamento Compacto
-                              </Button>
-                            </div>
-                          </div>
-
                           <div className="w-full border rounded-lg overflow-hidden">
                             <div className="overflow-x-auto">
-                              <Table style={{ minWidth: Object.values(columnWidths).reduce((a, b) => a + b, 0) + 'px' }}>
+                              <Table className="min-w-[1200px]">
                                 <TableHeader className="sticky top-0 bg-background">
                                   <TableRow>
-                                    <TableHead style={{ width: columnWidths.name + 'px' }}>NOME</TableHead>
-                                    <TableHead style={{ width: columnWidths.phone + 'px' }}>TELEFONE</TableHead>
-                                    <TableHead style={{ width: columnWidths.email + 'px' }}>EMAIL</TableHead>
-                                    <TableHead style={{ width: columnWidths.address + 'px' }}>ENDEREÇO</TableHead>
-                                    <TableHead style={{ width: columnWidths.site + 'px' }}>SITE</TableHead>
-                                    <TableHead style={{ width: columnWidths.actions + 'px' }} className="text-center">AÇÕES</TableHead>
+                                    <TableHead className="w-[200px]">NOME</TableHead>
+                                    <TableHead className="w-[150px]">TELEFONE</TableHead>
+                                    <TableHead className="w-[200px]">EMAIL</TableHead>
+                                    <TableHead className="w-[300px]">ENDEREÇO</TableHead>
+                                    <TableHead className="w-[200px]">SITE</TableHead>
+                                    <TableHead className="w-[150px] text-center">AÇÕES</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1120,8 +993,7 @@ export default function ProspectingPage() {
                                         className="hover:bg-accent"
                                       >
                                         <TableCell 
-                                          className="font-medium cursor-pointer truncate"
-                                          style={{ width: columnWidths.name + 'px' }}
+                                          className="font-medium cursor-pointer"
                                           onClick={() => {
                                             setSelectedResult(result);
                                             setShowResultDialog(true);
@@ -1130,8 +1002,7 @@ export default function ProspectingPage() {
                                           {result.name || '-'}
                                         </TableCell>
                                         <TableCell 
-                                          className="cursor-pointer truncate"
-                                          style={{ width: columnWidths.phone + 'px' }}
+                                          className="cursor-pointer"
                                           onClick={() => {
                                             setSelectedResult(result);
                                             setShowResultDialog(true);
@@ -1140,8 +1011,7 @@ export default function ProspectingPage() {
                                           {result.phone || '-'}
                                         </TableCell>
                                         <TableCell 
-                                          className="cursor-pointer truncate"
-                                          style={{ width: columnWidths.email + 'px' }}
+                                          className="cursor-pointer"
                                           onClick={() => {
                                             setSelectedResult(result);
                                             setShowResultDialog(true);
@@ -1150,8 +1020,7 @@ export default function ProspectingPage() {
                                           {result.email || '-'}
                                         </TableCell>
                                         <TableCell 
-                                          className="truncate cursor-pointer"
-                                          style={{ width: columnWidths.address + 'px' }}
+                                          className="max-w-[200px] truncate cursor-pointer"
                                           onClick={() => {
                                             setSelectedResult(result);
                                             setShowResultDialog(true);
@@ -1160,8 +1029,7 @@ export default function ProspectingPage() {
                                           {result.address || '-'}
                                         </TableCell>
                                         <TableCell 
-                                          className="cursor-pointer truncate"
-                                          style={{ width: columnWidths.site + 'px' }}
+                                          className="cursor-pointer"
                                           onClick={() => {
                                             setSelectedResult(result);
                                             setShowResultDialog(true);
@@ -1169,7 +1037,7 @@ export default function ProspectingPage() {
                                         >
                                           {result.site || '-'}
                                         </TableCell>
-                                        <TableCell style={{ width: columnWidths.actions + 'px' }}>
+                                        <TableCell>
                                           <div className="flex gap-2">
                                             <Button
                                               variant="outline"
