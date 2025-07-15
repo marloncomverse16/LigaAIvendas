@@ -45,6 +45,7 @@ const serverFormSchema = z.object({
   contactsWebhookUrl: z.string().nullable().optional(),
   schedulingWebhookUrl: z.string().nullable().optional(),
   crmWebhookUrl: z.string().nullable().optional(),
+  messageSendingWebhookUrl: z.string().nullable().optional(),
 
   active: z.boolean().default(true),
 });
@@ -79,6 +80,7 @@ interface Server {
   contactsWebhookUrl: string | null;
   schedulingWebhookUrl: string | null;
   crmWebhookUrl: string | null;
+  messageSendingWebhookUrl: string | null;
 
   maxUsers: number;
   active: boolean | null;
@@ -631,6 +633,7 @@ export default function ServerManagementPage() {
       contactsWebhookUrl: server.contactsWebhookUrl || "",
       schedulingWebhookUrl: server.schedulingWebhookUrl || "",
       crmWebhookUrl: server.crmWebhookUrl || "",
+      messageSendingWebhookUrl: server.messageSendingWebhookUrl || "",
 
       // Garantir que active seja um boolean válido
       active: server.active === null ? false : Boolean(server.active),
@@ -1293,6 +1296,23 @@ export default function ServerManagementPage() {
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="messageSendingWebhookUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Webhook Envio de mensagens</FormLabel>
+                        <FormControl>
+                          <Input placeholder="URL do webhook para envio de mensagens QR Code" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormDescription>
+                          URL utilizada pelo botão "Criar Envio" para processar mensagens via QR Code
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </TabsContent>
                 
                 <TabsContent value="avancado" className="space-y-4 pt-4">
@@ -1603,6 +1623,23 @@ export default function ServerManagementPage() {
                         <FormControl>
                           <Input placeholder="URL do webhook para integrações de CRM" {...field} value={field.value || ""} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="messageSendingWebhookUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Webhook Envio de mensagens</FormLabel>
+                        <FormControl>
+                          <Input placeholder="URL do webhook para envio de mensagens QR Code" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormDescription>
+                          URL utilizada pelo botão "Criar Envio" para processar mensagens via QR Code
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
