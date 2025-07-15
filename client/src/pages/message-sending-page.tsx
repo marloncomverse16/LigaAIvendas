@@ -1337,18 +1337,79 @@ const CreateSendingForm = () => {
             
 
             
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
-              disabled={sendViaWebhookMutation.isPending || sendViaMetaApiMutation.isPending}
-            >
-              {sendViaWebhookMutation.isPending || sendViaMetaApiMutation.isPending ? (
-                <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
-              Criar Envio
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                type="submit" 
+                className="flex-1 bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold"
+                disabled={sendViaWebhookMutation.isPending || sendViaMetaApiMutation.isPending}
+              >
+                {sendViaWebhookMutation.isPending || sendViaMetaApiMutation.isPending ? (
+                  <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Criar Envio
+              </Button>
+              
+              <Button 
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  if (window.confirm("⛔ ATENÇÃO: Tem certeza que deseja PARAR todos os envios ativos? Esta ação não pode ser desfeita.")) {
+                    // Buscar todos os envios pendentes/em andamento e parar
+                    fetch("/api/message-sendings")
+                      .then(res => res.json())
+                      .then(data => {
+                        const activeEnvios = data.data?.filter(envio => 
+                          envio.status === "pendente" || envio.status === "em_andamento"
+                        ) || [];
+                        
+                        if (activeEnvios.length === 0) {
+                          toast({
+                            title: "Nenhum envio ativo",
+                            description: "Não há envios pendentes ou em andamento para parar.",
+                            variant: "default",
+                          });
+                          return;
+                        }
+                        
+                        // Parar todos os envios ativos
+                        Promise.all(
+                          activeEnvios.map(envio => 
+                            fetch(`/api/message-sending-history/${envio.id}/emergency-stop`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' }
+                            })
+                          )
+                        ).then(() => {
+                          toast({
+                            title: "⛔ TODOS OS ENVIOS PARADOS",
+                            description: `${activeEnvios.length} envio(s) foram marcados para parada de emergência.`,
+                            variant: "default",
+                          });
+                          queryClient.invalidateQueries({ queryKey: ["/api/message-sendings"] });
+                        }).catch(error => {
+                          toast({
+                            title: "Erro ao parar envios",
+                            description: "Ocorreu um erro ao tentar parar alguns envios.",
+                            variant: "destructive",
+                          });
+                        });
+                      })
+                      .catch(error => {
+                        toast({
+                          title: "Erro ao verificar envios",
+                          description: "Não foi possível verificar os envios ativos.",
+                          variant: "destructive",
+                        });
+                      });
+                  }
+                }}
+                disabled={sendViaWebhookMutation.isPending || sendViaMetaApiMutation.isPending}
+              >
+                Parar Envios
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>
@@ -1688,7 +1749,7 @@ const SendingList = () => {
                             }}
                             disabled={emergencyStopMutation.isPending}
                           >
-                            {emergencyStopMutation.isPending ? "Parando..." : "⛔ PARAR"}
+                            {emergencyStopMutation.isPending ? "Parando..." : "Parar Envios"}
                           </Button>
                         )}
                         </div>
