@@ -966,19 +966,20 @@ export default function ProspectingPage() {
                             </div>
                           </div>
 
-                          <div className="rounded-md border">
-                            <ScrollArea className="h-[500px]">
-                              <Table>
-                                <TableHeader className="sticky top-0 bg-background">
-                                  <TableRow>
-                                    <TableHead>NOME</TableHead>
-                                    <TableHead>TELEFONE</TableHead>
-                                    <TableHead>EMAIL</TableHead>
-                                    <TableHead>ENDEREÇO</TableHead>
-                                    <TableHead>SITE</TableHead>
-                                    <TableHead className="w-24">AÇÕES</TableHead>
-                                  </TableRow>
-                                </TableHeader>
+                          <div className="rounded-md border overflow-auto">
+                            <ScrollArea className="h-[500px] w-full">
+                              <div className="min-w-[1000px]">
+                                <Table>
+                                  <TableHeader className="sticky top-0 bg-background">
+                                    <TableRow>
+                                      <TableHead className="w-[200px]">NOME</TableHead>
+                                      <TableHead className="w-[150px]">TELEFONE</TableHead>
+                                      <TableHead className="w-[200px]">EMAIL</TableHead>
+                                      <TableHead className="w-[250px]">ENDEREÇO</TableHead>
+                                      <TableHead className="w-[150px]">SITE</TableHead>
+                                      <TableHead className="w-[100px] text-center">AÇÕES</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
                                 <TableBody>
                                   {isLoadingResults ? (
                                     <TableRow>
@@ -1081,7 +1082,8 @@ export default function ProspectingPage() {
                                     </TableRow>
                                   )}
                                 </TableBody>
-                              </Table>
+                                </Table>
+                              </div>
                             </ScrollArea>
                           </div>
 
@@ -1579,7 +1581,7 @@ export default function ProspectingPage() {
               
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-                <p className="text-lg">
+                <div className="mt-1">
                   {selectedResult.dispatchedAt ? (
                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
                       Enviado em {format(new Date(selectedResult.dispatchedAt), "dd/MM/yyyy HH:mm")}
@@ -1589,7 +1591,7 @@ export default function ProspectingPage() {
                       Pendente de envio
                     </Badge>
                   )}
-                </p>
+                </div>
               </div>
             </div>
           )}
