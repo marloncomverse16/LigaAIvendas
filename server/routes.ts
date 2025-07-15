@@ -1906,6 +1906,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar resultados" });
     }
   });
+
+  // Rota para editar prospecto individual
+  app.put("/api/prospecting/results/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const prospectId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      const updateData = req.body;
+      
+      // Buscar o prospecto para verificar propriedade
+      const prospect = await storage.getProspectingResult(prospectId);
+      
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospecto não encontrado" });
+      }
+      
+      // Buscar a pesquisa para verificar propriedade
+      const search = await storage.getProspectingSearch(prospect.searchId);
+      
+      if (!search || (search.userId !== userId && !req.user.isAdmin)) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Atualizar o prospecto
+      const updatedProspect = await storage.updateProspectingResult(prospectId, updateData);
+      
+      res.json(updatedProspect);
+    } catch (error) {
+      console.error("Erro ao editar prospecto:", error);
+      res.status(500).json({ message: "Erro ao editar prospecto" });
+    }
+  });
+
+  // Rota para excluir prospecto individual
+  app.delete("/api/prospecting/results/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const prospectId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Buscar o prospecto para verificar propriedade
+      const prospect = await storage.getProspectingResult(prospectId);
+      
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospecto não encontrado" });
+      }
+      
+      // Buscar a pesquisa para verificar propriedade
+      const search = await storage.getProspectingSearch(prospect.searchId);
+      
+      if (!search || (search.userId !== userId && !req.user.isAdmin)) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      // Excluir o prospecto
+      await storage.deleteProspectingResult(prospectId, userId);
+      
+      res.json({ message: "Prospecto excluído com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir prospecto:", error);
+      res.status(500).json({ message: "Erro ao excluir prospecto" });
+    }
+  });
   
   // Rota para importar arquivo de leads
   app.post("/api/prospecting/import", upload.single('file'), async (req, res) => {

@@ -104,6 +104,24 @@ export default function ProspectingPage() {
   const [isSearchInProgress, setIsSearchInProgress] = useState(false);
   const [progressMessage, setProgressMessage] = useState("");
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  // Estados para filtros de prospectos
+  const [prospectFilter, setProspectFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  
+  // Estados para edição/exclusão
+  const [editingProspect, setEditingProspect] = useState<ProspectingResult | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    type: "",
+    site: "",
+    cidade: "",
+    estado: ""
+  });
 
   // Query para buscar servidores do usuário
   const { data: userServers } = useQuery({
@@ -330,6 +348,53 @@ export default function ProspectingPage() {
     }
   });
 
+  // Mutação para editar prospecto individual
+  const editProspectMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number, data: any }) => {
+      const res = await apiRequest("PUT", `/api/prospecting/results/${id}`, data);
+      if (!res.ok) throw new Error("Falha ao editar prospecto");
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Prospecto atualizado",
+        description: "As informações do prospecto foram atualizadas com sucesso",
+      });
+      setEditingProspect(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/results", activeSearch] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao editar prospecto",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Mutação para excluir prospecto individual
+  const deleteProspectMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/prospecting/results/${id}`);
+      if (!res.ok) throw new Error("Falha ao excluir prospecto");
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Prospecto excluído",
+        description: "O prospecto foi removido com sucesso",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/prospecting/results", activeSearch] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao excluir prospecto",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   // Função para processar o arquivo selecionado
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -507,12 +572,36 @@ export default function ProspectingPage() {
     setActiveTab("searches");
   };
 
-  // Calcular dados paginados
-  const totalResults = results?.length || 0;
+  // Aplicar filtros aos resultados
+  const applyFilters = (data: ProspectingResult[]) => {
+    if (!data) return [];
+    
+    return data.filter(result => {
+      const matchesName = !prospectFilter || 
+        (result.name?.toLowerCase().includes(prospectFilter.toLowerCase()) || 
+         result.nome?.toLowerCase().includes(prospectFilter.toLowerCase()) ||
+         result.email?.toLowerCase().includes(prospectFilter.toLowerCase()) ||
+         result.phone?.includes(prospectFilter) ||
+         result.telefone?.includes(prospectFilter));
+      
+      const matchesCity = !cityFilter || 
+        (result.cidade?.toLowerCase().includes(cityFilter.toLowerCase()));
+      
+      const matchesType = !typeFilter || 
+        (result.type?.toLowerCase().includes(typeFilter.toLowerCase()) ||
+         result.tipo?.toLowerCase().includes(typeFilter.toLowerCase()));
+      
+      return matchesName && matchesCity && matchesType;
+    });
+  };
+
+  // Aplicar filtros e calcular dados paginados
+  const filteredResults = applyFilters(results || []);
+  const totalResults = filteredResults.length;
   const totalPages = Math.ceil(totalResults / resultsPerPage);
   const startIndex = (currentPage - 1) * resultsPerPage;
   const endIndex = startIndex + resultsPerPage;
-  const paginatedResults = results?.slice(startIndex, endIndex) || [];
+  const paginatedResults = filteredResults.slice(startIndex, endIndex);
 
   // Funções de navegação da paginação
   const goToPage = (page: number) => {
@@ -530,6 +619,61 @@ export default function ProspectingPage() {
       setCurrentPage(currentPage - 1);
     }
   };
+
+  // Função para inicializar edição de prospecto
+  const startEditProspect = (prospect: ProspectingResult) => {
+    setEditingProspect(prospect);
+    setEditForm({
+      name: prospect.name || prospect.nome || "",
+      email: prospect.email || "",
+      phone: prospect.phone || prospect.telefone || "",
+      address: prospect.address || prospect.endereco || "",
+      type: prospect.type || prospect.tipo || "",
+      site: prospect.site || "",
+      cidade: prospect.cidade || "",
+      estado: prospect.estado || ""
+    });
+  };
+
+  // Função para salvar edição
+  const saveEditProspect = () => {
+    if (!editingProspect) return;
+    
+    editProspectMutation.mutate({ 
+      id: editingProspect.id, 
+      data: editForm 
+    });
+  };
+
+  // Função para cancelar edição
+  const cancelEditProspect = () => {
+    setEditingProspect(null);
+    setEditForm({
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      type: "",
+      site: "",
+      cidade: "",
+      estado: ""
+    });
+  };
+
+  // Função para excluir prospecto
+  const deleteProspect = (id: number) => {
+    if (window.confirm("Tem certeza que deseja excluir este prospecto?")) {
+      deleteProspectMutation.mutate(id);
+    }
+  };
+
+  // Reset filtros e paginação quando mudar de busca
+  useEffect(() => {
+    setProspectFilter("");
+    setCityFilter("");
+    setTypeFilter("");
+    setCurrentPage(1);
+  }, [activeSearch]);
 
   // Renderizar status da busca com badge
   const renderStatus = (status: string) => {
@@ -782,6 +926,46 @@ export default function ProspectingPage() {
                             </div>
                           </div>
 
+                          {/* Filtros dos Prospectos */}
+                          <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+                            <div className="space-y-2">
+                              <Label htmlFor="prospect-filter">Buscar por nome, telefone ou email</Label>
+                              <Input
+                                id="prospect-filter"
+                                placeholder="Digite para filtrar..."
+                                value={prospectFilter}
+                                onChange={(e) => {
+                                  setProspectFilter(e.target.value);
+                                  setCurrentPage(1); // Reset para primeira página
+                                }}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="city-filter">Filtrar por cidade</Label>
+                              <Input
+                                id="city-filter"
+                                placeholder="Cidade..."
+                                value={cityFilter}
+                                onChange={(e) => {
+                                  setCityFilter(e.target.value);
+                                  setCurrentPage(1);
+                                }}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="type-filter">Filtrar por tipo</Label>
+                              <Input
+                                id="type-filter"
+                                placeholder="Tipo de negócio..."
+                                value={typeFilter}
+                                onChange={(e) => {
+                                  setTypeFilter(e.target.value);
+                                  setCurrentPage(1);
+                                }}
+                              />
+                            </div>
+                          </div>
+
                           <div className="rounded-md border">
                             <ScrollArea className="h-[500px]">
                               <Table>
@@ -792,12 +976,13 @@ export default function ProspectingPage() {
                                     <TableHead>EMAIL</TableHead>
                                     <TableHead>ENDEREÇO</TableHead>
                                     <TableHead>SITE</TableHead>
+                                    <TableHead className="w-24">AÇÕES</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {isLoadingResults ? (
                                     <TableRow>
-                                      <TableCell colSpan={5} className="h-24 text-center">
+                                      <TableCell colSpan={6} className="h-24 text-center">
                                         <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                                       </TableCell>
                                     </TableRow>
@@ -805,23 +990,93 @@ export default function ProspectingPage() {
                                     paginatedResults.map((result) => (
                                       <TableRow 
                                         key={result.id}
-                                        className="cursor-pointer hover:bg-accent"
-                                        onClick={() => {
-                                          setSelectedResult(result);
-                                          setShowResultDialog(true);
-                                        }}
+                                        className="hover:bg-accent"
                                       >
-                                        <TableCell className="font-medium">{result.name || '-'}</TableCell>
-                                        <TableCell>{result.phone || '-'}</TableCell>
-                                        <TableCell>{result.email || '-'}</TableCell>
-                                        <TableCell className="max-w-[200px] truncate">{result.address || '-'}</TableCell>
-                                        <TableCell>{result.site || '-'}</TableCell>
+                                        <TableCell 
+                                          className="font-medium cursor-pointer"
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.name || '-'}
+                                        </TableCell>
+                                        <TableCell 
+                                          className="cursor-pointer"
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.phone || '-'}
+                                        </TableCell>
+                                        <TableCell 
+                                          className="cursor-pointer"
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.email || '-'}
+                                        </TableCell>
+                                        <TableCell 
+                                          className="max-w-[200px] truncate cursor-pointer"
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.address || '-'}
+                                        </TableCell>
+                                        <TableCell 
+                                          className="cursor-pointer"
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.site || '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                          <div className="flex gap-2">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                startEditProspect(result);
+                                              }}
+                                              title="Editar prospecto"
+                                            >
+                                              <Edit className="h-3 w-3" />
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                deleteProspect(result.id);
+                                              }}
+                                              title="Excluir prospecto"
+                                              disabled={deleteProspectMutation.isPending}
+                                            >
+                                              {deleteProspectMutation.isPending ? (
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                              ) : (
+                                                <Trash2 className="h-3 w-3" />
+                                              )}
+                                            </Button>
+                                          </div>
+                                        </TableCell>
                                       </TableRow>
                                     ))
                                   ) : (
                                     <TableRow>
-                                      <TableCell colSpan={5} className="h-24 text-center">
-                                        Nenhum resultado encontrado para esta busca
+                                      <TableCell colSpan={6} className="h-24 text-center">
+                                        {prospectFilter || cityFilter || typeFilter 
+                                          ? "Nenhum resultado encontrado com os filtros aplicados" 
+                                          : "Nenhum resultado encontrado para esta busca"
+                                        }
                                       </TableCell>
                                     </TableRow>
                                   )}
@@ -1346,7 +1601,127 @@ export default function ProspectingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
+      {/* Modal de Edição de Prospecto */}
+      <Dialog open={editingProspect !== null} onOpenChange={(open) => !open && cancelEditProspect()}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar Prospecto</DialogTitle>
+            <DialogDescription>
+              Altere as informações do prospecto conforme necessário
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingProspect && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nome</Label>
+                <Input
+                  id="edit-name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  placeholder="Nome da empresa ou pessoa"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Telefone</Label>
+                <Input
+                  id="edit-phone"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  placeholder="Telefone de contato"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  placeholder="Email de contato"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-type">Tipo</Label>
+                <Input
+                  id="edit-type"
+                  value={editForm.type}
+                  onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                  placeholder="Tipo de negócio"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-cidade">Cidade</Label>
+                <Input
+                  id="edit-cidade"
+                  value={editForm.cidade}
+                  onChange={(e) => setEditForm({ ...editForm, cidade: e.target.value })}
+                  placeholder="Cidade"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-estado">Estado</Label>
+                <Input
+                  id="edit-estado"
+                  value={editForm.estado}
+                  onChange={(e) => setEditForm({ ...editForm, estado: e.target.value })}
+                  placeholder="Estado"
+                />
+              </div>
+              
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit-address">Endereço</Label>
+                <Textarea
+                  id="edit-address"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  placeholder="Endereço completo"
+                  rows={2}
+                />
+              </div>
+              
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit-site">Site</Label>
+                <Input
+                  id="edit-site"
+                  value={editForm.site}
+                  onChange={(e) => setEditForm({ ...editForm, site: e.target.value })}
+                  placeholder="Website ou URL"
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={cancelEditProspect}
+              disabled={editProspectMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={saveEditProspect}
+              disabled={editProspectMutation.isPending}
+            >
+              {editProspectMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar Alterações"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
