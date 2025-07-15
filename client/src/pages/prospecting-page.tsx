@@ -4,7 +4,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Search, FilePlus2, Download, X, Edit, Trash2, CheckCircle2, AlarmClock, ArrowLeft, Upload, FileSpreadsheet, AlertCircle, FileType, ChevronLeft, ChevronRight } from "lucide-react";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -110,6 +110,16 @@ export default function ProspectingPage() {
   const [prospectFilter, setProspectFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  
+  // Estados para controle de larguras das colunas
+  const [columnWidths, setColumnWidths] = useState({
+    name: 200,
+    phone: 150,
+    email: 200,
+    address: 300,
+    site: 200,
+    actions: 150
+  });
   
   // Estados para edição/exclusão
   const [editingProspect, setEditingProspect] = useState<ProspectingResult | null>(null);
@@ -967,154 +977,200 @@ export default function ProspectingPage() {
                             </div>
                           </div>
 
-                          <div className="w-full border rounded-lg overflow-hidden">
-                            <div className="h-[600px] flex flex-col">
-                              {/* Cabeçalho da tabela com colunas redimensionáveis */}
-                              <div className="border-b bg-background">
-                                <PanelGroup direction="horizontal" className="h-12">
-                                  <Panel defaultSize={25} minSize={15}>
-                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
-                                      NOME
-                                    </div>
-                                  </Panel>
-                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                  <Panel defaultSize={15} minSize={10}>
-                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
-                                      TELEFONE
-                                    </div>
-                                  </Panel>
-                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                  <Panel defaultSize={20} minSize={15}>
-                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
-                                      EMAIL
-                                    </div>
-                                  </Panel>
-                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                  <Panel defaultSize={25} minSize={20}>
-                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
-                                      ENDEREÇO
-                                    </div>
-                                  </Panel>
-                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                  <Panel defaultSize={10} minSize={8}>
-                                    <div className="h-full flex items-center justify-start px-4 font-medium border-r bg-muted/50">
-                                      SITE
-                                    </div>
-                                  </Panel>
-                                  <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                  <Panel defaultSize={5} minSize={12}>
-                                    <div className="h-full flex items-center justify-center px-4 font-medium bg-muted/50">
-                                      AÇÕES
-                                    </div>
-                                  </Panel>
-                                </PanelGroup>
+                          {/* Controles de Espaçamento das Colunas */}
+                          <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <h4 className="text-sm font-semibold mb-3 text-blue-800">Ajustar Espaçamento das Colunas</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                              <div className="space-y-2">
+                                <Label className="text-xs text-blue-700">Nome ({columnWidths.name}px)</Label>
+                                <Slider
+                                  value={[columnWidths.name]}
+                                  onValueChange={(value) => 
+                                    setColumnWidths(prev => ({ ...prev, name: value[0] }))
+                                  }
+                                  max={400}
+                                  min={100}
+                                  step={10}
+                                  className="w-full"
+                                />
                               </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-blue-700">Telefone ({columnWidths.phone}px)</Label>
+                                <Slider
+                                  value={[columnWidths.phone]}
+                                  onValueChange={(value) => 
+                                    setColumnWidths(prev => ({ ...prev, phone: value[0] }))
+                                  }
+                                  max={200}
+                                  min={100}
+                                  step={10}
+                                  className="w-full"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-blue-700">Email ({columnWidths.email}px)</Label>
+                                <Slider
+                                  value={[columnWidths.email]}
+                                  onValueChange={(value) => 
+                                    setColumnWidths(prev => ({ ...prev, email: value[0] }))
+                                  }
+                                  max={300}
+                                  min={150}
+                                  step={10}
+                                  className="w-full"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-blue-700">Endereço ({columnWidths.address}px)</Label>
+                                <Slider
+                                  value={[columnWidths.address]}
+                                  onValueChange={(value) => 
+                                    setColumnWidths(prev => ({ ...prev, address: value[0] }))
+                                  }
+                                  max={500}
+                                  min={200}
+                                  step={10}
+                                  className="w-full"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-blue-700">Site ({columnWidths.site}px)</Label>
+                                <Slider
+                                  value={[columnWidths.site]}
+                                  onValueChange={(value) => 
+                                    setColumnWidths(prev => ({ ...prev, site: value[0] }))
+                                  }
+                                  max={300}
+                                  min={150}
+                                  step={10}
+                                  className="w-full"
+                                />
+                              </div>
+                            </div>
+                            <div className="mt-3 flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setColumnWidths({
+                                  name: 200,
+                                  phone: 150,
+                                  email: 200,
+                                  address: 300,
+                                  site: 200,
+                                  actions: 150
+                                })}
+                              >
+                                Resetar Padrão
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setColumnWidths({
+                                  name: 250,
+                                  phone: 180,
+                                  email: 250,
+                                  address: 400,
+                                  site: 250,
+                                  actions: 150
+                                })}
+                              >
+                                Espaçamento Amplo
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setColumnWidths({
+                                  name: 150,
+                                  phone: 120,
+                                  email: 150,
+                                  address: 200,
+                                  site: 150,
+                                  actions: 150
+                                })}
+                              >
+                                Espaçamento Compacto
+                              </Button>
+                            </div>
+                          </div>
 
-                              {/* Conteúdo da tabela com scroll */}
-                              <div className="flex-1 overflow-y-auto">
-                                {isLoadingResults ? (
-                                  <div className="h-24 flex items-center justify-center">
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                  </div>
-                                ) : paginatedResults && paginatedResults.length > 0 ? (
-                                  <PanelGroup direction="horizontal" className="min-h-full">
-                                    <Panel defaultSize={25} minSize={15}>
-                                      <div className="border-r">
-                                        {paginatedResults.map((result, index) => (
-                                          <div 
-                                            key={`name-${result.id}`}
-                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
-                                            onClick={() => {
-                                              setSelectedResult(result);
-                                              setShowResultDialog(true);
-                                            }}
-                                            title={result.name || '-'}
-                                          >
-                                            {result.name || '-'}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                    <Panel defaultSize={15} minSize={10}>
-                                      <div className="border-r">
-                                        {paginatedResults.map((result, index) => (
-                                          <div 
-                                            key={`phone-${result.id}`}
-                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
-                                            onClick={() => {
-                                              setSelectedResult(result);
-                                              setShowResultDialog(true);
-                                            }}
-                                            title={result.phone || '-'}
-                                          >
-                                            {result.phone || '-'}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                    <Panel defaultSize={20} minSize={15}>
-                                      <div className="border-r">
-                                        {paginatedResults.map((result, index) => (
-                                          <div 
-                                            key={`email-${result.id}`}
-                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
-                                            onClick={() => {
-                                              setSelectedResult(result);
-                                              setShowResultDialog(true);
-                                            }}
-                                            title={result.email || '-'}
-                                          >
-                                            {result.email || '-'}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                    <Panel defaultSize={25} minSize={20}>
-                                      <div className="border-r">
-                                        {paginatedResults.map((result, index) => (
-                                          <div 
-                                            key={`address-${result.id}`}
-                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
-                                            onClick={() => {
-                                              setSelectedResult(result);
-                                              setShowResultDialog(true);
-                                            }}
-                                            title={result.address || '-'}
-                                          >
-                                            {result.address || '-'}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                    <Panel defaultSize={10} minSize={8}>
-                                      <div className="border-r">
-                                        {paginatedResults.map((result, index) => (
-                                          <div 
-                                            key={`site-${result.id}`}
-                                            className={`h-16 flex items-center px-4 cursor-pointer border-b truncate hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
-                                            onClick={() => {
-                                              setSelectedResult(result);
-                                              setShowResultDialog(true);
-                                            }}
-                                            title={result.site || '-'}
-                                          >
-                                            {result.site || '-'}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </Panel>
-                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors cursor-col-resize" />
-                                    <Panel defaultSize={5} minSize={12}>
-                                      <div>
-                                        {paginatedResults.map((result, index) => (
-                                          <div 
-                                            key={`actions-${result.id}`}
-                                            className={`h-16 flex items-center justify-center px-2 gap-1 border-b ${index % 2 === 0 ? 'bg-background' : 'bg-muted/25'}`}
-                                          >
+                          <div className="w-full border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                              <Table style={{ minWidth: Object.values(columnWidths).reduce((a, b) => a + b, 0) + 'px' }}>
+                                <TableHeader className="sticky top-0 bg-background">
+                                  <TableRow>
+                                    <TableHead style={{ width: columnWidths.name + 'px' }}>NOME</TableHead>
+                                    <TableHead style={{ width: columnWidths.phone + 'px' }}>TELEFONE</TableHead>
+                                    <TableHead style={{ width: columnWidths.email + 'px' }}>EMAIL</TableHead>
+                                    <TableHead style={{ width: columnWidths.address + 'px' }}>ENDEREÇO</TableHead>
+                                    <TableHead style={{ width: columnWidths.site + 'px' }}>SITE</TableHead>
+                                    <TableHead style={{ width: columnWidths.actions + 'px' }} className="text-center">AÇÕES</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {isLoadingResults ? (
+                                    <TableRow>
+                                      <TableCell colSpan={6} className="h-24 text-center">
+                                        <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                                      </TableCell>
+                                    </TableRow>
+                                  ) : paginatedResults && paginatedResults.length > 0 ? (
+                                    paginatedResults.map((result) => (
+                                      <TableRow 
+                                        key={result.id}
+                                        className="hover:bg-accent"
+                                      >
+                                        <TableCell 
+                                          className="font-medium cursor-pointer truncate"
+                                          style={{ width: columnWidths.name + 'px' }}
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.name || '-'}
+                                        </TableCell>
+                                        <TableCell 
+                                          className="cursor-pointer truncate"
+                                          style={{ width: columnWidths.phone + 'px' }}
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.phone || '-'}
+                                        </TableCell>
+                                        <TableCell 
+                                          className="cursor-pointer truncate"
+                                          style={{ width: columnWidths.email + 'px' }}
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.email || '-'}
+                                        </TableCell>
+                                        <TableCell 
+                                          className="truncate cursor-pointer"
+                                          style={{ width: columnWidths.address + 'px' }}
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.address || '-'}
+                                        </TableCell>
+                                        <TableCell 
+                                          className="cursor-pointer truncate"
+                                          style={{ width: columnWidths.site + 'px' }}
+                                          onClick={() => {
+                                            setSelectedResult(result);
+                                            setShowResultDialog(true);
+                                          }}
+                                        >
+                                          {result.site || '-'}
+                                        </TableCell>
+                                        <TableCell style={{ width: columnWidths.actions + 'px' }}>
+                                          <div className="flex gap-2">
                                             <Button
                                               variant="outline"
                                               size="sm"
@@ -1123,7 +1179,6 @@ export default function ProspectingPage() {
                                                 startEditProspect(result);
                                               }}
                                               title="Editar prospecto"
-                                              className="h-8 w-8 p-0"
                                             >
                                               <Edit className="h-3 w-3" />
                                             </Button>
@@ -1136,7 +1191,6 @@ export default function ProspectingPage() {
                                               }}
                                               title="Excluir prospecto"
                                               disabled={deleteProspectMutation.isPending}
-                                              className="h-8 w-8 p-0"
                                             >
                                               {deleteProspectMutation.isPending ? (
                                                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -1145,21 +1199,21 @@ export default function ProspectingPage() {
                                               )}
                                             </Button>
                                           </div>
-                                        ))}
-                                      </div>
-                                    </Panel>
-                                  </PanelGroup>
-                                ) : (
-                                  <div className="h-24 flex items-center justify-center">
-                                    <div className="text-center text-muted-foreground">
-                                      {prospectFilter || cityFilter || typeFilter 
-                                        ? "Nenhum resultado encontrado com os filtros aplicados" 
-                                        : "Nenhum resultado encontrado para esta busca"
-                                      }
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))
+                                  ) : (
+                                    <TableRow>
+                                      <TableCell colSpan={6} className="h-24 text-center">
+                                        {prospectFilter || cityFilter || typeFilter 
+                                          ? "Nenhum resultado encontrado com os filtros aplicados" 
+                                          : "Nenhum resultado encontrado para esta busca"
+                                        }
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </TableBody>
+                              </Table>
                             </div>
                           </div>
 
