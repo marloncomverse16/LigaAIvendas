@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Search, FilePlus2, Download, X, Edit, Trash2, CheckCircle2, AlarmClock, ArrowLeft, Upload, FileSpreadsheet, AlertCircle, FileType, ChevronLeft, ChevronRight } from "lucide-react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -967,121 +968,172 @@ export default function ProspectingPage() {
                           </div>
 
                           <div className="w-full border rounded-lg overflow-hidden">
-                            <div className="overflow-x-auto">
-                              <Table className="min-w-[1200px]">
-                                <TableHeader className="sticky top-0 bg-background">
-                                  <TableRow>
-                                    <TableHead className="w-[200px]">NOME</TableHead>
-                                    <TableHead className="w-[150px]">TELEFONE</TableHead>
-                                    <TableHead className="w-[200px]">EMAIL</TableHead>
-                                    <TableHead className="w-[300px]">ENDEREÇO</TableHead>
-                                    <TableHead className="w-[200px]">SITE</TableHead>
-                                    <TableHead className="w-[150px] text-center">AÇÕES</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
+                            <div className="h-[600px] overflow-hidden">
+                              <PanelGroup direction="horizontal" className="min-h-full">
+                                {/* Cabeçalho da tabela */}
+                                <div className="sticky top-0 z-10 bg-background border-b">
+                                  <PanelGroup direction="horizontal" className="h-12">
+                                    <Panel defaultSize={25} minSize={15}>
+                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
+                                        NOME
+                                      </div>
+                                    </Panel>
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <Panel defaultSize={15} minSize={10}>
+                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
+                                        TELEFONE
+                                      </div>
+                                    </Panel>
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <Panel defaultSize={20} minSize={15}>
+                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
+                                        EMAIL
+                                      </div>
+                                    </Panel>
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <Panel defaultSize={25} minSize={20}>
+                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
+                                        ENDEREÇO
+                                      </div>
+                                    </Panel>
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <Panel defaultSize={10} minSize={8}>
+                                      <div className="h-full flex items-center justify-start px-4 font-medium border-r">
+                                        SITE
+                                      </div>
+                                    </Panel>
+                                    <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                    <Panel defaultSize={5} minSize={12}>
+                                      <div className="h-full flex items-center justify-center px-4 font-medium">
+                                        AÇÕES
+                                      </div>
+                                    </Panel>
+                                  </PanelGroup>
+                                </div>
+
+                                {/* Conteúdo da tabela com scroll */}
+                                <div className="flex-1 overflow-y-auto">
                                   {isLoadingResults ? (
-                                    <TableRow>
-                                      <TableCell colSpan={6} className="h-24 text-center">
-                                        <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                                      </TableCell>
-                                    </TableRow>
+                                    <div className="h-24 flex items-center justify-center">
+                                      <Loader2 className="h-5 w-5 animate-spin" />
+                                    </div>
                                   ) : paginatedResults && paginatedResults.length > 0 ? (
-                                    paginatedResults.map((result) => (
-                                      <TableRow 
-                                        key={result.id}
-                                        className="hover:bg-accent"
-                                      >
-                                        <TableCell 
-                                          className="font-medium cursor-pointer"
-                                          onClick={() => {
-                                            setSelectedResult(result);
-                                            setShowResultDialog(true);
-                                          }}
-                                        >
-                                          {result.name || '-'}
-                                        </TableCell>
-                                        <TableCell 
-                                          className="cursor-pointer"
-                                          onClick={() => {
-                                            setSelectedResult(result);
-                                            setShowResultDialog(true);
-                                          }}
-                                        >
-                                          {result.phone || '-'}
-                                        </TableCell>
-                                        <TableCell 
-                                          className="cursor-pointer"
-                                          onClick={() => {
-                                            setSelectedResult(result);
-                                            setShowResultDialog(true);
-                                          }}
-                                        >
-                                          {result.email || '-'}
-                                        </TableCell>
-                                        <TableCell 
-                                          className="max-w-[200px] truncate cursor-pointer"
-                                          onClick={() => {
-                                            setSelectedResult(result);
-                                            setShowResultDialog(true);
-                                          }}
-                                        >
-                                          {result.address || '-'}
-                                        </TableCell>
-                                        <TableCell 
-                                          className="cursor-pointer"
-                                          onClick={() => {
-                                            setSelectedResult(result);
-                                            setShowResultDialog(true);
-                                          }}
-                                        >
-                                          {result.site || '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                          <div className="flex gap-2">
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                startEditProspect(result);
+                                    paginatedResults.map((result, index) => (
+                                      <div key={result.id} className={`border-b hover:bg-accent ${index % 2 === 0 ? 'bg-background' : 'bg-muted/50'}`}>
+                                        <PanelGroup direction="horizontal" className="h-16">
+                                          <Panel defaultSize={25} minSize={15}>
+                                            <div 
+                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
+                                              onClick={() => {
+                                                setSelectedResult(result);
+                                                setShowResultDialog(true);
                                               }}
-                                              title="Editar prospecto"
+                                              title={result.name || '-'}
                                             >
-                                              <Edit className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                deleteProspect(result.id);
+                                              {result.name || '-'}
+                                            </div>
+                                          </Panel>
+                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                          <Panel defaultSize={15} minSize={10}>
+                                            <div 
+                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
+                                              onClick={() => {
+                                                setSelectedResult(result);
+                                                setShowResultDialog(true);
                                               }}
-                                              title="Excluir prospecto"
-                                              disabled={deleteProspectMutation.isPending}
+                                              title={result.phone || '-'}
                                             >
-                                              {deleteProspectMutation.isPending ? (
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                              ) : (
-                                                <Trash2 className="h-3 w-3" />
-                                              )}
-                                            </Button>
-                                          </div>
-                                        </TableCell>
-                                      </TableRow>
+                                              {result.phone || '-'}
+                                            </div>
+                                          </Panel>
+                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                          <Panel defaultSize={20} minSize={15}>
+                                            <div 
+                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
+                                              onClick={() => {
+                                                setSelectedResult(result);
+                                                setShowResultDialog(true);
+                                              }}
+                                              title={result.email || '-'}
+                                            >
+                                              {result.email || '-'}
+                                            </div>
+                                          </Panel>
+                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                          <Panel defaultSize={25} minSize={20}>
+                                            <div 
+                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
+                                              onClick={() => {
+                                                setSelectedResult(result);
+                                                setShowResultDialog(true);
+                                              }}
+                                              title={result.address || '-'}
+                                            >
+                                              {result.address || '-'}
+                                            </div>
+                                          </Panel>
+                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                          <Panel defaultSize={10} minSize={8}>
+                                            <div 
+                                              className="h-full flex items-center px-4 cursor-pointer border-r truncate"
+                                              onClick={() => {
+                                                setSelectedResult(result);
+                                                setShowResultDialog(true);
+                                              }}
+                                              title={result.site || '-'}
+                                            >
+                                              {result.site || '-'}
+                                            </div>
+                                          </Panel>
+                                          <PanelResizeHandle className="w-1 bg-border hover:bg-blue-500 transition-colors" />
+                                          <Panel defaultSize={5} minSize={12}>
+                                            <div className="h-full flex items-center justify-center px-2 gap-1">
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  startEditProspect(result);
+                                                }}
+                                                title="Editar prospecto"
+                                                className="h-8 w-8 p-0"
+                                              >
+                                                <Edit className="h-3 w-3" />
+                                              </Button>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  deleteProspect(result.id);
+                                                }}
+                                                title="Excluir prospecto"
+                                                disabled={deleteProspectMutation.isPending}
+                                                className="h-8 w-8 p-0"
+                                              >
+                                                {deleteProspectMutation.isPending ? (
+                                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                  <Trash2 className="h-3 w-3" />
+                                                )}
+                                              </Button>
+                                            </div>
+                                          </Panel>
+                                        </PanelGroup>
+                                      </div>
                                     ))
                                   ) : (
-                                    <TableRow>
-                                      <TableCell colSpan={6} className="h-24 text-center">
+                                    <div className="h-24 flex items-center justify-center">
+                                      <div className="text-center text-muted-foreground">
                                         {prospectFilter || cityFilter || typeFilter 
                                           ? "Nenhum resultado encontrado com os filtros aplicados" 
                                           : "Nenhum resultado encontrado para esta busca"
                                         }
-                                      </TableCell>
-                                    </TableRow>
+                                      </div>
+                                    </div>
                                   )}
-                                </TableBody>
-                              </Table>
+                                </div>
+                              </PanelGroup>
                             </div>
                           </div>
 
