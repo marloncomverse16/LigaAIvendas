@@ -1652,8 +1652,12 @@ const SendingList = () => {
                       </TableCell>
                       <TableCell>{sending.totalRecipients || 0}</TableCell>
                       <TableCell>
-                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeVariant(sending.status)}`}>
-                          {getStatusText(sending.status)}
+                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeVariant(
+                          sending.connectionType === "whatsapp_qr" ? "concluido" : sending.status
+                        )}`}>
+                          {getStatusText(
+                            sending.connectionType === "whatsapp_qr" ? "concluido" : sending.status
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -1737,21 +1741,7 @@ const SendingList = () => {
                           </Button>
                         )}
                         
-                        {/* Botão de parada de emergência - apenas para envios pendentes ou em andamento */}
-                        {(sending.status === "pendente" || sending.status === "em_andamento") && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              if (window.confirm("⛔ ATENÇÃO: Tem certeza que deseja PARAR este envio de emergência? Esta ação não pode ser desfeita.")) {
-                                emergencyStopMutation.mutate(sending.id);
-                              }
-                            }}
-                            disabled={emergencyStopMutation.isPending}
-                          >
-                            {emergencyStopMutation.isPending ? "Parando..." : "Parar Envios"}
-                          </Button>
-                        )}
+
                         </div>
                       </TableCell>
                     </TableRow>
