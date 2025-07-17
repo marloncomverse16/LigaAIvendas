@@ -494,5 +494,24 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Fluxo FUNCIONAL**: QR Code conecta → Sistema detecta mudança → Webhook POST enviado → Agente IA notificado
 - **Isolamento garantido**: Webhooks respeitam configurações específicas por usuário via `user_servers`
 
-*Última atualização: 08 de julho de 2025*
-*Sistema automático de webhook para GERAÇÃO de QR Code WhatsApp implementado e testado*
+### 2025-07-17 - Simplificação Interface de Envio de Mensagens
+- **Campo "Quantidade de Mensagens" removido**: Interface de envio de mensagens simplificada conforme solicitação
+- **Alterações no formulário**:
+  - Removido campo `quantity` do schema de validação
+  - Removido FormField "Quantidade de Mensagens" do formulário
+  - Sistema agora usa automaticamente a quantidade de leads encontrados na pesquisa selecionada
+- **Lógica atualizada**: 
+  - `totalRecipients` baseado em `searchData.leadsFound` ao invés de input manual
+  - Valores padrão do formulário limpos (removidas referências de quantity)
+  - Envios executam para todos os leads da pesquisa sem limitação manual
+- **Dica removida**: "Defina a quantidade de mensagens para controlar o volume de envios"
+- **Histórico de envios simplificado**: Coluna "Destinatários" removida da tabela de histórico
+- **Interface otimizada**: Formulário mais limpo e direto, foco nos campos essenciais
+
+### 2025-07-17 - Correção Texto de Importação 
+- **Página de importação corrigida**: Alterado texto de "PDF ou CSV" para "CSV ou Excel"
+- **Validação aprimorada**: Sistema aceita corretamente arquivos .csv, .xlsx e .xls
+- **Consistência**: Interface agora reflete corretamente as funcionalidades reais do sistema
+
+*Última atualização: 17 de julho de 2025*
+*Interface de envio de mensagens simplificada - campos desnecessários removidos*

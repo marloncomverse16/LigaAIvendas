@@ -1603,7 +1603,7 @@ const SendingList = () => {
                     <TableHead>Pesquisa</TableHead>
                     <TableHead>Template</TableHead>
                     <TableHead>Tipo Conexão</TableHead>
-                    <TableHead>Destinatários</TableHead>
+
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -1630,7 +1630,7 @@ const SendingList = () => {
                           {sending.connectionType === "whatsapp_qr" ? "QR Code" : "Meta API"}
                         </div>
                       </TableCell>
-                      <TableCell>{sending.totalRecipients || 0}</TableCell>
+
                       <TableCell>
                         <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeVariant(
                           sending.connectionType === "whatsapp_qr" ? "concluido" : sending.status
