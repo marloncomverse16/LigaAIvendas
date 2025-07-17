@@ -21,7 +21,7 @@ import {
   Server
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSidebar } from "@/providers/sidebar-provider";
@@ -206,6 +206,9 @@ export function Sidebar() {
             collapsed ? "justify-center" : "justify-start"
           )}>
             <Avatar className="h-10 w-10 border-2 border-sidebar-border">
+              {user?.profileImage && (
+                <AvatarImage src={user.profileImage} alt="Foto de perfil" />
+              )}
               <AvatarFallback className="bg-sidebar-primary text-white">
                 {getInitials(user?.name)}
               </AvatarFallback>

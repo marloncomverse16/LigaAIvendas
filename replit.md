@@ -644,5 +644,26 @@ META_WEBHOOK_VERIFY_TOKEN=...
   - Interface mais limpa no header das páginas
 - **Resultado**: Header simplificado contendo apenas botões de tema e menu mobile
 
+### 2025-07-17 - Sistema Completo de Upload de Imagem de Perfil
+- **Funcionalidade implementada**: Upload e gerenciamento de foto de perfil de usuário
+- **Estrutura de banco de dados**: Campo `profile_image` adicionado à tabela `users`
+- **Backend implementado**:
+  - `POST /api/upload/profile-image`: Upload de imagem com validação de tipo e tamanho
+  - `DELETE /api/upload/profile-image`: Remoção de imagem existente
+  - Atualização automática do campo `profileImage` na tabela `users`
+  - Limpeza automática de arquivos ao remover imagem
+- **Frontend implementado**:
+  - Interface de upload na seção "Perfil e Conta" das configurações
+  - Validação de arquivo (tipo: imagem, tamanho: máx 5MB)
+  - Estados de carregamento para upload e remoção
+  - Avatar atualizado dinamicamente nas configurações
+  - **Correção sidebar**: Avatar no sidebar agora exibe a imagem de perfil atualizada
+- **Integrações corrigidas**:
+  - Query de perfil usando `/api/user` (rota existente)
+  - Cache invalidation automática após upload/remoção
+  - Sincronização entre página de configurações e sidebar
+- **Validações de segurança**: Upload limitado a imagens, verificação de autenticação
+- **Resultado**: Sistema funcional de gerenciamento de foto de perfil integrado à interface
+
 *Última atualização: 17 de julho de 2025*
-*Sino de notificações removido do header conforme solicitação*
+*Sistema de upload de imagem de perfil funcionando com atualização automática no sidebar*
