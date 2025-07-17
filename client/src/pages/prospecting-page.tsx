@@ -934,7 +934,7 @@ export default function ProspectingPage() {
                           <div className="mb-4 grid grid-cols-3 gap-4">
                             <div className="bg-primary/5 p-3 rounded-lg">
                               <h4 className="text-xs font-medium text-muted-foreground mb-1">Leads Encontrados</h4>
-                              <p className="text-xl font-bold">{searches.find(s => s.id === activeSearch)?.leadsFound || 0}</p>
+                              <p className="text-xl font-bold">{results ? results.length : (searches.find(s => s.id === activeSearch)?.leadsFound || 0)}</p>
                             </div>
                             <div className="bg-primary/5 p-3 rounded-lg">
                               <h4 className="text-xs font-medium text-muted-foreground mb-1">Já Enviados</h4>
@@ -942,7 +942,7 @@ export default function ProspectingPage() {
                             </div>
                             <div className="bg-primary/5 p-3 rounded-lg">
                               <h4 className="text-xs font-medium text-muted-foreground mb-1">Pendentes</h4>
-                              <p className="text-xl font-bold">{searches.find(s => s.id === activeSearch)?.dispatchesPending || 0}</p>
+                              <p className="text-xl font-bold">{results ? Math.max(0, results.length - (searches.find(s => s.id === activeSearch)?.dispatchesDone || 0)) : (searches.find(s => s.id === activeSearch)?.dispatchesPending || 0)}</p>
                             </div>
                           </div>
 
