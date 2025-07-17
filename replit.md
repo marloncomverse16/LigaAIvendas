@@ -562,5 +562,16 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Colunas mantidas**: Nome, Telefone, Fonte, Tags, Status e Ações
 - **Melhoria de UX**: Tabela mais simples e eficiente para visualização de contatos
 
+### 2025-07-17 - Correção Mapeamento de Campos Contatos
+- **Problema identificado**: Discrepância entre campos API (snake_case) e interface (camelCase)
+- **Campos corrigidos**: `phone_number`, `is_active`, `last_message_time`, etc.
+- **Interface TypeScript atualizada**: Contact interface agora usa snake_case conforme API
+- **Funcionalidades corrigidas**: 
+  - Display do telefone na tabela
+  - Filtro de busca por telefone
+  - Função de edição de contatos  
+  - Badge de status ativo/inativo
+- **Resultado**: Contatos editados agora exibem telefone corretamente na interface
+
 *Última atualização: 17 de julho de 2025*
-*Sistema de paginação de contatos funcionando e interface simplificada*
+*Sistema de paginação funcionando e mapeamento de campos corrigido*

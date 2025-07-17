@@ -19,18 +19,18 @@ import { ptBR } from "date-fns/locale";
 
 interface Contact {
   id: number;
-  phoneNumber: string;
+  phone_number: string;
   name: string | null;
-  profilePicture: string | null;
-  lastMessageTime: string | null;
-  lastMessage: string | null;
+  profile_picture: string | null;
+  last_message_time: string | null;
+  last_message: string | null;
   source: 'qr_code' | 'cloud_api';
-  serverId: number | null;
-  isActive: boolean;
+  server_id: number | null;
+  is_active: boolean;
   notes: string | null;
   tags: string[];
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface ContactFormData {
@@ -89,7 +89,7 @@ export default function ContactsPageNew() {
   const filteredContacts = contacts.filter(contact => {
     const matchesSearch = !searchTerm || 
       contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.phoneNumber.includes(searchTerm);
+      contact.phone_number.includes(searchTerm);
     
     const matchesSource = sourceFilter === "all" || contact.source === sourceFilter;
     
@@ -248,12 +248,12 @@ export default function ContactsPageNew() {
   const handleEdit = (contact: Contact) => {
     setEditingContact(contact);
     setFormData({
-      phoneNumber: contact.phoneNumber,
+      phoneNumber: contact.phone_number,
       name: contact.name || "",
       notes: contact.notes || "",
       tags: contact.tags.join(', '),
       source: contact.source,
-      isActive: contact.isActive
+      isActive: contact.is_active
     });
     setIsDialogOpen(true);
   };
@@ -528,7 +528,7 @@ export default function ContactsPageNew() {
                           <TableCell className="font-medium">
                             {contact.name || 'Sem nome'}
                           </TableCell>
-                          <TableCell>{contact.phoneNumber}</TableCell>
+                          <TableCell>{contact.phone_number}</TableCell>
                           <TableCell>{getSourceBadge(contact.source)}</TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
@@ -540,8 +540,8 @@ export default function ContactsPageNew() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={contact.isActive ? "default" : "secondary"}>
-                              {contact.isActive ? 'Ativo' : 'Inativo'}
+                            <Badge variant={contact.is_active ? "default" : "secondary"}>
+                              {contact.is_active ? 'Ativo' : 'Inativo'}
                             </Badge>
                           </TableCell>
                           <TableCell>
