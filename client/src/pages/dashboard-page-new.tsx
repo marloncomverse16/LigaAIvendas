@@ -99,7 +99,11 @@ export default function DashboardPage() {
             Visão geral da sua operação WhatsApp
           </p>
         </div>
-        <Button onClick={refreshData} disabled={refreshing} className="flex items-center gap-2">
+        <Button 
+          onClick={refreshData} 
+          disabled={refreshing} 
+          className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-orange-600 hover:to-yellow-500 text-white border-0"
+        >
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           {refreshing ? 'Atualizando...' : 'Atualizar Dados'}
         </Button>

@@ -625,5 +625,15 @@ META_WEBHOOK_VERIFY_TOKEN=...
   - Container centralizado com largura máxima de 7xl
 - **Resultado**: Interface moderna, responsiva e otimizada para produtividade em qualquer dispositivo
 
+### 2025-07-17 - Correção da Cor do Botão "Atualizar Dados" no Dashboard
+- **Problema identificado**: Botão "Atualizar Dados" no dashboard estava com cor diferente do padrão do sistema
+- **Correção aplicada**: Botão agora usa gradiente laranja-amarelo consistente com o tema
+- **Arquivos atualizados**:
+  - `dashboard-page.tsx`: Botão com gradiente `from-orange-500 to-yellow-400`
+  - `dashboard-page-complete.tsx`: Mesmo padrão aplicado
+  - `dashboard-page-new.tsx`: Consistência mantida em todas as versões
+- **Estilo aplicado**: `bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-orange-600 hover:to-yellow-500 text-white border-0`
+- **Resultado**: Interface consistente com gradiente laranja-amarelo em todos os botões principais
+
 *Última atualização: 17 de julho de 2025*
-*Layout de configurações totalmente otimizado para responsividade*
+*Botão "Atualizar Dados" corrigido para padrão laranja-amarelo do sistema*
