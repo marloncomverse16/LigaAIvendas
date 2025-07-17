@@ -543,7 +543,7 @@ export default function ContactsPageNew() {
                             <Badge 
                               className={contact.is_active 
                                 ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" 
-                                : "bg-gray-400 text-white"
+                                : "bg-gray-500 text-white font-semibold"
                               }
                             >
                               {contact.is_active ? 'Ativo' : 'Inativo'}
