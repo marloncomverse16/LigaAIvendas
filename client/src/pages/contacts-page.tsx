@@ -26,19 +26,22 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, RefreshCw, Search, Download, User, Users, Phone, ChevronLeft, ChevronRight } from "lucide-react";
 
-// Tipo para contatos do WhatsApp
+// Tipo para contatos do WhatsApp baseado na API real
 interface WhatsAppContact {
   id: number;
-  contactId: string;
+  user_id: number;
+  phone_number: string;
   name: string | null;
-  number: string;
-  profilePicture: string | null;
-  isGroup: boolean;
-  lastActivity: string | null;
-  lastMessageContent: string | null;
-  unreadCount: number;
-  createdAt: string;
-  updatedAt: string | null;
+  profile_picture: string | null;
+  last_message_time: string | null;
+  last_message: string | null;
+  source: string;
+  server_id: number | null;
+  is_active: boolean;
+  notes: string | null;
+  tags: string[];
+  created_at: string;
+  updated_at: string | null;
 }
 
 export default function ContactsPage() {
@@ -115,7 +118,7 @@ export default function ContactsPage() {
     const searchLower = searchTerm.toLowerCase();
     // Verificar se as propriedades existem antes de chamar toLowerCase
     const nameMatch = contact.name ? contact.name.toLowerCase().includes(searchLower) : false;
-    const numberMatch = contact.number ? contact.number.toLowerCase().includes(searchLower) : false;
+    const numberMatch = contact.phone_number ? contact.phone_number.toLowerCase().includes(searchLower) : false;
     
     return nameMatch || numberMatch;
   });
@@ -131,6 +134,18 @@ export default function ContactsPage() {
   const startIndex = (currentPage - 1) * contactsPerPage;
   const endIndex = startIndex + contactsPerPage;
   const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
+
+  // Debug da paginação
+  console.log('📊 Debug Paginação:', {
+    totalContacts,
+    contactsPerPage,
+    currentPage,
+    totalPages,
+    startIndex,
+    endIndex,
+    paginatedContactsLength: paginatedContacts.length,
+    filteredContactsLength: filteredContacts.length
+  });
 
   // Funções de navegação de página
   const goToPage = (page: number) => {
@@ -244,14 +259,12 @@ export default function ContactsPage() {
                 {paginatedContacts.map((contact: WhatsAppContact) => (
                   <TableRow key={contact.id}>
                     <TableCell className="font-medium flex items-center">
-                      {contact.profilePicture ? (
+                      {contact.profile_picture ? (
                         <img
-                          src={contact.profilePicture}
+                          src={contact.profile_picture}
                           alt={contact.name || ""}
                           className="w-8 h-8 rounded-full mr-2"
                         />
-                      ) : contact.isGroup ? (
-                        <Users className="h-6 w-6 mr-2 text-muted-foreground" />
                       ) : (
                         <User className="h-6 w-6 mr-2 text-muted-foreground" />
                       )}
@@ -260,17 +273,17 @@ export default function ContactsPage() {
                     <TableCell>
                       <div className="flex items-center">
                         <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                        {formatPhone(contact.number)}
+                        {formatPhone(contact.phone_number)}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={contact.isGroup ? "secondary" : "default"}>
-                        {contact.isGroup ? "Grupo" : "Contato"}
+                      <Badge variant={contact.source === "qr_code" ? "default" : "secondary"}>
+                        {contact.source === "qr_code" ? "QR Code" : "Meta API"}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {contact.lastActivity
-                        ? new Date(contact.lastActivity).toLocaleString("pt-BR", {
+                      {contact.last_message_time
+                        ? new Date(contact.last_message_time).toLocaleString("pt-BR", {
                             dateStyle: "short",
                             timeStyle: "short",
                           })
