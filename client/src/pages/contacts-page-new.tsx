@@ -540,7 +540,12 @@ export default function ContactsPageNew() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={contact.is_active ? "default" : "secondary"}>
+                            <Badge 
+                              className={contact.is_active 
+                                ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" 
+                                : "bg-gray-400 text-white"
+                              }
+                            >
                               {contact.is_active ? 'Ativo' : 'Inativo'}
                             </Badge>
                           </TableCell>
