@@ -141,9 +141,20 @@ export default function AdminUsersPage() {
       // Para cada usuário, buscar informações de servidor e agente IA
       const usersWithDetails = await Promise.all(usersData.map(async (user: any) => {
         try {
-          // Buscar relação de servidor do usuário
+          // Buscar relação de servidor do usuário com dados completos
           const serverRes = await apiRequest("GET", `/api/user-servers/user/${user.id}`);
           const serverRelations = await serverRes.json();
+          
+          // Se há relação de servidor, buscar dados completos do servidor
+          let serverInfo = null;
+          if (serverRelations.length > 0) {
+            try {
+              const serverDetailRes = await apiRequest("GET", `/api/servers/${serverRelations[0].serverId}`);
+              serverInfo = await serverDetailRes.json();
+            } catch (error) {
+              console.error(`Erro ao buscar servidor ${serverRelations[0].serverId}:`, error);
+            }
+          }
           
           // Buscar agentes IA do usuário
           const agentRes = await apiRequest("GET", `/api/users/${user.id}/ai-agents`);
@@ -151,7 +162,10 @@ export default function AdminUsersPage() {
           
           return {
             ...user,
-            serverRelation: serverRelations.length > 0 ? serverRelations[0] : null,
+            serverRelation: serverRelations.length > 0 ? {
+              ...serverRelations[0],
+              serverInfo: serverInfo
+            } : null,
             aiAgents: aiAgents || []
           };
         } catch (error) {
@@ -1339,9 +1353,13 @@ export default function AdminUsersPage() {
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{user.company || "-"}</TableCell>
                         <TableCell>
-                          {user.serverRelation ? (
+                          {user.serverRelation && user.serverRelation.serverInfo ? (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {user.serverRelation.serverName || `Servidor ${user.serverRelation.serverId}`}
+                              {user.serverRelation.serverInfo.name}
+                            </span>
+                          ) : user.serverRelation ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Servidor {user.serverRelation.serverId}
                             </span>
                           ) : (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
