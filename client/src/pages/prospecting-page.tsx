@@ -406,9 +406,19 @@ export default function ProspectingPage() {
     }
     
     // Verificar o tipo de arquivo
-    const validTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
-    if (!validTypes.includes(file.type) && !file.name.endsWith('.csv')) {
-      setImportError("Formato de arquivo inválido. Use CSV ou Excel.");
+    const validTypes = [
+      'text/csv', 
+      'application/vnd.ms-excel', 
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/csv',
+      'text/comma-separated-values'
+    ];
+    const validExtensions = ['.csv', '.xlsx', '.xls'];
+    const hasValidType = validTypes.includes(file.type);
+    const hasValidExtension = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    
+    if (!hasValidType && !hasValidExtension) {
+      setImportError("Formato de arquivo inválido. Use CSV ou Excel (.csv, .xlsx, .xls).");
       setImportFile(null);
       return;
     }
@@ -1394,7 +1404,7 @@ export default function ProspectingPage() {
                                         <>
                                           <Upload className="w-10 h-10 mb-3 text-muted-foreground" />
                                           <p className="mb-2 text-sm text-muted-foreground">Clique para selecionar ou arraste o arquivo</p>
-                                          <p className="text-xs text-muted-foreground">PDF ou CSV (máx. 10MB)</p>
+                                          <p className="text-xs text-muted-foreground">CSV ou Excel (máx. 10MB)</p>
                                           <p className="text-xs text-muted-foreground mt-1">
                                             Formato: colunas com nome, email, telefone ou qualquer dados de contato
                                           </p>
@@ -1408,7 +1418,7 @@ export default function ProspectingPage() {
                                       id="dropzone-file"
                                       type="file"
                                       className="hidden"
-                                      accept=".pdf,.csv"
+                                      accept=".csv,.xlsx,.xls"
                                       onChange={handleFileChange}
                                       ref={fileInputRef}
                                     />
@@ -1438,7 +1448,7 @@ export default function ProspectingPage() {
                                 <FileType className="h-4 w-4" />
                                 <AlertTitle>Formato do arquivo</AlertTitle>
                                 <AlertDescription>
-                                  <p className="mb-2">O arquivo deve estar no formato PDF ou CSV com as seguintes colunas:</p>
+                                  <p className="mb-2">O arquivo deve estar no formato CSV ou Excel com as seguintes colunas:</p>
                                   <ul className="list-disc list-inside space-y-1 text-xs">
                                     <li><strong>nome/name</strong>: Nome da empresa ou contato</li>
                                     <li><strong>email</strong>: Endereço de email</li>
