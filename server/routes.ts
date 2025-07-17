@@ -2419,6 +2419,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const templateId = parseInt(req.params.id);
       const userId = (req.user as Express.User).id;
       
+      // Validar dados de entrada
+      if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({ message: "Dados inválidos" });
+      }
+      
+      // Limpar caracteres especiais do conteúdo se presente
+      if (req.body.content) {
+        req.body.content = req.body.content.replace(/[<>]/g, '');
+      }
+      
       // Buscar modelo para verificar propriedade
       const template = await storage.getMessageTemplate(templateId);
       
@@ -2436,6 +2446,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao atualizar modelo de mensagem:", error);
       res.status(500).json({ message: "Erro ao atualizar modelo de mensagem" });
+    }
+  });
+
+  app.patch("/api/message-templates/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Não autenticado" });
+    
+    try {
+      const templateId = parseInt(req.params.id);
+      const userId = (req.user as Express.User).id;
+      
+      // Validar dados de entrada e limpar caracteres especiais
+      if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({ message: "Dados inválidos" });
+      }
+      
+      // Limpar caracteres especiais problemáticos (< > ") do conteúdo
+      if (req.body.content) {
+        req.body.content = req.body.content.replace(/[<>"]/g, '');
+      }
+      
+      if (req.body.title) {
+        req.body.title = req.body.title.replace(/[<>"]/g, '');
+      }
+      
+      if (req.body.tags) {
+        req.body.tags = req.body.tags.replace(/[<>"]/g, '');
+      }
+      
+      console.log(`📝 PATCH Template ${templateId}: Dados limpos recebidos`);
+      
+      // Buscar modelo para verificar propriedade
+      const template = await storage.getMessageTemplate(templateId);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Modelo de mensagem não encontrado" });
+      }
+      
+      // Verificar se o modelo pertence ao usuário
+      if (template.userId !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      
+      const updatedTemplate = await storage.updateMessageTemplate(templateId, req.body, userId);
+      
+      if (!updatedTemplate) {
+        return res.status(500).json({ message: "Erro ao atualizar template" });
+      }
+      
+      console.log(`✅ Template ${templateId} atualizado com sucesso`);
+      res.json(updatedTemplate);
+    } catch (error) {
+      console.error("Erro ao atualizar modelo de mensagem (PATCH):", error);
+      if (error instanceof SyntaxError) {
+        res.status(400).json({ message: "Erro de sintaxe nos dados fornecidos" });
+      } else {
+        res.status(500).json({ message: "Erro ao atualizar modelo de mensagem" });
+      }
     }
   });
   
