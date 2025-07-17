@@ -32,6 +32,7 @@ export const users = pgTable("users", {
   phone: text("phone"),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  profileImage: text("profile_image"),
   // Webhooks para integração
   whatsappWebhookUrl: text("whatsapp_webhook_url"),
   aiAgentWebhookUrl: text("ai_agent_webhook_url"),

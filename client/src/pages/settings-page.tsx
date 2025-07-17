@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
@@ -17,8 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Target, DollarSign, Users } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2, Target, DollarSign, Users, Upload, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const profileSchema = z.object({
@@ -385,11 +386,14 @@ function GoalsSettings() {
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("profile");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   
   // Fetch user profile data
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
-    queryKey: ["/api/profile"],
+    queryKey: ["/api/user"],
   });
   
   // Fetch settings data (for goals and appearance)
@@ -397,14 +401,72 @@ export default function SettingsPage() {
     queryKey: ["/api/settings"],
   });
   
-  // Update profile mutation
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: ProfileFormValues) => {
-      const res = await apiRequest("PUT", "/api/profile", data);
+  // Upload profile image mutation
+  const uploadImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      
+      const res = await fetch("/api/upload/profile-image", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!res.ok) {
+        throw new Error("Erro ao fazer upload da imagem");
+      }
+      
       return await res.json();
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(["/api/profile"], data);
+      setProfileImage(data.imageUrl);
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      toast({
+        title: "Sucesso",
+        description: "Foto de perfil atualizada com sucesso!"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive"
+      });
+    },
+  });
+
+  // Remove profile image mutation
+  const removeImageMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/upload/profile-image");
+      return await res.json();
+    },
+    onSuccess: () => {
+      setProfileImage(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      toast({
+        title: "Sucesso",
+        description: "Foto de perfil removida com sucesso!"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive"
+      });
+    },
+  });
+
+  // Update profile mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: ProfileFormValues) => {
+      const res = await apiRequest("PUT", "/api/user", data);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
   });
@@ -428,6 +490,53 @@ export default function SettingsPage() {
     // Campos de perfil removidos - retorna username do usuário autenticado
     return user?.username || "U";
   };
+
+  // Handle file upload
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione um arquivo de imagem válido",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Erro",
+        description: "A imagem deve ter no máximo 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploadingImage(true);
+    uploadImageMutation.mutate(file, {
+      onSettled: () => {
+        setIsUploadingImage(false);
+        // Reset input
+        event.target.value = "";
+      }
+    });
+  };
+
+  // Handle remove image
+  const handleRemoveImage = () => {
+    removeImageMutation.mutate();
+  };
+
+  // Set profile image from API data
+  React.useEffect(() => {
+    if (profile?.profileImage) {
+      setProfileImage(profile.profileImage);
+    }
+  }, [profile]);
   
   return (
     <div className="flex min-h-screen bg-background">
@@ -527,6 +636,9 @@ export default function SettingsPage() {
                       <>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                           <Avatar className="w-16 h-16 sm:w-20 sm:h-20 text-2xl sm:text-3xl">
+                            {profileImage ? (
+                              <AvatarImage src={profileImage} alt="Foto de perfil" />
+                            ) : null}
                             <AvatarFallback className="bg-gradient-to-br from-orange-500 to-yellow-400 text-white">
                               {getInitials(getProfileName())}
                             </AvatarFallback>
@@ -535,12 +647,55 @@ export default function SettingsPage() {
                           <div className="space-y-2">
                             <h3 className="text-lg font-medium">Foto de Perfil</h3>
                             <div className="flex flex-wrap gap-2">
-                              <Button type="button" variant="outline" size="sm">
-                                Alterar
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                                id="profile-image-upload"
+                              />
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                disabled={isUploadingImage || uploadImageMutation.isPending}
+                                onClick={() => document.getElementById('profile-image-upload')?.click()}
+                                className="bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold border-0"
+                              >
+                                {isUploadingImage || uploadImageMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Enviando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Alterar
+                                  </>
+                                )}
                               </Button>
-                              <Button type="button" variant="outline" size="sm" className="text-destructive">
-                                Remover
-                              </Button>
+                              {profileImage && (
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                  disabled={removeImageMutation.isPending}
+                                  onClick={handleRemoveImage}
+                                >
+                                  {removeImageMutation.isPending ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Removendo...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Remover
+                                    </>
+                                  )}
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
