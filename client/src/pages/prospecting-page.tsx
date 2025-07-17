@@ -699,7 +699,7 @@ export default function ProspectingPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-6">
+    <div className="flex flex-col items-center min-h-screen p-6">
       <div className="w-full max-w-7xl">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold flex items-center justify-center gap-2 mb-2">
