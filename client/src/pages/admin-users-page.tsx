@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare, User as UserIcon, Bot, Download, Search, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Users, MoreHorizontal, KeySquare, User as UserIcon, Bot, Download, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -105,6 +105,10 @@ export default function AdminUsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "user">("all");
+  
+  // Estados de paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
 
   // Estados para gerenciar os agentes IA do usuário
   const [userAiAgents, setUserAiAgents] = useState<any[]>([]);
@@ -137,7 +141,7 @@ export default function AdminUsersPage() {
   const filteredUsers = useMemo(() => {
     if (!users) return [];
 
-    return users.filter((user: any) => {
+    const filtered = users.filter((user: any) => {
       // Filtro de busca (nome, email, empresa, username)
       const matchesSearch = searchTerm === "" || 
         (user.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -157,7 +161,37 @@ export default function AdminUsersPage() {
 
       return matchesSearch && matchesStatus && matchesRole;
     });
+
+    // Reset para página 1 quando filtros mudarem
+    if (currentPage > Math.ceil(filtered.length / usersPerPage)) {
+      setCurrentPage(1);
+    }
+
+    return filtered;
   }, [users, searchTerm, statusFilter, roleFilter]);
+
+  // Cálculos de paginação
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const startIndex = (currentPage - 1) * usersPerPage;
+  const endIndex = startIndex + usersPerPage;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Funções de navegação de páginas
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
   // Buscar todos os servidores disponíveis
   const { data: servers = [], isLoading: isLoadingServers } = useQuery<Server[]>({
@@ -1197,17 +1231,19 @@ export default function AdminUsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.length === 0 ? (
+                  {paginatedUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8">
-                        {users.length === 0 
-                          ? "Nenhum usuário encontrado. Crie o primeiro usuário."
-                          : "Nenhum usuário corresponde aos filtros aplicados."
+                        {filteredUsers.length === 0 
+                          ? (users.length === 0 
+                              ? "Nenhum usuário encontrado. Crie o primeiro usuário."
+                              : "Nenhum usuário corresponde aos filtros aplicados.")
+                          : "Nenhum usuário encontrado nesta página."
                         }
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredUsers.map((user: UserType) => (
+                    paginatedUsers.map((user: UserType) => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name || user.username}</TableCell>
                         <TableCell>{user.email}</TableCell>
@@ -1284,6 +1320,67 @@ export default function AdminUsersPage() {
               </Table>
             )}
           </CardContent>
+          
+          {/* Controles de Paginação */}
+          {filteredUsers.length > usersPerPage && (
+            <div className="flex items-center justify-between px-6 py-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Mostrando {startIndex + 1} a {Math.min(endIndex, filteredUsers.length)} de {filteredUsers.length} usuários
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Anterior
+                </Button>
+                
+                {/* Numeração das páginas */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let page;
+                    if (totalPages <= 5) {
+                      page = i + 1;
+                    } else if (currentPage <= 3) {
+                      page = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      page = totalPages - 4 + i;
+                    } else {
+                      page = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(page)}
+                        className={currentPage === page ? "bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-orange-600 hover:to-yellow-500 text-white border-0" : ""}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center gap-1"
+                >
+                  Próxima
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Modal de confirmação para excluir usuário */}
