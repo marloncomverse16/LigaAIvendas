@@ -205,12 +205,18 @@ export default function AdminUsersPage() {
     if (!users) return [];
 
     return users.filter((user: any) => {
-      // Filtro de busca (nome, email, empresa, username)
+      // Filtro de busca expandido (nome, email, empresa, username, servidor, agente IA)
       const matchesSearch = searchTerm === "" || 
         (user.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (user.email?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (user.company?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (user.username?.toLowerCase().includes(searchTerm.toLowerCase()));
+        (user.username?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        // Busca por nome do servidor
+        (user.serverRelation?.serverInfo?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        // Busca por nome do agente IA
+        (user.aiAgents?.some((agent: any) => 
+          agent.agentName?.toLowerCase().includes(searchTerm.toLowerCase())
+        ));
 
       // Filtro de status
       const matchesStatus = statusFilter === "all" || 
@@ -1228,7 +1234,7 @@ export default function AdminUsersPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
-                    placeholder="Buscar por nome, email, empresa ou username..."
+                    placeholder="Buscar por nome, email, empresa, username, servidor ou agente IA..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
