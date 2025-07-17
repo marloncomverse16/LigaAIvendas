@@ -78,7 +78,7 @@ export default function ContactsPage() {
   const syncMutation = useMutation({
     mutationFn: async () => {
       // Usar o endpoint correto para sincronização
-      return await apiRequest("POST", "/api/chat/sync-contacts");
+      return await apiRequest("POST", "/api/contacts/sync-all");
     },
     onSuccess: (data) => {
       // Atualizar a consulta de contatos após sincronização
@@ -109,6 +109,7 @@ export default function ContactsPage() {
 
   // Filtrar contatos com base no termo de busca
   const contacts = contactsData?.contacts || [];
+  
   const filteredContacts = contacts.filter((contact: WhatsAppContact) => {
     if (!contact) return false;
     
@@ -136,16 +137,9 @@ export default function ContactsPage() {
   const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
 
   // Debug da paginação
-  console.log('📊 Debug Paginação:', {
-    totalContacts,
-    contactsPerPage,
-    currentPage,
-    totalPages,
-    startIndex,
-    endIndex,
-    paginatedContactsLength: paginatedContacts.length,
-    filteredContactsLength: filteredContacts.length
-  });
+  if (totalContacts > 0) {
+    console.log('🚨 PAGINAÇÃO ATIVA - Total:', totalContacts, 'Página:', currentPage, 'Controles?', totalPages > 1);
+  }
 
   // Funções de navegação de página
   const goToPage = (page: number) => {
@@ -256,7 +250,7 @@ export default function ContactsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedContacts.map((contact: WhatsAppContact) => (
+                {filteredContacts.slice(startIndex, endIndex).map((contact: WhatsAppContact) => (
                   <TableRow key={contact.id}>
                     <TableCell className="font-medium flex items-center">
                       {contact.profile_picture ? (
