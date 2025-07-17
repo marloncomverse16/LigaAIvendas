@@ -573,5 +573,14 @@ META_WEBHOOK_VERIFY_TOKEN=...
   - Badge de status ativo/inativo
 - **Resultado**: Contatos editados agora exibem telefone corretamente na interface
 
+### 2025-07-17 - Correção Contador de Contatos Ativos e Cores dos Badges
+- **Bug crítico resolvido**: Contador "Ativos" mostrando 0 contatos quando havia muitos ativos
+- **Causa**: Código buscava campo `isActive` (camelCase) quando API retorna `is_active` (snake_case)
+- **Correção aplicada**: Linha 490 alterada para usar `c.is_active` no filtro de contagem
+- **Melhorias visuais dos badges**:
+  - Badge "Ativo": Gradiente laranja-amarelo vibrante com hover mais intenso
+  - Badge "Inativo": Cinza escuro com hover cinza mais escuro (removido verde incorreto)
+- **Resultado**: Sistema agora conta e exibe corretamente contatos ativos com cores consistentes
+
 *Última atualização: 17 de julho de 2025*
-*Sistema de paginação funcionando e mapeamento de campos corrigido*
+*Contadores funcionando corretamente e badges com cores consistentes*

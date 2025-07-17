@@ -487,7 +487,7 @@ export default function ContactsPageNew() {
                   <div>
                     <p className="text-sm text-muted-foreground">Ativos</p>
                     <p className="text-2xl font-bold">
-                      {contacts.filter(c => c.isActive).length}
+                      {contacts.filter(c => c.is_active).length}
                     </p>
                   </div>
                 </div>
