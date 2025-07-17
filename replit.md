@@ -513,5 +513,16 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Validação aprimorada**: Sistema aceita corretamente arquivos .csv, .xlsx e .xls
 - **Consistência**: Interface agora reflete corretamente as funcionalidades reais do sistema
 
+### 2025-07-17 - Correção Completa do Sistema de Rolagem e Contagem de Resultados
+- **Problema de viewport resolvido**: Página de prospecção agora inicia do topo sem cortes
+- **Rolagem dual funcional**: Sistema habilitado com rolagem vertical (altura máxima 600px) e horizontal simultâneas
+- **Estrutura otimizada**: Substituído ScrollArea por `overflow-auto max-h-[600px]` para melhor compatibilidade
+- **Contagem de resultados corrigida**: Sistema agora exibe sempre o valor real de resultados encontrados
+- **Função getRealCount() implementada**: Para busca ativa usa `results.length`, para outras usa valor salvo
+- **Interface limpa**: Removido `justify-center` e `h-full` que causavam centralização forçada
+- **Cabeçalho fixo**: Tabela mantém cabeçalho visível durante rolagem com `sticky top-0`
+- **Todas as colunas acessíveis**: EMAIL, ENDEREÇO, SITE e outras colunas visíveis via rolagem horizontal
+- **Discrepância eliminada**: Valor mostrado em azul "X encontrados" agora corresponde ao real número de resultados
+
 *Última atualização: 17 de julho de 2025*
-*Interface de envio de mensagens simplificada - campos desnecessários removidos*
+*Sistema de rolagem e contagem de resultados completamente funcional*

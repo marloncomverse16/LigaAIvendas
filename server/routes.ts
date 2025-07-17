@@ -1971,6 +1971,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir prospecto" });
     }
   });
+
+
   
   // Rota para importar arquivo de leads
   app.post("/api/prospecting/import", upload.single('file'), async (req, res) => {

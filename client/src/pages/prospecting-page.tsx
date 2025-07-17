@@ -174,6 +174,16 @@ export default function ProspectingPage() {
     }
   });
 
+  // Função para obter contagem real de uma busca específica
+  const getRealCount = (searchId: number) => {
+    if (activeSearch === searchId && results) {
+      return results.length;
+    }
+    // Para buscas não ativas, usar o valor salvo temporariamente
+    const search = searches?.find(s => s.id === searchId);
+    return search?.leadsFound || 0;
+  };
+
   // Obter o webhook de prospecção do servidor conectado
   const connectedServer = userServers?.find((server: any) => server.isDefault) || userServers?.[0];
   
@@ -847,7 +857,7 @@ export default function ProspectingPage() {
                                   </div>
                                   <div className="flex gap-2 text-xs">
                                     <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-                                      {search.leadsFound} encontrados
+                                      {getRealCount(search.id)} encontrados
                                     </span>
                                     {search.dispatchesDone > 0 && (
                                       <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
