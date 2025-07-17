@@ -109,6 +109,10 @@ export default function AdminUsersPage() {
   // Estados de paginação
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
+  
+  // Estados para filtros de servidor e agente IA
+  const [serverFilter, setServerFilter] = useState<string>("all");
+  const [agentFilter, setAgentFilter] = useState<string>("all");
 
   // Estados para gerenciar os agentes IA do usuário
   const [userAiAgents, setUserAiAgents] = useState<any[]>([]);
@@ -127,13 +131,58 @@ export default function AdminUsersPage() {
     enabled: !!formValues.serverId,
   });
 
-  // Buscar todos os usuários
+  // Buscar todos os usuários com informações de servidor e agente
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["/api/admin/users"],
+    queryKey: ["/api/admin/users-complete"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/users");
-      const data = await res.json();
-      return data;
+      const usersData = await res.json();
+      
+      // Para cada usuário, buscar informações de servidor e agente IA
+      const usersWithDetails = await Promise.all(usersData.map(async (user: any) => {
+        try {
+          // Buscar relação de servidor do usuário
+          const serverRes = await apiRequest("GET", `/api/user-servers/user/${user.id}`);
+          const serverRelations = await serverRes.json();
+          
+          // Buscar agentes IA do usuário
+          const agentRes = await apiRequest("GET", `/api/users/${user.id}/ai-agents`);
+          const aiAgents = await agentRes.json();
+          
+          return {
+            ...user,
+            serverRelation: serverRelations.length > 0 ? serverRelations[0] : null,
+            aiAgents: aiAgents || []
+          };
+        } catch (error) {
+          console.error(`Erro ao buscar detalhes do usuário ${user.id}:`, error);
+          return {
+            ...user,
+            serverRelation: null,
+            aiAgents: []
+          };
+        }
+      }));
+      
+      return usersWithDetails;
+    }
+  });
+
+  // Buscar lista de servidores para filtro
+  const { data: servers = [] } = useQuery({
+    queryKey: ["/api/servers"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/servers");
+      return await res.json();
+    }
+  });
+
+  // Buscar lista de agentes IA para filtro
+  const { data: allAgents = [] } = useQuery({
+    queryKey: ["/api/server-ai-agents"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/server-ai-agents");
+      return await res.json();
     }
   });
 
@@ -159,9 +208,19 @@ export default function AdminUsersPage() {
         (roleFilter === "admin" && user.isAdmin) ||
         (roleFilter === "user" && !user.isAdmin);
 
-      return matchesSearch && matchesStatus && matchesRole;
+      // Filtro de servidor
+      const matchesServer = serverFilter === "all" ||
+        (user.serverRelation && user.serverRelation.serverId?.toString() === serverFilter) ||
+        (serverFilter === "none" && !user.serverRelation);
+
+      // Filtro de agente IA
+      const matchesAgent = agentFilter === "all" ||
+        (user.aiAgents?.some((agent: any) => agent.agentId?.toString() === agentFilter)) ||
+        (agentFilter === "none" && (!user.aiAgents || user.aiAgents.length === 0));
+
+      return matchesSearch && matchesStatus && matchesRole && matchesServer && matchesAgent;
     });
-  }, [users, searchTerm, statusFilter, roleFilter]);
+  }, [users, searchTerm, statusFilter, roleFilter, serverFilter, agentFilter]);
 
   // Reset para página 1 quando filtros mudarem (em useEffect separado)
   React.useEffect(() => {
@@ -193,14 +252,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Buscar todos os servidores disponíveis
-  const { data: servers = [], isLoading: isLoadingServers } = useQuery<Server[]>({
-    queryKey: ["/api/servers"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/servers");
-      return res.json();
-    }
-  });
+
   
   // Função para buscar as relações de servidor de um usuário específico
   const getUserServerRelations = async (userId: number) => {
@@ -1200,6 +1252,42 @@ export default function AdminUsersPage() {
                   </Select>
                 </div>
                 
+                {/* Filtro de Servidor */}
+                <div className="w-full sm:w-40">
+                  <Select value={serverFilter} onValueChange={setServerFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Servidor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="none">Sem servidor</SelectItem>
+                      {servers.map((server: any) => (
+                        <SelectItem key={server.id} value={server.id.toString()}>
+                          {server.name || `Servidor ${server.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Filtro de Agente IA */}
+                <div className="w-full sm:w-40">
+                  <Select value={agentFilter} onValueChange={setAgentFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Agente IA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="none">Sem agente</SelectItem>
+                      {allAgents.map((agent: any) => (
+                        <SelectItem key={agent.id} value={agent.id.toString()}>
+                          {agent.name || `Agente ${agent.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
                 {/* Contador de resultados */}
                 <div className="flex items-center text-sm text-muted-foreground whitespace-nowrap">
                   <Filter className="h-4 w-4 mr-2" />
@@ -1223,6 +1311,8 @@ export default function AdminUsersPage() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Empresa</TableHead>
+                    <TableHead>Servidor</TableHead>
+                    <TableHead>Agente IA</TableHead>
                     <TableHead>Admin</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Tokens</TableHead>
@@ -1233,7 +1323,7 @@ export default function AdminUsersPage() {
                 <TableBody>
                   {paginatedUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={10} className="text-center py-8">
                         {filteredUsers.length === 0 
                           ? (users.length === 0 
                               ? "Nenhum usuário encontrado. Crie o primeiro usuário."
@@ -1248,6 +1338,38 @@ export default function AdminUsersPage() {
                         <TableCell className="font-medium">{user.name || user.username}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{user.company || "-"}</TableCell>
+                        <TableCell>
+                          {user.serverRelation ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {user.serverRelation.serverName || `Servidor ${user.serverRelation.serverId}`}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                              Sem servidor
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {user.aiAgents && user.aiAgents.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {user.aiAgents.slice(0, 2).map((agent: any, index: number) => (
+                                <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  {agent.agentName || `Agente ${agent.agentId}`}
+                                  {agent.isDefault && <span className="ml-1">★</span>}
+                                </span>
+                              ))}
+                              {user.aiAgents.length > 2 && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                  +{user.aiAgents.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                              Sem agente
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {user.isAdmin ? (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -1594,11 +1716,7 @@ export default function AdminUsersPage() {
                         <SelectValue placeholder="Selecione um servidor" />
                       </SelectTrigger>
                       <SelectContent>
-                        {isLoadingServers ? (
-                          <div className="flex justify-center p-2">
-                            Carregando servidores...
-                          </div>
-                        ) : servers.length === 0 ? (
+                        {servers.length === 0 ? (
                           <div className="p-2 text-center text-sm text-gray-500">
                             Nenhum servidor disponível. Adicione um servidor primeiro.
                           </div>
@@ -1968,11 +2086,7 @@ export default function AdminUsersPage() {
                       <SelectValue placeholder="Selecione um servidor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {isLoadingServers ? (
-                        <div className="flex justify-center p-2">
-                          Carregando servidores...
-                        </div>
-                      ) : servers.length === 0 ? (
+                      {servers.length === 0 ? (
                         <div className="p-2 text-center text-sm text-gray-500">
                           Nenhum servidor disponível. Adicione um servidor primeiro.
                         </div>
