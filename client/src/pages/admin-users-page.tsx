@@ -141,7 +141,7 @@ export default function AdminUsersPage() {
   const filteredUsers = useMemo(() => {
     if (!users) return [];
 
-    const filtered = users.filter((user: any) => {
+    return users.filter((user: any) => {
       // Filtro de busca (nome, email, empresa, username)
       const matchesSearch = searchTerm === "" || 
         (user.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -161,14 +161,14 @@ export default function AdminUsersPage() {
 
       return matchesSearch && matchesStatus && matchesRole;
     });
+  }, [users, searchTerm, statusFilter, roleFilter]);
 
-    // Reset para página 1 quando filtros mudarem
-    if (currentPage > Math.ceil(filtered.length / usersPerPage)) {
+  // Reset para página 1 quando filtros mudarem (em useEffect separado)
+  React.useEffect(() => {
+    if (currentPage > Math.ceil(filteredUsers.length / usersPerPage)) {
       setCurrentPage(1);
     }
-
-    return filtered;
-  }, [users, searchTerm, statusFilter, roleFilter]);
+  }, [filteredUsers.length, currentPage, usersPerPage]);
 
   // Cálculos de paginação
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
