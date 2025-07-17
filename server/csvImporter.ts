@@ -247,6 +247,12 @@ export async function importCSVContent(
   storage: IStorage
 ): Promise<{ importedLeads: number, errorLeads: number, message: string }> {
   try {
+    // Log detalhado do conteúdo inicial para debug
+    console.log(`🔍 [CSV Import Debug] SearchID: ${searchId}`);
+    console.log(`📝 [CSV Import Debug] Primeiras 200 chars do CSV:`, fileContent.substring(0, 200));
+    console.log(`📊 [CSV Import Debug] Total chars: ${fileContent.length}`);
+    console.log(`📋 [CSV Import Debug] Total linhas: ${fileContent.split('\n').length}`);
+    
     const lines = fileContent.split('\n');
     
     if (lines.length < 2) {
@@ -259,14 +265,22 @@ export async function importCSVContent(
     
     // Detectar separador ideal para este arquivo
     const separator = detectSeparator(fileContent);
+    console.log(`🔨 [CSV Import Debug] Separador detectado: "${separator}"`);
     
     // Obter e processar cabeçalhos
     const headers = lines[0].split(separator).map(h => h.trim().toLowerCase());
+    console.log(`📋 [CSV Import Debug] Cabeçalhos detectados:`, headers);
+    console.log(`📋 [CSV Import Debug] Primeira linha raw:`, lines[0]);
     
     // Identificar índices de colunas
     const nameIndex = findColumnIndex(headers, 'name');
     const emailIndex = findColumnIndex(headers, 'email');
     const phoneIndex = findColumnIndex(headers, 'phone');
+    
+    console.log(`🔍 [CSV Import Debug] Índices encontrados:`);
+    console.log(`   - Nome: ${nameIndex} (${nameIndex >= 0 ? headers[nameIndex] : 'NÃO ENCONTRADO'})`);
+    console.log(`   - Email: ${emailIndex} (${emailIndex >= 0 ? headers[emailIndex] : 'NÃO ENCONTRADO'})`);
+    console.log(`   - Telefone: ${phoneIndex} (${phoneIndex >= 0 ? headers[phoneIndex] : 'NÃO ENCONTRADO'})`);
     
     // Estratégia para resolver problema de não conseguir identificar colunas:
     // Se não encontrarmos nenhuma coluna automaticamente, vamos utilizar
