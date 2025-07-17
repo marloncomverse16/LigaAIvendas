@@ -23,7 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { 
-  Download, Filter, Loader2, MinusCircle, Pencil, PlusCircle, RefreshCw, Search, Trash2, Users, X 
+  ChevronLeft, ChevronRight, Download, Filter, Loader2, MinusCircle, Pencil, PlusCircle, RefreshCw, Search, Trash2, Users, X 
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -122,6 +122,10 @@ export default function ServerManagementPage() {
   
   // Estado para exportação
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const serversPerPage = 10;
   
   // Estados específicos para agentes IA
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
@@ -836,6 +840,36 @@ export default function ServerManagementPage() {
     });
   }, [servers, searchTerm, statusFilter, providerFilter]);
   
+  // Efeito para resetar página quando filtros mudam
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, providerFilter]);
+  
+  // Cálculos de paginação
+  const totalPages = Math.ceil(filteredServers.length / serversPerPage);
+  const startIndex = (currentPage - 1) * serversPerPage;
+  const endIndex = startIndex + serversPerPage;
+  const paginatedServers = filteredServers.slice(startIndex, endIndex);
+  
+  // Funções de navegação da paginação
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+  
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  
   return (
     <div className="px-4 md:px-6 w-full max-w-7xl mx-auto space-y-4 py-4">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -960,7 +994,7 @@ export default function ServerManagementPage() {
               </TableRow>
             ) : (
               <>
-                {filteredServers.map((server: Server) => {
+                {paginatedServers.map((server: Server) => {
                   const userCount = getServerUserCount(server.id);
                   const isOverLimit = userCount > server.maxUsers;
                   
@@ -1031,6 +1065,106 @@ export default function ServerManagementPage() {
           </TableBody>
         </Table>
       </div>
+      
+      {/* Paginação */}
+      {filteredServers.length > 0 && totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t bg-background">
+          {/* Contador de resultados */}
+          <div className="text-sm text-muted-foreground">
+            Mostrando {startIndex + 1} a {Math.min(endIndex, filteredServers.length)} de {filteredServers.length} servidores
+          </div>
+
+          {/* Controles de navegação */}
+          <div className="flex items-center gap-2">
+            {/* Botão Anterior */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPreviousPage}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </Button>
+
+            {/* Numeração das páginas */}
+            <div className="flex items-center gap-1">
+              {(() => {
+                const pages = [];
+                const startPage = Math.max(1, currentPage - 2);
+                const endPage = Math.min(totalPages, currentPage + 2);
+
+                if (startPage > 1) {
+                  pages.push(
+                    <Button
+                      key={1}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(1)}
+                      className="w-8 h-8 p-0"
+                    >
+                      1
+                    </Button>
+                  );
+                  if (startPage > 2) {
+                    pages.push(<span key="start-ellipsis" className="px-2">...</span>);
+                  }
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                  pages.push(
+                    <Button
+                      key={i}
+                      variant={currentPage === i ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => goToPage(i)}
+                      className={`w-8 h-8 p-0 ${
+                        currentPage === i 
+                          ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-white hover:from-orange-600 hover:to-yellow-500"
+                          : ""
+                      }`}
+                    >
+                      {i}
+                    </Button>
+                  );
+                }
+
+                if (endPage < totalPages) {
+                  if (endPage < totalPages - 1) {
+                    pages.push(<span key="end-ellipsis" className="px-2">...</span>);
+                  }
+                  pages.push(
+                    <Button
+                      key={totalPages}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(totalPages)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {totalPages}
+                    </Button>
+                  );
+                }
+
+                return pages;
+              })()}
+            </div>
+
+            {/* Botão Próxima */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextPage}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1"
+            >
+              Próxima
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
       
       {/* Modal para criar servidor */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
