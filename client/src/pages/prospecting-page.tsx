@@ -174,12 +174,51 @@ export default function ProspectingPage() {
     }
   });
 
+  // Query para buscar contagens reais de todas as buscas
+  const { data: realCounts } = useQuery({
+    queryKey: ["/api/prospecting/all-real-counts", user?.id],
+    queryFn: async () => {
+      if (!searches || searches.length === 0) return {};
+      
+      const countMap: Record<number, number> = {};
+      
+      // Para cada busca, buscar os resultados e contar
+      for (const search of searches) {
+        try {
+          const res = await fetch(`/api/prospecting/results/${search.id}`);
+          if (res.ok) {
+            const results = await res.json();
+            countMap[search.id] = results.length;
+          } else {
+            // Se não conseguir buscar, usar valor salvo
+            countMap[search.id] = search.leadsFound || 0;
+          }
+        } catch (error) {
+          // Em caso de erro, usar valor salvo
+          countMap[search.id] = search.leadsFound || 0;
+        }
+      }
+      
+      return countMap;
+    },
+    enabled: !!searches && searches.length > 0,
+    refetchOnWindowFocus: false,
+    staleTime: 30000 // Cache por 30 segundos
+  });
+
   // Função para obter contagem real de uma busca específica
   const getRealCount = (searchId: number) => {
+    // Priorizar dados em tempo real se disponíveis
+    if (realCounts && realCounts[searchId] !== undefined) {
+      return realCounts[searchId];
+    }
+    
+    // Se for a busca ativa e temos resultados carregados, usar esses
     if (activeSearch === searchId && results) {
       return results.length;
     }
-    // Para buscas não ativas, usar o valor salvo temporariamente
+    
+    // Fallback para valor salvo
     const search = searches?.find(s => s.id === searchId);
     return search?.leadsFound || 0;
   };
@@ -934,7 +973,7 @@ export default function ProspectingPage() {
                           <div className="mb-4 grid grid-cols-3 gap-4">
                             <div className="bg-primary/5 p-3 rounded-lg">
                               <h4 className="text-xs font-medium text-muted-foreground mb-1">Leads Encontrados</h4>
-                              <p className="text-xl font-bold">{results ? results.length : (searches.find(s => s.id === activeSearch)?.leadsFound || 0)}</p>
+                              <p className="text-xl font-bold">{activeSearch ? getRealCount(activeSearch) : 0}</p>
                             </div>
                             <div className="bg-primary/5 p-3 rounded-lg">
                               <h4 className="text-xs font-medium text-muted-foreground mb-1">Já Enviados</h4>
@@ -942,7 +981,7 @@ export default function ProspectingPage() {
                             </div>
                             <div className="bg-primary/5 p-3 rounded-lg">
                               <h4 className="text-xs font-medium text-muted-foreground mb-1">Pendentes</h4>
-                              <p className="text-xl font-bold">{results ? Math.max(0, results.length - (searches.find(s => s.id === activeSearch)?.dispatchesDone || 0)) : (searches.find(s => s.id === activeSearch)?.dispatchesPending || 0)}</p>
+                              <p className="text-xl font-bold">{activeSearch ? Math.max(0, getRealCount(activeSearch) - (searches.find(s => s.id === activeSearch)?.dispatchesDone || 0)) : 0}</p>
                             </div>
                           </div>
 

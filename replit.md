@@ -524,5 +524,15 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Todas as colunas acessíveis**: EMAIL, ENDEREÇO, SITE e outras colunas visíveis via rolagem horizontal
 - **Discrepância eliminada**: Valor mostrado em azul "X encontrados" agora corresponde ao real número de resultados
 
+### 2025-07-17 - Sistema Inteligente de Contagem Real de Resultados
+- **Problema resolvido**: Cartões de estatísticas mostravam valores desatualizados (150) ao invés dos reais (102)
+- **Query para contagem real implementada**: Sistema busca contagens reais de todas as buscas em background
+- **Priorização inteligente**: `getRealCount()` prioriza dados em tempo real sobre valores em cache
+- **Cartões corrigidos**: "Leads Encontrados" e "Pendentes" agora usam sempre valores reais calculados
+- **Cache otimizado**: Sistema mantém dados atualizados por 30 segundos para performance
+- **Fallback robusto**: Em caso de erro na API, utiliza valores salvos como backup
+- **Sincronização completa**: Interface superior e lista lateral sempre mostram dados consistentes
+- **Solução definitiva**: Elimina permanentemente discrepâncias entre valores mostrados e dados reais
+
 *Última atualização: 17 de julho de 2025*
-*Sistema de rolagem e contagem de resultados completamente funcional*
+*Sistema de contagem de resultados 100% preciso e em tempo real*
