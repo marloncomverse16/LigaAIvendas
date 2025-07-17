@@ -173,20 +173,26 @@ export async function checkMetaConnectionStatus(req: Request, res: Response) {
       return res.json(existingStatus);
     }
     
-    // Obter servidor e configurações
-    const server = await getUserServer(userId);
-    if (!server) {
+    // Importar o serviço de configurações do usuário
+    const { getUserSettings } = await import('../user-settings-service');
+    
+    // Obter configurações específicas do usuário
+    const settingsResult = await getUserSettings(userId);
+    
+    if (!settingsResult.success || !settingsResult.data) {
       return res.json({ 
         connected: false,
-        message: 'Servidor não encontrado'
+        message: 'Configurações do usuário não encontradas'
       });
     }
 
-    // Verificar configurações da Meta API
-    if (!server.whatsappMetaToken || !server.whatsappMetaBusinessId) {
+    const userSettings = settingsResult.data;
+
+    // Verificar se o usuário tem configurações próprias da Meta API
+    if (!userSettings.whatsappMetaToken || !userSettings.whatsappMetaBusinessId) {
       return res.json({ 
         connected: false,
-        message: 'API da Meta não configurada no servidor'
+        message: 'Configurações Meta API não encontradas para este usuário. Configure em Configurações > Integrações.'
       });
     }
 
@@ -202,14 +208,14 @@ export async function checkMetaConnectionStatus(req: Request, res: Response) {
     
     const phoneNumberId = metaPhoneResult.phoneNumberId;
 
-    // Simular verificação de conexão
+    // Retornar status usando configurações específicas do usuário
     const connectionStatus = {
       connected: true,
       phoneNumberId,
-      businessId: server.whatsappMetaBusinessId,
+      businessId: userSettings.whatsappMetaBusinessId, // Usar configuração específica do usuário
       businessName: "WhatsApp Business",
       businessPhoneNumber: phoneNumberId,
-      apiVersion: server.whatsappMetaApiVersion || 'v18.0'
+      apiVersion: userSettings.whatsappMetaApiVersion || 'v18.0'
     };
     
     // Atualizar cache

@@ -110,7 +110,8 @@ const WhatsAppMetaPage = () => {
       refetchStatus();
       queryClient.invalidateQueries({ queryKey: ['/api/meta-connections/status'] });
       form.reset({
-        phoneNumberId: ''
+        phoneNumberId: '',
+        businessId: ''
       });
     },
     onError: (error: Error) => {
@@ -131,13 +132,19 @@ const WhatsAppMetaPage = () => {
     },
   });
 
-  // Efeito para preencher formulário com dados existentes
+  // Efeito para preencher formulário com dados existentes apenas se o usuário estiver conectado
   useEffect(() => {
-    if (connectionStatus?.connected && connectionStatus?.phoneNumberId) {
-      form.setValue('phoneNumberId', connectionStatus.phoneNumberId);
-    }
-    if (connectionStatus?.businessId) {
-      form.setValue('businessId', connectionStatus.businessId);
+    if (connectionStatus?.connected) {
+      if (connectionStatus?.phoneNumberId) {
+        form.setValue('phoneNumberId', connectionStatus.phoneNumberId);
+      }
+      if (connectionStatus?.businessId) {
+        form.setValue('businessId', connectionStatus.businessId);
+      }
+    } else {
+      // Se não estiver conectado, garantir que os campos fiquem vazios
+      form.setValue('phoneNumberId', '');
+      form.setValue('businessId', '');
     }
     setIsLoading(false);
   }, [connectionStatus, form]);
