@@ -556,5 +556,11 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Isolamento mantido**: Verificação de propriedade do template por usuário preservada
 - **Erro resolvido**: "Unexpected token '<'." eliminado através da limpeza de caracteres
 
+### 2025-07-17 - Simplificação Interface de Contatos
+- **Colunas removidas**: "Última Mensagem" e "Data" removidas da tabela de contatos conforme solicitação
+- **Interface otimizada**: Tabela de contatos mais limpa e focada nos dados essenciais
+- **Colunas mantidas**: Nome, Telefone, Fonte, Tags, Status e Ações
+- **Melhoria de UX**: Tabela mais simples e eficiente para visualização de contatos
+
 *Última atualização: 17 de julho de 2025*
-*Sistema de paginação de contatos e correção de templates funcionando perfeitamente*
+*Sistema de paginação de contatos funcionando e interface simplificada*

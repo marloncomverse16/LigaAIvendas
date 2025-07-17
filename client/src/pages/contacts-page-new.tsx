@@ -517,8 +517,6 @@ export default function ContactsPageNew() {
                         <TableHead>Nome</TableHead>
                         <TableHead>Telefone</TableHead>
                         <TableHead>Fonte</TableHead>
-                        <TableHead>Última Mensagem</TableHead>
-                        <TableHead>Data</TableHead>
                         <TableHead>Tags</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Ações</TableHead>
@@ -532,10 +530,6 @@ export default function ContactsPageNew() {
                           </TableCell>
                           <TableCell>{contact.phoneNumber}</TableCell>
                           <TableCell>{getSourceBadge(contact.source)}</TableCell>
-                          <TableCell className="max-w-xs truncate">
-                            {contact.lastMessage || '-'}
-                          </TableCell>
-                          <TableCell>{formatDate(contact.lastMessageTime)}</TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
                               {contact.tags.map((tag, index) => (
