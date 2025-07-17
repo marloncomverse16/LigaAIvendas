@@ -534,5 +534,27 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Sincronização completa**: Interface superior e lista lateral sempre mostram dados consistentes
 - **Solução definitiva**: Elimina permanentemente discrepâncias entre valores mostrados e dados reais
 
+### 2025-07-17 - Sistema Completo de Paginação na Página de Contatos
+- **Funcionalidade implementada**: Limitação de 10 contatos por página com navegação completa
+- **Estados de paginação**: `currentPage`, `contactsPerPage = 10`, `totalPages`, cálculos automáticos
+- **Controles de navegação**: Botões "Anterior/Próxima" com ícones ChevronLeft/ChevronRight
+- **Paginação numerada**: Até 5 botões de página com lógica inteligente de posicionamento
+- **Contador de resultados**: "Mostrando X a Y de Z contatos" para orientação do usuário
+- **Reset automático**: Página volta para 1 automaticamente ao alterar termo de busca
+- **Lógica adaptável**: Numeração se adapta baseada na página atual (início, meio, fim)
+- **Controles inteligentes**: Desabilitação automática nos extremos, só aparece quando necessário
+- **Badge atualizada**: Contagem total correta no título da seção
+- **Performance otimizada**: Apenas os contatos da página atual são renderizados
+- **Interface responsiva**: Mantém experiência consistente em diferentes tamanhos de tela
+
+### 2025-07-17 - Correção Rota PATCH para Templates QR Code
+- **Problema identificado**: Frontend usava PATCH mas backend só tinha rota PUT
+- **Rota PATCH criada**: `/api/message-templates/:id` com validação e limpeza de caracteres
+- **Limpeza automática**: Remove caracteres especiais problemáticos (< > ") que causavam erro JSON
+- **Validação rigorosa**: Verificação de dados de entrada e tratamento de erros de sintaxe
+- **Logs detalhados**: Sistema mostra progresso de atualização para debugging
+- **Isolamento mantido**: Verificação de propriedade do template por usuário preservada
+- **Erro resolvido**: "Unexpected token '<'." eliminado através da limpeza de caracteres
+
 *Última atualização: 17 de julho de 2025*
-*Sistema de contagem de resultados 100% preciso e em tempo real*
+*Sistema de paginação de contatos e correção de templates funcionando perfeitamente*

@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Search, Download, User, Users, Phone } from "lucide-react";
+import { Loader2, RefreshCw, Search, Download, User, Users, Phone, ChevronLeft, ChevronRight } from "lucide-react";
 
 // Tipo para contatos do WhatsApp
 interface WhatsAppContact {
@@ -45,6 +45,8 @@ export default function ContactsPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [showSyncDialog, setShowSyncDialog] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [contactsPerPage] = useState(10);
 
   // Consulta para obter contatos
   const {
@@ -118,6 +120,31 @@ export default function ContactsPage() {
     return nameMatch || numberMatch;
   });
 
+  // Reset da página quando alterar busca
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Cálculos de paginação
+  const totalContacts = filteredContacts.length;
+  const totalPages = Math.ceil(totalContacts / contactsPerPage);
+  const startIndex = (currentPage - 1) * contactsPerPage;
+  const endIndex = startIndex + contactsPerPage;
+  const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
+
+  // Funções de navegação de página
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const goToPreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
   // Função para formatar número de telefone
   const formatPhone = (phone: string) => {
     return phone ? phone.replace(/^(\d{2})(\d{2})(\d{4,5})(\d{4})$/, "+$1 ($2) $3-$4") : "";
@@ -155,9 +182,9 @@ export default function ContactsPage() {
           <div className="flex justify-between items-center">
             <CardTitle>
               Lista de Contatos
-              {contactsData?.contacts?.length > 0 && (
+              {totalContacts > 0 && (
                 <Badge variant="outline" className="ml-2">
-                  {contactsData.contacts.length}
+                  {totalContacts}
                 </Badge>
               )}
             </CardTitle>
@@ -181,7 +208,7 @@ export default function ContactsPage() {
             <div className="text-center py-8 text-destructive">
               Erro ao carregar contatos. Tente novamente.
             </div>
-          ) : filteredContacts.length === 0 ? (
+          ) : totalContacts === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               {searchTerm ? (
                 "Nenhum contato encontrado para esta busca."
@@ -214,7 +241,7 @@ export default function ContactsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredContacts.map((contact: WhatsAppContact) => (
+                {paginatedContacts.map((contact: WhatsAppContact) => (
                   <TableRow key={contact.id}>
                     <TableCell className="font-medium flex items-center">
                       {contact.profilePicture ? (
@@ -253,6 +280,65 @@ export default function ContactsPage() {
                 ))}
               </TableBody>
             </Table>
+            
+            {/* Controles de paginação */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {startIndex + 1} a {Math.min(endIndex, totalContacts)} de {totalContacts} contatos
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToPreviousPage}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </Button>
+                  
+                  <div className="flex items-center space-x-1">
+                    {/* Mostrar até 5 números de página */}
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNumber;
+                      if (totalPages <= 5) {
+                        pageNumber = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNumber = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNumber = totalPages - 4 + i;
+                      } else {
+                        pageNumber = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNumber}
+                          variant={currentPage === pageNumber ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => goToPage(pageNumber)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {pageNumber}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                  >
+                    Próxima
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           )}
         </CardContent>
       </Card>
