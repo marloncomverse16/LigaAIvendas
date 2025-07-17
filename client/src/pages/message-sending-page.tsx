@@ -79,7 +79,7 @@ const createSendingSchema = z.object({
   searchId: z.number().optional().nullable(),
   templateId: z.union([z.string(), z.number()]).optional().nullable(), // Aceitar string (Meta API) ou número (local)
   customMessage: z.string().optional(),
-  quantity: z.number().min(1, "A quantidade mínima é 1").max(1000, "A quantidade máxima é 1000"),
+
   scheduledAt: z.date().optional().nullable().refine((date) => {
     if (!date) return true; // Agendamento é opcional
     // Permitir agendamento a partir da data/hora atual
@@ -425,7 +425,6 @@ const CreateSendingForm = () => {
       searchId: null,
       templateId: null,
       customMessage: "",
-      quantity: 10,
       scheduledAt: null,
     },
   });
@@ -463,7 +462,7 @@ const CreateSendingForm = () => {
       // Buscar dados reais da pesquisa selecionada para obter número correto de leads
       const searchResponse = await apiRequest("GET", `/api/prospecting/searches/${data.searchId}`);
       const searchData = await searchResponse.json();
-      const realLeadsCount = searchData.leadsFound || parseInt(data.quantity?.toString() || "10");
+      const realLeadsCount = searchData.leadsFound || 10;
       
       console.log("Enviando dados para histórico:", {
         userId: data.userId,
@@ -511,7 +510,7 @@ const CreateSendingForm = () => {
         searchId: data.searchId.toString(),
         message: data.customMessage || "",
         templateId: data.templateId ? data.templateId.toString() : "",
-        quantity: data.quantity ? data.quantity.toString() : "10",
+        quantity: realLeadsCount.toString(),
         apiUrl: window.location.origin,
         // Informações do usuário
         userId: userData.id.toString(),
@@ -544,7 +543,7 @@ const CreateSendingForm = () => {
         searchId: null,
         templateId: null,
         customMessage: "",
-        quantity: 10,
+
         scheduledAt: null,
         aiLearningEnabled: false,
         aiNotes: "",
@@ -583,8 +582,9 @@ const CreateSendingForm = () => {
         throw new Error("Template selecionado não encontrado");
       }
       
-      // Determinar o número de leads baseado na quantidade solicitada
-      const totalRecipients = data.quantity || 10;
+      // Determinar o número total de destinatários baseado nos leads encontrados
+      const searchData = searches?.find(s => s.id.toString() === data.searchId.toString());
+      const totalRecipients = searchData?.leadsFound || 10;
       
       // Criar o registro de histórico de envio
       console.log("Enviando dados para histórico Meta API:", {
@@ -611,7 +611,7 @@ const CreateSendingForm = () => {
         searchId: data.searchId,
         templateId: selectedTemplate.id,
         templateName: selectedTemplate.name,
-        quantity: data.quantity,
+        quantity: totalRecipients,
         scheduledAt: data.scheduledAt ? data.scheduledAt.toISOString() : null,
         // Informações do usuário
         userId: userData.id,
@@ -653,7 +653,6 @@ const CreateSendingForm = () => {
         searchId: null,
         templateId: null,
         customMessage: "",
-        quantity: 10,
         scheduledAt: null,
         aiLearningEnabled: false,
         aiNotes: "",
@@ -1219,26 +1218,7 @@ const CreateSendingForm = () => {
               />
             )}
             
-            <FormField
-              control={form.control}
-              name="quantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quantidade de Mensagens</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={1000}
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
+
             <FormField
               control={form.control}
               name="scheduledAt"
@@ -1816,7 +1796,7 @@ export default function MessageSendingPage() {
                 <ul className="list-disc list-inside space-y-2">
                   <li>Escolha uma pesquisa de prospecção para selecionar os destinatários</li>
                   <li>Utilize templates predefinidos ou crie mensagens personalizadas</li>
-                  <li>Defina a quantidade de mensagens para controlar o volume de envios</li>
+
                   <li>Agende envios para horários comerciais para melhores resultados</li>
                   <li>Use a Meta API para templates aprovados e melhor entregabilidade</li>
                   <li>Monitore os resultados no histórico de envios</li>
