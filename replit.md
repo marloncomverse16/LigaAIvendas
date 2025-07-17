@@ -635,5 +635,14 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Estilo aplicado**: `bg-gradient-to-r from-orange-500 to-yellow-400 hover:from-orange-600 hover:to-yellow-500 text-white border-0`
 - **Resultado**: Interface consistente com gradiente laranja-amarelo em todos os botões principais
 
+### 2025-07-17 - Remoção do Sino de Notificações do Header
+- **Solicitação do usuário**: Remover o sino de notificações da parte superior da tela na página de configurações
+- **Arquivo modificado**: `client/src/components/layout/header.tsx`
+- **Alterações realizadas**:
+  - Removido botão do sino (Bell) com badge de notificação
+  - Removida importação do ícone Bell do lucide-react
+  - Interface mais limpa no header das páginas
+- **Resultado**: Header simplificado contendo apenas botões de tema e menu mobile
+
 *Última atualização: 17 de julho de 2025*
-*Botão "Atualizar Dados" corrigido para padrão laranja-amarelo do sistema*
+*Sino de notificações removido do header conforme solicitação*

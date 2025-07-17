@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
-import { Bell, Menu, Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -34,14 +34,6 @@ export function Header({ title, subtitle }: HeaderProps) {
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </Button>
         
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="relative rounded-full bg-muted hover:bg-muted/80 text-muted-foreground"
-        >
-          <Bell size={18} />
-          <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-accent"></span>
-        </Button>
         
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild>
