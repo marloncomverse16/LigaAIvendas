@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Download, Search, User, Phone, MessageCircle } from "lucide-react";
+import { Plus, Edit, Trash2, Download, Search, User, Phone, MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -51,6 +51,8 @@ export default function ContactsPageNew() {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const contactsPerPage = 10;
   const [formData, setFormData] = useState<ContactFormData>({
     phoneNumber: "",
     name: "",
@@ -93,6 +95,34 @@ export default function ContactsPageNew() {
     
     return matchesSearch && matchesSource;
   });
+
+  // Reset da página quando alterar busca ou filtro
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sourceFilter]);
+
+  // Cálculos de paginação
+  const totalContacts = filteredContacts.length;
+  const totalPages = Math.ceil(totalContacts / contactsPerPage);
+  const startIndex = (currentPage - 1) * contactsPerPage;
+  const endIndex = startIndex + contactsPerPage;
+  const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
+
+  // Debug da paginação
+  console.log('🚨 PAGINAÇÃO ATIVA - Total:', totalContacts, 'Página:', currentPage, 'Exibindo:', paginatedContacts.length);
+
+  // Funções de navegação de página
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const goToPreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
 
   // Criar/Atualizar contato
   const saveContactMutation = useMutation({
@@ -495,7 +525,7 @@ export default function ContactsPageNew() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredContacts.map((contact) => (
+                      {paginatedContacts.map((contact) => (
                         <TableRow key={contact.id}>
                           <TableCell className="font-medium">
                             {contact.name || 'Sem nome'}
@@ -543,6 +573,65 @@ export default function ContactsPageNew() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+              )}
+
+              {/* Controles de Paginação */}
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Mostrando {startIndex + 1} a {Math.min(endIndex, totalContacts)} de {totalContacts} contatos
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPreviousPage}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Anterior
+                    </Button>
+                    
+                    {/* Numeração das páginas */}
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNumber;
+                        if (totalPages <= 5) {
+                          pageNumber = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNumber = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNumber = totalPages - 4 + i;
+                        } else {
+                          pageNumber = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <Button
+                            key={pageNumber}
+                            variant={currentPage === pageNumber ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => goToPage(pageNumber)}
+                            className={currentPage === pageNumber ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black" : ""}
+                          >
+                            {pageNumber}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
