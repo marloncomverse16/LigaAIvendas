@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Download, RefreshCw, BarChart3, MessageSquare, DollarSign, Users, TrendingUp } from "lucide-react";
+import { Calendar, Download, RefreshCw, BarChart3, MessageSquare, DollarSign, Users, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -43,6 +43,18 @@ export default function ReportsPage() {
   const [syncing, setSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState('meta');
   const { toast } = useToast();
+
+  // Estados de paginação para Meta API
+  const [metaConversationsPage, setMetaConversationsPage] = useState(1);
+  const [metaMessagesPage, setMetaMessagesPage] = useState(1);
+  const [metaLeadsPage, setMetaLeadsPage] = useState(1);
+
+  // Estados de paginação para QR Code
+  const [qrConversationsPage, setQrConversationsPage] = useState(1);
+  const [qrMessagesPage, setQrMessagesPage] = useState(1);
+  const [qrContactsPage, setQrContactsPage] = useState(1);
+
+  const itemsPerPage = 10;
 
   // Buscar dados dos relatórios QR Code - ISOLAMENTO GARANTIDO
   const fetchQRReports = async () => {
@@ -168,6 +180,77 @@ export default function ReportsPage() {
       fetchQRReports();
     }
   }, [startDate, endDate, activeTab]);
+
+  // Funções auxiliares de paginação
+  const getPaginatedData = (data: any[], page: number) => {
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return data.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = (totalItems: number) => Math.ceil(totalItems / itemsPerPage);
+
+  const renderPaginationControls = (currentPage: number, totalItems: number, setPage: (page: number) => void) => {
+    const totalPages = getTotalPages(totalItems);
+    
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} a {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems} resultados
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Anterior
+          </Button>
+          
+          <div className="flex items-center space-x-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNumber;
+              if (totalPages <= 5) {
+                pageNumber = i + 1;
+              } else if (currentPage <= 3) {
+                pageNumber = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNumber = totalPages - 4 + i;
+              } else {
+                pageNumber = currentPage - 2 + i;
+              }
+
+              return (
+                <Button
+                  key={pageNumber}
+                  variant={currentPage === pageNumber ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setPage(pageNumber)}
+                  className={currentPage === pageNumber ? "bg-gradient-to-r from-orange-400 to-yellow-400 hover:from-orange-500 hover:to-yellow-500 text-black font-semibold" : ""}
+                >
+                  {pageNumber}
+                </Button>
+              );
+            })}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Próxima
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   // Estatísticas resumidas Meta API - corrigindo nomes dos campos
   const stats = {
@@ -312,7 +395,7 @@ export default function ReportsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {reportData.conversations.slice(0, 10).map((conv, index) => (
+                          {getPaginatedData(reportData.conversations, metaConversationsPage).map((conv, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{conv.contact_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
@@ -330,9 +413,7 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
-                      <div className="mt-4 text-sm text-muted-foreground text-center">
-                        Mostrando os primeiros 10 resultados de {reportData.conversations.length} conversas
-                      </div>
+                      {renderPaginationControls(metaConversationsPage, reportData.conversations.length, setMetaConversationsPage)}
                     </div>
                   ) : (
                     <div className="text-center text-gray-500 py-8">
@@ -370,7 +451,7 @@ export default function ReportsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {reportData.messages.slice(0, 10).map((msg, index) => (
+                          {getPaginatedData(reportData.messages, metaMessagesPage).map((msg, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{msg.contact_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
@@ -390,6 +471,7 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
+                      {renderPaginationControls(metaMessagesPage, reportData.messages.length, setMetaMessagesPage)}
                     </div>
                   ) : (
                     <p className="text-center text-gray-500 py-8">
@@ -422,7 +504,7 @@ export default function ReportsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {reportData.leads.slice(0, 10).map((lead, index) => (
+                          {getPaginatedData(reportData.leads, metaLeadsPage).map((lead, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{lead.contact_number}</td>
                               <td className="border border-gray-200 px-4 py-2">
@@ -439,9 +521,7 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
-                      <div className="mt-4 text-sm text-muted-foreground text-center">
-                        Mostrando os primeiros 10 resultados de {reportData.leads.length} leads
-                      </div>
+                      {renderPaginationControls(metaLeadsPage, reportData.leads.length, setMetaLeadsPage)}
                     </div>
                   ) : (
                     <p className="text-center text-gray-500 py-8">
@@ -569,7 +649,7 @@ export default function ReportsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {qrReportData.conversations.map((conv, index) => (
+                          {getPaginatedData(qrReportData.conversations, qrConversationsPage).map((conv, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{conv.phone_number}</td>
                               <td className="border border-gray-200 px-4 py-2">{conv.name || 'N/A'}</td>
@@ -584,9 +664,7 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
-                      <div className="mt-4 text-sm text-muted-foreground text-center">
-                        Mostrando {Math.min(10, qrReportData.conversations.length)} de {qrReportData.conversations.length} conversas
-                      </div>
+                      {renderPaginationControls(qrConversationsPage, qrReportData.conversations.length, setQrConversationsPage)}
                     </div>
                   ) : (
                     <div className="text-center text-gray-500 py-8">
@@ -619,7 +697,7 @@ export default function ReportsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {qrReportData.messages.slice(0, 10).map((msg, index) => (
+                          {getPaginatedData(qrReportData.messages, qrMessagesPage).map((msg, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{msg.phone_number}</td>
                               <td className="border border-gray-200 px-4 py-2">{msg.message_type}</td>
@@ -639,6 +717,7 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
+                      {renderPaginationControls(qrMessagesPage, qrReportData.messages.length, setQrMessagesPage)}
                     </div>
                   ) : (
                     <p className="text-center text-gray-500 py-8">
@@ -671,7 +750,7 @@ export default function ReportsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {qrReportData.contacts.slice(0, 10).map((contact, index) => (
+                          {getPaginatedData(qrReportData.contacts, qrContactsPage).map((contact, index) => (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="border border-gray-200 px-4 py-2">{contact.phone_number}</td>
                               <td className="border border-gray-200 px-4 py-2">{contact.name || 'N/A'}</td>
@@ -694,9 +773,7 @@ export default function ReportsPage() {
                           ))}
                         </tbody>
                       </table>
-                      <div className="mt-4 text-sm text-muted-foreground text-center">
-                        Mostrando {Math.min(10, qrReportData.contacts.length)} de {qrReportData.contacts.length} contatos
-                      </div>
+                      {renderPaginationControls(qrContactsPage, qrReportData.contacts.length, setQrContactsPage)}
                     </div>
                   ) : (
                     <div className="text-center text-gray-500 py-8">
