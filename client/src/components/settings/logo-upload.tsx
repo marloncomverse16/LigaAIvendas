@@ -140,7 +140,7 @@ export function LogoUpload() {
               <img src={logoUrl} alt="Logo" className="h-16 mb-4" />
             ) : (
               <div className="flex items-center justify-center h-16 w-40 bg-muted mb-4 rounded">
-                <span className="text-2xl font-bold text-muted-foreground">LiguIA</span>
+                <span className="text-2xl font-bold text-muted-foreground">LigAI</span>
               </div>
             )}
             

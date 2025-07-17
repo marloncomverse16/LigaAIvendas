@@ -985,7 +985,7 @@ export class EvolutionApiClient {
       const mockContacts = [
         {
           id: "1",
-          name: "Suporte LiguIA",
+          name: "Suporte LigAI",
           number: "5511999887766",
           pushname: "Suporte",
           isUser: true,
@@ -1015,7 +1015,7 @@ export class EvolutionApiClient {
       const mockContacts = [
         {
           id: "1",
-          name: "Suporte LiguIA",
+          name: "Suporte LigAI",
           number: "5511999887766",
           pushname: "Suporte",
           isUser: true,

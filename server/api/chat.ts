@@ -288,9 +288,9 @@ router.get('/contacts', requireAuth, async (req: Request, res: Response) => {
       const demoContacts = [
         {
           id: "5511999887766@c.us",
-          name: "Suporte LiguIA",
+          name: "Suporte LigAI",
           phone: "5511999887766",
-          pushname: "Suporte LiguIA",
+          pushname: "Suporte LigAI",
           lastMessageTime: new Date().toISOString(),
           isGroup: false,
           profilePicture: null

@@ -665,5 +665,20 @@ META_WEBHOOK_VERIFY_TOKEN=...
 - **Validações de segurança**: Upload limitado a imagens, verificação de autenticação
 - **Resultado**: Sistema funcional de gerenciamento de foto de perfil integrado à interface
 
+### 2025-07-17 - Correção Completa da Marca de "LiguIA" para "LigAI"
+- **Solicitação do usuário**: Corrigir nome da marca em todo o sistema de "LiguIA" para "LigAI"
+- **Arquivos corrigidos**:
+  - `client/src/components/layout/footer.tsx`: Copyright nos direitos reservados
+  - `client/src/components/settings/logo-upload.tsx`: Texto de placeholder do logo
+  - `client/src/pages/whatsapp-web.tsx`: Título do chat WhatsApp
+  - `client/src/pages/chat-otimizado.tsx`: Título de boas-vindas do chat
+  - `server/api/webhook-notifier.ts`: User-Agent dos webhooks
+  - `server/api/chat.ts`: Contatos de demonstração
+  - `server/api/evolution-chat.ts`: Contatos de demonstração
+  - `server/direct-connection.ts`: Contatos de demonstração
+  - `server/evolution-api.ts`: Contatos mock da API (2 ocorrências)
+- **Resultado**: Marca "LigAI" padronizada em toda a aplicação, interface e backend
+
 *Última atualização: 17 de julho de 2025*
 *Sistema de upload de imagem de perfil funcionando com atualização automática no sidebar*
+*Marca "LigAI" padronizada em todo o sistema*

@@ -213,7 +213,7 @@ export default function WhatsappWebPage() {
       {/* Header */}
       <header className="bg-primary text-white py-4 px-6 flex justify-between items-center shadow-md">
         <div className="flex items-center">
-          <h1 className="text-xl font-medium">LiguIA Chat</h1>
+          <h1 className="text-xl font-medium">LigAI Chat</h1>
         </div>
         <div className="flex items-center space-x-4">
           <div className={`flex items-center ${getConnectionStatusClass()}`}>

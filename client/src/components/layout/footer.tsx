@@ -5,7 +5,7 @@ export function Footer() {
   
   return (
     <footer className="bg-card p-4 border-t border-border text-center text-sm text-muted-foreground">
-      &copy; {currentYear} LiguIA. Todos os direitos reservados.
+      &copy; {currentYear} LigAI. Todos os direitos reservados.
     </footer>
   );
 }

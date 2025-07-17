@@ -92,7 +92,7 @@ export async function notifyContactsWebhook(
           path: parsedUrl.path,
           method: 'GET',
           headers: {
-            'User-Agent': 'LiguIA-Webhook-Notifier/1.0',
+            'User-Agent': 'LigAI-Webhook-Notifier/1.0',
             'Accept': 'application/json, text/plain, */*'
           },
           timeout: 10000, // 10 segundos de timeout
