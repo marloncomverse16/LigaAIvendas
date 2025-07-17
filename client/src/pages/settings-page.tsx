@@ -109,7 +109,7 @@ function WhatsappMetaSettings({ settings, isLoadingSettings }: WhatsappMetaSetti
       ) : (
         <Form {...metaForm}>
           <form onSubmit={metaForm.handleSubmit(onMetaSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-4 lg:gap-6">
               <FormField
                 control={metaForm.control}
                 name="whatsappMetaToken"
@@ -248,7 +248,7 @@ function GoalsSettings() {
       ) : (
         <Form {...goalsForm}>
           <form onSubmit={goalsForm.handleSubmit(onGoalsSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
               <FormField
                 control={goalsForm.control}
                 name="metaVendasEmpresa"
@@ -431,115 +431,126 @@ export default function SettingsPage() {
   
   return (
     <div className="flex min-h-screen bg-background">
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <Sidebar />
       </div>
       
-      <div className="flex-1 flex flex-col min-h-screen ml-0 md:ml-64">
+      <div className="flex-1 flex flex-col min-h-screen ml-0 lg:ml-64">
         <Header title="Configurações" subtitle="Personalize sua conta" />
         
-        <main className="flex-1 p-4 md:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <main className="flex-1 p-3 md:p-4 lg:p-6 max-w-7xl mx-auto w-full overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full max-h-[calc(100vh-8rem)]">
             {/* Navigation */}
-            <div className="md:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Configurações</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <nav>
-                    <div className="space-y-1 p-2">
-                      <Button 
-                        variant={activeTab === "profile" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "profile" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
-                        onClick={() => setActiveTab("profile")}
-                      >
-                        Perfil e Conta
-                      </Button>
+            <div className="lg:w-64 flex-shrink-0">
+              <div className="lg:sticky lg:top-4">
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Configurações</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <nav>
+                      <div className="space-y-1 p-2">
+                        <Button 
+                          variant={activeTab === "profile" ? "default" : "ghost"} 
+                          size="sm"
+                          className={`w-full justify-start text-sm ${activeTab === "profile" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
+                          onClick={() => setActiveTab("profile")}
+                        >
+                          Perfil e Conta
+                        </Button>
 
-                      <Button 
-                        variant={activeTab === "integrations" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "integrations" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
-                        onClick={() => setActiveTab("integrations")}
-                      >
-                        Integrações
-                      </Button>
-                      <Button 
-                        variant={activeTab === "notifications" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "notifications" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
-                        onClick={() => setActiveTab("notifications")}
-                      >
-                        Notificações
-                      </Button>
-                      <Button 
-                        variant={activeTab === "security" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "security" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
-                        onClick={() => setActiveTab("security")}
-                      >
-                        Privacidade e Segurança
-                      </Button>
-                      <Button 
-                        variant={activeTab === "billing" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "billing" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
-                        onClick={() => setActiveTab("billing")}
-                      >
-                        Faturamento
-                      </Button>
-                      <Button 
-                        variant={activeTab === "goals" ? "default" : "ghost"} 
-                        className={`w-full justify-start ${activeTab === "goals" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
-                        onClick={() => setActiveTab("goals")}
-                      >
-                        Metas
-                      </Button>
+                        <Button 
+                          variant={activeTab === "integrations" ? "default" : "ghost"} 
+                          size="sm"
+                          className={`w-full justify-start text-sm ${activeTab === "integrations" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
+                          onClick={() => setActiveTab("integrations")}
+                        >
+                          Integrações
+                        </Button>
+                        <Button 
+                          variant={activeTab === "notifications" ? "default" : "ghost"} 
+                          size="sm"
+                          className={`w-full justify-start text-sm ${activeTab === "notifications" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
+                          onClick={() => setActiveTab("notifications")}
+                        >
+                          Notificações
+                        </Button>
+                        <Button 
+                          variant={activeTab === "security" ? "default" : "ghost"} 
+                          size="sm"
+                          className={`w-full justify-start text-sm ${activeTab === "security" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
+                          onClick={() => setActiveTab("security")}
+                        >
+                          Privacidade e Segurança
+                        </Button>
+                        <Button 
+                          variant={activeTab === "billing" ? "default" : "ghost"} 
+                          size="sm"
+                          className={`w-full justify-start text-sm ${activeTab === "billing" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
+                          onClick={() => setActiveTab("billing")}
+                        >
+                          Faturamento
+                        </Button>
+                        <Button 
+                          variant={activeTab === "goals" ? "default" : "ghost"} 
+                          size="sm"
+                          className={`w-full justify-start text-sm ${activeTab === "goals" ? "bg-gradient-to-r from-orange-400 to-yellow-400 text-black font-semibold hover:from-orange-500 hover:to-yellow-500" : ""}`}
+                          onClick={() => setActiveTab("goals")}
+                        >
+                          Metas
+                        </Button>
 
-                    </div>
-                  </nav>
-                </CardContent>
-              </Card>
+                      </div>
+                    </nav>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
             
             {/* Content */}
-            <div className="md:col-span-2">
+            <div className="flex-1 min-w-0 overflow-y-auto">
+              <div className="pr-2">
               {activeTab === "profile" && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Perfil e Conta</CardTitle>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl">Perfil e Conta</CardTitle>
                     <CardDescription>
-                      Atualize suas informações pessoais e dados de contato
+                      Interface simplificada para gerenciar seu perfil
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-6">
                     {isLoadingProfile ? (
                       <div className="flex justify-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                       </div>
                     ) : (
-                      <Form {...profileForm}>
-                        <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
-                          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-                            <Avatar className="w-24 h-24 text-4xl">
-                              <AvatarFallback className="bg-gradient-to-br from-orange-500 to-yellow-400 text-white">
-                                {getInitials(getProfileName())}
-                              </AvatarFallback>
-                            </Avatar>
-                            
-                            <div>
-                              <h3 className="text-lg font-medium">Foto de Perfil</h3>
-                              <div className="flex space-x-2">
-                                <Button type="button" variant="outline" size="sm">
-                                  Alterar
-                                </Button>
-                                <Button type="button" variant="outline" size="sm" className="text-destructive">
-                                  Remover
-                                </Button>
-                              </div>
+                      <>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                          <Avatar className="w-16 h-16 sm:w-20 sm:h-20 text-2xl sm:text-3xl">
+                            <AvatarFallback className="bg-gradient-to-br from-orange-500 to-yellow-400 text-white">
+                              {getInitials(getProfileName())}
+                            </AvatarFallback>
+                          </Avatar>
+                          
+                          <div className="space-y-2">
+                            <h3 className="text-lg font-medium">Foto de Perfil</h3>
+                            <div className="flex flex-wrap gap-2">
+                              <Button type="button" variant="outline" size="sm">
+                                Alterar
+                              </Button>
+                              <Button type="button" variant="outline" size="sm" className="text-destructive">
+                                Remover
+                              </Button>
                             </div>
                           </div>
-                          
-
-                        </form>
-                      </Form>
+                        </div>
+                        
+                        <div className="p-4 bg-muted/50 rounded-lg">
+                          <p className="text-sm text-muted-foreground">
+                            Os campos de perfil foram simplificados. Use a seção "Metas" para configurar seus objetivos de negócio e a seção "Integrações" para conectar suas APIs.
+                          </p>
+                        </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -550,16 +561,21 @@ export default function SettingsPage() {
 
               
               {activeTab === "integrations" && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Integrações</CardTitle>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl">Integrações</CardTitle>
                     <CardDescription>
                       Conecte aplicativos externos e serviços à sua conta
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">WhatsApp Cloud API (Meta)</h3>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                          <span className="text-green-600 font-semibold text-sm">WA</span>
+                        </div>
+                        <h3 className="text-lg font-semibold">WhatsApp Cloud API (Meta)</h3>
+                      </div>
                       <WhatsappMetaSettings />
                     </div>
                   </CardContent>
@@ -569,57 +585,66 @@ export default function SettingsPage() {
               {/* Removida aba obsoleta de integrações com WhatsApp Meta */}
               
               {activeTab === "notifications" && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Notificações</CardTitle>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl">Notificações</CardTitle>
                     <CardDescription>
                       Configure como e quando você recebe notificações
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">
-                      Configurações de notificação estarão disponíveis em breve.
-                    </p>
+                    <div className="p-6 bg-muted/30 rounded-lg text-center">
+                      <p className="text-muted-foreground">
+                        Configurações de notificação estarão disponíveis em breve.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
               
               {activeTab === "security" && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Privacidade e Segurança</CardTitle>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl">Privacidade e Segurança</CardTitle>
                     <CardDescription>
                       Gerencie sua senha e configurações de segurança
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">
-                      Configurações de segurança estarão disponíveis em breve.
-                    </p>
+                    <div className="p-6 bg-muted/30 rounded-lg text-center">
+                      <p className="text-muted-foreground">
+                        Configurações de segurança estarão disponíveis em breve.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
               
               {activeTab === "billing" && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Faturamento</CardTitle>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl">Faturamento</CardTitle>
                     <CardDescription>
                       Gerencie seu plano e métodos de pagamento
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">
-                      Configurações de faturamento estarão disponíveis em breve.
-                    </p>
+                    <div className="p-6 bg-muted/30 rounded-lg text-center">
+                      <p className="text-muted-foreground">
+                        Configurações de faturamento estarão disponíveis em breve.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
               
               {activeTab === "goals" && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Metas</CardTitle>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <Target className="w-5 h-5" />
+                      Metas
+                    </CardTitle>
                     <CardDescription>
                       Configure suas metas de desempenho para acompanhamento no dashboard
                     </CardDescription>
@@ -629,8 +654,7 @@ export default function SettingsPage() {
                   </CardContent>
                 </Card>
               )}
-              
-
+              </div>
             </div>
           </div>
         </main>
