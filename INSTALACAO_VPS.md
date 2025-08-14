@@ -32,9 +32,10 @@ ssh usuario@seu-servidor.com
 # Baixar os scripts de instalação
 wget https://raw.githubusercontent.com/seu-repo/ligai-dashboard/main/install-ligai.sh
 wget https://raw.githubusercontent.com/seu-repo/ligai-dashboard/main/setup-production.sh
+wget https://raw.githubusercontent.com/seu-repo/ligai-dashboard/main/update-ligai.sh
 
 # Dar permissão de execução
-chmod +x install-ligai.sh setup-production.sh
+chmod +x install-ligai.sh setup-production.sh update-ligai.sh
 ```
 
 ### Passo 2: Executar Instalação Principal
@@ -260,6 +261,93 @@ curl -I https://seu-dominio.com
 1. Configure credenciais na interface
 2. Verifique webhook URLs
 3. Teste envio de mensagens
+
+## 🔄 Atualizações do Sistema
+
+### Atualização Automática (Recomendado)
+
+Para atualizar sua instalação do LigAI Dashboard:
+
+```bash
+# Navegue até o diretório onde baixou os scripts
+cd ~
+
+# Execute o script de atualização
+./update-ligai.sh
+```
+
+O script oferece um menu interativo com opções:
+
+1. **Atualização Completa**: Atualiza código, dependências, executa migrações e testes
+2. **Apenas Código**: Faz git pull da versão mais recente
+3. **Apenas Dependências**: Atualiza bibliotecas npm
+4. **Apenas Migrações**: Executa mudanças no banco de dados
+5. **Apenas Build**: Reconstrói a aplicação
+6. **Verificação de Saúde**: Verifica status sem alterar nada
+7. **Rollback**: Volta para versão anterior em caso de problemas
+
+### Atualização via Linha de Comando
+
+```bash
+# Atualização completa
+./update-ligai.sh --full
+
+# Apenas código
+./update-ligai.sh --code
+
+# Apenas dependências
+./update-ligai.sh --deps
+
+# Verificar saúde
+./update-ligai.sh --health
+
+# Rollback
+./update-ligai.sh --rollback
+```
+
+### Funcionalidades de Segurança
+
+- **Backup Automático**: Cria backup completo antes de qualquer atualização
+- **Rollback Automático**: Em caso de erro, restaura versão anterior automaticamente
+- **Verificação de Integridade**: Testa configurações antes de aplicar mudanças
+- **Zero Downtime**: Minimiza tempo de inatividade durante atualizações
+
+### Atualizações Manuais
+
+Se preferir atualizar manualmente:
+
+```bash
+# 1. Parar aplicação
+sudo systemctl stop ligai
+
+# 2. Backup
+cp -r ~/ligai ~/ligai_backup_$(date +%Y%m%d)
+
+# 3. Atualizar código (se usando Git)
+cd ~/ligai
+git pull
+
+# 4. Atualizar dependências
+npm install
+
+# 5. Executar migrações
+npm run db:push
+
+# 6. Build (se necessário)
+npm run build
+
+# 7. Iniciar aplicação
+sudo systemctl start ligai
+```
+
+### Configuração de Atualizações Automáticas
+
+Para receber atualizações automaticamente:
+
+```bash
+# Adicionar ao crontab para verificar atualizações semanalmente
+(crontab -l 2>/dev/null; echo "0 4 * * 1 cd ~ && ./update-ligai.sh --code") | crontab -
+```
 
 ## 📈 Otimizações Avançadas
 
