@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v4.4 (Correct Build Process)
-# Instala dependências de dev para o build e as remove para produção.
+# LigAI Dashboard VPS Installer v4.5 (Build Environment & Prisma Fix)
+# Força NODE_ENV=development para o build e adiciona o passo 'prisma generate'.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
@@ -24,7 +24,7 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v4.4"
+APP_DISPLAY_NAME="LigAI Dashboard v4.5"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
 GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
@@ -44,12 +44,12 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║           🚀 LigAI Dashboard v4.4 (Build Fix) 🚀             ║"
+    echo "║         🚀 LigAI Dashboard v4.5 (Prisma & Build Fix) 🚀      ║"
     echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
-    echo "║  ✅ Processo de build corrigido (instala/remove devDeps)     ║"
-    echo "║  ✅ Serviço systemd aponta para o artefato de build          ║"
-    echo "║  ✅ Gerenciamento interativo de banco de dados               ║"
+    echo "║  ✅ Força ambiente de dev para o build (corrige erro do Vite)║"
+    echo "║  ✅ Adiciona passo 'prisma generate' ao build                ║"
+    echo "║  ✅ Garante que a aplicação inicie após o banco de dados     ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
 }
 
@@ -202,22 +202,21 @@ DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}
 EOF
     chown -R "$APP_USER:$APP_USER" "$APP_DIRECTORY"
     
-    # CORREÇÃO: Instalar TODAS as dependências para o build
-    log "Instalando todas as dependências (incluindo dev)..."
-    if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm install --loglevel error"; then
+    # CORREÇÃO: Forçar NODE_ENV=development para instalar TODAS as dependências
+    log "Instalando todas as dependências (forçando ambiente de desenvolvimento)..."
+    if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && NODE_ENV=development npm install --loglevel error"; then
         error "Falha ao instalar dependências com npm." && exit 1
     fi
     success "Dependências instaladas."
     
-    # CORREÇÃO: Executar o build
     if grep -q '"build"' "${APP_DIRECTORY}/package.json"; then
-        log "Executando build da aplicação..."
-        if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run build"; then
-            error "O processo de build (npm run build) falhou." && exit 1
+        log "Executando build da aplicação e gerando cliente Prisma..."
+        # CORREÇÃO: Adicionar 'npx prisma generate' ao processo de build
+        if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run build && npx prisma generate"; then
+            error "O processo de build (npm run build / prisma generate) falhou." && exit 1
         fi
-        success "Build concluído."
+        success "Build e geração do Prisma concluídos."
 
-        # CORREÇÃO: Remover dependências de desenvolvimento após o build
         log "Limpando dependências de desenvolvimento..."
         su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm prune --production"
         success "Dependências de desenvolvimento removidas."
@@ -226,17 +225,16 @@ EOF
 
 setup_systemd() {
     log "Configurando serviço com systemd..."
-    # CORREÇÃO: Apontar para o arquivo de build na pasta dist
     cat > "/etc/systemd/system/${APP_NAME}.service" << EOF
 [Unit]
 Description=${APP_DISPLAY_NAME}
-After=network.target
+# CORREÇÃO: Garante que o banco de dados esteja pronto antes de iniciar a app
+After=network.target postgresql.service
 
 [Service]
 Type=simple
 User=${APP_USER}
 WorkingDirectory=${APP_DIRECTORY}
-# Executa o servidor a partir do arquivo buildado
 ExecStart=/usr/bin/node dist/index.js
 Restart=always
 RestartSec=10
