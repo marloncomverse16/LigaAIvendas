@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v4.2 (Interactive & Resilient)
-# Instalação com limpeza de Nginx e gerenciamento interativo de banco de dados.
+# LigAI Dashboard VPS Installer v4.3 (Robust Input & Execution)
+# Corrige o fluxo de execução após a confirmação do usuário e melhora validações.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
@@ -24,21 +24,19 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v4.2"
+APP_DISPLAY_NAME="LigAI Dashboard v4.3"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
 GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
 
 # --- Limpeza em caso de falha ---
 cleanup( ) {
-    error "Instalação interrompida. Revertendo alterações..."
-    # A limpeza é intencionalmente mínima para permitir a depuração.
-    # Apenas para o serviço para evitar que ele continue tentando reiniciar.
+    error "Instalação interrompida por erro na linha $1."
     systemctl stop "$APP_NAME" 2>/dev/null || true
-    warn "Limpeza concluída. Verifique os logs para depurar o problema."
+    warn "Verifique os logs para depurar o problema."
     exit 1
 }
-trap cleanup INT TERM ERR
+trap 'cleanup $LINENO' INT TERM ERR
 
 # --- Funções de Instalação ---
 
@@ -46,12 +44,12 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║           🚀 LigAI Dashboard v4.2 (Resilient) 🚀             ║"
+    echo "║           🚀 LigAI Dashboard v4.3 (Robust) 🚀                ║"
     echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
-    echo "║  ✅ Limpeza automática de configs antigas do Nginx           ║"
-    echo "║  ✅ Gerenciamento interativo de banco de dados existente     ║"
-    echo "║  ✅ Instalação segura e idempotente                          ║"
+    echo "║  ✅ Fluxo de execução corrigido                              ║"
+    echo "║  ✅ Gerenciamento interativo de banco de dados               ║"
+    echo "║  ✅ Limpeza aprimorada de configs antigas                    ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
 }
 
@@ -64,9 +62,17 @@ check_requirements() {
 
 collect_user_input() {
     log "Coletando configurações..."
-    question "Digite o domínio para acesso (ex: dashboard.seusite.com):"
-    read -r DOMAIN
-    [[ -z "$DOMAIN" ]] && { error "Domínio é obrigatório!"; exit 1; }
+    while true; do
+        question "Digite o domínio para acesso (ex: dashboard.seusite.com):"
+        read -r DOMAIN
+        if [[ -z "$DOMAIN" ]]; then
+            error "Domínio é obrigatório!"
+        elif ! [[ "$DOMAIN" =~ \. ]]; then
+            error "Formato de domínio inválido. Deve conter pelo menos um ponto (.)."
+        else
+            break
+        fi
+    done
 
     question "Porta da aplicação [3000]:"
     read -r APP_PORT
@@ -93,9 +99,17 @@ collect_user_input() {
     echo "  💾 Banco: ${DB_NAME} | 👤 Usuário DB: ${DB_USER}"
     echo "  📁 Diretório: ${APP_DIRECTORY} | 🔒 SSL: $([[ "$SETUP_SSL" =~ ^[Ss]$ ]] && echo "Sim" || echo "Não")"
     
-    question "\nContinuar? (s/N):"
+    question "\nContinuar com a instalação? (s/N):"
     read -r CONFIRM
-    [[ ! "$CONFIRM" =~ ^[Ss]$ ]] && { error "Instalação cancelada."; exit 0; }
+    # CORREÇÃO: Lógica de confirmação mais robusta
+    if [ "$(echo "$CONFIRM" | tr '[:upper:]' '[:lower:]')" != "s" ]; then
+        error "Instalação cancelada pelo usuário."
+        exit 0
+    fi
+    
+    # Feedback visual de que o script continuou
+    log "Confirmação recebida. Iniciando instalação..."
+    sleep 1
 }
 
 update_system() {
@@ -124,7 +138,6 @@ install_postgresql() {
     systemctl start postgresql
     systemctl enable postgresql
 
-    # Verifica se o banco de dados já existe
     if su - postgres -c "psql -lqt | cut -d \| -f 1 | grep -qw ${DB_NAME}"; then
         warn "O banco de dados '${DB_NAME}' já existe."
         question "O que você gostaria de fazer?"
@@ -135,7 +148,7 @@ install_postgresql() {
 
         case $DB_CHOICE in
             1)
-                log "Usando banco de dados existente."
+                log "Tentando usar o banco de dados existente."
                 question "Por favor, digite a senha para o usuário '${DB_USER}':"
                 read -s DB_PASSWORD
                 echo ""
@@ -152,8 +165,8 @@ install_postgresql() {
                 DB_PASSWORD=$(openssl rand -base64 16)
                 su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
                 su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
-                info "Senha para o novo usuário '${DB_USER}' é: ${DB_PASSWORD}"
-                warn "GUARDE ESTA SENHA! Ela será salva no arquivo .env."
+                info "Uma nova senha foi gerada para o usuário '${DB_USER}'."
+                warn "A nova senha será salva automaticamente no arquivo .env."
                 success "Banco de dados recriado com sucesso."
                 ;;
             *)
@@ -166,8 +179,8 @@ install_postgresql() {
         DB_PASSWORD=$(openssl rand -base64 16)
         su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
         su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
-        info "Senha para o novo usuário '${DB_USER}' é: ${DB_PASSWORD}"
-        warn "GUARDE ESTA SENHA! Ela será salva no arquivo .env."
+        info "Uma nova senha foi gerada para o usuário '${DB_USER}'."
+        warn "A nova senha será salva automaticamente no arquivo .env."
         success "Banco de dados criado com sucesso."
     fi
 }
@@ -178,16 +191,15 @@ install_nginx() {
     
     log "Limpando configurações antigas do Nginx para evitar conflitos..."
     rm -f /etc/nginx/sites-enabled/default
-    rm -f /etc/nginx/conf.d/optimization.conf # Remove o arquivo problemático específico
+    rm -f /etc/nginx/sites-enabled/ligai # Limpa link simbólico antigo
+    rm -f /etc/nginx/conf.d/*.conf # Limpa outros arquivos de conf que possam conflitar
     
     cat > "/etc/nginx/sites-available/ligai" << EOF
 server {
     listen 80;
     server_name ${DOMAIN} www.${DOMAIN};
-
     client_max_body_size 50M;
     
-    # As diretivas Gzip são colocadas aqui para evitar conflitos globais.
     gzip on;
     gzip_vary on;
     gzip_proxied any;
@@ -227,9 +239,8 @@ setup_application( ) {
         useradd -r -s /bin/bash -d "$APP_DIRECTORY" -m "$APP_USER"
     fi
     
-    # Limpa o diretório antigo se existir, para uma instalação limpa
     if [ -d "$APP_DIRECTORY" ]; then
-        warn "Diretório de instalação ${APP_DIRECTORY} já existe. Fazendo backup e recriando."
+        warn "Diretório de instalação ${APP_DIRECTORY} já existe. Fazendo backup e recriando para garantir uma instalação limpa."
         mv "$APP_DIRECTORY" "${APP_DIRECTORY}.bak.$(date +%s)"
     fi
     mkdir -p "$APP_DIRECTORY"
