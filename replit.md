@@ -98,6 +98,7 @@ The LigAI Dashboard is built with a robust, multi-tenant architecture to ensure 
     - Comprehensive update system with backup/rollback functionality via update-ligai.sh.
     - Three-tier deployment approach: main installer, production optimizations, and dedicated update script.
     - Security hardening with Fail2ban and firewall configuration.
+    - **RESOLVED**: SystemD permission issues (status=217/USER, status=200/CHDIR) - install-ligai-final.sh provides definitive solution with correct user detection and directory permissions.
 
 ## External Dependencies
 

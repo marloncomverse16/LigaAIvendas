@@ -1,0 +1,69 @@
+root@vmi2760486:~# ligai-status
+=== LigAI Dashboard - Status do Sistema ===
+Data: Fri Aug 15 18:56:29 CEST 2025
+
+--- Aplicação ---
+activating
+❌ LigAI: Parado
+CPU: N/A%
+Memória: N/A%
+
+--- Banco de Dados ---
+active
+✅ PostgreSQL: Rodando
+
+--- Web Server ---
+failed
+❌ Nginx: Parado
+
+--- Sistema ---
+Uptime: up 1 minute
+Uso de disco: 9%
+Memória livre: 6.5Gi
+
+--- Últimos logs da aplicação ---
+Aug 15 18:56:26 vmi2760486 systemd[1]: ligai.service: Scheduled restart job, restart counter is at 6.
+Aug 15 18:56:26 vmi2760486 systemd[1]: Started ligai.service - LigAI Dashboard.
+Aug 15 18:56:26 vmi2760486 (npm)[1662]: ligai.service: Changing to the requested working directory failed: Permission denied
+Aug 15 18:56:26 vmi2760486 systemd[1]: ligai.service: Main process exited, code=exited, status=200/CHDIR
+Aug 15 18:56:26 vmi2760486 systemd[1]: ligai.service: Failed with result 'exit-code'.
+root@vmi2760486:~# ligai-status
+=== LigAI Dashboard - Status do Sistema ===
+Data: Fri Aug 15 18:57:13 CEST 2025
+
+--- Aplicação ---
+activating
+❌ LigAI: Parado
+CPU: N/A%
+Memória: N/A%
+
+--- Banco de Dados ---
+active
+✅ PostgreSQL: Rodando
+
+--- Web Server ---
+failed
+❌ Nginx: Parado
+
+--- Sistema ---
+Uptime: up 2 minutes
+Uso de disco: 10%
+Memória livre: 6.4Gi
+
+--- Últimos logs da aplicação ---
+Aug 15 18:57:07 vmi2760486 systemd[1]: ligai.service: Scheduled restart job, restart counter is at 10.
+Aug 15 18:57:07 vmi2760486 systemd[1]: Started ligai.service - LigAI Dashboard.
+Aug 15 18:57:07 vmi2760486 (npm)[1692]: ligai.service: Changing to the requested working directory failed: Permission denied
+Aug 15 18:57:07 vmi2760486 systemd[1]: ligai.service: Main process exited, code=exited, status=200/CHDIR
+Aug 15 18:57:07 vmi2760486 systemd[1]: ligai.service: Failed with result 'exit-code'.
+root@vmi2760486:~# ligai-logs
+Aug 15 18:57:17 vmi2760486 systemd[1]: ligai.service: Scheduled restart job, restart counter is at 11.
+Aug 15 18:57:17 vmi2760486 systemd[1]: Started ligai.service - LigAI Dashboard.
+Aug 15 18:57:17 vmi2760486 (npm)[1713]: ligai.service: Changing to the requested working directory failed: Permission denied
+Aug 15 18:57:17 vmi2760486 systemd[1]: ligai.service: Main process exited, code=exited, status=200/CHDIR
+Aug 15 18:57:17 vmi2760486 systemd[1]: ligai.service: Failed with result 'exit-code'.
+Aug 15 18:57:27 vmi2760486 systemd[1]: ligai.service: Scheduled restart job, restart counter is at 12.
+Aug 15 18:57:27 vmi2760486 systemd[1]: Started ligai.service - LigAI Dashboard.
+Aug 15 18:57:27 vmi2760486 (npm)[1717]: ligai.service: Changing to the requested working directory failed: Permission denied
+Aug 15 18:57:27 vmi2760486 systemd[1]: ligai.service: Main process exited, code=exited, status=200/CHDIR
+Aug 15 18:57:27 vmi2760486 systemd[1]: ligai.service: Failed with result 'exit-code'.
