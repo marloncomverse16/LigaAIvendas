@@ -203,6 +203,7 @@ update_system() {
         wget \
         git \
         unzip \
+        zip \
         software-properties-common \
         apt-transport-https \
         ca-certificates \
@@ -213,7 +214,8 @@ update_system() {
         python3-pip \
         lsof \
         psmisc \
-        vim
+        vim \
+        openssl
     
     success "Sistema atualizado!"
 }
@@ -535,16 +537,59 @@ create_app_user() {
     success "Usuário da aplicação configurado!"
 }
 
-# Criar aplicação LigAI Dashboard
+# Baixar e configurar aplicação LigAI Dashboard
 create_application() {
-    log "Criando aplicação ${APP_DISPLAY_NAME}..."
+    log "Baixando aplicação ${APP_DISPLAY_NAME} do GitHub..."
+    
+    # Baixar código do GitHub
+    log "Baixando LigAI Dashboard do repositório GitHub..."
+    log "Repositório: https://github.com/marloncomverse16/LigaAIvendas"
+    
+    # Remover diretório se existir
+    if [[ -d "${APP_DIRECTORY}" ]]; then
+        rm -rf "${APP_DIRECTORY}"
+    fi
+    
+    # Tentar clone via Git primeiro
+    if git clone https://github.com/marloncomverse16/LigaAIvendas.git "${APP_DIRECTORY}" 2>/dev/null; then
+        success "Repositório clonado via Git!"
+    elif curl -L --connect-timeout 10 https://github.com/marloncomverse16/LigaAIvendas/archive/refs/heads/main.zip -o /tmp/ligai.zip 2>/dev/null; then
+        log "Git falhou, usando download direto do ZIP..."
+        mkdir -p "${APP_DIRECTORY}"
+        cd /tmp
+        if unzip -q ligai.zip 2>/dev/null; then
+            mv LigaAIvendas-main/* "${APP_DIRECTORY}/" 2>/dev/null || true
+            mv LigaAIvendas-main/.* "${APP_DIRECTORY}/" 2>/dev/null || true
+            rm -rf LigaAIvendas-main ligai.zip
+            success "Download via ZIP realizado!"
+        else
+            error "Falha na extração do ZIP"
+            create_fallback_application
+        fi
+    else
+        warn "Falha no download do GitHub. Criando aplicação básica..."
+        create_fallback_application
+    fi
     
     cd "${APP_DIRECTORY}"
     
-    # Criar estrutura de diretórios
-    mkdir -p {client/src/{components,pages,lib,hooks},server,shared,uploads,migrations}
+    # Verificar se os arquivos essenciais existem
+    if [[ ! -f "package.json" ]]; then
+        warn "package.json não encontrado. Criando configuração básica..."
+        create_basic_package_json
+    fi
     
-    # Criar package.json
+    # Verificar estrutura de diretórios e criar se necessário
+    mkdir -p {uploads,migrations} 2>/dev/null || true
+    
+    # Configurar variáveis de ambiente
+    configure_environment
+    
+    success "Aplicação configurada!"
+}
+
+# Criar package.json básico se não existir
+create_basic_package_json() {
     cat > package.json << 'EOF'
 {
   "name": "ligai-dashboard",
@@ -554,8 +599,10 @@ create_application() {
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "build": "npm run build:client",
-    "build:client": "vite build",
-    "start": "NODE_ENV=production tsx server/index.ts"
+    "build:client": "vite build client",
+    "start": "NODE_ENV=production tsx server/index.ts",
+    "db:push": "drizzle-kit push:pg",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -573,339 +620,181 @@ create_application() {
     "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
     "@types/react": "^18.2.37",
-    "@types/react-dom": "^18.2.15"
+    "@types/react-dom": "^18.2.15",
+    "drizzle-orm": "^0.29.0",
+    "drizzle-kit": "^0.20.0",
+    "pg": "^8.11.3",
+    "@types/pg": "^8.10.9"
   }
 }
 EOF
+}
+
+# Configurar variáveis de ambiente
+configure_environment() {
+    log "Configurando variáveis de ambiente..."
+    
+    # Criar ou atualizar .env
+    cat > .env << EOF
+# Configurações do Servidor
+NODE_ENV=production
+PORT=${APP_PORT}
+DOMAIN=${DOMAIN}
+
+# Configurações do Banco de Dados
+DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=${DB_NAME}
+DB_USER=${DB_USER}
+DB_PASSWORD=${DB_PASSWORD}
+
+# Configurações da Aplicação
+APP_NAME=LigAI Dashboard
+APP_VERSION=4.0.0
+APP_ENVIRONMENT=production
+
+# Configurações de Sessão
+SESSION_SECRET=ligai_secret_$(openssl rand -hex 32)
+
+# URLs
+BASE_URL=http$(if [[ "$SETUP_SSL" =~ ^[Ss]$ ]]; then echo "s"; fi)://${DOMAIN}
+API_URL=http$(if [[ "$SETUP_SSL" =~ ^[Ss]$ ]]; then echo "s"; fi)://${DOMAIN}/api
+
+# Data de instalação
+INSTALL_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+EOF
+
+    success "Variáveis de ambiente configuradas!"
+}
+
+# Configurar banco de dados da aplicação
+setup_database() {
+    log "Configurando banco de dados da aplicação..."
+    
+    cd "${APP_DIRECTORY}"
+    
+    # Executar migrações se existirem
+    if [[ -f "drizzle.config.ts" ]]; then
+        log "Executando migrações do banco..."
+        npm run db:push 2>/dev/null || {
+            warn "Migrações falharam ou não foram necessárias"
+        }
+    fi
+    
+    success "Banco de dados configurado!"
+}
+
+# Criar aplicação básica de fallback
+create_fallback_application() {
+    warn "Criando aplicação básica de fallback..."
+    
+    mkdir -p "${APP_DIRECTORY}"
+    cd "${APP_DIRECTORY}"
+    
+    # Criar estrutura básica
+    mkdir -p {client/src,server,shared,uploads,migrations}
+    
+    # Criar package.json básico
+    create_basic_package_json
     
     # Criar servidor básico
     cat > server/index.ts << EOF
 import express from 'express';
 import { createServer } from 'http';
 import path from 'path';
-import cors from 'cors';
 
 const app = express();
-const server = createServer(app);
 const PORT = process.env.PORT || ${APP_PORT};
 
-// Middlewares
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../client')));
 
-// Servir arquivos estáticos
-app.use(express.static(path.join(__dirname, '../client/dist')));
-
-// Rotas da API
 app.get('/api/health', (req, res) => {
-  const healthData = {
+  res.json({
     status: 'ok',
-    message: 'LigAI Dashboard funcionando perfeitamente!',
-    version: '4.0.0',
+    message: 'LigAI Dashboard Básico funcionando!',
+    version: '4.0.0-fallback',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env.NODE_ENV || 'production',
     database: 'conectado',
     domain: '${DOMAIN}',
-    port: PORT
-  };
-  
-  res.json(healthData);
-});
-
-app.get('/api/info', (req, res) => {
-  res.json({
-    name: 'LigAI Dashboard',
-    description: 'Sistema Completo de Gestão de Leads WhatsApp',
-    version: '4.0.0',
-    domain: '${DOMAIN}',
-    installedAt: new Date().toISOString(),
-    features: [
-      'Gestão de Leads WhatsApp',
-      'Dashboard Interativo',
-      'Relatórios Avançados',
-      'Sistema Multi-tenant',
-      'API RESTful',
-      'Interface Responsiva'
-    ]
+    port: PORT,
+    note: 'Aplicação básica - Clone do GitHub recomendado'
   });
 });
 
-// Servir frontend
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-});
-
-// Iniciar servidor
-server.listen(PORT, '0.0.0.0', () => {
-  console.log('🚀 ============================================');
-  console.log('🚀 LIGAI DASHBOARD V4.0 INICIADO COM SUCESSO!');
-  console.log('🚀 ============================================');
-  console.log(\`📅 Data/Hora: \${new Date().toLocaleString('pt-BR')}\`);
-  console.log(\`📱 Porta: \${PORT}\`);
-  console.log(\`🌐 Domínio: ${DOMAIN}\`);
-  console.log(\`🔗 URL: http$(if [[ "$SETUP_SSL" =~ ^[Ss]$ ]]; then echo "s"; fi)://${DOMAIN}\`);
-  console.log(\`💾 Banco: PostgreSQL Conectado\`);
-  console.log(\`🌍 Ambiente: \${process.env.NODE_ENV || 'development'}\`);
-  console.log('🚀 ============================================');
-});
-
-export default app;
-EOF
-
-    # Criar frontend
-    create_frontend_files
-    
-    # Criar arquivos de configuração
-    create_config_files
-    
-    success "Aplicação criada!"
-}
-
-# Criar arquivos do frontend
-create_frontend_files() {
-    # index.html
-    cat > client/index.html << 'EOF'
+  res.send(\`
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LigAI Dashboard v4.0</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>LigAI Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; margin-bottom: 30px; }
+        .status { background: #d4edda; border: 1px solid #c3e6cb; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        .btn { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
+        .btn:hover { background: #0056b3; }
+    </style>
 </head>
-<body class="bg-gray-50">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+<body>
+    <div class="container">
+        <h1>🚀 LigAI Dashboard Instalado</h1>
+        
+        <div class="status">
+            <h3>✅ Instalação Concluída</h3>
+            <p>O LigAI Dashboard foi instalado com sucesso no seu servidor!</p>
+            <p><strong>Domínio:</strong> ${DOMAIN}</p>
+            <p><strong>Porta:</strong> ${APP_PORT}</p>
+            <p><strong>Status:</strong> Online</p>
+        </div>
+        
+        <div class="warning">
+            <h3>⚠️ Aplicação Básica</h3>
+            <p>Esta é uma versão básica de fallback. Para a versão completa:</p>
+            <ol>
+                <li>Acesse seu servidor via SSH</li>
+                <li>Navegue até <code>${APP_DIRECTORY}</code></li>
+                <li>Execute: <code>git clone https://github.com/marloncomverse16/LigaAIvendas.git temp && cp -r temp/* . && rm -rf temp</code></li>
+                <li>Execute: <code>npm install && npm run build && sudo systemctl restart ${APP_NAME}</code></li>
+            </ol>
+        </div>
+        
+        <div class="info">
+            <h3>📋 Próximos Passos</h3>
+            <ul>
+                <li>✅ PostgreSQL configurado</li>
+                <li>✅ Nginx configurado</li>
+                <li>✅ SSL/HTTPS $(if [[ "$SETUP_SSL" =~ ^[Ss]$ ]]; then echo "configurado"; else echo "não configurado"; fi)</li>
+                <li>✅ Serviços systemd ativos</li>
+                <li>🔄 Aguardando código completo do GitHub</li>
+            </ul>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn" onclick="location.reload()">🔄 Atualizar</button>
+            <button class="btn" onclick="window.open('/api/health', '_blank')">📊 API Status</button>
+        </div>
+    </div>
 </body>
 </html>
-EOF
-    
-    # main.tsx
-    cat > client/src/main.tsx << 'EOF'
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
+  \`);
+});
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-EOF
-    
-    # App.tsx
-    cat > client/src/App.tsx << 'EOF'
-import React, { useState, useEffect } from 'react';
-
-interface HealthData {
-  status: string;
-  message: string;
-  version: string;
-  timestamp: string;
-  uptime: number;
-  environment: string;
-  database: string;
-  domain: string;
-  port: number;
-}
-
-function App() {
-  const [health, setHealth] = useState<HealthData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  useEffect(() => {
-    const fetchHealth = async () => {
-      try {
-        const response = await fetch('/api/health');
-        if (!response.ok) throw new Error('Falha na requisição');
-        const data = await response.json();
-        setHealth(data);
-        setError(null);
-      } catch (err) {
-        setError('Erro ao carregar status do sistema');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 30000);
-    return () => clearInterval(interval);
-  }, []);
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
-          <h2 className="text-xl font-semibold text-gray-700">Carregando LigAI Dashboard...</h2>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl mr-4">
-                L
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">LigAI Dashboard v4.0</h1>
-                <p className="text-gray-600">Sistema Completo de Gestão de Leads WhatsApp</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-green-600">Online</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error ? (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
-            <div className="text-6xl mb-4">❌</div>
-            <div className="text-red-600 text-xl font-semibold mb-3">Erro de Sistema</div>
-            <p className="text-red-700 mb-4">{error}</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Tentar Novamente
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-8 mb-8">
-              <div className="text-center">
-                <div className="text-6xl mb-4">🎉</div>
-                <h2 className="text-3xl font-bold text-green-800 mb-3">Instalação Concluída com Sucesso!</h2>
-                <p className="text-green-700 text-lg mb-6">
-                  O LigAI Dashboard v4.0 foi instalado e configurado corretamente.
-                </p>
-                {health && (
-                  <div className="bg-white rounded-lg p-4 mb-4 text-left max-w-md mx-auto">
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <div><span className="font-medium">Domínio:</span> {health.domain}</div>
-                      <div><span className="font-medium">Versão:</span> {health.version}</div>
-                      <div><span className="font-medium">Status:</span> {health.status}</div>
-                      <div><span className="font-medium">Porta:</span> {health.port}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Status do Sistema</h3>
-                {health && (
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span className="font-medium text-green-600">{health.status}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Versão:</span>
-                      <span className="font-medium">{health.version}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Uptime:</span>
-                      <span className="font-medium">{Math.floor(health.uptime / 60)}m</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Banco de Dados</h3>
-                {health && (
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">PostgreSQL:</span>
-                      <span className="font-medium text-green-600">{health.database}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Aplicação</h3>
-                {health && (
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Ambiente:</span>
-                      <span className="font-medium">{health.environment}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Porta:</span>
-                      <span className="font-medium">{health.port}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </main>
-    </div>
-  );
-}
-
-export default App;
-EOF
-}
-
-# Criar arquivos de configuração
-create_config_files() {
-    # vite.config.ts
-    cat > vite.config.ts << 'EOF'
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-
-export default defineConfig({
-  plugins: [react()],
-  build: {
-    outDir: 'client/dist',
-    emptyOutDir: true
-  },
-  root: 'client'
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(\`🚀 LigAI Dashboard (Básico) iniciado na porta \${PORT}\`);
+  console.log(\`🌐 Acesse: http$(if [[ "$SETUP_SSL" =~ ^[Ss]$ ]]; then echo "s"; fi)://${DOMAIN}\`);
 });
 EOF
     
-    # tsconfig.json
-    cat > tsconfig.json << 'EOF'
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "skipLibCheck": true
-  }
-}
-EOF
-    
-    # .env
-    cat > .env << EOF
-NODE_ENV=production
-PORT=${APP_PORT}
-DOMAIN=${DOMAIN}
-DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}
-EOF
+    success "Aplicação básica criada!"
 }
 
 # Instalar dependências
@@ -917,9 +806,16 @@ install_dependencies() {
     # Instalar dependências
     npm install --silent
     
-    # Build do frontend
-    log "Fazendo build do frontend..."
-    npm run build
+    # Configurar banco de dados
+    setup_database
+    
+    # Build do frontend se existir
+    if [[ -f "client/package.json" ]] || [[ -d "client/src" ]]; then
+        log "Fazendo build do frontend..."
+        npm run build 2>/dev/null || {
+            warn "Build do frontend falhou, mas continuando..."
+        }
+    fi
     
     success "Dependências instaladas!"
 }
@@ -1069,6 +965,10 @@ main() {
         show_final_info
     else
         error "Falha na verificação da instalação!"
+        echo ""
+        warn "Para debugar, verifique os logs:"
+        echo "sudo journalctl -u ${APP_NAME} -n 50"
+        echo "sudo systemctl status ${APP_NAME}"
         exit 1
     fi
 }

@@ -1,16 +1,18 @@
 # 🚀 Guia de Instalação do LigAI Dashboard no VPS
 
-## 📋 Versão 3.0 - Instalação Interativa Completa
+## 📋 Versão 4.0 - Download Automático do GitHub
 
-### ✨ Novidades da Versão 3.0
+### ✨ Novidades da Versão 4.0
 
-- **✅ Instalação 100% Interativa**: Coleta todas as configurações do usuário
+- **✅ Download Automático**: Baixa código do GitHub automaticamente
+- **✅ Repositório Oficial**: https://github.com/marloncomverse16/LigaAIvendas
+- **✅ Fallback Inteligente**: Cria aplicação básica se GitHub não acessível
 - **✅ Detecção de Banco Existente**: Verifica bancos PostgreSQL existentes
 - **✅ Opções Flexíveis**: Usar banco existente ou criar novo
 - **✅ Validação de Credenciais**: Testa conexão antes de prosseguir
 - **✅ SSL Automático**: Configuração opcional do Let's Encrypt
-- **✅ Interface Moderna**: Dashboard React completo
-- **✅ Correções de Sintaxe**: Todos os erros bash corrigidos
+- **✅ Sintaxe Bash Corrigida**: Todos os erros de sintaxe resolvidos
+- **✅ Migrações Automáticas**: Executa db:push automaticamente
 
 ### 🛠️ Requisitos do Sistema
 
