@@ -246,11 +246,14 @@ install_postgresql() {
     # Aguardar inicialização
     sleep 5
     
+    # Verificar se há bancos existentes
+    check_existing_databases
+    
     # Configurar banco de dados
     log "Configurando banco de dados..."
     
-    # Verificar se usuário existe
-    USER_EXISTS=$(su - postgres -c "psql -t -c \"SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'\"" 2>/dev/null | grep -c 1 || echo "0")
+    # Verificar se usuário existe (corrigido)
+    USER_EXISTS=$(su - postgres -c "psql -t -c \"SELECT COUNT(*) FROM pg_roles WHERE rolname='${DB_USER}'\"" 2>/dev/null | tr -d '[:space:]')
     
     if [[ "$USER_EXISTS" -eq "0" ]]; then
         log "Criando usuário do banco: ${DB_USER}"
@@ -260,8 +263,8 @@ install_postgresql() {
         su - postgres -c "psql -c \"ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
     fi
     
-    # Verificar se banco existe
-    DB_EXISTS=$(su - postgres -c "psql -lqt" | cut -d \| -f 1 | grep -wc "${DB_NAME}" || echo "0")
+    # Verificar se banco existe (corrigido)
+    DB_EXISTS=$(su - postgres -c "psql -lqt" 2>/dev/null | cut -d \| -f 1 | grep -w "${DB_NAME}" | wc -l)
     
     if [[ "$DB_EXISTS" -eq "0" ]]; then
         log "Criando banco de dados: ${DB_NAME}"
@@ -300,6 +303,157 @@ install_postgresql() {
         systemctl status postgresql --no-pager
         su - postgres -c "psql -l" || true
         exit 1
+    fi
+}
+
+# Verificar bancos existentes
+check_existing_databases() {
+    log "Verificando bancos de dados existentes..."
+    
+    # Listar bancos existentes
+    EXISTING_DBS=$(su - postgres -c "psql -lqt" 2>/dev/null | cut -d \| -f 1 | grep -v template | grep -v postgres | grep -v "^$" | tr -d '[:space:]')
+    
+    if [[ -n "$EXISTING_DBS" ]]; then
+        echo ""
+        warn "Bancos de dados encontrados no sistema:"
+        echo "$EXISTING_DBS" | while read -r db; do
+            if [[ -n "$db" ]]; then
+                echo "  • $db"
+            fi
+        done
+        echo ""
+        
+        # Verificar se o banco que queremos criar já existe
+        DB_EXISTS_CHECK=$(echo "$EXISTING_DBS" | grep -c "^${DB_NAME}$" || echo "0")
+        
+        if [[ "$DB_EXISTS_CHECK" -gt "0" ]]; then
+            warn "O banco '${DB_NAME}' já existe!"
+            echo ""
+            question "O que deseja fazer?"
+            echo "1) Usar o banco existente (precisará fornecer credenciais)"
+            echo "2) Excluir e criar um novo banco"
+            echo "3) Cancelar instalação"
+            read -r db_choice
+            
+            case $db_choice in
+                1)
+                    log "Usando banco existente..."
+                    collect_existing_db_credentials
+                    ;;
+                2)
+                    warn "Excluindo banco existente..."
+                    su - postgres -c "psql -c \"DROP DATABASE IF EXISTS ${DB_NAME};\""
+                    log "Banco ${DB_NAME} excluído. Será criado um novo."
+                    ;;
+                3)
+                    error "Instalação cancelada pelo usuário"
+                    exit 1
+                    ;;
+                *)
+                    warn "Opção inválida. Usando configurações padrão..."
+                    ;;
+            esac
+        fi
+    else
+        log "Nenhum banco existente encontrado. Criando configuração nova."
+    fi
+}
+
+# Coletar credenciais de banco existente
+collect_existing_db_credentials() {
+    echo ""
+    info "Configurações para banco existente '${DB_NAME}':"
+    
+    question "Usuário do banco existente (atual: ${DB_USER}):"
+    read -r existing_user
+    if [[ -n "$existing_user" ]]; then
+        DB_USER="$existing_user"
+    fi
+    
+    question "Senha do banco existente:"
+    read -s existing_password
+    if [[ -n "$existing_password" ]]; then
+        DB_PASSWORD="$existing_password"
+    fi
+    echo ""
+    
+    # Testar conexão com credenciais fornecidas
+    log "Testando conexão com banco existente..."
+    if PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1;" &>/dev/null; then
+        success "Conexão com banco existente bem-sucedida!"
+        export USE_EXISTING_DB=true
+    else
+        error "Falha na conexão com banco existente!"
+        question "Deseja tentar novamente com outras credenciais? (s/N):"
+        read -r retry
+        if [[ "$retry" =~ ^[Ss]$ ]]; then
+            collect_existing_db_credentials
+        else
+            warn "Será criado um novo usuário e configuração"
+            export USE_EXISTING_DB=false
+        fi
+    fi
+}
+            echo "3) Cancelar instalação"
+            read -r db_choice
+            
+            case $db_choice in
+                1)
+                    log "Usando banco existente..."
+                    collect_existing_db_credentials
+                    ;;
+                2)
+                    warn "Excluindo banco existente..."
+                    su - postgres -c "psql -c \"DROP DATABASE IF EXISTS ${DB_NAME};\""
+                    log "Banco ${DB_NAME} excluído. Será criado um novo."
+                    ;;
+                3)
+                    error "Instalação cancelada pelo usuário"
+                    exit 1
+                    ;;
+                *)
+                    warn "Opção inválida. Usando configurações padrão..."
+                    ;;
+            esac
+        fi
+    else
+        log "Nenhum banco existente encontrado. Criando configuração nova."
+    fi
+}
+
+# Coletar credenciais de banco existente
+collect_existing_db_credentials() {
+    echo ""
+    info "Configurações para banco existente '${DB_NAME}':"
+    
+    question "Usuário do banco existente (atual: ${DB_USER}):"
+    read -r existing_user
+    if [[ -n "$existing_user" ]]; then
+        DB_USER="$existing_user"
+    fi
+    
+    question "Senha do banco existente:"
+    read -s existing_password
+    if [[ -n "$existing_password" ]]; then
+        DB_PASSWORD="$existing_password"
+    fi
+    echo ""
+    
+    # Testar conexão com credenciais fornecidas
+    log "Testando conexão com banco existente..."
+    if PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1;" &>/dev/null; then
+        success "Conexão com banco existente bem-sucedida!"
+        export USE_EXISTING_DB=true
+    else
+        error "Falha na conexão com banco existente!"
+        question "Deseja tentar novamente com outras credenciais? (s/N):"
+        read -r retry
+        if [[ "$retry" =~ ^[Ss]$ ]]; then
+            collect_existing_db_credentials
+        else
+            warn "Será criado um novo usuário e configuração"
+            export USE_EXISTING_DB=false
+        fi
     fi
 }
 

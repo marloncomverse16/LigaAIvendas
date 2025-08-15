@@ -1,441 +1,205 @@
-# 🚀 LigAI Dashboard - Guia de Instalação em VPS
+# 🚀 Guia de Instalação do LigAI Dashboard no VPS
 
-Este guia contém instruções completas para instalar o LigAI Dashboard em uma VPS (Virtual Private Server) com Ubuntu ou Debian.
+## 📋 Versão 3.0 - Instalação Interativa Completa
 
-## 📋 Pré-requisitos
+### ✨ Novidades da Versão 3.0
 
-### Servidor VPS
+- **✅ Instalação 100% Interativa**: Coleta todas as configurações do usuário
+- **✅ Detecção de Banco Existente**: Verifica bancos PostgreSQL existentes
+- **✅ Opções Flexíveis**: Usar banco existente ou criar novo
+- **✅ Validação de Credenciais**: Testa conexão antes de prosseguir
+- **✅ SSL Automático**: Configuração opcional do Let's Encrypt
+- **✅ Interface Moderna**: Dashboard React completo
+- **✅ Correções de Sintaxe**: Todos os erros bash corrigidos
+
+### 🛠️ Requisitos do Sistema
+
 - **Sistema Operacional**: Ubuntu 20.04+ ou Debian 11+
-- **RAM**: Mínimo 2GB (recomendado 4GB+)
-- **CPU**: Mínimo 1 core (recomendado 2+ cores)
-- **Armazenamento**: Mínimo 20GB SSD
-- **Acesso**: SSH com usuário não-root com privilégios sudo
+- **Acesso**: Root (sudo)
+- **Memória**: Mínimo 1GB RAM
+- **Espaço**: 5GB livres
+- **Internet**: Conexão estável
 
-### Domínio/DNS
-- Domínio ou subdomínio configurado apontando para o IP da VPS
-- Acesso para configurar registros DNS (A record)
+### 📱 Instalação Passo a Passo
 
-### Informações Necessárias
-Tenha em mãos:
-- Domínio ou subdomínio (ex: `ligai.meudominio.com`)
-- Email válido para certificado SSL
-- Credenciais do banco de dados (nome, usuário, senha)
-
-## 🔧 Instalação Automática
-
-### Passo 1: Download dos Scripts
+#### 1. Preparar o Servidor
 
 ```bash
-# Conectar via SSH à sua VPS
-ssh usuario@seu-servidor.com
+# Conectar ao VPS via SSH
+ssh root@seu-servidor.com
 
-# Baixar os scripts de instalação
-wget https://raw.githubusercontent.com/seu-repo/ligai-dashboard/main/install-ligai.sh
-wget https://raw.githubusercontent.com/seu-repo/ligai-dashboard/main/setup-production.sh
-wget https://raw.githubusercontent.com/seu-repo/ligai-dashboard/main/update-ligai.sh
+# Baixar o script (copie o arquivo install-ligai-final.sh)
+wget https://seu-servidor.com/install-ligai-final.sh
+# ou copie manualmente o arquivo
 
 # Dar permissão de execução
-chmod +x install-ligai.sh setup-production.sh update-ligai.sh
+chmod +x install-ligai-final.sh
 ```
 
-### Passo 2: Executar Instalação Principal
+#### 2. Executar a Instalação
 
 ```bash
-# Executar o instalador principal
-./install-ligai.sh
+# Executar como root
+sudo ./install-ligai-final.sh
 ```
 
-O script solicitará as seguintes informações:
-1. **Domínio/Subdomínio**: `ligai.meudominio.com`
-2. **Email para SSL**: Seu email para o certificado Let's Encrypt
-3. **Nome do banco**: Nome do banco PostgreSQL (padrão: `ligai`)
-4. **Usuário do banco**: Usuário PostgreSQL (padrão: `ligai_user`)
-5. **Senha do banco**: Senha segura para o banco
-6. **Porta da aplicação**: Porta interna (padrão: `5000`)
-7. **Pasta de instalação**: Diretório da aplicação (padrão: `/home/usuario/ligai`)
+#### 3. Configurações Solicitadas
 
-### Passo 3: Aplicar Otimizações de Produção
+O script irá perguntar:
+
+**Configurações Básicas:**
+- Domínio da aplicação (ex: meusite.com)
+- Porta da aplicação (padrão: 5000)
+
+**Banco de Dados:**
+- Nome do banco (padrão: ligai)
+- Usuário do banco (padrão: ligai)
+- Senha do banco (padrão: ligai123)
+
+**Sistema:**
+- Usuário do sistema (padrão: ligai)
+- Diretório de instalação (padrão: /opt/ligai)
+
+**SSL (Opcional):**
+- Configurar HTTPS automático (s/N)
+- Email para certificado SSL
+
+#### 4. Detecção de Banco Existente
+
+Se o script detectar bancos PostgreSQL existentes, você terá 3 opções:
+
+1. **Usar banco existente**: Fornecer credenciais do banco atual
+2. **Excluir e criar novo**: Remove o banco e cria uma configuração limpa
+3. **Cancelar instalação**: Interrompe o processo
+
+### 🎯 Funcionalidades Implementadas
+
+#### Interface do Dashboard
+- ✅ Status em tempo real dos serviços
+- ✅ Informações de sistema e uptime
+- ✅ Health checks automáticos
+- ✅ Interface responsiva
+- ✅ Recursos disponíveis listados
+
+#### Arquitetura Técnica
+- ✅ Backend Express.js com TypeScript
+- ✅ Frontend React com Tailwind CSS
+- ✅ PostgreSQL com configuração segura
+- ✅ Nginx como proxy reverso
+- ✅ Serviços systemd configurados
+
+#### Segurança
+- ✅ Headers de segurança configurados
+- ✅ SSL/HTTPS opcional
+- ✅ Usuário dedicado para aplicação
+- ✅ Permissões restritivas
+- ✅ Configurações de firewall
+
+### 📊 URLs de Acesso
+
+Após a instalação bem-sucedida:
+
+- **🌐 Aplicação Principal**: `http://seu-dominio.com` (ou https se SSL configurado)
+- **🔍 Health Check**: `http://seu-dominio.com/api/health`
+- **📋 Informações**: `http://seu-dominio.com/api/info`
+
+### 🔧 Comandos Úteis
 
 ```bash
-# Executar otimizações (após instalação principal)
-./setup-production.sh
-```
-
-### Passo 4: Reiniciar o Servidor
-
-```bash
-# Reiniciar para aplicar todas as configurações
-sudo reboot
-```
-
-## 🔍 Verificação da Instalação
-
-Após a reinicialização, verifique se tudo está funcionando:
-
-```bash
-# Verificar status geral
-ligai-status
-
-# Verificar logs da aplicação
-ligai-logs
-
-# Verificar serviços
-sudo systemctl status ligai nginx postgresql
-```
-
-## 🌐 Acessar a Aplicação
-
-1. Abra seu navegador
-2. Acesse: `https://seu-dominio.com`
-3. Crie sua conta de administrador
-4. Configure suas integrações WhatsApp
-
-## 📂 Estrutura de Arquivos
-
-```
-/home/usuario/ligai/          # Aplicação principal
-├── client/                   # Frontend React
-├── server/                   # Backend Express
-├── shared/                   # Código compartilhado
-├── uploads/                  # Arquivos enviados
-├── .env                      # Configurações
-└── package.json              # Dependências
-
-/etc/nginx/sites-available/   # Configuração Nginx
-/etc/systemd/system/ligai.service  # Serviço systemd
-/var/log/ligai/              # Logs da aplicação
-~/backups/ligai/             # Backups automáticos
-```
-
-## 🛠️ Comandos Úteis
-
-### Gerenciamento da Aplicação
-```bash
-# Status do sistema
-ligai-status
+# Ver status dos serviços
+sudo systemctl status ligai
+sudo systemctl status nginx
+sudo systemctl status postgresql
 
 # Ver logs em tempo real
-ligai-logs
+sudo journalctl -u ligai -f
 
 # Reiniciar aplicação
-ligai-restart
+sudo systemctl restart ligai
 
-# Parar aplicação
-ligai-stop
-
-# Iniciar aplicação
-ligai-start
-```
-
-### Gerenciamento do Nginx
-```bash
-# Recarregar configuração
-nginx-reload
-
-# Status do Nginx
-sudo systemctl status nginx
-
-# Testar configuração
+# Verificar configuração do Nginx
 sudo nginx -t
+
+# Recarregar Nginx
+sudo systemctl reload nginx
 ```
 
-### Banco de Dados
-```bash
-# Backup do banco
-db-backup
+### 🛡️ Troubleshooting
 
-# Conectar ao banco
-sudo -u postgres psql ligai
+#### Problema: Erro de sintaxe PostgreSQL
+**Solução**: Use a versão 3.0 do script com sintaxe corrigida
 
-# Ver logs do PostgreSQL
-sudo journalctl -u postgresql -f
+#### Problema: Banco já existe
+**Solução**: O script detecta automaticamente e oferece opções
+
+#### Problema: Falha na conexão
+**Solução**: Verifique credenciais fornecidas e conectividade
+
+#### Problema: Porta ocupada
+**Solução**: O script libera portas automaticamente
+
+### 📁 Estrutura de Arquivos
+
+```
+/opt/ligai/
+├── client/              # Frontend React
+│   ├── src/
+│   ├── dist/           # Build de produção
+│   └── index.html
+├── server/             # Backend Express
+│   └── index.ts
+├── shared/             # Código compartilhado
+├── uploads/            # Arquivos enviados
+├── .env               # Variáveis de ambiente
+├── package.json       # Dependências
+└── README.md         # Documentação
 ```
 
-### Manutenção
+### 🔄 Atualizações
+
+Para atualizar o sistema:
+
 ```bash
-# Manutenção manual
-~/maintenance-ligai.sh
-
-# Backup manual
-~/backup-ligai.sh
-
-# Ver espaço em disco
-df -h
-
-# Ver uso de memória
-free -h
-```
-
-## 🔒 Configurações de Segurança
-
-### Firewall (UFW)
-```bash
-# Status do firewall
-sudo ufw status
-
-# Permitir nova porta (se necessário)
-sudo ufw allow 8080
-```
-
-### Fail2ban
-```bash
-# Status do Fail2ban
-sudo fail2ban-client status
-
-# Ver IPs banidos
-sudo fail2ban-client status sshd
-```
-
-### SSL/HTTPS
-```bash
-# Renovar certificado manualmente
-sudo certbot renew
-
-# Verificar certificados
-sudo certbot certificates
-
-# Testar renovação
-sudo certbot renew --dry-run
-```
-
-## 📊 Monitoramento
-
-### Logs Importantes
-- **Aplicação**: `journalctl -u ligai -f`
-- **Nginx**: `sudo tail -f /var/log/nginx/error.log`
-- **PostgreSQL**: `sudo journalctl -u postgresql -f`
-- **Sistema**: `sudo journalctl -f`
-
-### Métricas do Sistema
-```bash
-# CPU e memória
-htop
-
-# Uso de rede
-nethogs
-
-# I/O de disco
-iotop
-```
-
-## 🔧 Solução de Problemas
-
-### Erro SystemD (status=217/USER)
-Se o serviço falhar com erro de usuário:
-```bash
-# Executar script de correção automática
-./fix-systemd-service.sh
-
-# OU corrigir manualmente:
+cd /opt/ligai
 sudo systemctl stop ligai
-sudo systemctl daemon-reload
-sudo systemctl enable ligai
-sudo systemctl start ligai
-
-# Verificar status
-sudo systemctl status ligai
-```
-
-### Aplicação não inicia
-```bash
-# Verificar logs
-ligai-logs
-
-# Verificar arquivo .env
-cat ~/ligai/.env
-
-# Testar conexão com banco
-sudo -u postgres psql ligai -c "SELECT 1;"
-```
-
-### Problemas de SSL
-```bash
-# Verificar certificado
-openssl x509 -in /etc/letsencrypt/live/seu-dominio.com/cert.pem -text -noout
-
-# Renovar certificado
-sudo certbot renew --force-renewal
-```
-
-### Problemas de DNS
-```bash
-# Verificar resolução DNS
-nslookup seu-dominio.com
-
-# Testar conectividade
-curl -I https://seu-dominio.com
-```
-
-## 📱 Configuração WhatsApp
-
-### Evolution API (QR Code)
-1. Configure servidor Evolution API na interface
-2. Obtenha QR Code para conexão
-3. Escaneie com WhatsApp Business
-
-### Meta Cloud API
-1. Configure credenciais na interface
-2. Verifique webhook URLs
-3. Teste envio de mensagens
-
-## 🔄 Atualizações do Sistema
-
-### Atualização Automática (Recomendado)
-
-Para atualizar sua instalação do LigAI Dashboard:
-
-```bash
-# Navegue até o diretório onde baixou os scripts
-cd ~
-
-# Execute o script de atualização
-./update-ligai.sh
-```
-
-O script oferece um menu interativo com opções:
-
-1. **Atualização Completa**: Atualiza código, dependências, executa migrações e testes
-2. **Apenas Código**: Faz git pull da versão mais recente
-3. **Apenas Dependências**: Atualiza bibliotecas npm
-4. **Apenas Migrações**: Executa mudanças no banco de dados
-5. **Apenas Build**: Reconstrói a aplicação
-6. **Verificação de Saúde**: Verifica status sem alterar nada
-7. **Rollback**: Volta para versão anterior em caso de problemas
-
-### Atualização via Linha de Comando
-
-```bash
-# Atualização completa
-./update-ligai.sh --full
-
-# Apenas código
-./update-ligai.sh --code
-
-# Apenas dependências
-./update-ligai.sh --deps
-
-# Verificar saúde
-./update-ligai.sh --health
-
-# Rollback
-./update-ligai.sh --rollback
-```
-
-### Funcionalidades de Segurança
-
-- **Backup Automático**: Cria backup completo antes de qualquer atualização
-- **Rollback Automático**: Em caso de erro, restaura versão anterior automaticamente
-- **Verificação de Integridade**: Testa configurações antes de aplicar mudanças
-- **Zero Downtime**: Minimiza tempo de inatividade durante atualizações
-
-### Atualizações Manuais
-
-Se preferir atualizar manualmente:
-
-```bash
-# 1. Parar aplicação
-sudo systemctl stop ligai
-
-# 2. Backup
-cp -r ~/ligai ~/ligai_backup_$(date +%Y%m%d)
-
-# 3. Atualizar código (se usando Git)
-cd ~/ligai
-git pull
-
-# 4. Atualizar dependências
+git pull origin main  # se usando Git
 npm install
-
-# 5. Executar migrações
-npm run db:push
-
-# 6. Build (se necessário)
 npm run build
-
-# 7. Iniciar aplicação
 sudo systemctl start ligai
 ```
 
-### Configuração de Atualizações Automáticas
+### 💾 Backup
 
-Para receber atualizações automaticamente:
-
-```bash
-# Adicionar ao crontab para verificar atualizações semanalmente
-(crontab -l 2>/dev/null; echo "0 4 * * 1 cd ~ && ./update-ligai.sh --code") | crontab -
-```
-
-## 📈 Otimizações Avançadas
-
-### Para Alto Volume
-Se você espera alto volume de mensagens:
-
-1. **Aumentar recursos do servidor**:
-   - 8GB+ RAM
-   - 4+ CPU cores
-   - SSD NVMe
-
-2. **Otimizar PostgreSQL**:
-   ```bash
-   # Editar configuração
-   sudo nano /etc/postgresql/*/main/postgresql.conf
-   
-   # Aumentar conexões
-   max_connections = 500
-   
-   # Reiniciar PostgreSQL
-   sudo systemctl restart postgresql
-   ```
-
-3. **Configurar Load Balancer** (para múltiplos servidores)
-
-### Cache Redis (Opcional)
-```bash
-# Instalar Redis
-sudo apt install redis-server
-
-# Configurar no .env
-echo "REDIS_URL=redis://localhost:6379" >> ~/ligai/.env
-```
-
-## 🆘 Suporte
-
-### Logs para Suporte
-Se precisar de ajuda, forneça os seguintes logs:
+Faça backup dos seguintes itens:
 
 ```bash
-# Informações do sistema
-ligai-status > ~/logs-suporte.txt
+# Banco de dados
+pg_dump ligai > backup_ligai.sql
 
-# Logs da aplicação
-journalctl -u ligai -n 100 >> ~/logs-suporte.txt
+# Arquivos da aplicação
+tar -czf backup_ligai_files.tar.gz /opt/ligai
 
-# Configuração (sem senhas)
-grep -v "PASSWORD\|SECRET\|TOKEN" ~/ligai/.env >> ~/logs-suporte.txt
+# Configurações do Nginx
+cp /etc/nginx/sites-available/ligai backup_nginx_ligai.conf
 ```
 
-### Contatos
-- **Documentação**: https://github.com/seu-repo/ligai-dashboard
-- **Suporte**: contato@ligai.com.br
-- **Issues**: https://github.com/seu-repo/ligai-dashboard/issues
+### 📞 Suporte
 
-## 📋 Checklist Pós-Instalação
-
-- [ ] Aplicação acessível via HTTPS
-- [ ] Certificado SSL válido
-- [ ] Banco de dados funcionando
-- [ ] Conta de administrador criada
-- [ ] Backup automático configurado
-- [ ] Monitoramento ativo
-- [ ] Firewall configurado
-- [ ] DNS configurado corretamente
-- [ ] WhatsApp configurado
-- [ ] Teste de envio de mensagem realizado
+- 📖 Documentação completa em `/opt/ligai/README.md`
+- 🔍 Logs detalhados: `sudo journalctl -u ligai -n 100`
+- 🌐 Status da aplicação: `http://seu-dominio.com/api/health`
 
 ---
 
-## 🎉 Parabéns!
+## 🎉 Instalação Concluída!
 
-Sua instalação do LigAI Dashboard está completa! Agora você pode começar a gerenciar seus leads e automatizar suas comunicações WhatsApp.
+Após seguir este guia, você terá um **LigAI Dashboard completo e funcional** rodando no seu VPS com:
 
-**Dica**: Faça backups regulares e mantenha o sistema atualizado para melhor segurança e performance.
+- ✅ Aplicação web moderna
+- ✅ Banco de dados PostgreSQL
+- ✅ Proxy reverso Nginx
+- ✅ SSL automático (opcional)
+- ✅ Monitoramento em tempo real
+- ✅ Serviços gerenciados pelo sistema
+
+**Acesse seu domínio e comece a usar o LigAI Dashboard!** 🚀
