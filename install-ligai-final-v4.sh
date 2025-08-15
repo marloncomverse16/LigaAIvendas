@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v4.7 (URL-Safe Password Fix)
-# Gera senhas hexadecimais seguras para a URL do banco de dados, corrigindo o erro P1013 do Prisma.
+# LigAI Dashboard VPS Installer v4.8 (Final Build Fix)
+# Remove 'npm prune' para manter as devDependencies que o build final requer para rodar.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
@@ -24,7 +24,7 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v4.7"
+APP_DISPLAY_NAME="LigAI Dashboard v4.8"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
 GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
@@ -44,12 +44,12 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║       🚀 LigAI Dashboard v4.7 (URL-Safe Password Fix) 🚀     ║"
+    echo "║          🚀 LigAI Dashboard v4.8 (Final Build Fix) 🚀        ║"
     echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
-    echo "║  ✅ Gera senhas seguras para URL (corrige erro P1013)        ║"
-    echo "║  ✅ Cria 'schema.prisma' e sincroniza o banco com 'db push'  ║"
-    echo "║  ✅ Processo de build e deploy totalmente automatizado       ║"
+    echo "║  ✅ Mantém devDependencies para compatibilidade com o build  ║"
+    echo "║  ✅ Gera senha URL-safe para o banco de dados                ║"
+    echo "║  ✅ Processo de deploy totalmente automatizado               ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
 }
 
@@ -129,7 +129,6 @@ install_postgresql() {
                 log "Recriando banco de dados..."
                 su - postgres -c "dropdb ${DB_NAME}"
                 su - postgres -c "dropuser ${DB_USER}" || warn "Usuário ${DB_USER} não existia."
-                # CORREÇÃO: Gerar senha hexadecimal (URL-safe)
                 DB_PASSWORD=$(openssl rand -hex 16)
                 su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
                 su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
@@ -140,7 +139,6 @@ install_postgresql() {
         esac
     else
         log "Criando novo banco de dados e usuário..."
-        # CORREÇÃO: Gerar senha hexadecimal (URL-safe)
         DB_PASSWORD=$(openssl rand -hex 16)
         su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
         su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
@@ -213,18 +211,11 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
-// Adicione os modelos do seu banco de dados aqui.
-// O comando 'prisma db push' não funcionará corretamente sem os modelos.
-// Exemplo:
-// model User {
-//   id    Int     @id @default(autoincrement())
-//   email String  @unique
-//   name  String?
-// }
+// Adicione seus modelos aqui para que o 'db push' funcione.
 EOF
     chown -R "$APP_USER:$APP_USER" "$APP_DIRECTORY"
     
-    log "Instalando todas as dependências (forçando ambiente de desenvolvimento)..."
+    log "Instalando todas as dependências (incluindo dev)..."
     if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && NODE_ENV=development npm install --loglevel error"; then
         error "Falha ao instalar dependências com npm." && exit 1
     fi
@@ -236,10 +227,8 @@ EOF
             error "O processo de build ou setup do Prisma falhou." && exit 1
         fi
         success "Build, sincronização do banco e geração do Prisma concluídos."
-
-        log "Limpando dependências de desenvolvimento..."
-        su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm prune --production"
-        success "Dependências de desenvolvimento removidas."
+        # CORREÇÃO: Removido o 'npm prune' que estava quebrando a inicialização do serviço.
+        warn "As dependências de desenvolvimento serão mantidas para garantir a execução."
     fi
 }
 
@@ -282,7 +271,7 @@ setup_ssl() {
 
 start_services() {
     log "Iniciando serviço da aplicação..."
-    systemctl start "$APP_NAME" && sleep 3
+    systemctl start "$APP_NAME" && sleep 5 # Aumentado o tempo de espera para a app iniciar
     
     if ! systemctl is-active --quiet "$APP_NAME"; then
         error "O serviço da aplicação (${APP_NAME}) falhou ao iniciar."
