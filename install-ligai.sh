@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # =============================================================================
-# LigAI Dashboard - Instalador Automático para VPS
+# LigAI Dashboard - Instalador Automático para VPS (Versão Corrigida)
 # =============================================================================
 # Este script instala automaticamente o LigAI Dashboard em uma VPS Ubuntu/Debian
 # Inclui: Node.js, PostgreSQL, Nginx, SSL/HTTPS, configuração de subdomínio
+# PERMITE EXECUÇÃO COMO ROOT OU USUÁRIO NORMAL
 # =============================================================================
 
 set -e  # Parar se houver erro
@@ -34,20 +35,24 @@ info() {
     echo -e "${BLUE}[INFO] $1${NC}"
 }
 
-# Verificar se é root e configurar variáveis
-check_root() {
+# Configurar variáveis baseado no usuário atual
+configure_user() {
     if [[ $EUID -eq 0 ]]; then
-        warn "Executando como root. Isso é permitido, mas recomenda-se usar um usuário com sudo."
+        log "Executando como root - configurando para uso seguro"
         IS_ROOT=true
         DEFAULT_USER="ligai"
         DEFAULT_HOME="/home/$DEFAULT_USER"
+        ACTUAL_USER="$DEFAULT_USER"
     else
+        log "Executando como usuário normal: $(whoami)"
         IS_ROOT=false
         DEFAULT_USER="$USER"
         DEFAULT_HOME="/home/$USER"
+        ACTUAL_USER="$USER"
     fi
     
-    log "Usuário atual: $(whoami)"
+    log "Usuário configurado: $ACTUAL_USER"
+    log "Diretório home: $DEFAULT_HOME"
 }
 
 # Verificar sistema operacional
@@ -125,6 +130,7 @@ collect_info() {
     echo "Usuário DB: $DB_USER"
     echo "Porta: $APP_PORT"
     echo "Pasta: $INSTALL_DIR"
+    echo "Usuário sistema: $ACTUAL_USER"
     echo ""
     
     read -p "Continuar com esta configuração? (y/N): " CONFIRM
@@ -136,15 +142,15 @@ collect_info() {
 # Atualizar sistema
 update_system() {
     log "Atualizando sistema..."
-    sudo apt update && sudo apt upgrade -y
-    sudo apt install -y curl wget git unzip software-properties-common apt-transport-https ca-certificates gnupg lsb-release
+    apt update && apt upgrade -y
+    apt install -y curl wget git unzip software-properties-common apt-transport-https ca-certificates gnupg lsb-release
 }
 
 # Instalar Node.js
 install_nodejs() {
     log "Instalando Node.js 20..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt install -y nodejs
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt install -y nodejs
     
     # Verificar instalação
     NODE_VERSION=$(node --version)
@@ -157,15 +163,16 @@ install_nodejs() {
 check_existing_database() {
     log "Verificando banco de dados existente..."
     
-    # Verificar se PostgreSQL está instalado e rodando
+    # Verificar se PostgreSQL está instalado
     if ! command -v psql &> /dev/null; then
         log "PostgreSQL não está instalado. Será instalado automaticamente."
         return 1
     fi
     
-    if ! sudo systemctl is-active --quiet postgresql; then
+    # Verificar se PostgreSQL está rodando
+    if ! systemctl is-active --quiet postgresql; then
         log "PostgreSQL está instalado mas não está rodando. Iniciando..."
-        sudo systemctl start postgresql
+        systemctl start postgresql
     fi
     
     # Verificar se o banco existe
@@ -247,11 +254,11 @@ check_existing_database() {
 # Instalar PostgreSQL
 install_postgresql() {
     log "Instalando PostgreSQL..."
-    sudo apt install -y postgresql postgresql-contrib
+    apt install -y postgresql postgresql-contrib
     
     # Iniciar serviço
-    sudo systemctl start postgresql
-    sudo systemctl enable postgresql
+    systemctl start postgresql
+    systemctl enable postgresql
     
     log "Configurando banco de dados..."
     
@@ -277,15 +284,15 @@ install_postgresql() {
     log "Configurando acesso ao PostgreSQL..."
     
     # Backup da configuração original
-    sudo cp /etc/postgresql/*/main/pg_hba.conf /etc/postgresql/*/main/pg_hba.conf.backup 2>/dev/null || true
+    cp /etc/postgresql/*/main/pg_hba.conf /etc/postgresql/*/main/pg_hba.conf.backup 2>/dev/null || true
     
     # Permitir acesso local com senha
-    if ! sudo grep -q "local.*$DB_NAME.*$DB_USER.*md5" /etc/postgresql/*/main/pg_hba.conf 2>/dev/null; then
-        echo "local   $DB_NAME   $DB_USER   md5" | sudo tee -a /etc/postgresql/*/main/pg_hba.conf > /dev/null
+    if ! grep -q "local.*$DB_NAME.*$DB_USER.*md5" /etc/postgresql/*/main/pg_hba.conf 2>/dev/null; then
+        echo "local   $DB_NAME   $DB_USER   md5" >> /etc/postgresql/*/main/pg_hba.conf
     fi
     
     # Reiniciar PostgreSQL para aplicar mudanças
-    sudo systemctl restart postgresql
+    systemctl restart postgresql
     
     # Testar conexão
     log "Testando conexão com banco de dados..."
@@ -301,11 +308,11 @@ install_postgresql() {
 # Instalar Nginx
 install_nginx() {
     log "Instalando Nginx..."
-    sudo apt install -y nginx
+    apt install -y nginx
     
     # Iniciar serviços
-    sudo systemctl start nginx
-    sudo systemctl enable nginx
+    systemctl start nginx
+    systemctl enable nginx
     
     log "Nginx instalado e iniciado!"
 }
@@ -313,12 +320,29 @@ install_nginx() {
 # Instalar Certbot para SSL
 install_certbot() {
     log "Instalando Certbot para SSL..."
-    sudo apt install -y certbot python3-certbot-nginx
+    apt install -y certbot python3-certbot-nginx
 }
 
-# Clonar e configurar aplicação
+# Criar usuário se necessário (quando executado como root)
+create_user_if_needed() {
+    if [[ "$IS_ROOT" == "true" ]]; then
+        if ! id "$DEFAULT_USER" &>/dev/null; then
+            log "Criando usuário $DEFAULT_USER..."
+            useradd -m -s /bin/bash "$DEFAULT_USER"
+            usermod -aG sudo "$DEFAULT_USER"
+            log "Usuário $DEFAULT_USER criado com sucesso!"
+        else
+            log "Usuário $DEFAULT_USER já existe."
+        fi
+    fi
+}
+
+# Configurar aplicação
 setup_application() {
     log "Configurando aplicação LigAI..."
+    
+    # Criar usuário se necessário
+    create_user_if_needed
     
     # Criar diretório
     mkdir -p "$INSTALL_DIR"
@@ -330,8 +354,6 @@ setup_application() {
         cp -r . "../ligai_backup_$(date +%Y%m%d_%H%M%S)"
         git pull
     else
-        # Aqui você colocaria o comando para clonar seu repositório
-        # Por enquanto, vamos simular a estrutura
         log "Criando estrutura da aplicação..."
         
         # Estrutura básica (adapte conforme seu repositório)
@@ -400,20 +422,8 @@ CORS_ORIGIN=https://$DOMAIN
 EOF
     
     # Dar permissões adequadas
-    if [[ "$IS_ROOT" == "true" ]]; then
-        # Se for root, criar usuário ligai se não existir
-        if ! id "$DEFAULT_USER" &>/dev/null; then
-            log "Criando usuário $DEFAULT_USER..."
-            useradd -m -s /bin/bash "$DEFAULT_USER"
-            usermod -aG sudo "$DEFAULT_USER"
-        fi
-        chown -R "$DEFAULT_USER:$DEFAULT_USER" "$INSTALL_DIR"
-        chmod 600 .env
-        chown "$DEFAULT_USER:$DEFAULT_USER" .env
-    else
-        chown -R "$USER:$USER" "$INSTALL_DIR"
-        chmod 600 .env
-    fi
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$INSTALL_DIR"
+    chmod 600 .env
     
     log "Aplicação configurada!"
 }
@@ -423,7 +433,7 @@ configure_nginx() {
     log "Configurando Nginx..."
     
     # Criar configuração do site
-    sudo tee /etc/nginx/sites-available/$DOMAIN > /dev/null << EOF
+    tee /etc/nginx/sites-available/$DOMAIN > /dev/null << EOF
 server {
     listen 80;
     server_name $DOMAIN;
@@ -461,33 +471,28 @@ server {
     # Configuração para uploads
     location /uploads {
         alias $INSTALL_DIR/uploads;
-        expires 30d;
+        expires 1y;
         add_header Cache-Control "public, immutable";
     }
 
-    # Configuração de segurança
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "no-referrer-when-downgrade" always;
-    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
-
-    # Limite de upload
-    client_max_body_size 50M;
+    # Configurações de segurança
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
+    add_header X-XSS-Protection "1; mode=block";
 }
 EOF
     
     # Habilitar site
-    sudo ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
+    ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
     
     # Remover configuração padrão
-    sudo rm -f /etc/nginx/sites-enabled/default
+    rm -f /etc/nginx/sites-enabled/default
     
     # Testar configuração
-    sudo nginx -t
+    nginx -t
     
     # Recarregar Nginx
-    sudo systemctl reload nginx
+    systemctl reload nginx
     
     log "Nginx configurado!"
 }
@@ -502,15 +507,15 @@ configure_ssl() {
     
     read -p "O domínio já aponta para este servidor? (y/N): " DNS_READY
     if [[ ! "$DNS_READY" =~ ^[Yy]$ ]]; then
-        warn "Configure o DNS primeiro e execute novamente: sudo certbot --nginx -d $DOMAIN"
+        warn "Configure o DNS primeiro e execute novamente: certbot --nginx -d $DOMAIN"
         return
     fi
     
     # Obter certificado SSL
-    sudo certbot --nginx -d $DOMAIN --email $SSL_EMAIL --agree-tos --non-interactive --redirect
+    certbot --nginx -d $DOMAIN --email $SSL_EMAIL --agree-tos --non-interactive --redirect
     
     # Configurar renovação automática
-    sudo systemctl enable certbot.timer
+    systemctl enable certbot.timer
     
     log "SSL configurado com sucesso!"
 }
@@ -519,7 +524,7 @@ configure_ssl() {
 create_service() {
     log "Criando serviço systemd..."
     
-    sudo tee /etc/systemd/system/ligai.service > /dev/null << EOF
+    tee /etc/systemd/system/ligai.service > /dev/null << EOF
 [Unit]
 Description=LigAI Dashboard
 After=network.target postgresql.service
@@ -527,7 +532,7 @@ Requires=postgresql.service
 
 [Service]
 Type=simple
-User=$([[ "$IS_ROOT" == "true" ]] && echo "$DEFAULT_USER" || echo "$USER")
+User=$ACTUAL_USER
 WorkingDirectory=$INSTALL_DIR
 Environment=NODE_ENV=production
 ExecStart=/usr/bin/npm start
@@ -548,10 +553,10 @@ WantedBy=multi-user.target
 EOF
     
     # Recarregar systemd
-    sudo systemctl daemon-reload
+    systemctl daemon-reload
     
     # Habilitar serviço
-    sudo systemctl enable ligai
+    systemctl enable ligai
     
     log "Serviço systemd criado!"
 }
@@ -561,20 +566,20 @@ configure_firewall() {
     log "Configurando firewall..."
     
     # Instalar ufw se não estiver instalado
-    sudo apt install -y ufw
+    apt install -y ufw
     
     # Configurar regras básicas
-    sudo ufw default deny incoming
-    sudo ufw default allow outgoing
+    ufw default deny incoming
+    ufw default allow outgoing
     
     # Permitir SSH
-    sudo ufw allow ssh
+    ufw allow ssh
     
     # Permitir HTTP e HTTPS
-    sudo ufw allow 'Nginx Full'
+    ufw allow 'Nginx Full'
     
     # Habilitar firewall
-    sudo ufw --force enable
+    ufw --force enable
     
     log "Firewall configurado!"
 }
@@ -593,42 +598,6 @@ run_migrations() {
     fi
 }
 
-# Criar usuário admin inicial
-create_admin_user() {
-    log "Configurando usuário administrador..."
-    
-    echo ""
-    echo "--- Configuração do Usuário Administrador ---"
-    read -p "Email do administrador: " ADMIN_EMAIL
-    
-    while true; do
-        read -s -p "Senha do administrador: " ADMIN_PASSWORD
-        echo
-        if [[ -z "$ADMIN_PASSWORD" ]]; then
-            warn "Senha não pode estar vazia!"
-            continue
-        fi
-        read -s -p "Confirme a senha: " ADMIN_PASSWORD_CONFIRM
-        echo
-        if [[ "$ADMIN_PASSWORD" == "$ADMIN_PASSWORD_CONFIRM" ]]; then
-            break
-        else
-            warn "Senhas não coincidem!"
-        fi
-    done
-    
-    # Salvar informações em arquivo temporário para script de criação
-    cat > "$INSTALL_DIR/create_admin.sql" << EOF
--- Script para criar usuário administrador
-INSERT INTO users (username, email, password_hash, role, created_at, updated_at)
-VALUES ('admin', '$ADMIN_EMAIL', '$ADMIN_PASSWORD', 'admin', NOW(), NOW())
-ON CONFLICT (email) DO NOTHING;
-EOF
-    
-    warn "Execute o script SQL em $INSTALL_DIR/create_admin.sql após iniciar a aplicação"
-    warn "ou configure o usuário através da interface web."
-}
-
 # Iniciar aplicação
 start_application() {
     log "Iniciando aplicação..."
@@ -641,14 +610,14 @@ start_application() {
     fi
     
     # Iniciar serviço
-    sudo systemctl start ligai
+    systemctl start ligai
     
     # Verificar status
     sleep 5
-    if sudo systemctl is-active --quiet ligai; then
+    if systemctl is-active --quiet ligai; then
         log "Aplicação iniciada com sucesso!"
     else
-        error "Falha ao iniciar aplicação. Verifique: sudo journalctl -u ligai -f"
+        error "Falha ao iniciar aplicação. Verifique: journalctl -u ligai -f"
     fi
 }
 
@@ -660,17 +629,17 @@ show_final_info() {
     echo "=========================================="
     echo ""
     echo "🌐 Acesse sua aplicação em: https://$DOMAIN"
-    echo "📧 Email do administrador: $ADMIN_EMAIL"
     echo "🗄️  Banco de dados: $DB_NAME"
+    echo "👤 Usuário sistema: $ACTUAL_USER"
     echo "📁 Pasta da aplicação: $INSTALL_DIR"
     echo ""
     echo "--- Comandos Úteis ---"
-    echo "• Status da aplicação:    sudo systemctl status ligai"
-    echo "• Logs da aplicação:      sudo journalctl -u ligai -f"
-    echo "• Reiniciar aplicação:    sudo systemctl restart ligai"
-    echo "• Parar aplicação:        sudo systemctl stop ligai"
-    echo "• Status do Nginx:        sudo systemctl status nginx"
-    echo "• Renovar SSL:            sudo certbot renew"
+    echo "• Status da aplicação:    systemctl status ligai"
+    echo "• Logs da aplicação:      journalctl -u ligai -f"
+    echo "• Reiniciar aplicação:    systemctl restart ligai"
+    echo "• Parar aplicação:        systemctl stop ligai"
+    echo "• Status do Nginx:        systemctl status nginx"
+    echo "• Renovar SSL:            certbot renew"
     echo ""
     echo "--- Próximos Passos ---"
     echo "1. Acesse https://$DOMAIN e configure sua conta"
@@ -687,11 +656,11 @@ show_final_info() {
 # Função principal
 main() {
     echo ""
-    echo "🚀 LigAI Dashboard - Instalador Automático"
-    echo "=========================================="
+    echo "🚀 LigAI Dashboard - Instalador Automático (Versão Corrigida)"
+    echo "=============================================================="
     echo ""
     
-    check_root
+    configure_user
     check_os
     collect_info
     
@@ -699,7 +668,7 @@ main() {
     
     update_system
     install_nodejs
-    check_existing_database  # Verificar banco antes de instalar PostgreSQL
+    check_existing_database
     install_postgresql
     install_nginx
     install_certbot
@@ -709,7 +678,6 @@ main() {
     configure_ssl
     create_service
     run_migrations
-    create_admin_user
     start_application
     show_final_info
     
