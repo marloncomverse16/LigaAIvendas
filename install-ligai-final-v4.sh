@@ -1,19 +1,19 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v4.1 (Robust Version)
-# Instalação automática com correções de Nginx, segurança e robustez.
+# LigAI Dashboard VPS Installer v4.2 (Interactive & Resilient)
+# Instalação com limpeza de Nginx e gerenciamento interativo de banco de dados.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
-set -e # Parar em caso de erro
-set -o pipefail # Falhar se um comando em um pipe falhar
+set -e
+set -o pipefail
 
 # --- Cores e Funções de Logging ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 log() { echo -e "${BLUE}[$(date +'%H:%M:%S')]${NC} $1"; }
 success() { echo -e "${GREEN}[$(date +'%H:%M:%S')] ✅ $1${NC}"; }
@@ -24,24 +24,20 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v4.1"
+APP_DISPLAY_NAME="LigAI Dashboard v4.2"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
-SCRIPT_VERSION="4.1.0"
+GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
 
 # --- Limpeza em caso de falha ---
-cleanup() {
-    error "Instalação interrompida. Iniciando limpeza..."
+cleanup( ) {
+    error "Instalação interrompida. Revertendo alterações..."
+    # A limpeza é intencionalmente mínima para permitir a depuração.
+    # Apenas para o serviço para evitar que ele continue tentando reiniciar.
     systemctl stop "$APP_NAME" 2>/dev/null || true
-    systemctl disable "$APP_NAME" 2>/dev/null || true
-    rm -f "/etc/systemd/system/${APP_NAME}.service"
-    rm -f "/etc/nginx/sites-available/ligai"
-    rm -f "/etc/nginx/sites-enabled/ligai"
-    # Não remove o usuário ou o banco para permitir retentativa
-    warn "Limpeza concluída. Alguns artefatos (usuário, banco) podem ter sido mantidos."
+    warn "Limpeza concluída. Verifique os logs para depurar o problema."
     exit 1
 }
-
 trap cleanup INT TERM ERR
 
 # --- Funções de Instalação ---
@@ -50,42 +46,20 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║              🚀 LigAI Dashboard v4.1 (Robust) 🚀             ║"
-    echo "║              Instalador Automático para VPS                 ║"
+    echo "║           🚀 LigAI Dashboard v4.2 (Resilient) 🚀             ║"
+    echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
-    echo "║  ✅ Correção de Nginx e conflitos de configuração            ║"
-    echo "║  ✅ Verificação de portas e requisitos aprimorada            ║"
-    echo "║  ✅ Instalação segura com usuário dedicado                   ║"
-    echo "║  ✅ Limpeza automática em caso de falha                      ║"
+    echo "║  ✅ Limpeza automática de configs antigas do Nginx           ║"
+    echo "║  ✅ Gerenciamento interativo de banco de dados existente     ║"
+    echo "║  ✅ Instalação segura e idempotente                          ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
 }
 
 check_requirements() {
     log "Verificando requisitos do sistema..."
-    if [[ $EUID -ne 0 ]]; then
-        error "Este script precisa ser executado como root (use sudo)."
-        exit 1
-    fi
-    if ! command -v apt &> /dev/null; then
-        error "Este script é otimizado para sistemas baseados em Debian/Ubuntu."
-        exit 1
-    fi
+    [[ $EUID -ne 0 ]] && { error "Execute como root (sudo)."; exit 1; }
+    command -v apt-get >/dev/null || { error "Sistema não compatível com APT."; exit 1; }
     success "Requisitos básicos atendidos!"
-}
-
-check_ports() {
-    log "Verificando se as portas necessárias estão livres..."
-    local CONFLICT=0
-    for port in 80 443 "$APP_PORT"; do
-        if lsof -i :"$port" &>/dev/null; then
-            error "A porta ${port} já está em uso. Libere-a antes de continuar."
-            CONFLICT=1
-        fi
-    done
-    if [[ $CONFLICT -eq 1 ]]; then
-        exit 1
-    fi
-    success "Portas 80, 443 e ${APP_PORT} estão livres!"
 }
 
 collect_user_input() {
@@ -107,11 +81,6 @@ collect_user_input() {
     read -r DB_USER
     DB_USER=${DB_USER:-ligai_user}
 
-    question "Senha do banco (será gerada uma senha forte se deixado em branco):"
-    read -s DB_PASSWORD
-    [[ -z "$DB_PASSWORD" ]] && DB_PASSWORD=$(openssl rand -base64 16)
-    echo ""
-
     question "Diretório de instalação [${APP_DIRECTORY_DEFAULT}]:"
     read -r APP_DIRECTORY
     APP_DIRECTORY=${APP_DIRECTORY:-$APP_DIRECTORY_DEFAULT}
@@ -119,92 +88,110 @@ collect_user_input() {
     question "Configurar SSL com Let's Encrypt? (s/N):"
     read -r SETUP_SSL
 
-    info "\nResumo da instalação:"
-    echo "  🌐 Domínio: ${DOMAIN}"
-    echo "  🔌 Porta App: ${APP_PORT}"
-    echo "  💾 Banco: ${DB_NAME} | Usuário: ${DB_USER}"
-    echo "  📁 Diretório: ${APP_DIRECTORY}"
-    echo "  🔒 SSL: $([[ "$SETUP_SSL" =~ ^[Ss]$ ]] && echo "Sim" || echo "Não")"
+    info "\nResumo:"
+    echo "  🌐 Domínio: ${DOMAIN} | 🔌 Porta: ${APP_PORT}"
+    echo "  💾 Banco: ${DB_NAME} | 👤 Usuário DB: ${DB_USER}"
+    echo "  📁 Diretório: ${APP_DIRECTORY} | 🔒 SSL: $([[ "$SETUP_SSL" =~ ^[Ss]$ ]] && echo "Sim" || echo "Não")"
     
-    question "\nContinuar com a instalação? (s/N):"
+    question "\nContinuar? (s/N):"
     read -r CONFIRM
     [[ ! "$CONFIRM" =~ ^[Ss]$ ]] && { error "Instalação cancelada."; exit 0; }
-    
-    check_ports # Verifica as portas após o usuário confirmar
 }
 
 update_system() {
-    log "Atualizando sistema e instalando dependências básicas..."
+    log "Atualizando sistema e instalando dependências..."
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -y
-    apt-get upgrade -y
     apt-get install -y curl wget git unzip zip software-properties-common build-essential python3 lsof openssl
     success "Sistema atualizado!"
 }
 
 install_nodejs() {
-    log "Instalando Node.js v20..."
+    log "Verificando instalação do Node.js v20..."
     if command -v node &>/dev/null && [[ $(node -v) == v20* ]]; then
         success "Node.js v20 já está instalado."
-        return
+    else
+        log "Instalando Node.js v20..."
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
+        success "Node.js $(node -v ) instalado!"
     fi
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y nodejs
-    success "Node.js $(node -v ) e npm $(npm -v) instalados!"
 }
 
 install_postgresql() {
     log "Instalando e configurando PostgreSQL..."
-    if systemctl is-active --quiet postgresql; then
-        warn "PostgreSQL já parece estar instalado e rodando."
-    else
-        apt-get install -y postgresql postgresql-contrib
-        systemctl start postgresql
-        systemctl enable postgresql
-        sleep 5 # Aguarda o serviço iniciar completamente
-    fi
+    apt-get install -y postgresql postgresql-contrib &>/dev/null
+    systemctl start postgresql
+    systemctl enable postgresql
 
-    log "Configurando banco de dados '${DB_NAME}'..."
-    # Usar -v ON_ERROR_STOP=1 para garantir que o script pare em caso de erro no psql
-    # A senha é passada via variável de ambiente para não aparecer no histórico de comandos
-    PGPASSWORD="$DB_PASSWORD" su - postgres -c "psql -v ON_ERROR_STOP=1 --command=\"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\"" || warn "Usuário '${DB_USER}' talvez já exista. Continuando..."
-    su - postgres -c "psql -v ON_ERROR_STOP=1 --command=\"CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};\"" || warn "Banco '${DB_NAME}' talvez já exista. Continuando..."
-    su - postgres -c "psql -v ON_ERROR_STOP=1 --command=\"GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};\""
-    
-    # Teste de conexão
-    if PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" &>/dev/null; then
-        success "PostgreSQL configurado com sucesso!"
+    # Verifica se o banco de dados já existe
+    if su - postgres -c "psql -lqt | cut -d \| -f 1 | grep -qw ${DB_NAME}"; then
+        warn "O banco de dados '${DB_NAME}' já existe."
+        question "O que você gostaria de fazer?"
+        echo "  1) Usar o banco de dados existente (você precisará da senha)."
+        echo "  2) DELETAR o banco de dados existente e criar um novo (DADOS SERÃO PERDIDOS)."
+        echo "  3) Sair da instalação."
+        read -r DB_CHOICE
+
+        case $DB_CHOICE in
+            1)
+                log "Usando banco de dados existente."
+                question "Por favor, digite a senha para o usuário '${DB_USER}':"
+                read -s DB_PASSWORD
+                echo ""
+                if ! PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" &>/dev/null; then
+                    error "Senha incorreta ou falha na conexão. Saindo."
+                    exit 1
+                fi
+                success "Conexão com o banco de dados existente bem-sucedida!"
+                ;;
+            2)
+                log "Deletando e recriando o banco de dados..."
+                su - postgres -c "dropdb ${DB_NAME}"
+                su - postgres -c "dropuser ${DB_USER}" || warn "Usuário ${DB_USER} não existia, o que é normal."
+                DB_PASSWORD=$(openssl rand -base64 16)
+                su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
+                su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
+                info "Senha para o novo usuário '${DB_USER}' é: ${DB_PASSWORD}"
+                warn "GUARDE ESTA SENHA! Ela será salva no arquivo .env."
+                success "Banco de dados recriado com sucesso."
+                ;;
+            *)
+                error "Saindo da instalação."
+                exit 0
+                ;;
+        esac
     else
-        error "Falha ao conectar ao banco de dados com as novas credenciais."
-        exit 1
+        log "Criando novo banco de dados e usuário..."
+        DB_PASSWORD=$(openssl rand -base64 16)
+        su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
+        su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
+        info "Senha para o novo usuário '${DB_USER}' é: ${DB_PASSWORD}"
+        warn "GUARDE ESTA SENHA! Ela será salva no arquivo .env."
+        success "Banco de dados criado com sucesso."
     fi
 }
 
 install_nginx() {
     log "Instalando e configurando Nginx..."
-    apt-get install -y nginx
-    systemctl stop nginx 2>/dev/null || true
+    apt-get install -y nginx &>/dev/null
     
-    # Remover configurações padrão para evitar conflitos
+    log "Limpando configurações antigas do Nginx para evitar conflitos..."
     rm -f /etc/nginx/sites-enabled/default
+    rm -f /etc/nginx/conf.d/optimization.conf # Remove o arquivo problemático específico
     
-    # Configuração do Nginx para a aplicação
     cat > "/etc/nginx/sites-available/ligai" << EOF
 server {
     listen 80;
     server_name ${DOMAIN} www.${DOMAIN};
 
-    # Otimizações e segurança
-    client_max_body_size 50M; # Aumenta o limite de upload
+    client_max_body_size 50M;
     
-    # Configurações de Gzip (sem duplicar)
+    # As diretivas Gzip são colocadas aqui para evitar conflitos globais.
     gzip on;
-    gzip_disable "msie6";
     gzip_vary on;
     gzip_proxied any;
     gzip_comp_level 6;
-    gzip_buffers 16 8k;
-    gzip_http_version 1.1;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
 
     location / {
@@ -224,49 +211,45 @@ EOF
     ln -sf "/etc/nginx/sites-available/ligai" "/etc/nginx/sites-enabled/"
     
     if nginx -t; then
-        systemctl start nginx
+        systemctl restart nginx
         systemctl enable nginx
-        success "Nginx configurado!"
+        success "Nginx configurado e reiniciado com sucesso!"
     else
-        error "Erro na sintaxe da configuração do Nginx. Verifique o arquivo /etc/nginx/sites-available/ligai"
-        nginx -t # Mostra o erro detalhado
+        error "Erro na sintaxe da configuração do Nginx."
+        nginx -t
         exit 1
     fi
 }
 
 setup_application( ) {
     log "Configurando ambiente da aplicação..."
-    
-    # Criar usuário e diretório
     if ! id "$APP_USER" &>/dev/null; then
         useradd -r -s /bin/bash -d "$APP_DIRECTORY" -m "$APP_USER"
-        success "Usuário '${APP_USER}' criado."
+    fi
+    
+    # Limpa o diretório antigo se existir, para uma instalação limpa
+    if [ -d "$APP_DIRECTORY" ]; then
+        warn "Diretório de instalação ${APP_DIRECTORY} já existe. Fazendo backup e recriando."
+        mv "$APP_DIRECTORY" "${APP_DIRECTORY}.bak.$(date +%s)"
     fi
     mkdir -p "$APP_DIRECTORY"
-    
-    log "Baixando ${APP_DISPLAY_NAME} do GitHub..."
-    # Usar su para clonar como o usuário da aplicação
-    su - "$APP_USER" -c "git clone https://github.com/marloncomverse16/LigaAIvendas.git '${APP_DIRECTORY}/temp'"
-    # Mover arquivos para o diretório principal
-    mv "${APP_DIRECTORY}/temp"/* "${APP_DIRECTORY}/"
-    mv "${APP_DIRECTORY}/temp"/.* "${APP_DIRECTORY}/" 2>/dev/null || true # Move arquivos ocultos
-    rm -rf "${APP_DIRECTORY}/temp"
+    chown "$APP_USER:$APP_USER" "$APP_DIRECTORY"
+
+    log "Baixando aplicação de ${GITHUB_REPO}..."
+    su - "$APP_USER" -c "git clone --depth 1 ${GITHUB_REPO} '${APP_DIRECTORY}'"
     
     log "Criando arquivo de ambiente .env..."
     cat > "${APP_DIRECTORY}/.env" << EOF
-# Variáveis de Ambiente - Gerado por script de instalação
+# Gerado em $(date)
 NODE_ENV=production
 PORT=${APP_PORT}
 DOMAIN=${DOMAIN}
 DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}
-# Adicione outras chaves de API e segredos aqui
 EOF
     
     chown -R "$APP_USER:$APP_USER" "$APP_DIRECTORY"
-    chmod -R 755 "$APP_DIRECTORY"
     
-    log "Instalando dependências com 'npm install'..."
-    # Instalar como o usuário da aplicação
+    log "Instalando dependências (npm install)..."
     if su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm install --production --loglevel error"; then
         success "Dependências instaladas."
     else
@@ -274,22 +257,19 @@ EOF
         exit 1
     fi
     
-    # Build se necessário
     if grep -q '"build"' "${APP_DIRECTORY}/package.json"; then
         log "Executando build da aplicação..."
         su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run build"
         success "Build concluído."
     fi
-    
-    success "Aplicação configurada em ${APP_DIRECTORY}!"
 }
 
-setup_systemd( ) {
+setup_systemd() {
     log "Configurando serviço com systemd..."
     cat > "/etc/systemd/system/${APP_NAME}.service" << EOF
 [Unit]
 Description=${APP_DISPLAY_NAME}
-After=network.target postgresql.service nginx.service
+After=network.target
 
 [Service]
 Type=simple
@@ -313,26 +293,18 @@ setup_ssl() {
     if [[ "$SETUP_SSL" =~ ^[Ss]$ ]]; then
         log "Configurando SSL com Certbot..."
         apt-get install -y certbot python3-certbot-nginx
-        
-        # Parar Nginx temporariamente para o certbot usar a porta 80 se necessário
-        systemctl stop nginx
-        sleep 2
-        
         if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email "admin@${DOMAIN}" --redirect; then
             success "Certificado SSL gerado e configurado!"
         else
             warn "Falha na configuração do SSL. A aplicação funcionará via HTTP."
         fi
-        # Reiniciar o Nginx é crucial aqui
-        systemctl start nginx
+        systemctl restart nginx
     fi
 }
 
 start_services() {
-    log "Iniciando todos os serviços..."
+    log "Iniciando serviço da aplicação..."
     systemctl start "$APP_NAME"
-    systemctl restart nginx # Reinicia para garantir que todas as configs (incluindo SSL) sejam aplicadas
-    
     sleep 5
     
     if ! systemctl is-active --quiet "$APP_NAME"; then
@@ -340,13 +312,7 @@ start_services() {
         journalctl -u "$APP_NAME" -n 20 --no-pager
         exit 1
     fi
-    if ! systemctl is-active --quiet "nginx"; then
-        error "O serviço Nginx falhou ao iniciar."
-        journalctl -u "nginx" -n 20 --no-pager
-        exit 1
-    fi
-    
-    success "Aplicação e Nginx estão rodando!"
+    success "Aplicação iniciada com sucesso!"
 }
 
 show_final_info() {
@@ -358,16 +324,10 @@ show_final_info() {
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
     echo "🌐 Acesse sua aplicação em: ${URL_SCHEME}://${DOMAIN}"
     echo ""
-    info "📋 Informações Importantes:"
-    echo "   • Diretório da Aplicação: ${APP_DIRECTORY}"
-    echo "   • Usuário da Aplicação: ${APP_USER}"
-    echo "   • Credenciais do Banco: Ver arquivo .env em ${APP_DIRECTORY}"
-    echo ""
     info "🔧 Comandos Úteis:"
-    echo "   • Ver status da aplicação: sudo systemctl status ${APP_NAME}"
     echo "   • Ver logs da aplicação:   sudo journalctl -u ${APP_NAME} -f"
     echo "   • Reiniciar a aplicação:   sudo systemctl restart ${APP_NAME}"
-    echo "   • Reiniciar o Nginx:       sudo systemctl restart nginx"
+    echo "   • Ver status do Nginx:     sudo systemctl status nginx"
     echo ""
     success "${APP_DISPLAY_NAME} instalado e pronto para uso!"
 }
@@ -388,5 +348,4 @@ main( ) {
     show_final_info
 }
 
-# Executar o script
 main "$@"
