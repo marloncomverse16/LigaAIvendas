@@ -524,29 +524,55 @@ configure_ssl() {
 create_service() {
     log "Criando serviço systemd..."
     
+    # Verificar se usuário existe
+    if ! id "$ACTUAL_USER" &>/dev/null; then
+        warn "Usuário $ACTUAL_USER não existe. Criando..."
+        if [[ "$IS_ROOT" == "true" ]]; then
+            # Criar usuário ligai se não existir
+            useradd -m -s /bin/bash "$ACTUAL_USER" || true
+            usermod -aG sudo "$ACTUAL_USER" || true
+        else
+            error "Não é possível criar usuário $ACTUAL_USER sem privilégios de root"
+        fi
+    fi
+    
+    # Verificar se diretório existe e tem permissões corretas
+    if [[ ! -d "$INSTALL_DIR" ]]; then
+        mkdir -p "$INSTALL_DIR"
+    fi
+    
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$INSTALL_DIR"
+    
     tee /etc/systemd/system/ligai.service > /dev/null << EOF
 [Unit]
-Description=LigAI Dashboard
+Description=LigAI Dashboard - Gestão de Leads WhatsApp
 After=network.target postgresql.service
-Requires=postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=simple
 User=$ACTUAL_USER
+Group=$ACTUAL_USER
 WorkingDirectory=$INSTALL_DIR
 Environment=NODE_ENV=production
+Environment=PATH=/usr/bin:/usr/local/bin
 ExecStart=/usr/bin/npm start
 Restart=always
 RestartSec=10
-StandardOutput=syslog
-StandardError=syslog
+StandardOutput=journal
+StandardError=journal
 SyslogIdentifier=ligai
 
-# Configurações de segurança
-NoNewPrivileges=true
+# Configurações de timeout
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+# Configurações de segurança (mais flexíveis)
+NoNewPrivileges=yes
 ProtectSystem=strict
-ProtectHome=true
+ProtectHome=false
 ReadWritePaths=$INSTALL_DIR
+ReadWritePaths=/tmp
 
 [Install]
 WantedBy=multi-user.target

@@ -220,6 +220,22 @@ iotop
 
 ## 🔧 Solução de Problemas
 
+### Erro SystemD (status=217/USER)
+Se o serviço falhar com erro de usuário:
+```bash
+# Executar script de correção automática
+./fix-systemd-service.sh
+
+# OU corrigir manualmente:
+sudo systemctl stop ligai
+sudo systemctl daemon-reload
+sudo systemctl enable ligai
+sudo systemctl start ligai
+
+# Verificar status
+sudo systemctl status ligai
+```
+
 ### Aplicação não inicia
 ```bash
 # Verificar logs
