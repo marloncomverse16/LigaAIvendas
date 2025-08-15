@@ -185,24 +185,24 @@ install_postgresql() {
     log "Configurando banco de dados..."
     
     # Criar usuário
-    if ! $SUDO_CMD -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+    if ! $SUDO_CMD su - postgres -c "psql -t -c \"SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'\"" | grep -q 1; then
         log "Criando usuário do banco: $DB_USER"
-        $SUDO_CMD -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+        $SUDO_CMD su - postgres -c "psql -c \"CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';\""
     else
         log "Atualizando senha do usuário $DB_USER"
-        $SUDO_CMD -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+        $SUDO_CMD su - postgres -c "psql -c \"ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';\""
     fi
     
     # Criar banco
-    if ! $SUDO_CMD -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+    if ! $SUDO_CMD su - postgres -c "psql -lqt" | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
         log "Criando banco de dados: $DB_NAME"
-        $SUDO_CMD -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+        $SUDO_CMD su - postgres -c "psql -c \"CREATE DATABASE $DB_NAME OWNER $DB_USER;\""
     else
         log "Banco de dados $DB_NAME já existe"
     fi
     
-    $SUDO_CMD -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-    $SUDO_CMD -u postgres psql -c "ALTER USER $DB_USER CREATEDB;"
+    $SUDO_CMD su - postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;\""
+    $SUDO_CMD su - postgres -c "psql -c \"ALTER USER $DB_USER CREATEDB;\""
     
     # Configurar acesso local
     log "Configurando acesso ao PostgreSQL..."
