@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v5.4 (Final Command Execution Fix)
-# Script final que usa a sintaxe correta de 'su' para chamar o 'npx knex' diretamente.
+# LigAI Dashboard VPS Installer v6.0 (Definitive Edition)
+# Usa um script temporário para garantir a execução correta dos comandos de build e migração.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
@@ -17,14 +17,14 @@ NC='\033[0m'
 
 log() { echo -e "${BLUE}[$(date +'%H:%M:%S')]${NC} $1"; }
 success() { echo -e "${GREEN}[$(date +'%H:%M:%S')] ✅ $1${NC}"; }
-warn() { echo -e "${YELLOW}[$(date +'%H:%M:%S')]⚠️  $1${NC}"; }
+warn() { echo -e "${YELLOW}[$(date +'%H:%M:%S')] ⚠️  $1${NC}"; }
 error() { echo -e "${RED}[$(date +'%H:%M:%S')] ❌ $1${NC}"; }
 question() { echo -e "${BLUE}❓ $1${NC}"; }
 info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v5.4"
+APP_DISPLAY_NAME="LigAI Dashboard v6.0"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
 GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
@@ -33,6 +33,7 @@ GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
 cleanup( ) {
     error "Instalação interrompida por erro na linha $1."
     systemctl stop "$APP_NAME" 2>/dev/null || true
+    rm -f /tmp/setup_app.sh # Garante a limpeza do script temporário
     warn "Verifique os logs para depurar o problema."
     exit 1
 }
@@ -44,10 +45,10 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║      🚀 LigAI Dashboard v5.4 (Final Command Fix) 🚀          ║"
+    echo "║         🚀 LigAI Dashboard v6.0 (Definitive Edition) 🚀      ║"
     echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
-    echo "║  ✅ Usa a sintaxe 'su -s /bin/bash -c' para o Knex           ║"
+    echo "║  ✅ Usa um script temporário para garantir a execução correta║"
     echo "║  ✅ Abordagem final e mais robusta para setup do banco de dados║"
     echo "║  ✅ Processo de deploy 100% alinhado com o projeto           ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
@@ -181,22 +182,36 @@ JWT_SECRET=$(openssl rand -hex 32 )
 EOF
     chown "$APP_USER:$APP_USER" "${APP_DIRECTORY}/.env"
 
-    log "Instalando todas as dependências..."
-    su "$APP_USER" -s /bin/bash -c "cd '$APP_DIRECTORY' && NODE_ENV=development npm install --loglevel error"
-    success "Dependências instaladas."
+    # CORREÇÃO: Criar e executar um script temporário para garantir o contexto correto.
+    log "Criando script de setup para ser executado como usuário '${APP_USER}'..."
+    cat > /tmp/setup_app.sh <<EOF
+#!/bin/bash
+set -e
+echo "--- Iniciando script de setup como \$(whoami) ---"
+cd '${APP_DIRECTORY}'
+echo "--- Diretório de trabalho: \$(pwd) ---"
+echo "--- Instalando dependências... ---"
+NODE_ENV=development npm install --loglevel error
+echo "--- Executando migrações do Knex... ---"
+npx knex migrate:latest
+echo "--- Executando seeds do Knex... ---"
+npx knex seed:run
+echo "--- Executando build da aplicação... ---"
+npm run build
+echo "--- Script de setup concluído com sucesso ---"
+EOF
+
+    chmod +x /tmp/setup_app.sh
+
+    log "Executando o script de setup como usuário '${APP_USER}'..."
+    if su "$APP_USER" -s /bin/bash -c "/tmp/setup_app.sh"; then
+        success "Setup da aplicação (npm, knex, build) concluído com sucesso!"
+    else
+        error "O script de setup da aplicação falhou."
+        exit 1
+    fi
     
-    # CORREÇÃO: Usar a sintaxe 'su -s /bin/bash -c' para garantir o ambiente e diretório corretos.
-    log "Executando migrações do Knex para criar as tabelas..."
-    su "$APP_USER" -s /bin/bash -c "cd '$APP_DIRECTORY' && npx knex migrate:latest"
-    success "Migrações do Knex concluídas."
-
-    log "Executando seeds do Knex para popular o banco de dados..."
-    su "$APP_USER" -s /bin/bash -c "cd '$APP_DIRECTORY' && npx knex seed:run"
-    success "Seeds do Knex concluídos."
-
-    log "Executando build da aplicação..."
-    su "$APP_USER" -s /bin/bash -c "cd '$APP_DIRECTORY' && npm run build"
-    success "Build da aplicação concluído."
+    rm -f /tmp/setup_app.sh
     warn "As dependências de desenvolvimento serão mantidas para garantir a execução."
 }
 
