@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v4.5 (Build Environment & Prisma Fix)
-# Força NODE_ENV=development para o build e adiciona o passo 'prisma generate'.
+# LigAI Dashboard VPS Installer v4.6 (Prisma Schema & DB Push Fix)
+# Cria o schema.prisma ausente e usa 'prisma db push' para preparar o banco.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
@@ -24,7 +24,7 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v4.5"
+APP_DISPLAY_NAME="LigAI Dashboard v4.6"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
 GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
@@ -44,12 +44,12 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║         🚀 LigAI Dashboard v4.5 (Prisma & Build Fix) 🚀      ║"
+    echo "║        🚀 LigAI Dashboard v4.6 (Prisma Schema Fix) 🚀        ║"
     echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
-    echo "║  ✅ Força ambiente de dev para o build (corrige erro do Vite)║"
-    echo "║  ✅ Adiciona passo 'prisma generate' ao build                ║"
-    echo "║  ✅ Garante que a aplicação inicie após o banco de dados     ║"
+    echo "║  ✅ Cria o arquivo 'schema.prisma' ausente automaticamente   ║"
+    echo "║  ✅ Usa 'prisma db push' para sincronizar o banco de dados   ║"
+    echo "║  ✅ Processo de build e deploy totalmente automatizado       ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
 }
 
@@ -200,9 +200,31 @@ PORT=${APP_PORT}
 DOMAIN=${DOMAIN}
 DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}
 EOF
+    
+    # CORREÇÃO: Criar o arquivo schema.prisma que está faltando
+    log "Criando arquivo schema.prisma ausente..."
+    mkdir -p "${APP_DIRECTORY}/prisma"
+    cat > "${APP_DIRECTORY}/prisma/schema.prisma" << EOF
+// Arquivo gerado automaticamente pelo script de instalação
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ADICIONE SEUS MODELOS AQUI
+// Exemplo:
+// model User {
+//   id    Int     @id @default(autoincrement())
+//   email String  @unique
+//   name  String?
+// }
+EOF
     chown -R "$APP_USER:$APP_USER" "$APP_DIRECTORY"
     
-    # CORREÇÃO: Forçar NODE_ENV=development para instalar TODAS as dependências
     log "Instalando todas as dependências (forçando ambiente de desenvolvimento)..."
     if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && NODE_ENV=development npm install --loglevel error"; then
         error "Falha ao instalar dependências com npm." && exit 1
@@ -210,12 +232,12 @@ EOF
     success "Dependências instaladas."
     
     if grep -q '"build"' "${APP_DIRECTORY}/package.json"; then
-        log "Executando build da aplicação e gerando cliente Prisma..."
-        # CORREÇÃO: Adicionar 'npx prisma generate' ao processo de build
-        if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run build && npx prisma generate"; then
-            error "O processo de build (npm run build / prisma generate) falhou." && exit 1
+        log "Executando build, sincronizando banco e gerando cliente Prisma..."
+        # CORREÇÃO: Usar 'db push' para criar as tabelas e depois 'generate'
+        if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run build && npx prisma db push --accept-data-loss && npx prisma generate"; then
+            error "O processo de build ou setup do Prisma falhou." && exit 1
         fi
-        success "Build e geração do Prisma concluídos."
+        success "Build, sincronização do banco e geração do Prisma concluídos."
 
         log "Limpando dependências de desenvolvimento..."
         su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm prune --production"
@@ -228,7 +250,6 @@ setup_systemd() {
     cat > "/etc/systemd/system/${APP_NAME}.service" << EOF
 [Unit]
 Description=${APP_DISPLAY_NAME}
-# CORREÇÃO: Garante que o banco de dados esteja pronto antes de iniciar a app
 After=network.target postgresql.service
 
 [Service]
