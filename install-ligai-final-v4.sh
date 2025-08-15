@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v4.6 (Prisma Schema & DB Push Fix)
-# Cria o schema.prisma ausente e usa 'prisma db push' para preparar o banco.
+# LigAI Dashboard VPS Installer v4.7 (URL-Safe Password Fix)
+# Gera senhas hexadecimais seguras para a URL do banco de dados, corrigindo o erro P1013 do Prisma.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
@@ -24,7 +24,7 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v4.6"
+APP_DISPLAY_NAME="LigAI Dashboard v4.7"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
 GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
@@ -44,11 +44,11 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║        🚀 LigAI Dashboard v4.6 (Prisma Schema Fix) 🚀        ║"
+    echo "║       🚀 LigAI Dashboard v4.7 (URL-Safe Password Fix) 🚀     ║"
     echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
-    echo "║  ✅ Cria o arquivo 'schema.prisma' ausente automaticamente   ║"
-    echo "║  ✅ Usa 'prisma db push' para sincronizar o banco de dados   ║"
+    echo "║  ✅ Gera senhas seguras para URL (corrige erro P1013)        ║"
+    echo "║  ✅ Cria 'schema.prisma' e sincroniza o banco com 'db push'  ║"
     echo "║  ✅ Processo de build e deploy totalmente automatizado       ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
 }
@@ -129,20 +129,22 @@ install_postgresql() {
                 log "Recriando banco de dados..."
                 su - postgres -c "dropdb ${DB_NAME}"
                 su - postgres -c "dropuser ${DB_USER}" || warn "Usuário ${DB_USER} não existia."
-                DB_PASSWORD=$(openssl rand -base64 16)
+                # CORREÇÃO: Gerar senha hexadecimal (URL-safe)
+                DB_PASSWORD=$(openssl rand -hex 16)
                 su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
                 su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
-                warn "Nova senha gerada e salva no .env."
+                warn "Nova senha (URL-safe) gerada e salva no .env."
                 success "Banco de dados recriado."
                 ;;
             *) error "Saindo." && exit 0 ;;
         esac
     else
         log "Criando novo banco de dados e usuário..."
-        DB_PASSWORD=$(openssl rand -base64 16)
+        # CORREÇÃO: Gerar senha hexadecimal (URL-safe)
+        DB_PASSWORD=$(openssl rand -hex 16)
         su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
         su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
-        warn "Nova senha gerada e salva no .env."
+        warn "Nova senha (URL-safe) gerada e salva no .env."
         success "Banco de dados criado."
     fi
 }
@@ -201,21 +203,18 @@ DOMAIN=${DOMAIN}
 DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}
 EOF
     
-    # CORREÇÃO: Criar o arquivo schema.prisma que está faltando
     log "Criando arquivo schema.prisma ausente..."
     mkdir -p "${APP_DIRECTORY}/prisma"
     cat > "${APP_DIRECTORY}/prisma/schema.prisma" << EOF
-// Arquivo gerado automaticamente pelo script de instalação
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 generator client {
   provider = "prisma-client-js"
 }
-
-// ADICIONE SEUS MODELOS AQUI
+// Adicione os modelos do seu banco de dados aqui.
+// O comando 'prisma db push' não funcionará corretamente sem os modelos.
 // Exemplo:
 // model User {
 //   id    Int     @id @default(autoincrement())
@@ -233,7 +232,6 @@ EOF
     
     if grep -q '"build"' "${APP_DIRECTORY}/package.json"; then
         log "Executando build, sincronizando banco e gerando cliente Prisma..."
-        # CORREÇÃO: Usar 'db push' para criar as tabelas e depois 'generate'
         if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run build && npx prisma db push --accept-data-loss && npx prisma generate"; then
             error "O processo de build ou setup do Prisma falhou." && exit 1
         fi
