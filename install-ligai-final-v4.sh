@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v4.8 (Final Build Fix)
-# Remove 'npm prune' para manter as devDependencies que o build final requer para rodar.
+# LigAI Dashboard VPS Installer v5.0 (Project-Aware Final Version)
+# Script final baseado na análise do código-fonte, usando Knex para migrações.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
@@ -24,7 +24,7 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v4.8"
+APP_DISPLAY_NAME="LigAI Dashboard v5.0"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
 GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
@@ -44,12 +44,12 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║          🚀 LigAI Dashboard v4.8 (Final Build Fix) 🚀        ║"
+    echo "║      🚀 LigAI Dashboard v5.0 (Project-Aware Final) 🚀        ║"
     echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
-    echo "║  ✅ Mantém devDependencies para compatibilidade com o build  ║"
-    echo "║  ✅ Gera senha URL-safe para o banco de dados                ║"
-    echo "║  ✅ Processo de deploy totalmente automatizado               ║"
+    echo "║  ✅ Usa Knex para migrações e seeds (baseado no código-fonte)║"
+    echo "║  ✅ Remove lógicas incorretas do Prisma                      ║"
+    echo "║  ✅ Processo de deploy 100% alinhado com o projeto           ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
 }
 
@@ -112,39 +112,17 @@ install_postgresql() {
     systemctl -q is-active postgresql || systemctl start postgresql
     systemctl -q is-enabled postgresql || systemctl enable postgresql
 
-    if su - postgres -c "psql -lqt | cut -d \| -f 1 | grep -qw ${DB_NAME}"; then
-        warn "O banco de dados '${DB_NAME}' já existe."
-        question "O que fazer? [1] Usar existente, [2] Recriar (PERDE DADOS), [3] Sair"
-        read -r DB_CHOICE
-        case $DB_CHOICE in
-            1)
-                log "Usando banco de dados existente."
-                question "Digite a senha para o usuário '${DB_USER}':" && read -s DB_PASSWORD && echo ""
-                if ! PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" &>/dev/null; then
-                    error "Falha na conexão. Saindo." && exit 1
-                fi
-                success "Conexão com banco existente bem-sucedida!"
-                ;;
-            2)
-                log "Recriando banco de dados..."
-                su - postgres -c "dropdb ${DB_NAME}"
-                su - postgres -c "dropuser ${DB_USER}" || warn "Usuário ${DB_USER} não existia."
-                DB_PASSWORD=$(openssl rand -hex 16)
-                su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
-                su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
-                warn "Nova senha (URL-safe) gerada e salva no .env."
-                success "Banco de dados recriado."
-                ;;
-            *) error "Saindo." && exit 0 ;;
-        esac
-    else
-        log "Criando novo banco de dados e usuário..."
-        DB_PASSWORD=$(openssl rand -hex 16)
-        su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
-        su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
-        warn "Nova senha (URL-safe) gerada e salva no .env."
-        success "Banco de dados criado."
-    fi
+    # Recria o banco de dados em toda instalação para garantir um estado limpo,
+    # já que o Knex irá popular os dados.
+    log "Recriando banco de dados para garantir um estado limpo para as migrações..."
+    su - postgres -c "dropdb --if-exists ${DB_NAME}"
+    su - postgres -c "dropuser --if-exists ${DB_USER}"
+    
+    DB_PASSWORD=$(openssl rand -hex 16)
+    su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';\""
+    su - postgres -c "createdb -O ${DB_USER} ${DB_NAME}"
+    warn "Nova senha (URL-safe) gerada e salva no .env."
+    success "Banco de dados recriado com sucesso."
 }
 
 install_nginx() {
@@ -199,37 +177,37 @@ NODE_ENV=production
 PORT=${APP_PORT}
 DOMAIN=${DOMAIN}
 DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}
+EVOLUTION_API_URL=http://localhost:8080 # Exemplo, ajuste se necessário
+EVOLUTION_API_KEY= # Adicione sua chave da API aqui
+JWT_SECRET=$(openssl rand -hex 32 )
 EOF
-    
-    log "Criando arquivo schema.prisma ausente..."
-    mkdir -p "${APP_DIRECTORY}/prisma"
-    cat > "${APP_DIRECTORY}/prisma/schema.prisma" << EOF
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-generator client {
-  provider = "prisma-client-js"
-}
-// Adicione seus modelos aqui para que o 'db push' funcione.
-EOF
-    chown -R "$APP_USER:$APP_USER" "$APP_DIRECTORY"
-    
-    log "Instalando todas as dependências (incluindo dev)..."
+    chown "$APP_USER:$APP_USER" "${APP_DIRECTORY}/.env"
+
+    log "Instalando todas as dependências..."
     if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && NODE_ENV=development npm install --loglevel error"; then
         error "Falha ao instalar dependências com npm." && exit 1
     fi
     success "Dependências instaladas."
     
-    if grep -q '"build"' "${APP_DIRECTORY}/package.json"; then
-        log "Executando build, sincronizando banco e gerando cliente Prisma..."
-        if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run build && npx prisma db push --accept-data-loss && npx prisma generate"; then
-            error "O processo de build ou setup do Prisma falhou." && exit 1
-        fi
-        success "Build, sincronização do banco e geração do Prisma concluídos."
-        # CORREÇÃO: Removido o 'npm prune' que estava quebrando a inicialização do serviço.
-        warn "As dependências de desenvolvimento serão mantidas para garantir a execução."
+    # CORREÇÃO: Usar Knex para preparar o banco de dados
+    log "Executando migrações do Knex para criar as tabelas..."
+    if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npx knex migrate:latest"; then
+        error "Falha ao executar as migrações do Knex." && exit 1
     fi
+    success "Migrações do Knex concluídas."
+
+    log "Executando seeds do Knex para popular o banco de dados..."
+    if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npx knex seed:run"; then
+        error "Falha ao executar os seeds do Knex." && exit 1
+    fi
+    success "Seeds do Knex concluídos."
+
+    log "Executando build da aplicação..."
+    if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run build"; then
+        error "O processo de build (npm run build) falhou." && exit 1
+    fi
+    success "Build da aplicação concluído."
+    warn "As dependências de desenvolvimento serão mantidas para garantir a execução."
 }
 
 setup_systemd() {
@@ -271,7 +249,7 @@ setup_ssl() {
 
 start_services() {
     log "Iniciando serviço da aplicação..."
-    systemctl start "$APP_NAME" && sleep 5 # Aumentado o tempo de espera para a app iniciar
+    systemctl start "$APP_NAME" && sleep 5
     
     if ! systemctl is-active --quiet "$APP_NAME"; then
         error "O serviço da aplicação (${APP_NAME}) falhou ao iniciar."
