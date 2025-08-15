@@ -432,6 +432,18 @@ EOF
 configure_nginx() {
     log "Configurando Nginx..."
     
+    # Backup da configuração original
+    cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
+    
+    # Verificar e corrigir configuração principal do nginx
+    if grep -c "gzip.*on" /etc/nginx/nginx.conf | grep -q "[2-9]"; then
+        log "Corrigindo configuração gzip duplicada no nginx.conf..."
+        # Remover configurações de gzip duplicadas (manter apenas uma)
+        sed -i '/gzip/d' /etc/nginx/nginx.conf
+        # Adicionar configuração gzip correta na seção http
+        sed -i '/http {/a\\n\t# Gzip Settings\n\tgzip on;\n\tgzip_vary on;\n\tgzip_proxied any;\n\tgzip_comp_level 6;\n\tgzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;\n' /etc/nginx/nginx.conf
+    fi
+    
     # Criar configuração do site
     tee /etc/nginx/sites-available/$DOMAIN > /dev/null << EOF
 server {

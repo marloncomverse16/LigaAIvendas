@@ -1,0 +1,63 @@
+root@vmi2760486:~# ligai-status
+=== LigAI Dashboard - Status do Sistema ===
+Data: Fri Aug 15 18:29:10 CEST 2025
+
+--- Aplicação ---
+activating
+❌ LigAI: Parado
+CPU: N/A%
+Memória: N/A%
+
+--- Banco de Dados ---
+active
+✅ PostgreSQL: Rodando
+
+--- Web Server ---
+failed
+❌ Nginx: Parado
+
+--- Sistema ---
+Uptime: up 2 minutes
+Uso de disco: 10%
+Memória livre: 6.2Gi
+
+--- Últimos logs da aplicação ---
+Aug 15 18:29:00 vmi2760486 systemd[1]: ligai.service: Scheduled restart job, restart counter is at 10.
+Aug 15 18:29:00 vmi2760486 systemd[1]: Started ligai.service - LigAI Dashboard.
+Aug 15 18:29:00 vmi2760486 (npm)[1652]: ligai.service: Failed to determine user credentials: No such process
+Aug 15 18:29:00 vmi2760486 systemd[1]: ligai.service: Main process exited, code=exited, status=217/USER
+Aug 15 18:29:00 vmi2760486 systemd[1]: ligai.service: Failed with result 'exit-code'.
+root@vmi2760486:~# sudo systemctl status ligai nginx postgresql
+● ligai.service - LigAI Dashboard
+     Loaded: loaded (/etc/systemd/system/ligai.service; enabled; preset: enabled)
+     Active: activating (auto-restart) (Result: exit-code) since Fri 2025-08-15 18:29:41 CEST; 4s a>
+    Process: 1679 ExecStart=/usr/bin/npm start (code=exited, status=217/USER)
+   Main PID: 1679 (code=exited, status=217/USER)
+        CPU: 13ms
+
+Aug 15 18:29:41 vmi2760486 systemd[1]: ligai.service: Main process exited, code=exited, status=217/>
+Aug 15 18:29:41 vmi2760486 systemd[1]: ligai.service: Failed with result 'exit-code'.
+
+× nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: failed (Result: exit-code) since Fri 2025-08-15 18:27:13 CEST; 2min 32s ago
+       Docs: man:nginx(8)
+    Process: 772 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, >
+        CPU: 33ms
+
+Aug 15 18:27:13 vmi2760486 systemd[1]: Starting nginx.service - A high performance web server and a>
+Aug 15 18:27:13 vmi2760486 nginx[772]: 2025/08/15 18:27:13 [emerg] 772#772: "gzip" directive is dup>
+Aug 15 18:27:13 vmi2760486 nginx[772]: nginx: configuration file /etc/nginx/nginx.conf test failed
+Aug 15 18:27:13 vmi2760486 systemd[1]: nginx.service: Control process exited, code=exited, status=1>
+Aug 15 18:27:13 vmi2760486 systemd[1]: nginx.service: Failed with result 'exit-code'.
+Aug 15 18:27:13 vmi2760486 systemd[1]: Failed to start nginx.service - A high performance web serve>
+
+● postgresql.service - PostgreSQL RDBMS
+     Loaded: loaded (/usr/lib/systemd/system/postgresql.service; enabled; preset: enabled)
+     Active: active (exited) since Fri 2025-08-15 18:27:18 CEST; 2min 28s ago
+    Process: 1088 ExecStart=/bin/true (code=exited, status=0/SUCCESS)
+   Main PID: 1088 (code=exited, status=0/SUCCESS)
+        CPU: 8ms
+
+Aug 15 18:27:18 vmi2760486 systemd[1]: Starting postgresql.service - PostgreSQL RDBMS...
+Aug 15 18:27:18 vmi2760486 systemd[1]: Finished postgresql.service - PostgreSQL RDBMS.
