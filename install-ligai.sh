@@ -34,11 +34,20 @@ info() {
     echo -e "${BLUE}[INFO] $1${NC}"
 }
 
-# Verificar se é root
+# Verificar se é root e configurar variáveis
 check_root() {
     if [[ $EUID -eq 0 ]]; then
-        error "Este script não deve ser executado como root. Use um usuário com sudo."
+        warn "Executando como root. Isso é permitido, mas recomenda-se usar um usuário com sudo."
+        IS_ROOT=true
+        DEFAULT_USER="ligai"
+        DEFAULT_HOME="/home/$DEFAULT_USER"
+    else
+        IS_ROOT=false
+        DEFAULT_USER="$USER"
+        DEFAULT_HOME="/home/$USER"
     fi
+    
+    log "Usuário atual: $(whoami)"
 }
 
 # Verificar sistema operacional
@@ -105,8 +114,8 @@ collect_info() {
     APP_PORT=${APP_PORT:-5000}
     
     # Pasta de instalação
-    read -p "Pasta de instalação [/home/$USER/ligai]: " INSTALL_DIR
-    INSTALL_DIR=${INSTALL_DIR:-/home/$USER/ligai}
+    read -p "Pasta de instalação [$DEFAULT_HOME/ligai]: " INSTALL_DIR
+    INSTALL_DIR=${INSTALL_DIR:-$DEFAULT_HOME/ligai}
     
     echo ""
     echo "--- Resumo da Configuração ---"
@@ -144,6 +153,97 @@ install_nodejs() {
     log "npm instalado: $NPM_VERSION"
 }
 
+# Verificar se banco de dados existe
+check_existing_database() {
+    log "Verificando banco de dados existente..."
+    
+    # Verificar se PostgreSQL está instalado e rodando
+    if ! command -v psql &> /dev/null; then
+        log "PostgreSQL não está instalado. Será instalado automaticamente."
+        return 1
+    fi
+    
+    if ! sudo systemctl is-active --quiet postgresql; then
+        log "PostgreSQL está instalado mas não está rodando. Iniciando..."
+        sudo systemctl start postgresql
+    fi
+    
+    # Verificar se o banco existe
+    if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+        warn "Banco de dados '$DB_NAME' já existe!"
+        echo ""
+        echo "O que você deseja fazer?"
+        echo "1) Usar o banco existente (recomendado para atualizações)"
+        echo "2) Criar um novo banco com nome diferente"
+        echo "3) Remover o banco existente e criar novo (CUIDADO: dados serão perdidos)"
+        echo "4) Cancelar instalação"
+        echo ""
+        
+        while true; do
+            read -p "Digite sua opção (1-4): " DB_CHOICE
+            case $DB_CHOICE in
+                1)
+                    log "Usando banco existente: $DB_NAME"
+                    USE_EXISTING_DB=true
+                    # Verificar se usuário existe
+                    if ! sudo -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+                        log "Criando usuário '$DB_USER' para banco existente..."
+                        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" || true
+                        sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" || true
+                        sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB;" || true
+                    else
+                        info "Usuário '$DB_USER' já existe. Verificando permissões..."
+                        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" || true
+                        sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" || true
+                    fi
+                    break
+                    ;;
+                2)
+                    echo ""
+                    read -p "Digite o nome do novo banco: " NEW_DB_NAME
+                    if [[ -z "$NEW_DB_NAME" ]]; then
+                        warn "Nome do banco não pode estar vazio!"
+                        continue
+                    fi
+                    if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$NEW_DB_NAME"; then
+                        warn "Banco '$NEW_DB_NAME' também já existe!"
+                        continue
+                    fi
+                    DB_NAME="$NEW_DB_NAME"
+                    log "Criando novo banco: $DB_NAME"
+                    USE_EXISTING_DB=false
+                    break
+                    ;;
+                3)
+                    warn "ATENÇÃO: Isso irá APAGAR TODOS OS DADOS do banco '$DB_NAME'!"
+                    read -p "Tem certeza? Digite 'CONFIRMO' para continuar: " CONFIRM_DELETE
+                    if [[ "$CONFIRM_DELETE" == "CONFIRMO" ]]; then
+                        log "Removendo banco existente..."
+                        sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;"
+                        USE_EXISTING_DB=false
+                        break
+                    else
+                        warn "Operação cancelada."
+                        continue
+                    fi
+                    ;;
+                4)
+                    error "Instalação cancelada pelo usuário."
+                    ;;
+                *)
+                    warn "Opção inválida! Digite 1, 2, 3 ou 4."
+                    ;;
+            esac
+        done
+        
+        return 0
+    else
+        log "Banco de dados '$DB_NAME' não existe. Será criado."
+        USE_EXISTING_DB=false
+        return 1
+    fi
+}
+
 # Instalar PostgreSQL
 install_postgresql() {
     log "Instalando PostgreSQL..."
@@ -155,11 +255,45 @@ install_postgresql() {
     
     log "Configurando banco de dados..."
     
-    # Criar usuário e banco
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-    sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB;"
+    # Se não está usando banco existente, criar novo
+    if [[ "$USE_EXISTING_DB" != "true" ]]; then
+        # Criar usuário (se não existir)
+        if ! sudo -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+            log "Criando usuário do banco: $DB_USER"
+            sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+        else
+            log "Usuário '$DB_USER' já existe. Atualizando senha..."
+            sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+        fi
+        
+        # Criar banco
+        log "Criando banco de dados: $DB_NAME"
+        sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+        sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+        sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB;"
+    fi
+    
+    # Configurar acesso local
+    log "Configurando acesso ao PostgreSQL..."
+    
+    # Backup da configuração original
+    sudo cp /etc/postgresql/*/main/pg_hba.conf /etc/postgresql/*/main/pg_hba.conf.backup 2>/dev/null || true
+    
+    # Permitir acesso local com senha
+    if ! sudo grep -q "local.*$DB_NAME.*$DB_USER.*md5" /etc/postgresql/*/main/pg_hba.conf 2>/dev/null; then
+        echo "local   $DB_NAME   $DB_USER   md5" | sudo tee -a /etc/postgresql/*/main/pg_hba.conf > /dev/null
+    fi
+    
+    # Reiniciar PostgreSQL para aplicar mudanças
+    sudo systemctl restart postgresql
+    
+    # Testar conexão
+    log "Testando conexão com banco de dados..."
+    if PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" > /dev/null 2>&1; then
+        log "Conexão com banco de dados testada com sucesso!"
+    else
+        warn "Não foi possível testar a conexão. Verifique as configurações depois."
+    fi
     
     log "PostgreSQL configurado com sucesso!"
 }
@@ -266,8 +400,20 @@ CORS_ORIGIN=https://$DOMAIN
 EOF
     
     # Dar permissões adequadas
-    chown -R $USER:$USER "$INSTALL_DIR"
-    chmod 600 .env
+    if [[ "$IS_ROOT" == "true" ]]; then
+        # Se for root, criar usuário ligai se não existir
+        if ! id "$DEFAULT_USER" &>/dev/null; then
+            log "Criando usuário $DEFAULT_USER..."
+            useradd -m -s /bin/bash "$DEFAULT_USER"
+            usermod -aG sudo "$DEFAULT_USER"
+        fi
+        chown -R "$DEFAULT_USER:$DEFAULT_USER" "$INSTALL_DIR"
+        chmod 600 .env
+        chown "$DEFAULT_USER:$DEFAULT_USER" .env
+    else
+        chown -R "$USER:$USER" "$INSTALL_DIR"
+        chmod 600 .env
+    fi
     
     log "Aplicação configurada!"
 }
@@ -381,7 +527,7 @@ Requires=postgresql.service
 
 [Service]
 Type=simple
-User=$USER
+User=$([[ "$IS_ROOT" == "true" ]] && echo "$DEFAULT_USER" || echo "$USER")
 WorkingDirectory=$INSTALL_DIR
 Environment=NODE_ENV=production
 ExecStart=/usr/bin/npm start
@@ -553,6 +699,7 @@ main() {
     
     update_system
     install_nodejs
+    check_existing_database  # Verificar banco antes de instalar PostgreSQL
     install_postgresql
     install_nginx
     install_certbot

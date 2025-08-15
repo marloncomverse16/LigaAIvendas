@@ -88,13 +88,15 @@ The LigAI Dashboard is built with a robust, multi-tenant architecture to ensure 
     - Automated cleanup of message sending history after 90 days.
     - Excel export functionality for users and CRM leads.
 - **VPS Deployment**:
-    - Complete automated installation system for Ubuntu/Debian VPS servers.
+    - Complete automated installation system for Ubuntu/Debian VPS servers with root user support.
+    - Intelligent database detection - checks for existing databases and allows user to choose between using existing or creating new.
     - Automated subdomain configuration with HTTPS/SSL (Let's Encrypt).
-    - PostgreSQL database setup with prompted credentials.
+    - PostgreSQL database setup with prompted credentials and existing database preservation.
     - Nginx reverse proxy with security headers and optimization.
     - Production optimizations including caching, compression, and monitoring.
-    - Systemd service configuration with automatic startup.
-    - Backup automation and maintenance scripts.
+    - Systemd service configuration with automatic startup and proper user management.
+    - Comprehensive update system with backup/rollback functionality via update-ligai.sh.
+    - Three-tier deployment approach: main installer, production optimizations, and dedicated update script.
     - Security hardening with Fail2ban and firewall configuration.
 
 ## External Dependencies
