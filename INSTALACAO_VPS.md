@@ -41,9 +41,22 @@ chmod +x install-ligai-final.sh
 #### 2. Executar a Instalação
 
 ```bash
-# Executar como root
-sudo ./install-ligai-final.sh
+# Usar a versão final corrigida (recomendado)
+chmod +x install-ligai-final-v4.sh
+sudo ./install-ligai-final-v4.sh
+
+# Ou a versão com detecção avançada
+chmod +x install-ligai-v4.sh
+sudo ./install-ligai-v4.sh
 ```
+
+### 🛠️ **Correções v4.0 Final:**
+
+- **✅ PostgreSQL Simplificado**: Sem travamentos na verificação de bancos
+- **✅ Timeouts Inteligentes**: Todas as operações têm timeout de segurança  
+- **✅ Fallback Robusto**: Aplicação básica se GitHub não acessível
+- **✅ Diagnóstico Melhorado**: Logs detalhados para troubleshooting
+- **✅ Download Garantido**: Clone Git + ZIP + fallback local
 
 #### 3. Configurações Solicitadas
 

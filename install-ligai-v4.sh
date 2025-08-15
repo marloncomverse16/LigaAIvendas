@@ -256,53 +256,70 @@ check_existing_databases() {
     
     # Verificar se PostgreSQL está rodando
     if ! systemctl is-active --quiet postgresql; then
+        log "PostgreSQL não está ativo, continuando..."
         return 0
     fi
     
-    # Listar bancos existentes
-    EXISTING_DBS=$(su - postgres -c "psql -lqt" 2>/dev/null | cut -d \| -f 1 | grep -v template | grep -v postgres | grep -v "^[[:space:]]*$" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    # Aguardar PostgreSQL estar completamente pronto
+    log "Aguardando PostgreSQL estar pronto..."
+    sleep 5
+    
+    # Tentar listar bancos com timeout
+    log "Listando bancos existentes..."
+    EXISTING_DBS=""
+    
+    # Usar timeout para evitar travamento
+    if timeout 10s su - postgres -c "psql -lqt" 2>/dev/null | grep -v template | grep -v postgres | grep -v "^[[:space:]]*$" > /tmp/existing_dbs.txt; then
+        EXISTING_DBS=$(cat /tmp/existing_dbs.txt | cut -d \| -f 1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | grep -v "^$")
+        rm -f /tmp/existing_dbs.txt
+    else
+        warn "Não foi possível listar bancos existentes (timeout ou erro)"
+        log "Continuando com configuração padrão..."
+        return 0
+    fi
     
     if [[ -n "$EXISTING_DBS" ]]; then
         echo ""
-        warn "Bancos de dados encontrados no sistema:"
-        echo "$EXISTING_DBS" | while IFS= read -r db; do
-            if [[ -n "$db" ]]; then
+        warn "Bancos de dados encontrados:"
+        echo "$EXISTING_DBS" | head -10 | while IFS= read -r db; do
+            if [[ -n "$db" && "$db" != "template0" && "$db" != "template1" && "$db" != "postgres" ]]; then
                 echo "  • $db"
             fi
         done
         echo ""
         
-        # Verificar se o banco que queremos criar já existe
+        # Verificar se o banco específico já existe
         if echo "$EXISTING_DBS" | grep -q "^${DB_NAME}$"; then
             warn "O banco '${DB_NAME}' já existe!"
             echo ""
-            question "O que deseja fazer?"
-            echo "1) Usar o banco existente (precisará fornecer credenciais)"
-            echo "2) Excluir e criar um novo banco"
-            echo "3) Cancelar instalação"
-            read -r db_choice
+            question "Escolha uma opção:"
+            echo "1) Usar banco existente (fornecer credenciais)"
+            echo "2) Excluir e criar novo"
+            echo "3) Continuar (tentar criar novo)"
+            echo -n "Opção [1-3]: "
             
-            case $db_choice in
-                1)
-                    log "Usando banco existente..."
-                    collect_existing_db_credentials
-                    ;;
-                2)
-                    warn "Excluindo banco existente..."
-                    su - postgres -c "psql -c \"DROP DATABASE IF EXISTS ${DB_NAME};\"" 2>/dev/null || true
-                    log "Banco ${DB_NAME} excluído. Será criado um novo."
-                    ;;
-                3)
-                    error "Instalação cancelada pelo usuário"
-                    exit 1
-                    ;;
-                *)
-                    warn "Opção inválida. Usando configurações padrão..."
-                    ;;
-            esac
+            # Timeout para input do usuário
+            if read -t 60 -r db_choice; then
+                case $db_choice in
+                    1)
+                        log "Usando banco existente..."
+                        collect_existing_db_credentials
+                        ;;
+                    2)
+                        warn "Excluindo banco existente..."
+                        timeout 10s su - postgres -c "psql -c \"DROP DATABASE IF EXISTS ${DB_NAME};\"" 2>/dev/null || true
+                        log "Tentativa de exclusão concluída."
+                        ;;
+                    3|*)
+                        log "Continuando com configuração padrão..."
+                        ;;
+                esac
+            else
+                warn "Timeout na escolha. Continuando com configuração padrão..."
+            fi
         fi
     else
-        log "Nenhum banco existente encontrado. Criando configuração nova."
+        log "Nenhum banco de usuário encontrado."
     fi
 }
 
@@ -311,34 +328,41 @@ collect_existing_db_credentials() {
     echo ""
     info "Configurações para banco existente '${DB_NAME}':"
     
-    question "Usuário do banco existente (atual: ${DB_USER}):"
-    read -r existing_user
-    if [[ -n "$existing_user" ]]; then
-        DB_USER="$existing_user"
+    echo -n "Usuário do banco existente (atual: ${DB_USER}): "
+    if read -t 60 -r existing_user; then
+        if [[ -n "$existing_user" ]]; then
+            DB_USER="$existing_user"
+        fi
+    else
+        warn "Timeout. Usando usuário padrão: ${DB_USER}"
     fi
     
-    question "Senha do banco existente:"
-    read -s existing_password
-    if [[ -n "$existing_password" ]]; then
-        DB_PASSWORD="$existing_password"
+    echo -n "Senha do banco existente: "
+    if read -t 60 -s existing_password; then
+        if [[ -n "$existing_password" ]]; then
+            DB_PASSWORD="$existing_password"
+        fi
+    else
+        warn "Timeout. Usando senha padrão."
     fi
     echo ""
     
-    # Testar conexão com credenciais fornecidas
+    # Testar conexão com timeout
     log "Testando conexão com banco existente..."
-    if PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1;" &>/dev/null; then
+    if timeout 10s bash -c "PGPASSWORD='${DB_PASSWORD}' psql -h localhost -U '${DB_USER}' -d '${DB_NAME}' -c 'SELECT 1;'" &>/dev/null; then
         success "Conexão com banco existente bem-sucedida!"
         export USE_EXISTING_DB=true
     else
         error "Falha na conexão com banco existente!"
-        question "Deseja tentar novamente com outras credenciais? (s/N):"
-        read -r retry
-        if [[ "$retry" =~ ^[Ss]$ ]]; then
-            collect_existing_db_credentials
-        else
-            warn "Será criado um novo usuário e configuração"
-            export USE_EXISTING_DB=false
+        echo -n "Tentar novamente com outras credenciais? (s/N): "
+        if read -t 30 -r retry; then
+            if [[ "$retry" =~ ^[Ss]$ ]]; then
+                collect_existing_db_credentials
+                return
+            fi
         fi
+        warn "Será criado um novo usuário e configuração"
+        export USE_EXISTING_DB=false
     fi
 }
 
@@ -357,8 +381,10 @@ install_postgresql() {
     # Aguardar inicialização
     sleep 5
     
-    # Verificar se há bancos existentes
-    check_existing_databases
+    # Verificar se há bancos existentes (com timeout de segurança)
+    timeout 30s check_existing_databases || {
+        warn "Verificação de bancos existentes demorou muito. Continuando..."
+    }
     
     # Configurar banco de dados apenas se não estiver usando existente
     if [[ "${USE_EXISTING_DB:-false}" != "true" ]]; then
@@ -408,10 +434,10 @@ install_postgresql() {
         sleep 3
     fi
     
-    # Testar conexão
+    # Testar conexão final
     log "Testando conexão final com PostgreSQL..."
     for i in {1..3}; do
-        if PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1;" &>/dev/null; then
+        if timeout 10s bash -c "PGPASSWORD='${DB_PASSWORD}' psql -h localhost -U '${DB_USER}' -d '${DB_NAME}' -c 'SELECT 1;'" &>/dev/null; then
             success "PostgreSQL configurado e testado!"
             return 0
         fi
@@ -420,10 +446,22 @@ install_postgresql() {
     done
     
     error "Falha na configuração do PostgreSQL após 3 tentativas"
-    log "Tentando diagnóstico..."
-    systemctl status postgresql --no-pager || true
-    su - postgres -c "psql -l" 2>/dev/null || true
-    exit 1
+    log "Executando diagnóstico..."
+    
+    # Diagnóstico básico
+    echo "=== DIAGNÓSTICO POSTGRESQL ==="
+    echo "Status do serviço:"
+    systemctl status postgresql --no-pager -l || true
+    echo ""
+    echo "Tentando conectar como postgres:"
+    timeout 5s su - postgres -c "psql -c '\l'" 2>&1 || echo "Falha na conexão como postgres"
+    echo ""
+    echo "Verificando portas:"
+    netstat -tlnp | grep :5432 || echo "Porta 5432 não está aberta"
+    echo "=============================="
+    
+    warn "PostgreSQL pode não estar funcionando corretamente, mas continuando..."
+    return 0  # Não parar a instalação por causa do PostgreSQL
 }
 
 # Instalar e configurar Nginx
