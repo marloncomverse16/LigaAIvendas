@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v5.3 (NPM Script Runner Fix)
-# Script final que usa 'npm run' para executar os comandos Knex, a abordagem mais robusta.
+# LigAI Dashboard VPS Installer v5.4 (Final Command Execution Fix)
+# Script final que usa a sintaxe correta de 'su' para chamar o 'npx knex' diretamente.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
@@ -24,7 +24,7 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v5.3"
+APP_DISPLAY_NAME="LigAI Dashboard v5.4"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
 GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
@@ -44,10 +44,10 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║       🚀 LigAI Dashboard v5.3 (NPM Script Runner Fix) 🚀      ║"
+    echo "║      🚀 LigAI Dashboard v5.4 (Final Command Fix) 🚀          ║"
     echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
-    echo "║  ✅ Usa 'npm run knex:*' para máxima compatibilidade         ║"
+    echo "║  ✅ Usa a sintaxe 'su -s /bin/bash -c' para o Knex           ║"
     echo "║  ✅ Abordagem final e mais robusta para setup do banco de dados║"
     echo "║  ✅ Processo de deploy 100% alinhado com o projeto           ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
@@ -166,7 +166,7 @@ setup_application( ) {
     mkdir -p "$APP_DIRECTORY" && chown "$APP_USER:$APP_USER" "$APP_DIRECTORY"
 
     log "Baixando aplicação de ${GITHUB_REPO}..."
-    su "$APP_USER" -c "git clone --depth 1 ${GITHUB_REPO} '${APP_DIRECTORY}'"
+    su "$APP_USER" -s /bin/bash -c "git clone --depth 1 ${GITHUB_REPO} '${APP_DIRECTORY}'"
     
     log "Criando arquivo .env..."
     cat > "${APP_DIRECTORY}/.env" << EOF
@@ -182,20 +182,20 @@ EOF
     chown "$APP_USER:$APP_USER" "${APP_DIRECTORY}/.env"
 
     log "Instalando todas as dependências..."
-    su "$APP_USER" -c "cd '$APP_DIRECTORY' && NODE_ENV=development npm install --loglevel error"
+    su "$APP_USER" -s /bin/bash -c "cd '$APP_DIRECTORY' && NODE_ENV=development npm install --loglevel error"
     success "Dependências instaladas."
     
-    # CORREÇÃO: Usar 'npm run' para executar os scripts do package.json de forma confiável.
+    # CORREÇÃO: Usar a sintaxe 'su -s /bin/bash -c' para garantir o ambiente e diretório corretos.
     log "Executando migrações do Knex para criar as tabelas..."
-    su "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run knex:migrate"
+    su "$APP_USER" -s /bin/bash -c "cd '$APP_DIRECTORY' && npx knex migrate:latest"
     success "Migrações do Knex concluídas."
 
     log "Executando seeds do Knex para popular o banco de dados..."
-    su "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run knex:seed"
+    su "$APP_USER" -s /bin/bash -c "cd '$APP_DIRECTORY' && npx knex seed:run"
     success "Seeds do Knex concluídos."
 
     log "Executando build da aplicação..."
-    su "$APP_USER" -c "cd '$APP_DIRECTORY' && npm run build"
+    su "$APP_USER" -s /bin/bash -c "cd '$APP_DIRECTORY' && npm run build"
     success "Build da aplicação concluído."
     warn "As dependências de desenvolvimento serão mantidas para garantir a execução."
 }
