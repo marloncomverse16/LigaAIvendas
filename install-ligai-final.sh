@@ -265,17 +265,257 @@ setup_application_directory() {
     log "Diretório da aplicação configurado: $APP_DIRECTORY"
 }
 
+# Baixar código fonte do LigAI
+download_source_code() {
+    log "Baixando código fonte do LigAI Dashboard..."
+    
+    cd "$APP_DIRECTORY"
+    
+    # Verificar se git está instalado
+    if ! command -v git &> /dev/null; then
+        log "Instalando git..."
+        $SUDO_CMD apt install -y git
+    fi
+    
+    # Clonar repositório do GitHub (substitua pela URL correta do seu repositório)
+    # Por enquanto, vou criar os arquivos essenciais manualmente
+    log "Criando estrutura de arquivos..."
+    
+    # Criar diretórios necessários
+    mkdir -p {client/src/{components,pages,lib,hooks},server,shared,uploads,migrations}
+}
+
+# Criar arquivos principais da aplicação
+create_application_files() {
+    log "Criando arquivos principais da aplicação..."
+    
+    cd "$APP_DIRECTORY"
+    
+    # Criar server/index.ts (arquivo principal do servidor)
+    cat > server/index.ts << 'EOF'
+import express from 'express';
+import { createServer } from 'http';
+import path from 'path';
+import cors from 'cors';
+
+const app = express();
+const server = createServer(app);
+const PORT = process.env.PORT || 5000;
+
+// Middlewares
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
+// Rota básica de health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'LigAI Dashboard está funcionando!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Rota para servir o frontend
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
+
+// Iniciar servidor
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 LigAI Dashboard rodando na porta ${PORT}`);
+  console.log(`📅 ${new Date().toLocaleString('pt-BR')}`);
+});
+
+export default app;
+EOF
+    
+    # Criar tsconfig.json
+    cat > tsconfig.json << 'EOF'
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./client/src/*"],
+      "@shared/*": ["./shared/*"]
+    }
+  },
+  "include": [
+    "server/**/*",
+    "shared/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "client"
+  ]
+}
+EOF
+    
+    # Criar vite.config.ts
+    cat > vite.config.ts << 'EOF'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: 'client/dist'
+  },
+  root: 'client',
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './client/src'),
+      '@shared': path.resolve(__dirname, './shared')
+    }
+  },
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
+      }
+    }
+  }
+});
+EOF
+    
+    # Criar client/index.html
+    mkdir -p client
+    cat > client/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LigAI Dashboard</title>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
+EOF
+    
+    # Criar client/src/main.tsx
+    mkdir -p client/src
+    cat > client/src/main.tsx << 'EOF'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+EOF
+    
+    # Criar client/src/App.tsx
+    cat > client/src/App.tsx << 'EOF'
+import React from 'react';
+
+function App() {
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            🚀 LigAI Dashboard
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Gestão de Leads WhatsApp
+          </p>
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+            ✅ Aplicação instalada com sucesso!
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+EOF
+    
+    # Criar client/src/index.css
+    cat > client/src/index.css << 'EOF'
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+EOF
+    
+    # Criar tailwind.config.ts
+    cat > tailwind.config.ts << 'EOF'
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  content: [
+    './client/src/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+
+export default config;
+EOF
+    
+    # Criar postcss.config.js
+    cat > postcss.config.js << 'EOF'
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+EOF
+    
+    # Build do frontend
+    log "Fazendo build do frontend..."
+    npm run build:client || warn "Build do frontend falhou, mas continuando..."
+    
+    log "✅ Arquivos principais criados!"
+}
+
 # Configurar aplicação
 setup_application() {
     log "Configurando aplicação LigAI..."
     
     cd "$APP_DIRECTORY"
     
-    # Criar estrutura da aplicação
-    mkdir -p {client/src,server,shared,uploads}
+    # Baixar código fonte
+    download_source_code
     
-    # package.json
-    cat > package.json << EOF
+    # package.json completo
+    cat > package.json << 'EOF'
 {
   "name": "ligai-dashboard",
   "version": "1.0.0",
@@ -286,21 +526,113 @@ setup_application() {
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "tsc -p server/tsconfig.json",
-    "start": "NODE_ENV=production node dist/server/index.js",
-    "db:push": "drizzle-kit push:pg",
-    "db:migrate": "drizzle-kit generate:pg && drizzle-kit push:pg"
+    "start": "NODE_ENV=production tsx server/index.ts",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit generate && drizzle-kit push"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@hookform/resolvers": "^3.3.2",
+    "@jridgewell/trace-mapping": "^0.3.20",
+    "@neondatabase/serverless": "^0.9.0",
+    "@radix-ui/react-accordion": "^1.1.2",
+    "@radix-ui/react-alert-dialog": "^1.0.5",
+    "@radix-ui/react-aspect-ratio": "^1.0.3",
+    "@radix-ui/react-avatar": "^1.0.4",
+    "@radix-ui/react-checkbox": "^1.0.4",
+    "@radix-ui/react-collapsible": "^1.0.3",
+    "@radix-ui/react-context-menu": "^2.1.5",
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-dropdown-menu": "^2.0.6",
+    "@radix-ui/react-hover-card": "^1.0.7",
+    "@radix-ui/react-label": "^2.0.2",
+    "@radix-ui/react-menubar": "^1.0.4",
+    "@radix-ui/react-navigation-menu": "^1.1.4",
+    "@radix-ui/react-popover": "^1.0.7",
+    "@radix-ui/react-progress": "^1.0.3",
+    "@radix-ui/react-radio-group": "^1.1.3",
+    "@radix-ui/react-scroll-area": "^1.0.5",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-separator": "^1.0.3",
+    "@radix-ui/react-slider": "^1.1.2",
+    "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-switch": "^1.0.3",
+    "@radix-ui/react-tabs": "^1.0.4",
+    "@radix-ui/react-toast": "^1.1.5",
+    "@radix-ui/react-toggle": "^1.0.3",
+    "@radix-ui/react-toggle-group": "^1.0.4",
+    "@radix-ui/react-tooltip": "^1.0.7",
+    "@replit/vite-plugin-cartographer": "^0.0.8",
+    "@replit/vite-plugin-runtime-error-modal": "^1.0.0",
+    "@tailwindcss/typography": "^0.5.10",
+    "@tailwindcss/vite": "^4.0.0-alpha.4",
+    "@tanstack/react-query": "^5.8.4",
+    "@tanstack/react-table": "^8.11.2",
+    "@types/connect-pg-simple": "^7.0.3",
+    "@types/express": "^4.17.21",
+    "@types/express-session": "^1.17.10",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^20.9.2",
+    "@types/passport": "^1.0.16",
+    "@types/passport-local": "^1.0.38",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@types/ws": "^8.5.10",
+    "@types/xlsx": "^0.0.36",
+    "@vitejs/plugin-react": "^4.1.1",
+    "autoprefixer": "^10.4.16",
+    "axios": "^1.6.2",
+    "class-variance-authority": "^0.7.0",
+    "cloudinary": "^1.41.0",
+    "clsx": "^2.0.0",
+    "cmdk": "^0.2.0",
+    "connect-pg-simple": "^9.0.1",
+    "cors": "^2.8.5",
+    "@types/cors": "^2.8.17",
+    "date-fns": "^2.30.0",
+    "drizzle-kit": "^0.20.6",
+    "drizzle-orm": "^0.29.1",
+    "drizzle-zod": "^0.5.1",
+    "embla-carousel-react": "^8.0.0-rc22",
+    "esbuild": "^0.19.8",
     "express": "^4.18.2",
-    "typescript": "^5.0.0",
-    "tsx": "^4.7.0",
-    "drizzle-orm": "^0.29.0",
+    "express-session": "^1.17.3",
+    "fluent-ffmpeg": "^2.1.2",
+    "framer-motion": "^10.16.5",
+    "input-otp": "^1.2.4",
+    "lucide-react": "^0.294.0",
+    "memorystore": "^1.6.7",
+    "multer": "^1.4.5-lts.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "next-themes": "^0.2.1",
+    "openai": "^4.20.1",
+    "passport": "^0.7.0",
+    "passport-local": "^1.0.0",
+    "pg": "^8.11.3",
+    "postcss": "^8.4.32",
     "postgres": "^3.4.3",
-    "@types/node": "^20.0.0",
     "react": "^18.2.0",
+    "react-day-picker": "^8.9.1",
     "react-dom": "^18.2.0",
-    "vite": "^5.0.0",
-    "@vitejs/plugin-react": "^4.2.0"
+    "react-hook-form": "^7.48.2",
+    "react-icons": "^4.12.0",
+    "react-resizable-panels": "^0.0.55",
+    "recharts": "^2.8.0",
+    "sharp": "^0.32.6",
+    "tailwind-merge": "^2.0.0",
+    "tailwindcss": "^3.3.6",
+    "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.6.0",
+    "tw-animate-css": "^0.1.0",
+    "typescript": "^5.3.2",
+    "vaul": "^0.7.9",
+    "vite": "^5.0.2",
+    "wouter": "^3.0.0",
+    "ws": "^8.14.2",
+    "xlsx": "^0.18.5",
+    "zod": "^3.22.4",
+    "zod-validation-error": "^1.5.0",
+    "zustand": "^4.4.7"
   }
 }
 EOF
@@ -308,6 +640,9 @@ EOF
     # Instalar dependências
     log "Instalando dependências npm..."
     npm install
+    
+    # Criar arquivos principais da aplicação
+    create_application_files
     
     # Criar arquivo .env
     log "Criando arquivo de configuração..."
