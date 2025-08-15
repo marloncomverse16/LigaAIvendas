@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LigAI Dashboard VPS Installer v5.0 (Project-Aware Final Version)
-# Script final baseado na análise do código-fonte, usando Knex para migrações.
+# LigAI Dashboard VPS Installer v5.1 (Execution Path Fix)
+# Script final que corrige o caminho de execução para os comandos Knex.
 # Autor: LigAI Team & Manus AI
 # Data: 15/08/2025
 
@@ -24,7 +24,7 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
 # --- Variáveis Globais ---
 APP_NAME="ligai-dashboard"
-APP_DISPLAY_NAME="LigAI Dashboard v5.0"
+APP_DISPLAY_NAME="LigAI Dashboard v5.1"
 APP_DIRECTORY_DEFAULT="/opt/ligai"
 APP_USER="ligai"
 GITHUB_REPO="https://github.com/marloncomverse16/LigaAIvendas.git"
@@ -44,11 +44,11 @@ show_banner() {
     clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║      🚀 LigAI Dashboard v5.0 (Project-Aware Final) 🚀        ║"
+    echo "║       🚀 LigAI Dashboard v5.1 (Execution Path Fix) 🚀        ║"
     echo "║              Instalador Inteligente para VPS                 ║"
     echo "║                                                              ║"
+    echo "║  ✅ Corrige o caminho de execução para os comandos Knex      ║"
     echo "║  ✅ Usa Knex para migrações e seeds (baseado no código-fonte)║"
-    echo "║  ✅ Remove lógicas incorretas do Prisma                      ║"
     echo "║  ✅ Processo de deploy 100% alinhado com o projeto           ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}\n"
 }
@@ -112,8 +112,6 @@ install_postgresql() {
     systemctl -q is-active postgresql || systemctl start postgresql
     systemctl -q is-enabled postgresql || systemctl enable postgresql
 
-    # Recria o banco de dados em toda instalação para garantir um estado limpo,
-    # já que o Knex irá popular os dados.
     log "Recriando banco de dados para garantir um estado limpo para as migrações..."
     su - postgres -c "dropdb --if-exists ${DB_NAME}"
     su - postgres -c "dropuser --if-exists ${DB_USER}"
@@ -189,7 +187,7 @@ EOF
     fi
     success "Dependências instaladas."
     
-    # CORREÇÃO: Usar Knex para preparar o banco de dados
+    # CORREÇÃO: Executar os comandos Knex dentro do diretório da aplicação
     log "Executando migrações do Knex para criar as tabelas..."
     if ! su - "$APP_USER" -c "cd '$APP_DIRECTORY' && npx knex migrate:latest"; then
         error "Falha ao executar as migrações do Knex." && exit 1
