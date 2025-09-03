@@ -125,13 +125,26 @@ install_nodejs() {
     
     # Remover completamente versões antigas
     log "Removendo versões antigas do Node.js..."
-    apt remove -y nodejs npm nodejs-doc >> "$LOG_FILE" 2>&1 || true
+    
+    # Parar processos ativos
+    pkill -f node >> "$LOG_FILE" 2>&1 || true
+    pkill -f npm >> "$LOG_FILE" 2>&1 || true
+    
+    # Remover TODOS os pacotes relacionados ao Node.js
+    apt remove --purge -y nodejs npm nodejs-doc node-* npm-* >> "$LOG_FILE" 2>&1 || true
     apt autoremove -y >> "$LOG_FILE" 2>&1 || true
     apt autoclean >> "$LOG_FILE" 2>&1 || true
     
-    # Limpar cache de pacotes
-    rm -rf /etc/apt/sources.list.d/nodesource.list* >> "$LOG_FILE" 2>&1 || true
-    rm -rf /usr/share/keyrings/nodesource.gpg >> "$LOG_FILE" 2>&1 || true
+    # Remover binários manualmente
+    rm -rf /usr/bin/node /usr/bin/npm /usr/bin/npx >> "$LOG_FILE" 2>&1 || true
+    rm -rf /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx >> "$LOG_FILE" 2>&1 || true
+    
+    # Limpar cache de pacotes e repositórios antigos
+    rm -rf /etc/apt/sources.list.d/nodesource* >> "$LOG_FILE" 2>&1 || true
+    rm -rf /usr/share/keyrings/nodesource* >> "$LOG_FILE" 2>&1 || true
+    
+    # Limpar qualquer referência ao node nos sources.list
+    sed -i '/nodesource/d' /etc/apt/sources.list >> "$LOG_FILE" 2>&1 || true
     
     # Atualizar repositórios
     apt update -y >> "$LOG_FILE" 2>&1
@@ -150,9 +163,34 @@ install_nodejs() {
     # Atualizar novamente
     apt update -y >> "$LOG_FILE" 2>&1
     
-    # Instalar nodejs
+    # Verificar se repositório NodeSource foi adicionado corretamente
+    if ! grep -q "nodesource" /etc/apt/sources.list.d/* 2>/dev/null; then
+        error "Repositório NodeSource não foi configurado corretamente"
+    fi
+    
+    # Instalar nodejs especificamente do repositório NodeSource
     log "Instalando Node.js a partir do repositório NodeSource..."
-    apt install -y nodejs >> "$LOG_FILE" 2>&1 || error "Falha na instalação do Node.js"
+    
+    # Forçar instalação da versão mais recente do repositório NodeSource
+    apt install -y nodejs >> "$LOG_FILE" 2>&1
+    
+    # Verificar se a versão correta foi instalada
+    if [[ -f "/usr/bin/node" ]]; then
+        installed_version=$(/usr/bin/node --version 2>/dev/null || echo "erro")
+        if [[ ! "$installed_version" =~ ^v2[0-9] ]]; then
+            warn "Versão incorreta instalada: $installed_version, tentando correção..."
+            
+            # Remover versão incorreta e tentar novamente
+            apt remove --purge -y nodejs >> "$LOG_FILE" 2>&1 || true
+            rm -rf /usr/bin/node >> "$LOG_FILE" 2>&1 || true
+            
+            # Forçar instalação específica
+            apt update -y >> "$LOG_FILE" 2>&1
+            apt install -y --reinstall nodejs >> "$LOG_FILE" 2>&1 || error "Falha na reinstalação do Node.js"
+        fi
+    else
+        error "Node.js não foi instalado"
+    fi
     
     # Verificar se NPM foi incluído, senão instalar separadamente
     if [[ ! -f "/usr/bin/npm" ]]; then
@@ -216,8 +254,8 @@ EOF
                 log "Node.js encontrado: $node_version"
                 log "NPM encontrado: $npm_version"
                 
-                # Verificar se é versão 20 (aceitar v20, v21, v22, etc.)
-                if [[ "$node_version" =~ ^v(2[0-9]|[3-9][0-9]) ]]; then
+                # Verificar se é versão 18+ (aceitar v18, v19, v20, v21, v22, etc.)
+                if [[ "$node_version" =~ ^v(1[8-9]|[2-9][0-9]) ]]; then
                     log "✅ Node.js instalado com sucesso: $node_version"
                     log "✅ NPM instalado: $npm_version"
                     
@@ -231,7 +269,16 @@ EOF
                     
                     return 0
                 else
-                    warn "Versão incorreta do Node.js: $node_version (necessário v20+)"
+                    warn "Versão incorreta do Node.js: $node_version (necessário v18+)"
+                    
+                    # Se chegou aqui com versão errada, tentar remover e reinstalar
+                    if [[ $attempt -eq $max_attempts ]]; then
+                        log "Tentando correção da versão incorreta..."
+                        apt remove --purge -y nodejs >> "$LOG_FILE" 2>&1 || true
+                        rm -rf /usr/bin/node /usr/bin/npm >> "$LOG_FILE" 2>&1 || true
+                        apt update -y >> "$LOG_FILE" 2>&1
+                        apt install -y --reinstall nodejs >> "$LOG_FILE" 2>&1 || true
+                    fi
                 fi
             else
                 warn "Binários não executáveis"
