@@ -122,14 +122,37 @@ install_basic_dependencies() {
 # Instalação do Node.js
 install_nodejs() {
     log "Instalando Node.js 20..."
+    
+    # Remover versões antigas do Node.js
+    apt remove -y nodejs npm >> "$LOG_FILE" 2>&1 || true
+    apt autoremove -y >> "$LOG_FILE" 2>&1
+    
+    # Instalar Node.js via NodeSource
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >> "$LOG_FILE" 2>&1
     apt install -y nodejs >> "$LOG_FILE" 2>&1 || error "Falha na instalação do Node.js"
+    
+    # Atualizar PATH e verificar instalação
+    export PATH="/usr/bin:$PATH"
+    hash -r
+    
+    # Verificar se os comandos estão disponíveis
+    if ! command -v node &> /dev/null; then
+        error "Node.js não foi instalado corretamente"
+    fi
+    
+    if ! command -v npm &> /dev/null; then
+        error "NPM não foi instalado corretamente"
+    fi
     
     # Verificar versões
     node_version=$(node --version)
     npm_version=$(npm --version)
     log "Node.js instalado: $node_version"
     log "NPM instalado: $npm_version"
+    
+    # Configurar npm para evitar problemas de permissão
+    npm config set fund false >> "$LOG_FILE" 2>&1
+    npm config set audit false >> "$LOG_FILE" 2>&1
 }
 
 # Instalação do PostgreSQL
@@ -237,10 +260,37 @@ install_project_dependencies() {
     
     cd "$LIGAI_DIR" || error "Diretório não encontrado"
     
-    # Instalar dependências como usuário ligai
-    sudo -u "$LIGAI_USER" npm install >> "$LOG_FILE" 2>&1 || error "Falha na instalação das dependências NPM"
+    # Verificar se package.json existe
+    if [[ ! -f "package.json" ]]; then
+        error "Arquivo package.json não encontrado em $LIGAI_DIR"
+    fi
     
-    log "Dependências do projeto instaladas"
+    # Configurar npm para o usuário ligai
+    sudo -u "$LIGAI_USER" npm config set fund false >> "$LOG_FILE" 2>&1
+    sudo -u "$LIGAI_USER" npm config set audit false >> "$LOG_FILE" 2>&1
+    
+    # Instalar dependências com timeout e retry
+    log "Instalando dependências NPM (pode levar alguns minutos)..."
+    
+    local max_attempts=3
+    local attempt=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        log "Tentativa $attempt de $max_attempts..."
+        
+        # Definir PATH explicitamente para o comando
+        if sudo -u "$LIGAI_USER" env PATH="/usr/bin:/usr/local/bin:$PATH" npm install --no-fund --no-audit >> "$LOG_FILE" 2>&1; then
+            log "Dependências NPM instaladas com sucesso"
+            return 0
+        else
+            warn "Tentativa $attempt falhou"
+            if [[ $attempt -eq $max_attempts ]]; then
+                error "Falha na instalação das dependências NPM após $max_attempts tentativas"
+            fi
+            ((attempt++))
+            sleep 5
+        fi
+    done
 }
 
 # Configuração das variáveis de ambiente
@@ -283,10 +333,14 @@ build_application() {
     
     cd "$LIGAI_DIR" || error "Diretório não encontrado"
     
-    # Build como usuário ligai
-    sudo -u "$LIGAI_USER" npm run build >> "$LOG_FILE" 2>&1 || error "Falha no build da aplicação"
+    # Build como usuário ligai com PATH explícito
+    log "Executando build da aplicação (pode levar alguns minutos)..."
     
-    log "Aplicação compilada com sucesso"
+    if sudo -u "$LIGAI_USER" env PATH="/usr/bin:/usr/local/bin:$PATH" npm run build >> "$LOG_FILE" 2>&1; then
+        log "Aplicação compilada com sucesso"
+    else
+        error "Falha no build da aplicação. Verifique o log: $LOG_FILE"
+    fi
 }
 
 # Configuração do banco de dados (migrations)
@@ -295,13 +349,19 @@ setup_database_schema() {
     
     cd "$LIGAI_DIR" || error "Diretório não encontrado"
     
-    # Executar migrations
-    sudo -u "$LIGAI_USER" npm run db:push >> "$LOG_FILE" 2>&1 || {
-        warn "Migration falhou, tentando com --force..."
-        sudo -u "$LIGAI_USER" npm run db:push -- --force >> "$LOG_FILE" 2>&1 || error "Falha na configuração do banco"
-    }
+    # Executar migrations com PATH explícito
+    log "Executando migrations do banco de dados..."
     
-    log "Esquema do banco configurado"
+    if sudo -u "$LIGAI_USER" env PATH="/usr/bin:/usr/local/bin:$PATH" npm run db:push >> "$LOG_FILE" 2>&1; then
+        log "Esquema do banco configurado com sucesso"
+    else
+        warn "Migration falhou, tentando com --force..."
+        if sudo -u "$LIGAI_USER" env PATH="/usr/bin:/usr/local/bin:$PATH" npm run db:push -- --force >> "$LOG_FILE" 2>&1; then
+            log "Esquema do banco configurado com --force"
+        else
+            error "Falha na configuração do banco de dados. Verifique o log: $LOG_FILE"
+        fi
+    fi
 }
 
 # Configuração do serviço systemd
@@ -320,6 +380,7 @@ User=$LIGAI_USER
 Group=$LIGAI_USER
 WorkingDirectory=$LIGAI_DIR
 Environment=NODE_ENV=production
+Environment=PATH=/usr/bin:/usr/local/bin:/bin
 ExecStart=/usr/bin/npm start
 Restart=always
 RestartSec=10
