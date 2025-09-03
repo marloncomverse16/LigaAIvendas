@@ -162,37 +162,67 @@ install_nodejs() {
     hash -r
     sleep 2
     
-    # Verificar instalação com retry
-    local max_attempts=3
+    # Aguardar instalação e recarregar variáveis
+    sleep 3
+    source /etc/environment 2>/dev/null || true
+    export PATH="/usr/bin:/usr/local/bin:/bin:/usr/sbin:/sbin:$PATH"
+    hash -r
+    
+    # Verificar instalação com múltiplas tentativas
+    local max_attempts=5
     local attempt=1
     
     while [[ $attempt -le $max_attempts ]]; do
         log "Verificação $attempt/$max_attempts..."
         
-        if command -v node &> /dev/null && command -v npm &> /dev/null; then
-            # Verificar versões
-            node_version=$(node --version 2>/dev/null || echo "erro")
-            npm_version=$(npm --version 2>/dev/null || echo "erro")
-            
-            if [[ "$node_version" =~ ^v2[0-9] ]]; then
-                log "Node.js instalado com sucesso: $node_version"
-                log "NPM instalado: $npm_version"
+        # Verificar se os binários existem
+        if [[ -f "/usr/bin/node" ]] && [[ -f "/usr/bin/npm" ]]; then
+            # Testar execução
+            if /usr/bin/node --version &>/dev/null && /usr/bin/npm --version &>/dev/null; then
+                node_version=$(/usr/bin/node --version 2>/dev/null)
+                npm_version=$(/usr/bin/npm --version 2>/dev/null)
                 
-                # Configurar npm
-                npm config set fund false >> "$LOG_FILE" 2>&1 || true
-                npm config set audit false >> "$LOG_FILE" 2>&1 || true
-                return 0
+                log "Node.js encontrado: $node_version"
+                log "NPM encontrado: $npm_version"
+                
+                # Verificar se é versão 20 (aceitar v20, v21, v22, etc.)
+                if [[ "$node_version" =~ ^v(2[0-9]|[3-9][0-9]) ]]; then
+                    log "✅ Node.js instalado com sucesso: $node_version"
+                    log "✅ NPM instalado: $npm_version"
+                    
+                    # Configurar npm
+                    /usr/bin/npm config set fund false >> "$LOG_FILE" 2>&1 || true
+                    /usr/bin/npm config set audit false >> "$LOG_FILE" 2>&1 || true
+                    
+                    # Criar links simbólicos se necessário
+                    ln -sf /usr/bin/node /usr/local/bin/node 2>/dev/null || true
+                    ln -sf /usr/bin/npm /usr/local/bin/npm 2>/dev/null || true
+                    
+                    return 0
+                else
+                    warn "Versão incorreta do Node.js: $node_version (necessário v20+)"
+                fi
+            else
+                warn "Binários não executáveis"
             fi
+        else
+            warn "Binários não encontrados em /usr/bin/"
         fi
         
-        warn "Tentativa $attempt falhou. Node: $(which node 2>/dev/null || echo 'não encontrado'), NPM: $(which npm 2>/dev/null || echo 'não encontrado')"
-        
         if [[ $attempt -eq $max_attempts ]]; then
-            error "Node.js 20 não foi instalado corretamente após $max_attempts tentativas. Versão detectada: $node_version"
+            # Diagnóstico detalhado
+            log "Diagnóstico final:"
+            log "- which node: $(which node 2>/dev/null || echo 'não encontrado')"
+            log "- which npm: $(which npm 2>/dev/null || echo 'não encontrado')"
+            log "- /usr/bin/node existe: $([[ -f /usr/bin/node ]] && echo 'sim' || echo 'não')"
+            log "- /usr/bin/npm existe: $([[ -f /usr/bin/npm ]] && echo 'sim' || echo 'não')"
+            log "- PATH atual: $PATH"
+            
+            error "Node.js 20 não foi instalado corretamente após $max_attempts tentativas"
         fi
         
         ((attempt++))
-        sleep 3
+        sleep 5
     done
 }
 
@@ -306,9 +336,9 @@ install_project_dependencies() {
         error "Arquivo package.json não encontrado em $LIGAI_DIR"
     fi
     
-    # Configurar npm para o usuário ligai
-    sudo -u "$LIGAI_USER" npm config set fund false >> "$LOG_FILE" 2>&1
-    sudo -u "$LIGAI_USER" npm config set audit false >> "$LOG_FILE" 2>&1
+    # Configurar npm para o usuário ligai usando caminho absoluto
+    sudo -u "$LIGAI_USER" /usr/bin/npm config set fund false >> "$LOG_FILE" 2>&1 || true
+    sudo -u "$LIGAI_USER" /usr/bin/npm config set audit false >> "$LOG_FILE" 2>&1 || true
     
     # Instalar dependências com timeout e retry
     log "Instalando dependências NPM (pode levar alguns minutos)..."
@@ -319,13 +349,15 @@ install_project_dependencies() {
     while [[ $attempt -le $max_attempts ]]; do
         log "Tentativa $attempt de $max_attempts..."
         
-        # Definir PATH explicitamente para o comando
-        if sudo -u "$LIGAI_USER" env PATH="/usr/bin:/usr/local/bin:$PATH" npm install --no-fund --no-audit >> "$LOG_FILE" 2>&1; then
+        # Usar caminho absoluto para npm
+        if sudo -u "$LIGAI_USER" /usr/bin/npm install --no-fund --no-audit >> "$LOG_FILE" 2>&1; then
             log "Dependências NPM instaladas com sucesso"
             return 0
         else
             warn "Tentativa $attempt falhou"
             if [[ $attempt -eq $max_attempts ]]; then
+                log "Último erro:"
+                tail -10 "$LOG_FILE" | grep -E "(error|Error|ERROR)" || true
                 error "Falha na instalação das dependências NPM após $max_attempts tentativas"
             fi
             ((attempt++))
@@ -374,12 +406,14 @@ build_application() {
     
     cd "$LIGAI_DIR" || error "Diretório não encontrado"
     
-    # Build como usuário ligai com PATH explícito
+    # Build como usuário ligai usando caminho absoluto
     log "Executando build da aplicação (pode levar alguns minutos)..."
     
-    if sudo -u "$LIGAI_USER" env PATH="/usr/bin:/usr/local/bin:$PATH" npm run build >> "$LOG_FILE" 2>&1; then
+    if sudo -u "$LIGAI_USER" /usr/bin/npm run build >> "$LOG_FILE" 2>&1; then
         log "Aplicação compilada com sucesso"
     else
+        log "Erro no build - últimas linhas do log:"
+        tail -20 "$LOG_FILE" | grep -E "(error|Error|ERROR|Failed|failed)" || true
         error "Falha no build da aplicação. Verifique o log: $LOG_FILE"
     fi
 }
@@ -390,16 +424,18 @@ setup_database_schema() {
     
     cd "$LIGAI_DIR" || error "Diretório não encontrado"
     
-    # Executar migrations com PATH explícito
+    # Executar migrations usando caminho absoluto
     log "Executando migrations do banco de dados..."
     
-    if sudo -u "$LIGAI_USER" env PATH="/usr/bin:/usr/local/bin:$PATH" npm run db:push >> "$LOG_FILE" 2>&1; then
+    if sudo -u "$LIGAI_USER" /usr/bin/npm run db:push >> "$LOG_FILE" 2>&1; then
         log "Esquema do banco configurado com sucesso"
     else
         warn "Migration falhou, tentando com --force..."
-        if sudo -u "$LIGAI_USER" env PATH="/usr/bin:/usr/local/bin:$PATH" npm run db:push -- --force >> "$LOG_FILE" 2>&1; then
+        if sudo -u "$LIGAI_USER" /usr/bin/npm run db:push -- --force >> "$LOG_FILE" 2>&1; then
             log "Esquema do banco configurado com --force"
         else
+            log "Erro na migration - últimas linhas do log:"
+            tail -20 "$LOG_FILE" | grep -E "(error|Error|ERROR|Failed|failed)" || true
             error "Falha na configuração do banco de dados. Verifique o log: $LOG_FILE"
         fi
     fi
