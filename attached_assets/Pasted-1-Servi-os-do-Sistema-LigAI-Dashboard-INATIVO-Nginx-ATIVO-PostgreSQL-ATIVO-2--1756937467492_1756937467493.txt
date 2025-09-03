@@ -1,0 +1,66 @@
+1. Serviços do Sistema:
+LigAI Dashboard... ❌ INATIVO
+Nginx... ✅ ATIVO
+PostgreSQL... ✅ ATIVO
+
+2. Comandos Essenciais:
+Node.js... ✅ OK (v20.19.5)
+NPM... ✅ OK (10.8.2)
+PostgreSQL Client... ✅ OK (psql (PostgreSQL) 12.22 (Ubuntu 12.22-0ubuntu0.20.04.4))
+
+3. Estrutura de Arquivos:
+Diretório da aplicação... ✅ EXISTE
+Arquivo package.json... ✅ EXISTE
+Arquivo .env... ✅ EXISTE
+Diretório dist (build)... ✅ EXISTE
+
+4. Conectividade:
+Aplicação na porta 5000... ❌ SEM RESPOSTA
+GitHub acessível... ✅ ACESSÍVEL
+
+5. Logs do Sistema:
+Log de instalação... ✅ EXISTE
+  Últimas 5 linhas:
+  [2025-09-04 00:04:26] Fail2Ban configurado
+  [2025-09-04 00:04:26] Iniciando serviços...
+  [2025-09-04 00:04:26] Serviços iniciados
+  [2025-09-04 00:04:26] Verificando instalação...
+  [ERRO] ❌ Falha ao iniciar o serviço
+
+6. Banco de Dados:
+PostgreSQL conectável... ✅ OK
+Banco ligai_db existe... could not change directory to "/root": Permission denied
+✅ EXISTE
+
+7. Logs do Serviço LigAI (Últimas 20 linhas):
+-- Logs begin at Wed 2025-09-03 22:01:03 CEST, end at Thu 2025-09-04 00:10:49 CEST. --
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]: file:///opt/ligai/dist/index.js:1181
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:       throw new Error(
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:             ^
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]: Error: DATABASE_URL must be set. Did you forget to provision a database?
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:     at server/db.ts (file:///opt/ligai/dist/index.js:1181:13)
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:     at __init (file:///opt/ligai/dist/index.js:6:56)
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:     at server/storage.ts (file:///opt/ligai/dist/index.js:1208:5)
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:     at __init (file:///opt/ligai/dist/index.js:6:56)
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:     at file:///opt/ligai/dist/index.js:9162:1
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]:     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45961]: Node.js v20.19.5
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45942]: npm notice
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45942]: npm notice New major version of npm available! 10.8.2 -> 11.6.0
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45942]: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.0
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45942]: npm notice To update run: npm install -g npm@11.6.0
+Sep 04 00:10:43 vmi2760486.contaboserver.net ligai-dashboard[45942]: npm notice
+Sep 04 00:10:43 vmi2760486.contaboserver.net systemd[1]: ligai-dashboard.service: Main process exited, code=exited, status=1/FAILURE
+Sep 04 00:10:43 vmi2760486.contaboserver.net systemd[1]: ligai-dashboard.service: Failed with result 'exit-code'.
+
+8. Ações Sugeridas:
+• Reiniciar serviço LigAI: sudo systemctl restart ligai-dashboard
+
+==========================================
+Para mais informações, consulte:
+• Log de instalação: /var/log/ligai-install.log
+• Logs do serviço: journalctl -u ligai-dashboard -f
+• Status dos serviços: systemctl status ligai-dashboard nginx postgresql
+root@vmi2760486:~#
