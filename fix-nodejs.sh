@@ -63,6 +63,21 @@ remove_nodejs() {
 install_nodejs_20() {
     log "Instalando Node.js 20..."
     
+    # Tentar primeiro via snap (mais confiável)
+    log "Tentativa 1: Instalação via snap..."
+    if snap install node --classic >> /dev/null 2>&1; then
+        # Criar links simbólicos
+        ln -sf /snap/bin/node /usr/bin/node 2>/dev/null || true
+        ln -sf /snap/bin/npm /usr/bin/npm 2>/dev/null || true
+        
+        # Verificar se funcionou
+        if command -v node &> /dev/null && command -v npm &> /dev/null; then
+            log "✅ Node.js instalado via snap"
+            return 0
+        fi
+    fi
+    
+    log "Tentativa 2: Instalação via NodeSource..."
     # Atualizar sistema
     apt update -y >> /dev/null 2>&1
     
@@ -78,12 +93,31 @@ install_nodejs_20() {
     
     # Atualizar e instalar
     apt update -y >> /dev/null 2>&1
-    apt install -y nodejs >> /dev/null 2>&1 || error "Falha na instalação do Node.js"
+    apt install -y nodejs >> /dev/null 2>&1
+    
+    # Se NPM não veio junto, instalar separadamente
+    if [[ ! -f "/usr/bin/npm" ]] && [[ -f "/usr/bin/node" ]]; then
+        log "NPM não incluído, instalando separadamente..."
+        apt install -y npm >> /dev/null 2>&1 || {
+            # Instalar NPM manualmente se apt falhar
+            log "Instalando NPM manualmente..."
+            curl -L https://registry.npmjs.org/npm/-/npm-10.2.4.tgz | tar xz -C /tmp
+            mkdir -p /usr/lib/node_modules
+            mv /tmp/package /usr/lib/node_modules/npm
+            
+            # Criar wrapper
+            cat > /usr/bin/npm << 'EOF'
+#!/bin/bash
+exec /usr/bin/node /usr/lib/node_modules/npm/bin/npm-cli.js "$@"
+EOF
+            chmod +x /usr/bin/npm
+        }
+    fi
     
     # Limpar arquivo temporário
     rm -f /tmp/nodesource_setup.sh
     
-    log "Node.js instalado"
+    log "Node.js instalado via NodeSource"
 }
 
 # Função para verificar instalação

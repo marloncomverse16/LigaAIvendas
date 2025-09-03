@@ -154,6 +154,37 @@ install_nodejs() {
     log "Instalando Node.js a partir do repositório NodeSource..."
     apt install -y nodejs >> "$LOG_FILE" 2>&1 || error "Falha na instalação do Node.js"
     
+    # Verificar se NPM foi incluído, senão instalar separadamente
+    if [[ ! -f "/usr/bin/npm" ]]; then
+        log "NPM não incluído no pacote, instalando separadamente..."
+        apt install -y npm >> "$LOG_FILE" 2>&1 || {
+            warn "Falha na instalação do NPM via apt, tentando método alternativo..."
+            # Instalar NPM via script oficial
+            curl -qL https://www.npmjs.com/install.sh | sh >> "$LOG_FILE" 2>&1 || true
+            # Tentar baixar manualmente do GitHub
+            if [[ ! -f "/usr/bin/npm" ]]; then
+                log "Instalando NPM manualmente..."
+                wget -O /tmp/npm.tar.gz https://registry.npmjs.org/npm/-/npm-10.2.4.tgz >> "$LOG_FILE" 2>&1 || true
+                if [[ -f "/tmp/npm.tar.gz" ]]; then
+                    cd /tmp
+                    tar -xzf npm.tar.gz >> "$LOG_FILE" 2>&1 || true
+                    if [[ -d "package" ]]; then
+                        # Criar script wrapper para NPM
+                        cat > /usr/bin/npm << 'EOF'
+#!/bin/bash
+exec /usr/bin/node /usr/lib/node_modules/npm/bin/npm-cli.js "$@"
+EOF
+                        chmod +x /usr/bin/npm >> "$LOG_FILE" 2>&1 || true
+                        # Copiar módulo npm
+                        mkdir -p /usr/lib/node_modules >> "$LOG_FILE" 2>&1 || true
+                        cp -r package /usr/lib/node_modules/npm >> "$LOG_FILE" 2>&1 || true
+                    fi
+                    rm -rf /tmp/npm.tar.gz /tmp/package
+                fi
+            fi
+        }
+    fi
+    
     # Limpar arquivo temporário
     rm -f /tmp/nodesource_setup.sh
     
