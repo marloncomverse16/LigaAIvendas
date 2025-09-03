@@ -123,36 +123,77 @@ install_basic_dependencies() {
 install_nodejs() {
     log "Instalando Node.js 20..."
     
-    # Remover versões antigas do Node.js
-    apt remove -y nodejs npm >> "$LOG_FILE" 2>&1 || true
-    apt autoremove -y >> "$LOG_FILE" 2>&1
+    # Remover completamente versões antigas
+    log "Removendo versões antigas do Node.js..."
+    apt remove -y nodejs npm nodejs-doc >> "$LOG_FILE" 2>&1 || true
+    apt autoremove -y >> "$LOG_FILE" 2>&1 || true
+    apt autoclean >> "$LOG_FILE" 2>&1 || true
     
-    # Instalar Node.js via NodeSource
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >> "$LOG_FILE" 2>&1
+    # Limpar cache de pacotes
+    rm -rf /etc/apt/sources.list.d/nodesource.list* >> "$LOG_FILE" 2>&1 || true
+    rm -rf /usr/share/keyrings/nodesource.gpg >> "$LOG_FILE" 2>&1 || true
+    
+    # Atualizar repositórios
+    apt update -y >> "$LOG_FILE" 2>&1
+    
+    # Instalar Node.js 20 via NodeSource com verificação
+    log "Configurando repositório NodeSource..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh >> "$LOG_FILE" 2>&1
+    
+    if [[ ! -f /tmp/nodesource_setup.sh ]]; then
+        error "Falha ao baixar script de instalação do NodeSource"
+    fi
+    
+    # Executar script de setup
+    bash /tmp/nodesource_setup.sh >> "$LOG_FILE" 2>&1 || error "Falha na configuração do repositório NodeSource"
+    
+    # Atualizar novamente
+    apt update -y >> "$LOG_FILE" 2>&1
+    
+    # Instalar nodejs
+    log "Instalando Node.js a partir do repositório NodeSource..."
     apt install -y nodejs >> "$LOG_FILE" 2>&1 || error "Falha na instalação do Node.js"
     
-    # Atualizar PATH e verificar instalação
-    export PATH="/usr/bin:$PATH"
+    # Limpar arquivo temporário
+    rm -f /tmp/nodesource_setup.sh
+    
+    # Atualizar PATH e hash
+    export PATH="/usr/bin:/usr/local/bin:$PATH"
     hash -r
+    sleep 2
     
-    # Verificar se os comandos estão disponíveis
-    if ! command -v node &> /dev/null; then
-        error "Node.js não foi instalado corretamente"
-    fi
+    # Verificar instalação com retry
+    local max_attempts=3
+    local attempt=1
     
-    if ! command -v npm &> /dev/null; then
-        error "NPM não foi instalado corretamente"
-    fi
-    
-    # Verificar versões
-    node_version=$(node --version)
-    npm_version=$(npm --version)
-    log "Node.js instalado: $node_version"
-    log "NPM instalado: $npm_version"
-    
-    # Configurar npm para evitar problemas de permissão
-    npm config set fund false >> "$LOG_FILE" 2>&1
-    npm config set audit false >> "$LOG_FILE" 2>&1
+    while [[ $attempt -le $max_attempts ]]; do
+        log "Verificação $attempt/$max_attempts..."
+        
+        if command -v node &> /dev/null && command -v npm &> /dev/null; then
+            # Verificar versões
+            node_version=$(node --version 2>/dev/null || echo "erro")
+            npm_version=$(npm --version 2>/dev/null || echo "erro")
+            
+            if [[ "$node_version" =~ ^v2[0-9] ]]; then
+                log "Node.js instalado com sucesso: $node_version"
+                log "NPM instalado: $npm_version"
+                
+                # Configurar npm
+                npm config set fund false >> "$LOG_FILE" 2>&1 || true
+                npm config set audit false >> "$LOG_FILE" 2>&1 || true
+                return 0
+            fi
+        fi
+        
+        warn "Tentativa $attempt falhou. Node: $(which node 2>/dev/null || echo 'não encontrado'), NPM: $(which npm 2>/dev/null || echo 'não encontrado')"
+        
+        if [[ $attempt -eq $max_attempts ]]; then
+            error "Node.js 20 não foi instalado corretamente após $max_attempts tentativas. Versão detectada: $node_version"
+        fi
+        
+        ((attempt++))
+        sleep 3
+    done
 }
 
 # Instalação do PostgreSQL

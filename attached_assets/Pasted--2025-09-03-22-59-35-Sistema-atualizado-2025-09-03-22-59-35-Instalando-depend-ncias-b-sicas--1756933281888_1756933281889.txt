@@ -1,0 +1,58 @@
+[2025-09-03 22:59:35] Sistema atualizado
+[2025-09-03 22:59:35] Instalando dependências básicas...
+[2025-09-03 22:59:37] Dependências básicas instaladas
+[2025-09-03 22:59:37] Instalando Node.js 20...
+[ERRO] NPM não foi instalado corretamente
+root@vmi2760486:~# chmod +x ligai-diagnostic.sh
+root@vmi2760486:~# sudo bash ligai-diagnostic.sh
+LigAI Dashboard - Diagnóstico do Sistema
+==========================================
+
+1. Serviços do Sistema:
+LigAI Dashboard... ❌ INATIVO
+Nginx... ✅ ATIVO
+PostgreSQL... ✅ ATIVO
+
+2. Comandos Essenciais:
+Node.js... ✅ OK (v10.19.0)
+NPM... ❌ NÃO ENCONTRADO
+PostgreSQL Client... ✅ OK (psql (PostgreSQL) 12.22 (Ubuntu 12.22-0ubuntu0.20.04.4))
+
+3. Estrutura de Arquivos:
+Diretório da aplicação... ✅ EXISTE
+Arquivo package.json... ✅ EXISTE
+Arquivo .env... ❌ NÃO EXISTE
+Diretório dist (build)... ⚠️ NÃO EXISTE
+
+4. Conectividade:
+Aplicação na porta 5000... ❌ SEM RESPOSTA
+GitHub acessível... ✅ ACESSÍVEL
+
+5. Logs do Sistema:
+Log de instalação... ✅ EXISTE
+  Últimas 5 linhas:
+  Setting up nodejs (10.19.0~dfsg-3ubuntu1.6) ...
+  update-alternatives: using /usr/bin/nodejs to provide /usr/bin/js (js) in auto mode
+  Processing triggers for libc-bin (2.31-0ubuntu9.18) ...
+  Processing triggers for man-db (2.9.1-1) ...
+  [ERRO] NPM não foi instalado corretamente
+
+6. Banco de Dados:
+PostgreSQL conectável... ✅ OK
+Banco ligai_db existe... could not change directory to "/root": Permission denied
+❌ NÃO EXISTE
+
+7. Logs do Serviço LigAI (Últimas 20 linhas):
+-- Logs begin at Wed 2025-09-03 22:01:03 CEST, end at Wed 2025-09-03 23:01:07 CEST. --
+-- No entries --
+
+8. Ações Sugeridas:
+• Reiniciar serviço LigAI: sudo systemctl restart ligai-dashboard
+• Executar build: cd /opt/ligai && sudo -u ligai npm run build
+
+==========================================
+Para mais informações, consulte:
+• Log de instalação: /var/log/ligai-install.log
+• Logs do serviço: journalctl -u ligai-dashboard -f
+• Status dos serviços: systemctl status ligai-dashboard nginx postgresql
+root@vmi2760486:~#
