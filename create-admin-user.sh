@@ -39,19 +39,19 @@ if ! systemctl is-active --quiet postgresql; then
     exit 1
 fi
 
-# Verificar se database ligai existe
-log "Verificando database 'ligai'..."
-DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='ligai';" 2>/dev/null)
+# Verificar se database ligai_db existe
+log "Verificando database 'ligai_db'..."
+DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='ligai_db';" 2>/dev/null)
 if [[ "$DB_EXISTS" != "1" ]]; then
-    warn "Database 'ligai' não existe. Criando..."
-    sudo -u postgres psql -c "CREATE DATABASE ligai OWNER ligai;" 2>/dev/null || {
-        error "Não foi possível criar o database 'ligai'"
+    warn "Database 'ligai_db' não existe. Criando..."
+    sudo -u postgres psql -c "CREATE DATABASE ligai_db OWNER ligai;" 2>/dev/null || {
+        error "Não foi possível criar o database 'ligai_db'"
         exit 1
     }
-    log "✅ Database 'ligai' criado"
+    log "✅ Database 'ligai_db' criado"
 fi
 
-# Conectar ao database ligai e criar a tabela users se não existir
+# Conectar ao database ligai_db e criar a tabela users se não existir
 log "Verificando estrutura das tabelas..."
 
 # SQL para criar tabela users se não existir
@@ -76,7 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 "
 
 # Executar criação da tabela
-sudo -u postgres psql -d ligai -c "$CREATE_TABLE_SQL" 2>/dev/null || {
+sudo -u postgres psql -d ligai_db -c "$CREATE_TABLE_SQL" 2>/dev/null || {
     error "Não foi possível criar a tabela users"
     exit 1
 }
@@ -85,7 +85,7 @@ log "✅ Estrutura da tabela users verificada"
 
 # Verificar se usuário admin já existe
 log "Verificando se usuário admin já existe..."
-ADMIN_EXISTS=$(sudo -u postgres psql -d ligai -tAc "SELECT 1 FROM users WHERE email='admin@ligai.com' OR username='admin';" 2>/dev/null)
+ADMIN_EXISTS=$(sudo -u postgres psql -d ligai_db -tAc "SELECT 1 FROM users WHERE email='admin@ligai.com' OR username='admin';" 2>/dev/null)
 
 if [[ "$ADMIN_EXISTS" == "1" ]]; then
     warn "Usuário admin já existe!"
@@ -98,7 +98,7 @@ if [[ "$ADMIN_EXISTS" == "1" ]]; then
         # Nota: Em produção, use um hash bcrypt real
         PASSWORD_HASH='$2b$10$rHjmvFKhGjhWVz7k.Sf1PuQ3QQdAWx.JgzV6lKhIrAWkBmRl5BzLK'
         
-        sudo -u postgres psql -d ligai -c "
+        sudo -u postgres psql -d ligai_db -c "
             UPDATE users 
             SET password = '$PASSWORD_HASH', 
                 updated_at = CURRENT_TIMESTAMP 
@@ -150,7 +150,7 @@ else
     "
     
     # Executar inserção
-    sudo -u postgres psql -d ligai -c "$INSERT_ADMIN_SQL" 2>/dev/null || {
+    sudo -u postgres psql -d ligai_db -c "$INSERT_ADMIN_SQL" 2>/dev/null || {
         error "Não foi possível criar o usuário admin"
         exit 1
     }
@@ -160,7 +160,7 @@ fi
 
 # Verificar se usuário foi criado corretamente
 log "Verificando usuário criado..."
-USER_INFO=$(sudo -u postgres psql -d ligai -c "SELECT id, email, username, nome, plano FROM users WHERE email='admin@ligai.com';" 2>/dev/null)
+USER_INFO=$(sudo -u postgres psql -d ligai_db -c "SELECT id, email, username, nome, plano FROM users WHERE email='admin@ligai.com';" 2>/dev/null)
 
 echo
 echo -e "${GREEN}🎉 USUÁRIO ADMIN CONFIGURADO! 🎉${NC}"
@@ -185,9 +185,9 @@ echo -e "${GREEN}Agora você pode acessar: https://ligai.primerastreadores.com${
 echo "Use as credenciais acima para fazer login no sistema."
 
 # Mostrar total de usuários
-TOTAL_USERS=$(sudo -u postgres psql -d ligai -tAc "SELECT COUNT(*) FROM users;" 2>/dev/null)
+TOTAL_USERS=$(sudo -u postgres psql -d ligai_db -tAc "SELECT COUNT(*) FROM users;" 2>/dev/null)
 log "Total de usuários no sistema: $TOTAL_USERS"
 
 echo
 echo -e "${YELLOW}Para verificar todos os usuários:${NC}"
-echo "sudo -u postgres psql -d ligai -c \"SELECT id, email, username, nome, plano, data_cadastro FROM users;\""
+echo "sudo -u postgres psql -d ligai_db -c \"SELECT id, email, username, nome, plano, data_cadastro FROM users;\""

@@ -82,9 +82,9 @@ echo -e "${YELLOW}3. Configurando usuário e database...${NC}"
 sudo -u postgres psql -c "CREATE USER ligai WITH PASSWORD 'ligai';" 2>/dev/null || true
 sudo -u postgres psql -c "ALTER USER ligai CREATEDB;" 2>/dev/null || true
 
-# Criar database ligai se não existir  
-sudo -u postgres psql -c "CREATE DATABASE ligai OWNER ligai;" 2>/dev/null || true
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ligai TO ligai;" 2>/dev/null || true
+# Criar database ligai_db se não existir  
+sudo -u postgres psql -c "CREATE DATABASE ligai_db OWNER ligai;" 2>/dev/null || true
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ligai_db TO ligai;" 2>/dev/null || true
 
 echo -e "${GREEN}✅ Usuário e database configurados${NC}"
 
@@ -125,13 +125,13 @@ else
     echo -e "${YELLOW}⚠️ PostgreSQL ainda pode estar apenas em localhost${NC}"
 fi
 
-# Testar conexão com database ligai
-echo -e "${YELLOW}6. Testando database 'ligai'...${NC}"
-DB_TEST=$(sudo -u postgres psql -lqt | grep -w ligai)
+# Testar conexão com database ligai_db
+echo -e "${YELLOW}6. Testando database 'ligai_db'...${NC}"
+DB_TEST=$(sudo -u postgres psql -lqt | grep -w ligai_db)
 if [[ -n "$DB_TEST" ]]; then
-    echo -e "${GREEN}✅ Database 'ligai' existe e está acessível${NC}"
+    echo -e "${GREEN}✅ Database 'ligai_db' existe e está acessível${NC}"
 else
-    echo -e "${RED}❌ Database 'ligai' não foi criado corretamente${NC}"
+    echo -e "${RED}❌ Database 'ligai_db' não foi criado corretamente${NC}"
 fi
 
 echo
@@ -141,7 +141,7 @@ echo "Teste agora no PGAdmin:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Host:     109.123.251.250"
 echo "Port:     5432"
-echo "Database: ligai"
+echo "Database: ligai_db"
 echo "Username: ligai"
 echo "Password: ligai"
 echo "SSL Mode: Disable"
