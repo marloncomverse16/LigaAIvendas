@@ -1,0 +1,168 @@
+Last login: Thu Sep  4 19:22:00 2025 from 177.23.61.56
+root@vmi2760486:~# sudo bash postgresql-diagnostic.sh
+LigAI Dashboard - Diagnóstico PostgreSQL
+================================================
+
+1. Status do PostgreSQL:
+✅ PostgreSQL está rodando
+📋 Versão detectada: PostgreSQL 12
+
+2. Portas de escuta:
+✅ PostgreSQL escutando na porta 5432
+tcp     LISTEN   0        244                                         127.0.0.1:5432                                  0.0.0.0:*
+⚠️ Escutando apenas em localhost
+❌ PROBLEMA: PostgreSQL não aceita conexões externas
+
+3. Configuração postgresql.conf:
+📁 Arquivo: /etc/postgresql/12/main/postgresql.conf
+🔧 listen_addresses: não encontrado
+❌ NÃO configurado para conexões externas
+🔧 port: port = 5432                            # (change requires restart)
+
+4. Configuração pg_hba.conf:
+📁 Arquivo: /etc/postgresql/12/main/pg_hba.conf
+🔧 Regras para usuário 'ligai':
+   ✅ host    all             ligai           0.0.0.0/0               md5
+   ✅ host    all             ligai           0.0.0.0/0               md5
+   ✅ host    all             ligai           0.0.0.0/0               md5
+   ✅ host    all             ligai           0.0.0.0/0               md5
+
+5. Configuração do Firewall:
+🔥 UFW Status:
+5432                       ALLOW       Anywhere
+5432/tcp                   ALLOW       Anywhere
+5432 (v6)                  ALLOW       Anywhere (v6)
+5432/tcp (v6)              ALLOW       Anywhere (v6)
+✅ Porta 5432 liberada no firewall
+
+6. Usuário PostgreSQL 'ligai':
+✅ Usuário 'ligai' existe
+🔧 Permissões: t|f
+
+7. Database 'ligai':
+❌ Database 'ligai' NÃO existe
+
+8. Teste de Conexão:
+🔧 Testando conexão local...
+Password for user ligai:
+⚠️ Conexão local requer senha
+could not change directory to "/root": Permission denied
+psql: error: FATAL:  database "ligai" does not exist
+
+==================== RESUMO ====================
+
+❌ PROBLEMA 1: PostgreSQL não aceita conexões externas
+   Solução: Configurar listen_addresses = '*' em postgresql.conf
+🔧 Execute: sudo bash configure-postgresql-external.sh
+
+Para aplicar correções automaticamente:
+sudo bash configure-postgresql-external.sh
+root@vmi2760486:~# sudo bash configure-postgresql-external.sh
+Configurando PostgreSQL para Acesso Externo
+==================================================
+could not change directory to "/root": Permission denied
+[19:37:05] PostgreSQL versão detectada: 12.22(Ubuntu12
+[19:37:05] Fazendo backup dos arquivos de configuração...
+[19:37:05] Configurando postgresql.conf...
+grep: /etc/postgresql/12.22(Ubuntu12/main/postgresql.conf: No such file or directory
+configure-postgresql-external.sh: line 64: /etc/postgresql/12.22(Ubuntu12/main/postgresql.conf: No such file or directory
+grep: /etc/postgresql/12.22(Ubuntu12/main/postgresql.conf: No such file or directory
+configure-postgresql-external.sh: line 70: /etc/postgresql/12.22(Ubuntu12/main/postgresql.conf: No such file or directory
+[19:37:05] ✅ postgresql.conf configurado
+[19:37:05] Configurando pg_hba.conf...
+sed: can't read /etc/postgresql/12.22(Ubuntu12/main/pg_hba.conf: No such file or directory
+sed: can't read /etc/postgresql/12.22(Ubuntu12/main/pg_hba.conf: No such file or directory
+configure-postgresql-external.sh: line 83: /etc/postgresql/12.22(Ubuntu12/main/pg_hba.conf: No such file or directory
+[19:37:05] ✅ pg_hba.conf configurado
+[19:37:05] Configurando firewall...
+Skipping adding existing rule
+Skipping adding existing rule (v6)
+[19:37:05] ✅ Firewall configurado para porta 5432
+[19:37:05] Verificando usuário PostgreSQL 'ligai'...
+ALTER ROLE
+[19:37:06] ✅ Usuário ligai configurado
+[19:37:06] Reiniciando PostgreSQL...
+[19:37:08] ✅ PostgreSQL reiniciado com sucesso
+[19:37:11] Testando conexão local...
+Password for user ligai:
+[AVISO] Conexão local falhou, mas isso pode ser normal se a senha estiver incorreta
+[19:37:18] Verificando portas abertas...
+configure-postgresql-external.sh: line 135: netstat: command not found
+[AVISO] PostgreSQL pode não estar escutando corretamente
+
+🎉 CONFIGURAÇÃO CONCLUÍDA! 🎉
+
+Configurações para PGAdmin:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Host:     109.123.251.250
+Port:     5432
+Database: ligai
+Username: ligai
+Password: ligai
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Dicas:
+• Se ainda não conectar, aguarde 1-2 minutos
+• Certifique-se de que seu firewall local permite conexões na porta 5432
+• Teste com SSL Mode: 'Disable' no PGAdmin
+
+Para verificar logs: journalctl -u postgresql -f
+root@vmi2760486:~# sudo bash postgresql-diagnostic.sh
+LigAI Dashboard - Diagnóstico PostgreSQL
+================================================
+
+1. Status do PostgreSQL:
+✅ PostgreSQL está rodando
+📋 Versão detectada: PostgreSQL 12
+
+2. Portas de escuta:
+✅ PostgreSQL escutando na porta 5432
+tcp     LISTEN   0        244                                         127.0.0.1:5432                                  0.0.0.0:*
+⚠️ Escutando apenas em localhost
+❌ PROBLEMA: PostgreSQL não aceita conexões externas
+
+3. Configuração postgresql.conf:
+📁 Arquivo: /etc/postgresql/12/main/postgresql.conf
+🔧 listen_addresses: não encontrado
+❌ NÃO configurado para conexões externas
+🔧 port: port = 5432                            # (change requires restart)
+
+4. Configuração pg_hba.conf:
+📁 Arquivo: /etc/postgresql/12/main/pg_hba.conf
+🔧 Regras para usuário 'ligai':
+   ✅ host    all             ligai           0.0.0.0/0               md5
+   ✅ host    all             ligai           0.0.0.0/0               md5
+   ✅ host    all             ligai           0.0.0.0/0               md5
+   ✅ host    all             ligai           0.0.0.0/0               md5
+
+5. Configuração do Firewall:
+🔥 UFW Status:
+5432                       ALLOW       Anywhere
+5432/tcp                   ALLOW       Anywhere
+5432 (v6)                  ALLOW       Anywhere (v6)
+5432/tcp (v6)              ALLOW       Anywhere (v6)
+✅ Porta 5432 liberada no firewall
+
+6. Usuário PostgreSQL 'ligai':
+✅ Usuário 'ligai' existe
+🔧 Permissões: t|f
+
+7. Database 'ligai':
+❌ Database 'ligai' NÃO existe
+
+8. Teste de Conexão:
+🔧 Testando conexão local...
+Password for user ligai:
+⚠️ Conexão local requer senha
+could not change directory to "/root": Permission denied
+psql: error: FATAL:  database "ligai" does not exist
+
+==================== RESUMO ====================
+
+❌ PROBLEMA 1: PostgreSQL não aceita conexões externas
+   Solução: Configurar listen_addresses = '*' em postgresql.conf
+🔧 Execute: sudo bash configure-postgresql-external.sh
+
+Para aplicar correções automaticamente:
+sudo bash configure-postgresql-external.sh
+root@vmi2760486:~#

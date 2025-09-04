@@ -27,13 +27,28 @@ warn() {
     echo -e "${YELLOW}[AVISO]${NC} $1"
 }
 
-# Encontrar versão do PostgreSQL
-PG_VERSION=$(sudo -u postgres psql -c "SHOW server_version;" | head -3 | tail -1 | cut -d'.' -f1,2 | tr -d ' ')
+# Encontrar versão do PostgreSQL de forma mais robusta
+PG_VERSION=""
 
+# Método 1: Procurar diretórios de versão diretamente
+for version in 12 13 14 15 16; do
+    if [[ -d "/etc/postgresql/$version/main" ]]; then
+        PG_VERSION=$version
+        break
+    fi
+done
+
+# Método 2: Se não encontrou, tentar extrair da versão do psql
 if [[ -z "$PG_VERSION" ]]; then
-    # Tentar versões comuns
-    for version in 12 13 14 15 16; do
-        if [[ -d "/etc/postgresql/$version" ]]; then
+    PG_VERSION=$(psql --version 2>/dev/null | grep -o '[0-9]\+' | head -1)
+fi
+
+# Método 3: Verificar se o diretório da versão extraída existe
+if [[ -n "$PG_VERSION" ]] && [[ ! -d "/etc/postgresql/$PG_VERSION/main" ]]; then
+    # Se a versão extraída não tem diretório, procurar qualquer versão disponível
+    PG_VERSION=""
+    for version in 16 15 14 13 12 11 10; do
+        if [[ -d "/etc/postgresql/$version/main" ]]; then
             PG_VERSION=$version
             break
         fi
@@ -102,9 +117,12 @@ sudo -u postgres psql -c "CREATE USER ligai WITH PASSWORD 'ligai';" 2>/dev/null 
 
 # Dar privilégios ao usuário
 sudo -u postgres psql -c "ALTER USER ligai CREATEDB;" 2>/dev/null || true
+
+# Criar database ligai se não existir
+sudo -u postgres psql -c "CREATE DATABASE ligai OWNER ligai;" 2>/dev/null || true
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ligai TO ligai;" 2>/dev/null || true
 
-log "✅ Usuário ligai configurado"
+log "✅ Usuário e database ligai configurados"
 
 # Reiniciar PostgreSQL
 log "Reiniciando PostgreSQL..."
@@ -132,12 +150,25 @@ fi
 
 # Verificar se está escutando na porta correta
 log "Verificando portas abertas..."
-POSTGRES_LISTENING=$(netstat -ln | grep ":5432" | head -1)
-if [[ -n "$POSTGRES_LISTENING" ]]; then
-    log "✅ PostgreSQL está escutando na porta 5432"
-    echo "   $POSTGRES_LISTENING"
+if command -v netstat >/dev/null 2>&1; then
+    POSTGRES_LISTENING=$(netstat -ln | grep ":5432" | head -1)
+elif command -v ss >/dev/null 2>&1; then
+    POSTGRES_LISTENING=$(ss -ln | grep ":5432" | head -1)
 else
-    warn "PostgreSQL pode não estar escutando corretamente"
+    POSTGRES_LISTENING="comando não encontrado"
+fi
+
+if [[ -n "$POSTGRES_LISTENING" ]] && [[ "$POSTGRES_LISTENING" != "comando não encontrado" ]]; then
+    if echo "$POSTGRES_LISTENING" | grep -q "0.0.0.0:5432\|:::5432"; then
+        log "✅ PostgreSQL está escutando na porta 5432 (todas as interfaces)"
+        echo "   $POSTGRES_LISTENING"
+    else
+        log "✅ PostgreSQL está escutando na porta 5432"  
+        echo "   $POSTGRES_LISTENING"
+        warn "Mas ainda pode estar apenas em localhost - aguarde o teste final"
+    fi
+else
+    warn "Não foi possível verificar se PostgreSQL está escutando corretamente"
 fi
 
 echo
