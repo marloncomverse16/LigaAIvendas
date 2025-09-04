@@ -1,0 +1,32 @@
+                                                Table "public.users"
+          Column           |            Type             | Collation | Nullable |              Default
+---------------------------+-----------------------------+-----------+----------+-----------------------------------
+ id                        | integer                     |           | not null | nextval('users_id_seq'::regclass)
+ username                  | text                        |           | not null |
+ email                     | text                        |           | not null |
+ password                  | text                        |           | not null |
+ name                      | text                        |           |          |
+ company                   | text                        |           |          |
+ phone                     | text                        |           |          |
+ bio                       | text                        |           |          |
+ avatar_url                | text                        |           |          |
+ profile_image             | text                        |           |          |
+ whatsapp_webhook_url      | text                        |           |          |
+ ai_agent_webhook_url      | text                        |           |          |
+ prospecting_webhook_url   | text                        |           |          |
+ dispatches_webhook_url    | text                        |           |          |
+ contacts_webhook_url      | text                        |           |          |
+ scheduling_webhook_url    | text                        |           |          |
+ crm_webhook_url           | text                        |           |          |
+ available_tokens          | integer                     |           |          | 0
+ token_expiration_days     | integer                     |           |          | 30
+ monthly_fee               | text                        |           |          | '0'::text
+ server_address            | text                        |           |          |
+ server_id                 | integer                     |           |          |
+ whatsapp_instance_webhook | text                        |           |          |
+ whatsapp_instance_id      | text                        |           |          |
+ whatsapp_api_url          | text                        |           |          |
+ whatsapp_api_token        | text                        |           |          |
+ meta_phone_number_id      | text                        |           |          |
+ meta_connected            | boolean                     |           |          | false
+:
