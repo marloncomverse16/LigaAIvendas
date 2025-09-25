@@ -331,7 +331,7 @@ function GoalsSettings() {
                 name="custoIcloudTotal"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Custo Icloud Total</FormLabel>
+                    <FormLabel>Custo Meta Total</FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="R$ 0,00" 
